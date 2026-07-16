@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ElisCaretex</title>
+
+  <link rel="stylesheet" href="./assets/css/global.css">
+
+  <!-- Biblioteca oficial do Supabase para navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- A ordem destes arquivos é importante -->
+  <script src="./assets/js/config.js" defer></script>
+  <script src="./assets/js/supabase-client.js" defer></script>
+  <script src="./assets/js/app.js" defer></script>
+</head>
+
+<body>
+  <main class="page">
+
+    <!-- =====================================================
+         Tela de login
+         ===================================================== -->
+    <section id="loginView" class="card auth-card">
+      <div class="brand">
+        <span class="brand-mark">EC</span>
+
+        <div>
+          <h1>ElisCaretex</h1>
+          <p>Ambiente de desenvolvimento</p>
+        </div>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">E-mail</label>
+
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label for="password">Senha</label>
+
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <button id="loginButton" class="primary-button" type="submit">
+          Entrar
+        </button>
+      </form>
+
+      <p id="loginMessage" class="message" aria-live="polite"></p>
+    </section>
+
+    <!-- =====================================================
+         Tela exibida depois do login
+         ===================================================== -->
+    <section id="appView" class="app-shell hidden">
+      <header class="topbar">
+        <div>
+          <p class="environment-label">ElisCaretex-dev</p>
+          <h1>Painel inicial</h1>
+        </div>
+
+        <button id="logoutButton" class="secondary-button" type="button">
+          Sair
+        </button>
+      </header>
+
+      <section class="profile-card">
+        <div>
+          <p class="eyebrow">Usuário autenticado</p>
+          <h2 id="profileName">Carregando...</h2>
+          <p id="profileEmail" class="muted"></p>
+        </div>
+
+        <div>
+          <p class="eyebrow">Código</p>
+          <p id="employeeCode">—</p>
+        </div>
+
+        <div>
+          <p class="eyebrow">Funções</p>
+          <div id="roleList" class="role-list"></div>
+        </div>
+      </section>
+
+      <p id="appMessage" class="message" aria-live="polite"></p>
+
+      <section class="module-grid" aria-label="Módulos do sistema">
+        <button class="module-card" type="button" disabled>
+          <strong>Customers</strong>
+          <span>Cadastro e programação</span>
+          <small>Próxima etapa</small>
+        </button>
+
+        <button class="module-card" type="button" disabled>
+          <strong>Trolleys</strong>
+          <span>Envio, recebimento e dias fora</span>
+          <small>Em preparação</small>
+        </button>
+
+        <button class="module-card" type="button" disabled>
+          <strong>Sorting</strong>
+          <span>Recebimento e lavagem</span>
+          <small>Em preparação</small>
+        </button>
+
+        <button class="module-card" type="button" disabled>
+          <strong>Finish</strong>
+          <span>Produção de clothes</span>
+          <small>Em preparação</small>
+        </button>
+
+        <button class="module-card" type="button" disabled>
+          <strong>Mop Production</strong>
+          <span>Produção e unidades</span>
+          <small>Em preparação</small>
+        </button>
+
+        <button class="module-card" type="button" disabled>
+          <strong>Roster</strong>
+          <span>Escala dos funcionários</span>
+          <small>Em preparação</small>
+        </button>
+      </section>
+    </section>
+
+  </main>
+</body>
+</html>
