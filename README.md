@@ -1,63 +1,28 @@
 # Laundry Platform V2
 
-Nova plataforma operacional da lavanderia.
+ElisCaretex's shared operational platform for customer planning, distribution, roster, sorting, MOP, Finish, trolley custody and production tracking.
 
-## Objetivo desta primeira versão
+## Start here
 
-Esta fundação cria:
+- `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` is the current AI handover and delivery baseline.
+- `docs/architecture/overview.md` is the current architecture and access-model summary.
+- `docs/architecture/PLATFORM_CORRECTION_REGISTER_20260818.md` is the active register of known risks and future corrections.
+- `docs/NAVIGATION-ACCESS-MODEL.md` defines the role-aware workspace navigation.
+- `supabase/migrations/` is the database change history. Do not alter or rerun historical migrations without an approved database deployment plan.
+- `.reference-distribution/` holds the supplied Google Script distribution reference used for functional comparison.
 
-- estrutura organizada do projeto;
-- autenticação ligada ao Supabase Auth;
-- perfis operacionais de staff, sem dados privados;
-- clientes, áreas, estações, turnos e tipos de produto;
-- programação versionada dos customers;
-- estrutura inicial de Roster;
-- controle de trolleys por data de envio e data de recebimento;
-- exceção rastreável para trolley recebido sem envio registrado;
-- auditoria básica;
-- regras críticas centralizadas no PostgreSQL.
-
-A produção de Sorting, Finish, Mop, ABS e Reports será criada nas próximas
-migrações, depois da revisão sistemática das aplicações antigas.
-
-## Importante
-
-Execute a migração inicialmente em um projeto Supabase novo de desenvolvimento,
-por exemplo:
-
-`laundry-v2-dev`
-
-Não execute no banco atualmente usado pelas aplicações em produção.
-
-## Pastas
+## Project structure
 
 ```text
-laundry-platform-v2/
-├── frontend/
-├── supabase/
-│   ├── migrations/
-│   ├── seed/
-│   ├── functions/
-│   └── tests/
-└── docs/
+frontend/     Static operational frontend
+supabase/     Database migrations, Edge Functions and validation SQL
+docs/         Current architecture, operational, database, frontend and test guidance
+graphify-out/  Locally generated code map and technical report
 ```
 
-## Primeiro passo no Supabase
+## Working rules
 
-1. Crie ou abra um projeto novo de desenvolvimento.
-2. Abra `SQL Editor`.
-3. Abra o arquivo:
-   `supabase/migrations/202607160001_foundation.sql`
-4. Copie todo o conteúdo.
-5. Cole no SQL Editor.
-6. Clique em `Run`.
-7. Depois execute:
-   `supabase/seed/202607160001_reference_seed.sql`
-
-## O que ainda não fazer
-
-- Não importar os dados antigos.
-- Não apagar o CentralDB atual.
-- Não ligar as aplicações atuais ao V2.
-- Não criar telas completas antes de revisar as regras antigas.
-- Não colocar `service_role`, secret key ou senha do banco no frontend.
+1. Use controlled Supabase RPCs for protected operational data; navigation visibility is not authorization.
+2. Keep production terminals separate from individual system-user accounts.
+3. Preserve the distinction between planned, actual, reported and corrected operational facts.
+4. Refresh Graphify after material source changes before a cross-module review. The checked-in map may be older than the current handover when a local file lock prevents regeneration.
