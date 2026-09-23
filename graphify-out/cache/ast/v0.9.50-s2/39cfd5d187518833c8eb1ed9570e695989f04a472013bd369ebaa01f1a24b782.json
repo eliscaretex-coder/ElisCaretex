@@ -1,1 +1,0 @@
-{"nodes": [{"id": "$graphify-root$_supabase_migrations_202608240006_restore_shared_trolley_report_access_sql", "label": "202608240006_restore_shared_trolley_report_access.sql", "file_type": "code", "source_file": "supabase/migrations/202608240006_restore_shared_trolley_report_access.sql", "source_location": null}], "edges": []}
