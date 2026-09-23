@@ -32,14 +32,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     reviewConfirm: document.getElementById("trolleyReviewConfirm")
   };
 
-  const trolleyTabIds = ["tracking", "locations", "master", "types"];
+  const trolleyTabIds = ["locations", "master", "types"];
   const initialTab = String(location.hash || "").replace("#", "");
 
   const state = {
-    activeTab: trolleyTabIds.includes(initialTab) ? initialTab : "tracking",
-    trackingRecent: [],
-    trackingCode: "",
-    trackingRecord: null,
+    activeTab: trolleyTabIds.includes(initialTab) ? initialTab : "locations",
     capabilities: {},
     trolleyTypes: [],
     warningDays: 14,
@@ -50,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     masterFilter: "ALL",
     typeMasterItems: [],
     typeSelectedId: "",
+    typeEditing: false,
+    masterAction: "",
     queueItems: [],
     busy: false
   };
@@ -240,7 +239,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function availableTabs() {
     const tabs = [
-      { id: "tracking", label: "Tracking" },
       { id: "locations", label: "Locations" },
       { id: "master", label: "Trolley Master" },
       { id: "types", label: "Trolley Types" }
@@ -677,6 +675,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         <strong>Master governance</strong>
         <span>Technical code is immutable after creation. Customer Schedule eligibility is governed separately from physical type creation.</span>
       </div>
+      ${state.capabilities.can_manage_trolley_types || state.capabilities.can_manage_trolley_master ? `
+        <div class="trolleys-form-actions trolleys-detail-actions">
+          <button id="trolleyTypeEdit" class="trolleys-primary-button" type="button">Edit this type</button>
+        </div>` : ""}
     `;
   }
 
@@ -819,7 +821,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             </article>
             <article class="trolleys-card trolleys-type-master-editor">
               <div class="trolleys-card-body">
-                ${trolleyTypeEditor(selected, isNew)}
+                ${state.typeEditing || isNew ? trolleyTypeEditor(selected, isNew) : trolleyTypeReadOnlyDetails(selected)}
               </div>
             </article>
           </section>
@@ -866,6 +868,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ...common
           });
       state.typeSelectedId = result?.trolley_type_id || id;
+      state.typeEditing = false;
       await refreshReferenceData();
       setPageMessage(result?.message || "Trolley Type saved.", "success");
       await renderTrolleyTypes();
@@ -909,8 +912,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!state.capabilities.can_manage_trolley_master) return "";
 
     return `
+      <section class="trolleys-card trolleys-master-command-bar">
+        <div>
+          <p class="trolleys-section-eyebrow">Master actions</p>
+          <h2>Physical trolley administration</h2>
+          <p>Open an action only when you need to change the master record.</p>
+        </div>
+        <div class="trolleys-action-row">
+          <button id="trolleyOpenRegister" class="trolleys-primary-button" type="button">+ Register trolley</button>
+          <button id="trolleyOpenService" class="trolleys-secondary-button" type="button">Service or retirement</button>
+        </div>
+      </section>
       <section class="trolleys-two-column trolleys-master-actions">
-        <article class="trolleys-card">
+        <article class="trolleys-card"${state.masterAction === "register" ? "" : " hidden"}>
           <header class="trolleys-card-header">
             <div>
               <p class="trolleys-section-eyebrow">Trolley Master</p>
@@ -940,12 +954,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             </label>
             <p id="registerTrolleyMessage" class="trolleys-inline-message wide" aria-live="polite"></p>
             <div class="trolleys-form-actions">
+              <button class="trolleys-secondary-button" data-close-master-action type="button">Cancel</button>
               <button class="trolleys-primary-button" type="submit">Register trolley</button>
             </div>
           </form>
         </article>
 
-        <article class="trolleys-card">
+        <article class="trolleys-card"${state.masterAction === "service" ? "" : " hidden"}>
           <header class="trolleys-card-header">
             <div>
               <p class="trolleys-section-eyebrow">Controlled status</p>
@@ -972,6 +987,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             </label>
             <p id="serviceTrolleyMessage" class="trolleys-inline-message wide" aria-live="polite"></p>
             <div class="trolleys-form-actions">
+              <button class="trolleys-secondary-button" data-close-master-action type="button">Cancel</button>
               <button class="trolleys-primary-button" type="submit">Confirm status change</button>
             </div>
           </form>
@@ -980,21 +996,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
+  function trolleySizeSummary(types) {
+    const rows = types
+      .filter((type) => Number(type.physical_trolley_count || 0) > 0)
+      .sort((a, b) => Number(b.physical_trolley_count || 0) - Number(a.physical_trolley_count || 0));
+    if (!rows.length) return '<div class="trolleys-empty">No physical trolley quantities are available by type.</div>';
+    return `<div class="trolleys-size-summary-grid">${rows.map((type) => `
+      <article class="trolleys-size-summary-item">
+        <span>${escapeHtml(type.display_code || type.trolley_type_code)}</span>
+        <strong>${Number(type.physical_trolley_count || 0)}</strong>
+        <small>${escapeHtml(type.trolley_type_name)} · ${Number(type.active_physical_trolley_count || 0)} active</small>
+      </article>`).join("")}</div>`;
+  }
+
   async function renderMaster() {
     renderLoading("Loading Trolley Master...");
 
     try {
-      const data = await rpc("get_trolley_dashboard", {
-        p_search: state.masterSearch || null,
-        p_filter: state.masterFilter
-      });
+      const [data, typeData] = await Promise.all([
+        rpc("get_trolley_dashboard", {
+          p_search: state.masterSearch || null,
+          p_filter: state.masterFilter
+        }),
+        rpc("get_trolley_type_master")
+      ]);
       const summary = data?.summary || {};
       const items = Array.isArray(data?.items) ? data.items : [];
+      const typeItems = Array.isArray(typeData?.items) ? typeData.items : [];
       const retiredVisible = items.filter((item) => item.status === "RETIRED").length;
 
       elements.main.innerHTML = `
         <section class="trolleys-dashboard">
           ${managementForms()}
+
+          <section class="trolleys-card trolleys-size-summary-card">
+            <header class="trolleys-card-header">
+              <div><p class="trolleys-section-eyebrow">Fleet composition</p><h2>Trolleys by size / type</h2><p>Total registered physical trolleys, grouped by the operational size code.</p></div>
+            </header>
+            <div class="trolleys-card-body">${trolleySizeSummary(typeItems)}</div>
+          </section>
 
           <div class="trolleys-kpi-grid">
             ${kpi(summary.total_active, "Active trolleys")}
@@ -1117,15 +1157,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderTabs();
     setPageMessage("");
     if (location.hash !== `#${state.activeTab}`) history.replaceState(null, "", `#${state.activeTab}`);
-    if (state.activeTab === "tracking") await renderTracking();
-    else if (state.activeTab === "locations") await renderLocations();
+    if (state.activeTab === "locations") await renderLocations();
     else if (state.activeTab === "master") await renderMaster();
     else if (state.activeTab === "types") await renderTrolleyTypes();
   }
 
   async function switchTrolleyTab(tabId) {
     if (state.busy) return;
-    const next = trolleyTabIds.includes(tabId) ? tabId : "tracking";
+    const next = trolleyTabIds.includes(tabId) ? tabId : "locations";
     if (next === state.activeTab) return;
     state.activeTab = next;
     await renderActiveTab();
@@ -1148,7 +1187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         p_source_application: "TROLLEY_MASTER_UI"
       });
       form.reset();
-      document.getElementById("registerTrolleyDate").value = localDateValue();
+      state.masterAction = "";
       setPageMessage(`Trolley ${result?.trolley_code || ""} registered.`, "success");
       await renderMaster();
     } catch (error) {
@@ -1185,6 +1224,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         p_source_application: "TROLLEY_MASTER_UI"
       });
       form.reset();
+      state.masterAction = "";
       setPageMessage(`Trolley ${result?.trolley_code || code} is now ${titleCaseCode(result?.status)}.`, "success");
       await renderMaster();
     } catch (error) {
@@ -1344,28 +1384,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("hashchange", () => switchTrolleyTab(String(location.hash || "").replace("#", "")));
 
   elements.main.addEventListener("click", async (event) => {
-    const trackingChip = event.target.closest("[data-track-code]");
-    if (trackingChip) {
-      await trackTrolley(trackingChip.dataset.trackCode);
-      return;
-    }
-
-    if (event.target.closest("#trolleyTrackingClear")) {
-      state.trackingCode = "";
-      state.trackingRecord = null;
-      await renderTracking();
-      return;
-    }
-
     const typeCard = event.target.closest("[data-select-trolley-type]");
     if (typeCard) {
       state.typeSelectedId = typeCard.dataset.selectTrolleyType;
+      state.typeEditing = false;
       await renderTrolleyTypes();
       return;
     }
 
     if (event.target.closest("#trolleyTypeNew")) {
       state.typeSelectedId = "__NEW__";
+      state.typeEditing = true;
+      await renderTrolleyTypes();
+      return;
+    }
+
+    if (event.target.closest("#trolleyTypeEdit")) {
+      state.typeEditing = true;
       await renderTrolleyTypes();
       return;
     }
@@ -1373,7 +1408,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (event.target.closest("#trolleyTypeCancel")) {
       const currentId = document.getElementById("trolleyTypeMasterId")?.value || "";
       state.typeSelectedId = currentId || state.typeMasterItems[0]?.trolley_type_id || "";
+      state.typeEditing = false;
       await renderTrolleyTypes();
+      return;
+    }
+
+    if (event.target.closest("#trolleyOpenRegister")) {
+      state.masterAction = "register";
+      await renderMaster();
+      document.getElementById("registerTrolleyCode")?.focus();
+      return;
+    }
+
+    if (event.target.closest("#trolleyOpenService")) {
+      state.masterAction = "service";
+      await renderMaster();
+      document.getElementById("serviceTrolleyCode")?.focus();
+      return;
+    }
+
+    if (event.target.closest("[data-close-master-action]")) {
+      state.masterAction = "";
+      await renderMaster();
       return;
     }
 
@@ -1402,9 +1458,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   elements.main.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (event.target.id === "trolleyTrackingForm") {
-      await trackTrolley(document.getElementById("trolleyTrackingInput")?.value || "");
-    } else if (event.target.id === "trolleyLocationFilterForm") {
+    if (event.target.id === "trolleyLocationFilterForm") {
       state.locationSearch = document.getElementById("trolleyLocationSearch").value.trim();
       state.locationFilter = document.getElementById("trolleyLocationFilter").value;
       await renderLocations();

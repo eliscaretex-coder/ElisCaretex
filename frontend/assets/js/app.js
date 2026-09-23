@@ -33,6 +33,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const operationalSidebarToggle = document.getElementById("operationalSidebarToggle");
   const operationalNav = document.getElementById("operationalNav");
+  const sidebarPreferenceKey = "elis.operational.sidebar.expanded";
+
+  function savedSidebarPreference() {
+    try {
+      return window.sessionStorage.getItem(sidebarPreferenceKey) === "true";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function saveSidebarPreference(expanded) {
+    try {
+      window.sessionStorage.setItem(sidebarPreferenceKey, String(expanded));
+    } catch (_) {
+      // Navigation remains functional without browser storage.
+    }
+  }
   const operationalModuleGrid = document.getElementById("operationalModuleGrid");
   const operationalPrimaryAction = document.getElementById("operationalPrimaryAction");
   const operationalAreaCode = document.getElementById("operationalAreaCode");
@@ -281,6 +298,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderOperationalShell(profile, roleCodes) {
+    const sidebarExpanded = savedSidebarPreference();
+    operationalShell.classList.toggle("sidebar-expanded", sidebarExpanded);
+    operationalSidebarToggle.setAttribute("aria-expanded", String(sidebarExpanded));
     const context = shellPolicy.operationalContext(roleCodes);
     const modules = shellPolicy.operationalModules(roleCodes);
     const primaryModule = shellPolicy.primaryOperationalModule(roleCodes);
@@ -557,6 +577,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   operationalSidebarToggle.addEventListener("click", () => {
     const expanded = operationalShell.classList.toggle("sidebar-expanded");
+    saveSidebarPreference(expanded);
     operationalSidebarToggle.setAttribute("aria-expanded", String(expanded));
     operationalSidebarToggle.setAttribute(
       "aria-label",
@@ -565,6 +586,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     operationalSidebarToggle.title = expanded
       ? "Collapse navigation"
       : "Expand navigation";
+  });
+
+  operationalNav.addEventListener("click", () => {
+    saveSidebarPreference(operationalShell.classList.contains("sidebar-expanded"));
   });
 
   client.auth.onAuthStateChange((event) => {

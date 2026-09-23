@@ -155,7 +155,7 @@
       children: [
         { id:"sorting-washing", label:"Washing", href:"./pages/sorting.html#washing" },
         { id:"sorting-trolley", label:"Trolley Intake", href:"./pages/sorting.html#trolley" },
-        { id:"sorting-mop", label:"MOP Production", href:"./pages/sorting.html#mop" },
+        { id:"sorting-mop", label:"MOP Production", href:"./pages/mop-production.html" },
         { id:"sorting-tracker", label:"Production Tracker", href:"./pages/sorting.html#tracker" },
         { id:"sorting-staff", label:"Staff", href:"./pages/sorting.html#staff" }
       ]
@@ -214,7 +214,6 @@
       href: "./pages/trolleys.html", icon: "trolley", group: "Operations",
       permission: NAVIGATION_PERMISSIONS.TROLLEYS,
       children: [
-        { id:"trolleys-tracking", label:"Tracking", href:"./pages/trolleys.html#tracking" },
         { id:"trolleys-locations", label:"Locations", href:"./pages/trolleys.html#locations" },
         { id:"trolleys-master", label:"Trolley Master", href:"./pages/trolleys.html#master" },
         { id:"trolleys-types", label:"Trolley Types", href:"./pages/trolleys.html#types" }
@@ -305,15 +304,30 @@
   function operationalModules(roleCodes, overrides) {
     const access = navigationAccess(roleCodes, overrides);
     return NAVIGATION_MODULES
-      .filter((module) => !module.permission || access.can(module.permission))
-      .map((module) => ({ ...module, status: "available" }));
+      .filter((module) => {
+        if (module.id === "mop-production") return false;
+        if (module.id === "sorting") {
+          return access.can(NAVIGATION_PERMISSIONS.SORTING) || access.can(NAVIGATION_PERMISSIONS.MOP_PRODUCTION);
+        }
+        return !module.permission || access.can(module.permission);
+      })
+      .map((module) => {
+        if (module.id !== "sorting") return { ...module, status: "available" };
+        const sortingAccess = access.can(NAVIGATION_PERMISSIONS.SORTING);
+        return {
+          ...module,
+          href: sortingAccess ? module.href : "./pages/mop-production.html",
+          children: sortingAccess ? module.children : module.children.filter((child) => child.id === "sorting-mop"),
+          status: "available"
+        };
+      });
   }
 
   function primaryOperationalModule(roleCodes) {
     const modules = operationalModules(roleCodes);
     const roleCode = primaryRole(roleCodes);
     const preferredByRole = {
-      MOP_OPERATOR: "mop-production",
+      MOP_OPERATOR: "sorting",
       FINISH_OPERATOR: "finish",
       SORTING_OPERATOR: "sorting"
     };

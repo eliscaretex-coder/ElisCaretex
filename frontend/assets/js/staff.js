@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     rosterEligible: document.getElementById("staffRosterEligible"),
     joinedOn: document.getElementById("staffJoinedOn"),
     primaryRole: document.getElementById("staffPrimaryRole"),
+    transferDriver: document.getElementById("staffTransferDriver"),
     defaultArea: document.getElementById("staffDefaultArea"),
     defaultStation: document.getElementById("staffDefaultStation"),
     coverOptions: document.getElementById("staffCoverOptions"),
@@ -234,16 +235,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function rowActions(item) {
     if (!state.reference?.can_edit_staff) return '<span class="staff-subtext">Read only</span>';
-    const driverTransfer = item.active && item.primary_role_code !== "DRIVER"
-      ? `<button class="staff-row-button transfer" type="button" data-staff-transfer-driver="${escapeHtml(item.staff_id)}">Transfer to Driver</button>`
-      : "";
     const lifecycle = item.active
       ? `<button class="staff-row-button danger" type="button" data-staff-deactivate="${escapeHtml(item.staff_id)}" data-row-version="${Number(item.row_version)}" data-staff-name="${escapeHtml(item.display_name)}">Deactivate</button>`
       : `<button class="staff-row-button" type="button" data-staff-reactivate="${escapeHtml(item.staff_id)}" data-row-version="${Number(item.row_version)}" data-staff-name="${escapeHtml(item.display_name)}">Reactivate</button>`;
     return `
       <div class="staff-row-actions">
         <button class="staff-row-button" type="button" data-staff-edit="${escapeHtml(item.staff_id)}">Edit</button>
-        ${driverTransfer}
         ${lifecycle}
       </div>
     `;
@@ -254,7 +251,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       <tr>
         <td>
           <button class="staff-name-button" type="button" data-staff-open="${escapeHtml(item.staff_id)}">${escapeHtml(item.display_name)}</button>
-          <span class="staff-code">${escapeHtml(item.employee_code || "No employee code")}${item.legacy_user_id ? ` · Legacy ${Number(item.legacy_user_id)}` : ""}</span>
         </td>
         <td><span class="staff-status ${item.active ? "active" : "inactive"}">${item.active ? "Active" : "Inactive"}</span></td>
         <td>${escapeHtml(item.default_shift_name || "—")}</td>
@@ -673,6 +669,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.importReviewSection.classList.add("hidden");
     elements.importReviewRequired.checked = false;
     elements.importReviewNotes.value = "";
+    elements.transferDriver.classList.add("hidden");
     state.editorPrimaryRoleCode = "";
     setMessage(elements.editorMessage);
   }
@@ -684,7 +681,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       && areas.some((area) => area.area_code === "DISTRIBUTION");
   }
 
-  async function openEditor(staffId = "", preset = null) {
+  function prepareDriverTransfer() {
+    if (!canTransferToDriver()) {
+      setMessage(elements.editorMessage, "Driver role or Distribution area is not configured yet.", "error");
+      return;
+    }
+    elements.primaryRole.value = "DRIVER";
+    elements.defaultArea.value = "DISTRIBUTION";
+    populateStationOptions("");
+    elements.defaultStation.value = "";
+    elements.changeReason.value = `Transfer ${elements.displayName.value || "staff member"} to Driver / Distribution.`;
+    elements.transferDriver.classList.add("hidden");
+    setMessage(elements.editorMessage, "Driver and Distribution selected. Review the details and save the changes.", "success");
+    elements.changeReason.focus();
+  }
+
+  async function openEditor(staffId = "") {
     if (!state.reference?.can_edit_staff) return;
     resetEditor();
     elements.editorModal.classList.remove("hidden");
@@ -720,22 +732,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       elements.importReviewRequired.checked = Boolean(record.import_review_required);
       elements.importReviewNotes.value = record.import_review_notes || "";
       populateEditorReference(record);
-      if (preset === "DRIVER") {
-        if (!canTransferToDriver()) {
-          setMessage(elements.editorMessage, "Driver role or Distribution area is not configured yet.", "error");
-          return;
-        }
-        elements.editorTitle.textContent = "Transfer to Driver";
-        elements.editorSubtitle.textContent = "Move this staff member from production into Distribution while keeping previous production history unchanged.";
-        elements.editorSave.textContent = "Save transfer";
-        elements.primaryRole.value = "DRIVER";
-        elements.defaultArea.value = "DISTRIBUTION";
-        populateStationOptions("");
-        elements.defaultStation.value = "";
-        elements.changeReason.value = `Transfer ${record.display_name || "staff member"} to Driver / Distribution.`;
-      }
+      elements.transferDriver.classList.toggle("hidden", !record.active || record.primary_role_code === "DRIVER" || !canTransferToDriver());
       setMessage(elements.editorMessage);
-      (preset === "DRIVER" ? elements.changeReason : elements.displayName).focus();
+      elements.displayName.focus();
     } catch (error) {
       console.error("Failed to open staff record:", error);
       setMessage(elements.editorMessage, friendlyError(error), "error");
@@ -989,9 +988,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountEditButton = event.target.closest("[data-account-edit]");
     if (accountEditButton) return openAccountEditor(accountEditButton.dataset.accountEdit);
 
-    const transferDriverButton = event.target.closest("[data-staff-transfer-driver]");
-    if (transferDriverButton) return openEditor(transferDriverButton.dataset.staffTransferDriver, "DRIVER");
-
     const resetTerminalPasswordButton = event.target.closest("[data-account-reset-password]");
     if (resetTerminalPasswordButton) return openTerminalPasswordReset(resetTerminalPasswordButton.dataset.accountResetPassword);
 
@@ -1047,6 +1043,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   elements.defaultArea.addEventListener("change", () => populateStationOptions(""));
   elements.editorForm.addEventListener("submit", saveEditor);
+  elements.transferDriver.addEventListener("click", prepareDriverTransfer);
   elements.editorBackdrop.addEventListener("click", closeEditor);
   elements.editorClose.addEventListener("click", closeEditor);
   elements.editorCancel.addEventListener("click", closeEditor);

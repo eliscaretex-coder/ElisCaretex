@@ -53,6 +53,7 @@
     const signOut = aside.querySelector(".operational-sign-out");
 
     const desktopNavigation = window.matchMedia("(min-width: 701px)");
+    let navigationInProgress = false;
 
     function updateSidebarState() {
       const expanded = root.classList.contains("sidebar-expanded") || root.classList.contains("sidebar-hover-expanded");
@@ -61,8 +62,28 @@
       toggle.setAttribute("title", expanded ? "Collapse navigation" : "Expand navigation");
     }
 
-    function setSidebarExpanded(expanded) {
+    const sidebarPreferenceKey = "elis.operational.sidebar.expanded";
+    const navigationProfileCacheKey = "elis.operational.navigation.profile";
+
+    function savedSidebarPreference() {
+      try {
+        return window.sessionStorage.getItem(sidebarPreferenceKey) === "true";
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function saveSidebarPreference(expanded) {
+      try {
+        window.sessionStorage.setItem(sidebarPreferenceKey, String(expanded));
+      } catch (_) {
+        // Navigation still works when browser storage is unavailable.
+      }
+    }
+
+    function setSidebarExpanded(expanded, persist = true) {
       root.classList.toggle("sidebar-expanded", expanded);
+      if (persist) saveSidebarPreference(expanded);
       updateSidebarState();
     }
 
@@ -71,7 +92,7 @@
       updateSidebarState();
     }
 
-    setSidebarExpanded(false);
+    setSidebarExpanded(desktopNavigation.matches && savedSidebarPreference(), false);
 
     toggle.addEventListener("click", () => {
       const expanded = !root.classList.contains("sidebar-expanded");
@@ -80,6 +101,7 @@
 
     aside.addEventListener("mouseenter", () => setSidebarHover(true));
     aside.addEventListener("mouseleave", () => {
+      if (navigationInProgress) return;
       setSidebarHover(false);
       setSidebarExpanded(false);
     });
@@ -142,7 +164,7 @@
       }
       if (page === "staff.html") return "staff-master";
       if (page === "sorting.html") return "sorting";
-      if (page === "mop-production.html") return "mop-production";
+      if (page === "mop-production.html") return "sorting";
       if (page === "roster.html") return "production-roster";
       return "";
     }
@@ -150,6 +172,7 @@
     function currentSubmoduleId(activeId) {
       const query = new URLSearchParams(location.search);
       if (activeId === "sorting") {
+        if (location.pathname.endsWith("/mop-production.html")) return "sorting-mop";
         const view = String(location.hash || "").replace("#", "") || query.get("view") || "washing";
         return `sorting-${["washing","trolley","mop","tracker","staff"].includes(view) ? view : "washing"}`;
       }
@@ -163,8 +186,8 @@
         return query.get("view") === "accounts" ? "staff-master-accounts" : "staff-master-directory";
       }
       if (activeId === "trolleys") {
-        const view = String(location.hash || "").replace("#", "") || "tracking";
-        return `trolleys-${["tracking","locations","master","types"].includes(view) ? view : "tracking"}`;
+        const view = String(location.hash || "").replace("#", "") || "locations";
+        return `trolleys-${["locations","master","types"].includes(view) ? view : "locations"}`;
       }
       if (activeId === "customer-workspace") {
         const view = query.get("view") || "schedule";
@@ -255,8 +278,37 @@
       nav.replaceChildren(...fragments);
     }
 
+    function cacheNavigationProfile(profile, roleCodes) {
+      try {
+        window.sessionStorage.setItem(navigationProfileCacheKey, JSON.stringify({
+          displayName: profile.display_name || "Signed in",
+          roleCodes
+        }));
+      } catch (_) {
+        // The live profile below remains the source of truth.
+      }
+    }
+
+    function renderCachedNavigation() {
+      try {
+        const cached = JSON.parse(window.sessionStorage.getItem(navigationProfileCacheKey) || "null");
+        if (!cached || !Array.isArray(cached.roleCodes) || !cached.roleCodes.length) return;
+        const currentId = currentModuleId();
+        const query = new URLSearchParams(location.search);
+        const finishWorkspace = currentId === "finish" || currentId === "finish-results" || query.get("workspace") === "finish";
+        renderNavigation(policy.operationalModules(cached.roleCodes), currentId, finishWorkspace);
+        avatar.textContent = initials(cached.displayName);
+        userName.textContent = cached.displayName;
+        userRole.textContent = policy.operationalContext(cached.roleCodes).roleName;
+      } catch (_) {
+        // Ignore stale or unavailable cache and continue with the live profile.
+      }
+    }
+
+    renderCachedNavigation();
+
     nav.addEventListener("click", (event) => {
-      const link = event.target.closest("a.operational-nav-item");
+      const link = event.target.closest("a.operational-nav-item, a.operational-nav-subitem");
       if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const target = new URL(link.href, window.location.href);
       if (target.href === window.location.href) return;
@@ -266,11 +318,10 @@
         nav.querySelectorAll(".operational-nav-subitem").forEach((item) => item.classList.toggle("active", item.href === target.href));
         return;
       }
-      root.classList.add("operational-page-leaving");
-      window.setTimeout(() => { window.location.href = target.href; }, 130);
+      saveSidebarPreference(root.classList.contains("sidebar-expanded") || root.classList.contains("sidebar-hover-expanded"));
+      navigationInProgress = true;
+      window.location.href = target.href;
     });
-
-    window.requestAnimationFrame(() => root.classList.add("operational-page-ready"));
 
     try {
       const { data: { session }, error: sessionError } = await client.auth.getSession();
@@ -287,6 +338,7 @@
       const finishWorkspace = currentId === "finish" || currentId === "finish-results" || query.get("workspace") === "finish";
       const modules = policy.operationalModules(roleCodes);
       renderNavigation(modules, currentId, finishWorkspace);
+      cacheNavigationProfile(profile, roleCodes);
       avatar.textContent = initials(profile.display_name);
       userName.textContent = profile.display_name || "Signed in";
       userRole.textContent = policy.operationalContext(roleCodes).roleName;

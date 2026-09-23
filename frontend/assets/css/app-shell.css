@@ -1045,23 +1045,6 @@ body.elis-operational-tool-page .operational-page-header.finish-results-topbar >
   display: none;
 }
 
-body.elis-operational-tool-page .operational-shell > :not(.operational-sidebar) {
-  opacity: 0;
-  transform: translateY(3px);
-  transition: opacity 130ms ease, transform 130ms ease;
-}
-
-body.elis-operational-tool-page .operational-shell.operational-page-ready > :not(.operational-sidebar) {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-body.elis-operational-tool-page .operational-shell.operational-page-leaving > :not(.operational-sidebar) {
-  opacity: 0;
-  transform: translateY(-2px);
-  pointer-events: none;
-}
-
 body.elis-operational-tool-page .operational-page-header .finish-title-block {
   display: flex;
   align-items: center;
