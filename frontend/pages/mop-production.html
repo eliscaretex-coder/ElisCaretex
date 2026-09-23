@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOP Production | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/sorting.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/sorting.js" defer></script>
+</head>
+<body class="sorting-page mop-standalone-page" data-mop-standalone="true">
+  <div class="sorting-page-shell" data-operational-shell-root>
+  <div class="sorting-workstation">
+    <aside class="sorting-sidebar">
+      <a class="sorting-sidebar-brand" href="../index.html" title="Back to Home">
+        <span class="sorting-brand-mark">E</span>
+        <span class="sorting-brand-copy"><strong>ElisCaretex</strong><small>MOP Production</small></span>
+      </a>
+
+      <span class="sorting-nav-label">Operations</span>
+      <button class="sorting-nav-button mop-standalone-hidden" data-sorting-view="washing" type="button" title="Washing" aria-hidden="true" tabindex="-1">
+        <span class="sorting-nav-icon">W</span><span class="sorting-nav-text">Washing</span>
+      </button>
+      <button class="sorting-nav-button mop-standalone-hidden" data-sorting-view="trolley" type="button" title="Trolley Intake" aria-hidden="true" tabindex="-1">
+        <span class="sorting-nav-icon">T</span><span class="sorting-nav-text">Trolley Intake</span>
+      </button>
+      <button class="sorting-nav-button active" data-sorting-view="mop" type="button" title="MOP Production">
+        <span class="sorting-nav-icon">M</span><span class="sorting-nav-text">MOP Production</span>
+      </button>
+      <button class="sorting-nav-button mop-standalone-hidden" data-sorting-view="tracker" type="button" title="Shared Production Tracker" aria-hidden="true" tabindex="-1">
+        <span class="sorting-nav-icon">✓</span><span class="sorting-nav-text">Production Tracker</span>
+      </button>
+      <button class="sorting-nav-button mop-standalone-hidden" data-sorting-view="staff" type="button" title="Staff worked time" aria-hidden="true" tabindex="-1">
+        <span class="sorting-nav-icon">S</span><span class="sorting-nav-text">Staff</span>
+      </button>
+      <div class="sorting-area-navigation" data-sorting-area-navigation></div>
+
+      <div class="sorting-sidebar-spacer"></div>
+      <div class="sorting-sidebar-context">
+        <span class="sorting-context-dot"></span>
+        <div class="sorting-context-copy"><strong id="sortingSidebarShift">—</strong><small id="sortingSidebarDate">—</small></div>
+      </div>
+      <button id="sortingSignOutButton" class="sorting-nav-button sorting-signout" type="button" title="Sign out">
+        <span class="sorting-nav-icon">↗</span><span class="sorting-nav-text">Sign out</span>
+      </button>
+    </aside>
+
+    <main class="sorting-content">
+      <header class="sorting-topbar">
+        <div>
+          <p class="sorting-eyebrow">MOP operational workspace</p>
+          <h1 id="sortingPageTitle">MOP Production</h1>
+          <p id="sortingPageSubtitle">Record washed MOP production, trolley evidence and ABS trace.</p>
+        </div>
+        <div class="sorting-topbar-actions">
+          <div id="sortingShiftTabs" class="sorting-shift-tabs">
+            <button id="sortingShiftAutoButton" class="sorting-shift-auto" data-shift-auto type="button">Auto</button>
+            <button data-shift="MORNING" type="button">Morning</button>
+            <button data-shift="EVENING" type="button">Evening</button>
+          </div>
+          <button id="sortingReloadButton" class="sorting-secondary-button" type="button">Refresh MOP</button>
+        </div>
+      </header>
+
+      <nav class="sorting-workspace-tabs" aria-label="MOP workspace">
+        <button class="sorting-workspace-tab mop-standalone-hidden" data-sorting-view="washing" type="button" aria-hidden="true" tabindex="-1">Washing</button>
+        <button class="sorting-workspace-tab mop-standalone-hidden" data-sorting-view="trolley" type="button" aria-hidden="true" tabindex="-1">Trolley Intake</button>
+        <button class="sorting-workspace-tab active" data-sorting-view="mop" type="button">MOP Production</button>
+        <button class="sorting-workspace-tab mop-standalone-hidden" data-sorting-view="tracker" type="button" aria-hidden="true" tabindex="-1">Production Tracker</button>
+        <button class="sorting-workspace-tab mop-standalone-hidden" data-sorting-view="staff" type="button" aria-hidden="true" tabindex="-1">Staff</button>
+      </nav>
+
+      <div class="sorting-context-strip">
+        <div><span>Business date</span><strong id="sortingBusinessDate">—</strong><small id="sortingBusinessDateStatus" class="sorting-business-date-status"></small></div>
+        <div><span>Actual MOP staff</span><strong id="sortingRosterSource">—</strong></div>
+        <div><span>MOP coverage</span><strong id="sortingPlannedCount">—</strong></div>
+        <div><span>Workspace</span><strong id="sortingSignedInName">MOP Production</strong></div>
+      </div>
+
+      <p id="sortingPageMessage" class="sorting-message" aria-live="polite"></p>
+
+      <section class="sorting-view active" data-view-panel="washing">
+        <div class="sorting-washing-layout">
+          <div class="sorting-washing-main">
+            <section class="sorting-card">
+              <header class="sorting-card-header">
+                <div>
+                  <p class="sorting-section-eyebrow">Washing registration</p>
+                  <h2>New washing load</h2>
+                  <p>Fast entry with server-generated Wash ID and per-customer trace.</p>
+                </div>
+                <span class="sorting-trace-pill">Wash ID on Save</span>
+              </header>
+
+              <form id="sortingWashForm" class="sorting-wash-form">
+                <div id="sortingWashEditBanner" class="sorting-wash-edit-banner" hidden>
+                  <div><strong id="sortingWashEditTitle">Correcting wash</strong><span>The original Wash ID will remain in history as Cancelled.</span></div>
+                  <button id="sortingWashCancelEditButton" class="sorting-secondary-button" type="button">Cancel edit</button>
+                </div>
+                <div class="sorting-form-grid two">
+                  <div class="sorting-field">
+                    <label for="sortingWashOperator">Your Name</label>
+                    <select id="sortingWashOperator" required></select>
+                  </div>
+                  <div class="sorting-field">
+                    <label for="sortingWasher">Select the Washer</label>
+                    <select id="sortingWasher" required></select>
+                    <small id="sortingWasherCapacity">Select a washer to see capacity.</small>
+                  </div>
+                </div>
+
+                <div class="sorting-form-grid three">
+                  <div class="sorting-field">
+                    <label for="sortingRegisterTime">Register Time</label>
+                    <input id="sortingRegisterTime" type="text" readonly>
+                  </div>
+                  <div class="sorting-field">
+                    <label for="sortingWashType">Type</label>
+                    <select id="sortingWashType" required>
+                      <option value="">Select type…</option>
+                      <option value="MOP">MOP</option>
+                      <option value="CLOTHES">CLOTHES</option>
+                      <option value="OTHERS">OTHERS</option>
+                    </select>
+                  </div>
+                  <div class="sorting-field">
+                    <label for="sortingWashWeight">Washed items weight (KG)</label>
+                    <input id="sortingWashWeight" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.0" required>
+                  </div>
+                </div>
+
+                <div class="sorting-form-grid two">
+                  <div class="sorting-field">
+                    <label>Customers</label>
+                    <button id="sortingCustomerPickerButton" class="sorting-customer-picker-button" type="button" disabled>Select type first</button>
+                    <div id="sortingSelectedCustomers" class="sorting-selected-customers"></div>
+                  </div>
+                  <div class="sorting-field">
+                    <label for="sortingWashStartTime">Start Time (Washer)</label>
+                    <input id="sortingWashStartTime" type="time" required>
+                  </div>
+                </div>
+
+                <div class="sorting-field">
+                  <label for="sortingWashNotes">Notes <span>(optional)</span></label>
+                  <input id="sortingWashNotes" type="text" maxlength="1000" placeholder="Only add a note when it helps traceability.">
+                </div>
+
+                <div class="sorting-form-actions">
+                  <button id="sortingWashClearButton" class="sorting-secondary-button" type="button">Clear</button>
+                  <button id="sortingWashSaveButton" class="sorting-primary-button sorting-main-save" type="submit">Save washing</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sorting-card">
+              <header class="sorting-card-header sorting-history-header">
+                <div>
+                  <p class="sorting-section-eyebrow">History</p>
+                  <h2>Recent washes</h2>
+                  <p>Search by customer, Wash ID, washer, staff or type.</p>
+                </div>
+                <details id="sortingRareActions" class="sorting-rare-actions">
+                  <summary>More actions</summary>
+                  <div class="sorting-rare-actions-menu">
+                    <button id="sortingWashMissedButton" type="button">Record a missed wash</button>
+                    <small>Rare case: the wash physically happened but was not entered.</small>
+                  </div>
+                </details>
+              </header>
+              <div class="sorting-history-search">
+                <input id="sortingWashHistorySearch" type="search" placeholder="Search washed history…" autocomplete="off">
+                <button id="sortingWashHistorySearchButton" class="sorting-secondary-button" type="button">Search</button>
+                <button id="sortingWashHistoryClearButton" class="sorting-link-button" type="button" hidden>Clear search</button>
+                <span id="sortingWashHistorySearchStatus">Showing recent washes</span>
+              </div>
+              <div class="sorting-table-wrap">
+                <table class="sorting-table">
+                  <thead><tr><th>Washed</th><th>Wash ID</th><th>Washer</th><th>Customers</th><th>Scheduled</th><th>Start</th><th>Weight</th><th>Staff</th><th>Type</th><th>Actions</th></tr></thead>
+                  <tbody id="sortingRecentWashesBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <aside class="sorting-today-sidebar">
+            <header>
+              <div><p class="sorting-section-eyebrow">Production schedule</p><h2>Today's Customers</h2><small class="sorting-board-subtitle">Today + work ahead</small></div>
+              <span id="sortingTodayTypeBadge" class="sorting-today-type">All today</span>
+            </header>
+            <div id="sortingTodayProgress" class="sorting-progress-block"></div>
+            <div id="sortingTodayCustomers" class="sorting-today-list"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="sorting-view" data-view-panel="trolley" hidden>
+        <div class="sorting-reception-staffbar">
+          <span class="sorting-reception-staff-label">RECEIVING AS</span>
+          <div id="sortingTrolleyStaffBar" class="sorting-reception-staff-list"></div>
+        </div>
+        <div id="sortingTrolleyStaffPrompt" class="sorting-reception-staff-prompt" role="status" aria-live="polite">
+          <span class="sorting-reception-staff-step">1</span>
+          <div><strong>Select your name to unlock Trolley Intake</strong><span>Choose who is receiving before scanning or entering a trolley.</span></div>
+          <span class="sorting-reception-staff-arrow">↑</span>
+        </div>
+
+        <div class="sorting-washing-layout sorting-reception-layout">
+          <div class="sorting-trolley-kiosk-main">
+            <section class="sorting-card sorting-reception-scan-card">
+              <div id="sortingTrolleyScanIdle" class="sorting-reception-scan-idle">
+                <div class="sorting-reception-scan-icon">▥</div>
+                <h2 id="sortingTrolleyScanTitle">Select your name above</h2>
+                <p id="sortingTrolleyScanHint">Then point the handheld scanner at the trolley barcode.</p>
+                <div id="sortingTrolleyScanBuffer" class="sorting-reception-scan-buffer">
+                  <span class="sorting-reception-scan-placeholder">T_____T</span>
+                </div>
+                <div class="sorting-reception-listening"><span></span> Scanner listening</div>
+                <button id="sortingTrolleyManualButton" class="sorting-secondary-button sorting-reception-manual-button" type="button">Enter trolley manually</button>
+              </div>
+
+            </section>
+
+            <section class="sorting-card sorting-reception-recent-card">
+              <header class="sorting-card-header">
+                <div>
+                  <p class="sorting-section-eyebrow">Physical receipts this shift</p>
+                  <h2>Recent trolley intake</h2>
+                </div>
+                <div id="sortingTrolleySummary" class="sorting-trolley-summary"></div>
+              </header>
+              <div id="sortingRecentArrivals" class="sorting-arrivals-list"></div>
+            </section>
+          </div>
+
+          <aside class="sorting-today-sidebar sorting-reception-sidebar">
+            <header>
+              <div>
+                <p class="sorting-section-eyebrow">Production schedule</p>
+                <h2>Today's Customers</h2>
+                <small class="sorting-board-subtitle">Same list as Washing · tap a customer after scanning</small>
+              </div>
+              <span id="sortingTrolleyTodayTypeBadge" class="sorting-today-type">All today</span>
+            </header>
+            <div id="sortingTrolleyTodayProgress" class="sorting-progress-block"></div>
+            <div id="sortingTrolleyTodayCustomers" class="sorting-today-list"></div>
+          </aside>
+        </div>
+      </section>
+
+
+      <section class="sorting-view" data-view-panel="tracker" hidden>
+        <section class="sorting-tracker-shell">
+          <div class="sorting-tracker-daybar">
+            <div id="sortingTrackerDayCards" class="sorting-tracker-daycards"></div>
+            <div class="sorting-tracker-day-actions">
+              <button id="sortingTrackerHistoryButton" class="sorting-secondary-button" type="button">History</button>
+              <button id="sortingTrackerRefreshButton" class="sorting-primary-button" type="button">Refresh</button>
+              <small id="sortingTrackerUpdated">—</small>
+            </div>
+          </div>
+
+          <div id="sortingTrackerHistoryBanner" class="sorting-tracker-history-banner" hidden>
+            <span>Viewing history</span><strong id="sortingTrackerHistoryDate">—</strong>
+            <button id="sortingTrackerHistoryExitButton" type="button">Back to today</button>
+          </div>
+          <div class="sorting-tracker-kpis">
+            <article><strong id="sortingTrackerKpiScheduled">—</strong><span>Scheduled</span></article>
+            <article class="is-miss"><strong id="sortingTrackerKpiNotStarted">—</strong><span>Not started</span></article>
+            <article class="is-wash"><strong id="sortingTrackerKpiWashed">—</strong><span>Washed</span></article>
+            <article class="is-abs"><strong id="sortingTrackerKpiAbs">—</strong><span>ABS pending</span></article>
+            <article class="is-done"><strong id="sortingTrackerKpiDone">—</strong><span>Tracker OK</span></article>
+            <article class="is-kg"><strong id="sortingTrackerKpiKg">—</strong><span>Total KG</span></article>
+          </div>
+
+          <section class="sorting-card sorting-tracker-card">
+            <header class="sorting-tracker-toolbar">
+              <div>
+                <p class="sorting-section-eyebrow">Daily production trace</p>
+                <h2>Production Tracker</h2>
+                <p>Routes are consolidated into visual blocks. CLOTHES and MOP remain separate production streams, and split priority sequences are highlighted.</p>
+              </div>
+              <div class="sorting-tracker-filters">
+                <input id="sortingTrackerSearch" type="search" placeholder="Search customer, trolley, washer, ABS…" autocomplete="off">
+                <select id="sortingTrackerStatusFilter">
+                  <option value="">All statuses</option>
+                  <option value="NOT_STARTED">Not started</option>
+                  <option value="WASHED_ONLY">Washed</option>
+                  <option value="ABS_PENDING">ABS pending</option>
+                  <option value="TRACKER_OK">Tracker OK</option>
+                  <option value="IN_PROGRESS">In progress</option>
+                </select>
+                <select id="sortingTrackerTypeFilter">
+                  <option value="">All types</option>
+                  <option value="CLOTHES">Clothes</option>
+                  <option value="MOP">MOP</option>
+                </select>
+                <span id="sortingTrackerRowCount" class="sorting-tracker-row-count">0 customers</span>
+              </div>
+            </header>
+            <div id="sortingTrackerTableWrap" class="sorting-tracker-table-wrap">
+              <div class="sorting-empty">Open Tracker to load the daily production flow.</div>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <section class="sorting-view" data-view-panel="staff" hidden>
+        <section class="sorting-card sorting-staff-work-card">
+          <header class="sorting-card-header sorting-staff-header">
+            <div>
+              <p class="sorting-section-eyebrow">Actual staffing and worked time</p>
+              <h2>Staff working in Sorting</h2>
+              <p id="sortingStaffScheduleNote">Published weekly schedule is the standard time reference. Roster remains the Planned source.</p>
+            </div>
+            <div class="sorting-staff-header-actions">
+              <button id="sortingAddManualStaffButton" class="sorting-primary-button" type="button">+ Add staff manually</button>
+              <div class="sorting-staff-legend">
+              <span class="sorting-staff-state planned">As planned</span>
+              <span class="sorting-staff-state adjusted">Adjusted</span>
+              </div>
+            </div>
+          </header>
+          <div id="sortingStaffWorkList" class="sorting-staff-work-list"></div>
+        </section>
+      </section>
+
+      <section class="sorting-view" data-view-panel="mop" hidden>
+        <div class="sorting-mop-layout">
+          <section class="sorting-mop-main">
+            <div id="sortingMopDueBanner" class="sorting-mop-due-banner" hidden></div>
+
+            <section class="sorting-card sorting-mop-entry-card">
+              <header class="sorting-card-header sorting-mop-header">
+                <div>
+                  <p class="sorting-section-eyebrow">Washed MOP only</p>
+                  <h2>MOP Production</h2>
+                  <p>Record what was physically processed. Washing remains the source that unlocks this queue.</p>
+                </div>
+                <div class="sorting-mop-header-actions">
+                  <button id="sortingMopTypesButton" class="sorting-mop-types-button" type="button" title="Manage MOP type names, unit weights and photos">📷 MOP Types</button>
+                  <div id="sortingMopStaffBadge" class="sorting-mop-staff-badge">MOP staff: —</div>
+                </div>
+              </header>
+
+              <div id="sortingMopEmptySelection" class="sorting-mop-empty-selection">
+                <strong>Select a washed customer from the queue.</strong>
+                <span>Customer, scheduled date and Washing trace stay linked to the same Production Flow item.</span>
+              </div>
+
+              <div id="sortingMopForm" hidden>
+                <section id="sortingMopCustomerSummary" class="sorting-mop-customer-summary"></section>
+                <section id="sortingMopLateCompletionBanner" class="sorting-mop-late-completion-banner" hidden>
+                  <span>Step 2 of 2 · Missed production entry</span>
+                  <strong>Enter the actual KG or Units processed below</strong>
+                  <small>This confirmation is not complete until the missed MOP production is saved. Background refresh is paused while this draft is open.</small>
+                </section>
+
+                <section id="sortingMopTrolleySection" class="sorting-mop-trolley-section">
+                  <div class="sorting-mop-section-title"><strong>Clean trolley</strong><span id="sortingMopTrolleyRequirement">—</span></div>
+                  <div id="sortingMopTrolleyInputWrap" class="sorting-mop-trolley-input-wrap">
+                    <input id="sortingMopTrolleyInput" type="text" autocomplete="off" placeholder="Scan trolley and press Enter" maxlength="14">
+                    <button id="sortingMopAddTrolleyButton" class="sorting-secondary-button" type="button">Add trolley</button>
+                  </div>
+                  <div id="sortingMopTrolleyChips" class="sorting-mop-trolley-chips"></div>
+                  <label id="sortingMopLateTrolleyUnknownInlineLabel" class="sorting-mop-late-trolley-inline" hidden>
+                    <input id="sortingMopLateTrolleyUnknownInline" type="checkbox">
+                    <span><strong>Trolley number no longer available</strong><small>Use only for a missed production entry when the physical trolley code cannot now be recovered.</small></span>
+                  </label>
+                  <p id="sortingMopTrolleyHelp" class="sorting-mop-help"></p>
+                </section>
+
+                <section class="sorting-mop-types-section">
+                  <div class="sorting-mop-section-title"><strong>MOP types processed</strong><span>Enter KG or Units</span></div>
+                  <div id="sortingMopTypeRows" class="sorting-mop-type-rows"></div>
+                </section>
+
+                <label class="sorting-field sorting-mop-notes">Notes <span>(optional)</span>
+                  <textarea id="sortingMopNotes" rows="2" maxlength="1000" placeholder="Operational note"></textarea>
+                </label>
+
+                <p id="sortingMopSaveMessage" class="sorting-mop-save-message" role="status" aria-live="polite" hidden></p>
+                <footer class="sorting-mop-actions">
+                  <button id="sortingMopClearButton" class="sorting-secondary-button" type="button">Clear</button>
+                  <button id="sortingMopSaveButton" class="sorting-primary-button" type="button">Save MOP production</button>
+                </footer>
+              </div>
+            </section>
+
+            <section class="sorting-card sorting-mop-recent-card">
+              <header class="sorting-card-header sorting-mop-trace-header">
+                <div><p class="sorting-section-eyebrow">Trace</p><h2>MOP Production Trace</h2><p>Processed customers, MOP quantities, trolley evidence and shared ABS batch status.</p></div>
+                <div id="sortingMopTraceSummary" class="sorting-mop-trace-summary"></div>
+              </header>
+              <div id="sortingMopRecent" class="sorting-mop-recent"></div>
+            </section>
+          </section>
+
+          <aside class="sorting-mop-queue-panel">
+            <div class="sorting-mop-queue-head">
+              <div><span>WASHED MOP</span><strong id="sortingMopQueueDate">—</strong></div>
+              <b id="sortingMopQueueCount">0</b>
+            </div>
+            <div id="sortingMopQueue" class="sorting-mop-queue"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+  </div>
+
+  
+
+
+
+
+  <dialog id="sortingTrackerHistoryDialog" class="sorting-dialog sorting-tracker-history-dialog">
+    <form method="dialog" class="sorting-tracker-history-modal" onsubmit="return false;">
+      <header><div><p class="sorting-section-eyebrow">Tracker history</p><h2>Choose a production date</h2><p>Load any earlier production day. Sunday is not a production day.</p></div><button id="sortingTrackerHistoryCloseButton" type="button" aria-label="Close">×</button></header>
+      <label>Date<input id="sortingTrackerHistoryInput" type="date"></label>
+      <p id="sortingTrackerHistoryMessage" class="sorting-dialog-message"></p>
+      <footer><button id="sortingTrackerHistoryCancelButton" class="sorting-secondary-button" type="button">Cancel</button><button id="sortingTrackerHistoryLoadButton" class="sorting-primary-button" type="button">Load history</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="sortingTrackerAbsDialog" class="sorting-dialog sorting-tracker-abs-dialog">
+    <div class="sorting-tracker-abs-modal">
+      <header><div><p class="sorting-section-eyebrow">Shared ABS batch</p><h2>Post ABS</h2><p>The batch will be attached to the same Production Flow item used by MOP Production.</p></div><button id="sortingTrackerAbsCloseButton" type="button" aria-label="Close">×</button></header>
+      <div id="sortingTrackerAbsSummary" class="sorting-tracker-abs-summary"></div>
+      <label>ABS Batch number<input id="sortingTrackerAbsInput" type="text" maxlength="80" autocomplete="off" placeholder="Example: ABS-12345"></label>
+      <label>Notes <span>(optional)</span><textarea id="sortingTrackerAbsNotes" rows="2" maxlength="1000"></textarea></label>
+      <p id="sortingTrackerAbsMessage" class="sorting-dialog-message"></p>
+      <footer><button id="sortingTrackerAbsCancelButton" class="sorting-secondary-button" type="button">Cancel</button><button id="sortingTrackerAbsSaveButton" class="sorting-primary-button" type="button">Save ABS batch</button></footer>
+    </div>
+  </dialog>
+
+  <dialog id="sortingTrolleyResultDialog" class="sorting-dialog sorting-reception-result-dialog">
+    <div class="sorting-reception-result-modal-shell">
+      <div id="sortingTrolleyPreview" class="sorting-reception-result"></div>
+    </div>
+  </dialog>
+
+  <dialog id="sortingTrolleyCustomerDialog" class="sorting-dialog sorting-reception-customer-dialog">
+    <form method="dialog" class="sorting-dialog-card sorting-reception-customer-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Touch selection</p>
+          <h2>Choose customer</h2>
+          <p>Scheduled customers are shown first. No keyboard is needed.</p>
+        </div>
+        <button value="cancel" class="sorting-dialog-close" type="submit">×</button>
+      </header>
+      <div id="sortingTrolleyCustomerTabs" class="sorting-reception-customer-tabs">
+        <button type="button" class="active" data-reception-customer-tab="SCHEDULED">Today / Tomorrow</button>
+        <button type="button" data-reception-customer-tab="ALL">All customers</button>
+      </div>
+      <div id="sortingTrolleyCustomerOptions" class="sorting-reception-customer-options"></div>
+    </form>
+  </dialog>
+
+  <dialog id="sortingTrolleyManualDialog" class="sorting-dialog sorting-reception-keypad-dialog">
+    <form method="dialog" class="sorting-dialog-card sorting-reception-keypad-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Rare manual entry</p>
+          <h2>Enter trolley number</h2>
+        </div>
+        <button value="cancel" class="sorting-dialog-close" type="submit">×</button>
+      </header>
+      <div id="sortingTrolleyManualDisplay" class="sorting-reception-keypad-display">T_____T</div>
+      <div id="sortingTrolleyKeypad" class="sorting-reception-keypad">
+        <button type="button" data-keypad="1">1</button><button type="button" data-keypad="2">2</button><button type="button" data-keypad="3">3</button>
+        <button type="button" data-keypad="4">4</button><button type="button" data-keypad="5">5</button><button type="button" data-keypad="6">6</button>
+        <button type="button" data-keypad="7">7</button><button type="button" data-keypad="8">8</button><button type="button" data-keypad="9">9</button>
+        <button type="button" data-keypad="CLEAR">Clear</button><button type="button" data-keypad="0">0</button><button type="button" data-keypad="BACK">⌫</button>
+      </div>
+      <footer class="sorting-dialog-footer">
+        <span>Only use this when the scanner cannot be used.</span>
+        <button id="sortingTrolleyManualScanButton" class="sorting-primary-button" type="button">Check trolley</button>
+      </footer>
+    </form>
+  </dialog>
+
+
+  <dialog id="sortingNoTrolleyArrivalDialog" class="sorting-dialog sorting-no-trolley-dialog">
+    <form method="dialog" class="sorting-dialog-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Reception without physical trolley</p>
+          <h2>Confirm laundry contents received</h2>
+          <p>This option is available only when the published schedule has no trolley mapped to this product.</p>
+        </div>
+        <button value="cancel" class="sorting-dialog-close" type="submit">×</button>
+      </header>
+      <div id="sortingNoTrolleyArrivalSummary" class="sorting-no-trolley-summary"></div>
+      <label class="sorting-field">Notes <span>(optional)</span>
+        <input id="sortingNoTrolleyArrivalNotes" type="text" maxlength="1000" placeholder="Example: bags received directly">
+      </label>
+      <p id="sortingNoTrolleyArrivalMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer class="sorting-dialog-footer">
+        <button value="cancel" class="sorting-secondary-button" type="submit">Cancel</button>
+        <button id="sortingNoTrolleyArrivalSaveButton" class="sorting-primary-button" type="button">Confirm contents received</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="sortingMopReconciliationDialog" class="sorting-dialog sorting-mop-reconciliation-dialog">
+    <div class="sorting-dialog-card sorting-mop-reconciliation-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Delivery-day control</p>
+          <h2>Production confirmation required</h2>
+          <p>This MOP was washed but no production record exists. Confirm what actually happened. If it was already processed, the production is not confirmed until KG or Units are entered and saved.</p>
+        </div>
+      </header>
+      <div id="sortingMopReconciliationSummary" class="sorting-mop-reconciliation-summary"></div>
+      <div id="sortingMopReconciliationChoices" class="sorting-mop-reconciliation-choices">
+        <button type="button" data-mop-reconciliation-choice="PROCESSED">
+          <strong>Already processed — missed entry</strong><span>Enter the production details now.</span>
+        </button>
+        <button type="button" data-mop-reconciliation-choice="NOT_PROCESSED">
+          <strong>Not processed</strong><span>Record why it is still outstanding.</span>
+        </button>
+      </div>
+      <section id="sortingMopLateEntryPanel" class="sorting-mop-reconciliation-panel" hidden>
+        <div class="sorting-mop-reconciliation-step"><strong>Step 1 of 2</strong><span>Confirm when it was processed and why the entry was missed. Next you will enter the actual KG / Units.</span></div>
+        <label class="sorting-field">Processed on
+          <input id="sortingMopLateProcessedDate" type="date">
+        </label>
+        <label class="sorting-field">Approximate time <span>(optional — leave blank if unknown)</span>
+          <input id="sortingMopLateProcessedTime" type="time">
+        </label>
+        <label class="sorting-field">Why was the production entry missed?
+          <textarea id="sortingMopLateReason" rows="2" maxlength="500" placeholder="Short operational reason"></textarea>
+        </label>
+        <label id="sortingMopLateTrolleyUnknownLabel" class="sorting-mop-checkline" hidden>
+          <input id="sortingMopLateTrolleyUnknown" type="checkbox">
+          <span><strong>Trolley number is no longer available</strong><small>Use this only for a late entry. The system will not invent a trolley.</small></span>
+        </label>
+        <p class="sorting-mop-help"><strong>KG / Units are mandatory in the next step.</strong> The customer stays outstanding until the missed production record is saved.</p>
+        <button id="sortingMopLateContinueButton" class="sorting-primary-button" type="button">Continue to KG / Units</button>
+      </section>
+      <section id="sortingMopNotProcessedPanel" class="sorting-mop-reconciliation-panel" hidden>
+        <div class="sorting-mop-reconciliation-step not-processed"><strong>Still outstanding</strong><span>No KG / Units are requested because production did not happen. Record the reason and the customer remains in the queue.</span></div>
+        <label class="sorting-field">Why is it not processed?
+          <textarea id="sortingMopNotProcessedReason" rows="3" maxlength="1000" placeholder="Short operational reason"></textarea>
+        </label>
+        <button id="sortingMopNotProcessedSaveButton" class="sorting-primary-button" type="button">Confirm not processed</button>
+      </section>
+      <p id="sortingMopReconciliationMessage" class="sorting-dialog-message" aria-live="polite"></p>
+    </div>
+  </dialog>
+
+  <dialog id="sortingWashConfirmDialog" class="sorting-dialog sorting-wash-confirm-dialog">
+    <form method="dialog" class="sorting-dialog-card sorting-wash-confirm-card" id="sortingWashConfirmForm">
+      <header class="sorting-wash-confirm-header">
+        <div>
+          <p class="sorting-section-eyebrow">Final check</p>
+          <h2 id="sortingWashConfirmTitle">Check before saving</h2>
+          <p>Check the <strong>CUSTOMER</strong>, <strong>SCHEDULED DAY</strong> and <strong>KG</strong> carefully. These are the most common entry mistakes.</p>
+        </div>
+        <button value="cancel" type="submit" class="sorting-dialog-close" aria-label="Go back">×</button>
+      </header>
+
+      <div id="sortingWashConfirmMode" class="sorting-confirm-mode live">Current washing</div>
+
+      <section id="sortingWashConfirmRisk" class="sorting-confirm-risk" hidden>
+        <strong>CHECK CUSTOMER + SCHEDULED DAY</strong>
+        <span id="sortingWashConfirmRiskText"></span>
+      </section>
+
+      <section class="sorting-confirm-primary">
+        <div class="sorting-confirm-kg">
+          <span>WEIGHT</span>
+          <strong id="sortingWashConfirmWeight">—</strong>
+        </div>
+        <div class="sorting-confirm-type">
+          <span>TYPE</span>
+          <strong id="sortingWashConfirmType">—</strong>
+        </div>
+      </section>
+
+      <section class="sorting-confirm-customers">
+        <div class="sorting-confirm-section-title">
+          <span>CUSTOMERS</span>
+          <strong id="sortingWashConfirmCustomerCount">0</strong>
+        </div>
+        <div id="sortingWashConfirmCustomers" class="sorting-confirm-customer-list"></div>
+      </section>
+
+      <section class="sorting-confirm-details">
+        <div><span>Staff</span><strong id="sortingWashConfirmStaff">—</strong></div>
+        <div><span>Washer</span><strong id="sortingWashConfirmWasher">—</strong></div>
+        <div><span>Start</span><strong id="sortingWashConfirmStart">—</strong></div>
+        <div><span>Business date / Shift</span><strong id="sortingWashConfirmBusiness">—</strong></div>
+      </section>
+
+      <section id="sortingWashConfirmSpecial" class="sorting-confirm-special" hidden>
+        <label>
+          <span id="sortingWashConfirmReasonLabel">Reason</span>
+          <textarea id="sortingWashConfirmReason" maxlength="500" rows="3" placeholder="Short reason"></textarea>
+        </label>
+      </section>
+
+      <section id="sortingWashConfirmReceptionException" class="sorting-confirm-reception-exception" hidden>
+        <span>RECEPTION EXCEPTION</span>
+        <div id="sortingWashConfirmReceptionExceptionList"></div>
+      </section>
+
+      <section id="sortingWashConfirmNotesWrap" class="sorting-confirm-notes" hidden>
+        <span>Notes</span>
+        <p id="sortingWashConfirmNotes"></p>
+      </section>
+
+      <p id="sortingWashConfirmMessage" class="sorting-dialog-message" aria-live="polite"></p>
+
+      <footer class="sorting-wash-confirm-footer">
+        <button id="sortingWashConfirmBackButton" value="cancel" class="sorting-secondary-button sorting-confirm-back" type="submit">Go back and check</button>
+        <button id="sortingWashConfirmSaveButton" class="sorting-primary-button sorting-confirm-save" type="button">Confirm &amp; save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="sortingAttendanceDialog" class="sorting-dialog sorting-attendance-dialog sorting-no-work-dialog">
+    <form method="dialog" class="sorting-dialog-card" id="sortingAttendanceForm">
+      <header>
+        <div>
+          <p class="sorting-section-eyebrow">Actual staffing</p>
+          <h2 id="sortingAttendanceTitle">No Work in Sorting</h2>
+          <p id="sortingAttendanceHint">Roster stays Planned. Record why this person will not work in Sorting today.</p>
+        </div>
+        <button value="cancel" type="submit" class="sorting-dialog-close" aria-label="Close">×</button>
+      </header>
+
+      <div class="sorting-no-work-paths">
+        <label>
+          <input type="radio" name="sortingNoWorkAction" value="ABSENT">
+          <span><strong>Not working in Sorting</strong><small>Sick, no show, training or another non-working reason.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="sortingNoWorkAction" value="MOVE">
+          <span><strong>Moved to another area</strong><small>The staff member is working, but their Actual position changed.</small></span>
+        </label>
+      </div>
+
+      <section id="sortingAbsencePanel" class="sorting-no-work-panel" hidden>
+        <p class="sorting-no-work-panel-title">Why are they not working in Sorting?</p>
+        <div class="sorting-attendance-reasons">
+          <label><input type="radio" name="sortingAttendanceReason" value="SICK"> <span><strong>Sick</strong><small>Staff reported sick.</small></span></label>
+          <label><input type="radio" name="sortingAttendanceReason" value="NO_SHOW"> <span><strong>No show</strong><small>Staff did not attend the shift.</small></span></label>
+          <label><input type="radio" name="sortingAttendanceReason" value="TRAINING"> <span><strong>Training</strong><small>Staff is in training and is not available to Sorting.</small></span></label>
+          <label><input type="radio" name="sortingAttendanceReason" value="OTHER"> <span><strong>Other</strong><small>Use notes to explain.</small></span></label>
+        </div>
+      </section>
+
+      <section id="sortingMoveAreaPanel" class="sorting-no-work-panel" hidden>
+        <label class="sorting-field">Actual area
+          <select id="sortingMoveAreaSelect">
+            <option value="">Choose destination…</option>
+          </select>
+        </label>
+        <p class="sorting-no-work-help">This creates Actual staffing in the destination area. It does not change the published Roster.</p>
+      </section>
+
+      <label class="sorting-field">Notes <span>(optional unless Other needs explanation)</span>
+        <input id="sortingAttendanceNotes" type="text" maxlength="1000" placeholder="Short operational note">
+      </label>
+      <p id="sortingAttendanceMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer>
+        <button value="cancel" class="sorting-secondary-button" type="submit">Cancel</button>
+        <button id="sortingAttendanceSaveButton" class="sorting-primary-button" type="button">Save Actual status</button>
+      </footer>
+    </form>
+  </dialog>
+
+<dialog id="sortingCustomerDialog" class="sorting-customer-dialog">
+    <form method="dialog" class="sorting-dialog-card">
+      <header class="sorting-dialog-header">
+        <div><p class="sorting-section-eyebrow">Washing load</p><h2>Select customers</h2><p id="sortingCustomerDialogHint">Select one or more customers.</p></div>
+        <button class="sorting-dialog-close" value="cancel" aria-label="Close">×</button>
+      </header>
+      <div class="sorting-dialog-search"><input id="sortingCustomerSearch" type="search" placeholder="Search customer…" autocomplete="off"></div>
+      <div id="sortingCustomerOptions" class="sorting-customer-options"></div>
+      <footer class="sorting-dialog-footer sorting-customer-dialog-footer">
+        <div class="sorting-customer-dialog-tools">
+          <span id="sortingCustomerSelectionCount">0 selected</span>
+          <button id="sortingWashReceptionExceptionButton" class="sorting-exception-button" type="button">Reception exception</button>
+        </div>
+        <div>
+          <button class="sorting-secondary-button" value="cancel">Cancel</button>
+          <button class="sorting-primary-button" value="default">Use selected</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="sortingWashReceptionExceptionDialog" class="sorting-dialog sorting-wash-exception-dialog">
+    <form method="dialog" class="sorting-dialog-card sorting-wash-exception-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Controlled exception</p>
+          <h2>Wash with reception exception</h2>
+          <p>Use only when the laundry is physically present but Reception was not recorded. The reason is saved against the final Wash ID.</p>
+        </div>
+        <button class="sorting-dialog-close" value="cancel" aria-label="Close">×</button>
+      </header>
+      <div class="sorting-wash-exception-warning">
+        <strong>This does not create a trolley scan.</strong> If the customer officially has no trolley, use <em>Receive without trolley</em> instead whenever possible.
+      </div>
+      <div id="sortingWashReceptionExceptionOptions" class="sorting-customer-options sorting-wash-exception-options"></div>
+      <label class="sorting-field sorting-wash-exception-reason">Reason <span>(required)</span>
+        <textarea id="sortingWashReceptionExceptionReason" maxlength="500" rows="3" placeholder="Example: trolley was received but the Reception scan was missed"></textarea>
+      </label>
+      <p id="sortingWashReceptionExceptionMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer class="sorting-dialog-footer">
+        <span id="sortingWashReceptionExceptionCount">0 selected</span>
+        <div>
+          <button class="sorting-secondary-button" value="cancel">Cancel</button>
+          <button id="sortingWashReceptionExceptionUseButton" class="sorting-primary-button" type="button">Use exception</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="sortingManualStaffDialog" class="sorting-customer-dialog sorting-manual-staff-dialog">
+    <form method="dialog" class="sorting-dialog-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Actual staffing</p>
+          <h2>Add staff to Sorting</h2>
+          <p>This records where the person actually worked. It does not change the published Roster.</p>
+        </div>
+        <button class="sorting-dialog-close" value="cancel" aria-label="Close">×</button>
+      </header>
+      <div class="sorting-dialog-search">
+        <input id="sortingManualStaffSearch" type="search" placeholder="Search staff name…" autocomplete="off">
+      </div>
+      <div id="sortingManualStaffOptions" class="sorting-customer-options"></div>
+      <footer class="sorting-dialog-footer">
+        <span id="sortingManualStaffHint">Select one staff member.</span>
+        <div>
+          <button class="sorting-secondary-button" value="cancel">Cancel</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+
+  <dialog id="sortingMopAbsDialog" class="sorting-dialog sorting-mop-abs-dialog">
+    <div class="sorting-dialog-card sorting-mop-abs-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Shared ABS trace</p>
+          <h2>Post ABS Batch</h2>
+          <p>The batch is stored in the shared Production Flow record, so Finish and MOP use the same ABS evidence.</p>
+        </div>
+        <button id="sortingMopAbsCloseButton" class="sorting-dialog-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div id="sortingMopAbsSummary" class="sorting-mop-abs-summary"></div>
+      <label class="sorting-field sorting-mop-abs-field">ABS Batch number <span class="sorting-required">*</span>
+        <input id="sortingMopAbsBatchInput" type="text" maxlength="120" autocomplete="off" inputmode="numeric" placeholder="e.g. 32">
+      </label>
+      <label class="sorting-field sorting-mop-abs-field">Notes <span>(optional)</span>
+        <textarea id="sortingMopAbsNotes" rows="2" maxlength="1000" placeholder="Optional ABS posting note"></textarea>
+      </label>
+      <p id="sortingMopAbsMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer class="sorting-dialog-footer">
+        <span>Who posted the ABS batch and when are recorded automatically from the authenticated user.</span>
+        <div>
+          <button id="sortingMopAbsCancelButton" class="sorting-secondary-button" type="button">Cancel</button>
+          <button id="sortingMopAbsSaveButton" class="sorting-primary-button" type="button">Post ABS Batch</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+
+  <dialog id="sortingMopCorrectionDialog" class="sorting-dialog sorting-mop-correction-dialog">
+    <div class="sorting-dialog-card sorting-mop-correction-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Append-only edit</p>
+          <h2>Edit MOP Production</h2>
+          <p>The original record is preserved. Saving creates a new revision linked to the previous one.</p>
+        </div>
+        <button id="sortingMopCorrectionCloseButton" class="sorting-dialog-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div id="sortingMopCorrectionSummary" class="sorting-mop-correction-summary"></div>
+      <section class="sorting-mop-correction-section">
+        <div class="sorting-mop-section-title"><strong>MOP types / quantities</strong><span>Edit KG or Units</span></div>
+        <div id="sortingMopCorrectionLines" class="sorting-mop-correction-lines"></div>
+      </section>
+      <section id="sortingMopCorrectionTrolleySection" class="sorting-mop-correction-section">
+        <div class="sorting-mop-section-title"><strong>Trolley evidence</strong><span id="sortingMopCorrectionTrolleyMode">—</span></div>
+        <div id="sortingMopCorrectionTrolleyLocked" class="sorting-mop-correction-lock" hidden></div>
+        <label id="sortingMopCorrectionTrolleyCodesWrap" class="sorting-field sorting-mop-correction-field">Late trolley reference(s)
+          <input id="sortingMopCorrectionTrolleyCodes" type="text" maxlength="180" autocomplete="off" placeholder="T123T, T456T">
+        </label>
+        <label id="sortingMopCorrectionTrolleyUnknownWrap" class="sorting-mop-checkline">
+          <input id="sortingMopCorrectionTrolleyUnknown" type="checkbox">
+          <span><strong>Trolley number is no longer available</strong><small>Late reference only. No custody record will be invented.</small></span>
+        </label>
+      </section>
+      <label class="sorting-field sorting-mop-correction-field">Operational notes <span>(optional)</span>
+        <textarea id="sortingMopCorrectionNotes" rows="2" maxlength="1000" placeholder="Updated operational note"></textarea>
+      </label>
+      <label class="sorting-field sorting-mop-correction-field">Edit reason <span class="sorting-required">*</span>
+        <textarea id="sortingMopCorrectionReason" rows="2" maxlength="1000" placeholder="What needs to be changed in this production record?"></textarea>
+      </label>
+      <details class="sorting-mop-correction-history-wrap">
+        <summary>Revision history</summary>
+        <div id="sortingMopCorrectionHistory" class="sorting-mop-correction-history"></div>
+      </details>
+      <p id="sortingMopCorrectionMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer class="sorting-dialog-footer">
+        <span>Washing and the original MOP Production revision are never deleted.</span>
+        <div>
+          <button id="sortingMopCorrectionCancelButton" class="sorting-secondary-button" type="button">Close</button>
+          <button id="sortingMopCorrectionSaveButton" class="sorting-primary-button" type="button">Save new revision</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="sortingMopCancelDialog" class="sorting-dialog sorting-mop-cancel-dialog">
+    <div class="sorting-dialog-card sorting-mop-cancel-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">Governed cancellation</p>
+          <h2>Cancel MOP Production</h2>
+          <p>The production evidence remains in Trace history. The washed customer returns to the MOP queue.</p>
+        </div>
+        <button id="sortingMopCancelCloseButton" class="sorting-dialog-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div id="sortingMopCancelSummary" class="sorting-mop-correction-summary"></div>
+      <div id="sortingMopCancelAbsWarning" class="sorting-mop-cancel-abs" hidden>
+        <label>
+          <input id="sortingMopCancelAbsEvidence" type="checkbox">
+          <span><strong>Also cancel the linked ABS evidence in ElisCaretex Trace</strong><small>This only corrects ElisCaretex evidence. It does not change the external ABS system.</small></span>
+        </label>
+      </div>
+      <label class="sorting-field sorting-mop-correction-field">Cancellation reason <span class="sorting-required">*</span>
+        <textarea id="sortingMopCancelReason" rows="3" maxlength="1000" placeholder="Why should this MOP Production record be cancelled?"></textarea>
+      </label>
+      <p id="sortingMopCancelMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer class="sorting-dialog-footer">
+        <span>Cancellation is blocked here when live physical trolley lifecycle evidence exists.</span>
+        <div>
+          <button id="sortingMopCancelCancelButton" class="sorting-secondary-button" type="button">Close</button>
+          <button id="sortingMopCancelSaveButton" class="sorting-danger-button" type="button">Cancel production</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+
+  <dialog id="sortingMopTypesDialog" class="sorting-dialog sorting-mop-types-dialog">
+    <div class="sorting-dialog-card sorting-mop-types-card">
+      <header class="sorting-mop-types-dialog-header">
+        <div>
+          <p class="sorting-section-eyebrow">MOP master data</p>
+          <h2>MOP Types Management</h2>
+          <p>Maintain the MOP catalogue used by Customer Schedules and MOP Production.</p>
+        </div>
+        <button id="sortingMopTypesCloseButton" class="sorting-dialog-close" type="button" aria-label="Close">×</button>
+      </header>
+
+      <div class="sorting-mop-types-manager">
+        <aside class="sorting-mop-types-list-wrap">
+          <div class="sorting-mop-types-list-head">
+            <div>
+              <strong>MOP Types <span id="sortingMopTypesCount" class="sorting-mop-types-count">0</span></strong>
+              <span id="sortingMopTypesPermission">Loading…</span>
+            </div>
+            <button id="sortingMopTypeNewButton" class="sorting-mop-type-new-button" type="button">+ New Type</button>
+          </div>
+          <div class="sorting-mop-types-search-wrap">
+            <input id="sortingMopTypesSearch" type="search" placeholder="Search type, code or category…" autocomplete="off">
+          </div>
+          <div id="sortingMopTypesList" class="sorting-mop-types-list"></div>
+        </aside>
+
+        <section id="sortingMopTypeEditor" class="sorting-mop-type-editor">
+          <div class="sorting-mop-type-editor-empty">
+            <span class="sorting-mop-type-editor-empty-icon">🧹</span>
+            <strong>Select a MOP type</strong>
+            <span>Choose a saved type to edit, or create a new one.</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="sorting-mop-types-footer-note">
+        MOP type codes are permanent identities. Existing records are never deleted from production history.
+      </div>
+      <p id="sortingMopTypesMessage" class="sorting-dialog-message" aria-live="polite"></p>
+    </div>
+  </dialog>
+
+</body>
+</html>

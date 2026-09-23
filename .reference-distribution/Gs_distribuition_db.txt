@@ -1,0 +1,4139 @@
+// ============================================================
+//  LOGISTICS ROSTER MANAGER — Code.gs
+//  Vincule este script à sua planilha do Google Sheets
+// ============================================================
+
+const SHEET = {
+  ROSTER:    'Roster',
+  DRIVERS:   'Drivers',
+  ROUTES:    'Routes',
+  CUSTOMER:  'Customer',
+  VEHICLES:  'VEHICLES',
+  MAINT_LOG: 'Maint Log',
+  LEAVE_REQUESTS: 'Driver Leave Requests',
+  LEAVE_CALENDAR: 'Driver Leave Calendar'
+};
+
+// ── Data retention / archiving ──────────────────────────────────────────────
+// Long-lived system: keep active sheets small so every getDataRange() stays fast.
+// Old rows are MOVED to a "<sheet> Archive" tab (preserved for audits, but out of
+// the hot read path). Default: archive anything whose date is older than 36 months (3 years).
+const ARCHIVE = {
+  MONTHS_TO_KEEP: 36,
+  SUFFIX: ' Archive'
+};
+
+// Run this monthly (via a time-based trigger) to keep things fast for years.
+function archiveOldData() {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - ARCHIVE.MONTHS_TO_KEEP);
+  const cutoffStr = Utilities.formatDate(cutoff, Session.getScriptTimeZone() || 'Europe/Dublin', 'yyyy-MM-dd');
+
+  const summary = {};
+  // Leave Calendar: archive by LeaveDate (column index resolved by header).
+  summary.leaveCalendar = _archiveSheetByDate_(SHEET.LEAVE_CALENDAR, 'LeaveDate', cutoffStr);
+  // Maint Log: archive by End date (col 6, 0-based index 5) — fixed layout.
+  summary.maintLog = _archiveMaintLogByDate_(cutoffStr);
+  // Leave Requests: archive by EndDate.
+  summary.leaveRequests = _archiveSheetByDate_(SHEET.LEAVE_REQUESTS, 'EndDate', cutoffStr);
+
+  Logger.log('archiveOldData cutoff=' + cutoffStr + ' → ' + JSON.stringify(summary));
+  return { ok: true, cutoff: cutoffStr, archived: summary };
+}
+
+// Move rows whose date column < cutoff into "<name> Archive". Header-driven.
+function _archiveSheetByDate_(sheetName, dateHeader, cutoffStr) {
+  const ss = ss_();
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh || sh.getLastRow() < 2) return 0;
+
+  const vals = sh.getDataRange().getValues();
+  const headers = vals[0].map(String);
+  const di = headers.indexOf(dateHeader);
+  if (di < 0) return 0;
+
+  const keep = [headers];
+  const move = [];
+  for (let i = 1; i < vals.length; i++) {
+    const d = _rowDateStr_(vals[i][di]);
+    if (d && d < cutoffStr) move.push(vals[i]); else keep.push(vals[i]);
+  }
+  if (!move.length) return 0;
+
+  // Append to archive sheet (create with headers if needed).
+  const arch = _ensureArchiveSheet_(sheetName, headers);
+  arch.getRange(arch.getLastRow() + 1, 1, move.length, headers.length).setValues(move);
+
+  // Rewrite active sheet with only the kept rows.
+  sh.clearContents();
+  sh.getRange(1, 1, keep.length, headers.length).setValues(keep);
+  return move.length;
+}
+
+// Maint Log has a fixed 7-col layout; End date is column 6 (index 5).
+function _archiveMaintLogByDate_(cutoffStr) {
+  const ss = ss_();
+  const sh = ss.getSheetByName(SHEET.MAINT_LOG);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  const vals = sh.getDataRange().getValues();
+  const headers = vals[0];
+  const keep = [headers];
+  const move = [];
+  for (let i = 1; i < vals.length; i++) {
+    const endStr = _rowDateStr_(vals[i][5]) || _rowDateStr_(vals[i][4]); // End, fallback Start
+    if (endStr && endStr < cutoffStr) move.push(vals[i]); else keep.push(vals[i]);
+  }
+  if (!move.length) return 0;
+  const arch = _ensureArchiveSheet_(SHEET.MAINT_LOG, headers);
+  arch.getRange(arch.getLastRow() + 1, 1, move.length, headers.length).setValues(move);
+  sh.clearContents();
+  sh.getRange(1, 1, keep.length, headers.length).setValues(keep);
+  return move.length;
+}
+
+function _ensureArchiveSheet_(baseName, headers) {
+  const ss = ss_();
+  const name = baseName + ARCHIVE.SUFFIX;
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, headers.length).setValues([headers])
+      .setFontWeight('bold').setBackground('#475569').setFontColor('#ffffff');
+  }
+  return sh;
+}
+
+// Normalize any cell (Date object or string) to 'yyyy-MM-dd' for comparison.
+function _rowDateStr_(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, Session.getScriptTimeZone() || 'Europe/Dublin', 'yyyy-MM-dd');
+  }
+  const s = String(v).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[0] : '';
+}
+
+// One-time setup: create a monthly trigger that runs archiveOldData automatically.
+function setupArchiveTrigger() {
+  // Remove any existing archive triggers first to avoid duplicates.
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'archiveOldData') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('archiveOldData').timeBased().onMonthDay(1).atHour(3).create();
+  return 'Monthly archive trigger installed (runs on the 1st at ~3am).';
+}
+
+// ── Roteamento ──────────────────────────────────────────────
+
+// Cache do spreadsheet — evita chamar getActiveSpreadsheet() repetidamente
+let _ss = null;
+function ss_() {
+  if (!_ss) _ss = SpreadsheetApp.getActiveSpreadsheet();
+  return _ss;
+}
+
+// ============================================================
+//  CENTRALDB CLIENT  (added for data migration)
+//  One-time setup in the editor:
+//    setCentralConfig('https://script.google.com/macros/s/XXXX/exec',
+//                     'your-secret-api-key');
+// ============================================================
+function _centralProps_() { return PropertiesService.getScriptProperties(); }
+
+function setCentralConfig(url, key) {
+  // Default config — just run setCentralConfig() with no arguments to apply.
+  url = url || 'https://script.google.com/macros/s/AKfycbwpCN6QRKVDNfjt9wIsY1tngqOnEpPHZQerwj_MMm2_tnL-mxbyzF-9abJl8ErSZXpAhQ/exec';
+  key = key || 'elis-central-db-2026';
+  _centralProps_().setProperty('CENTRAL_URL', String(url).trim());
+  _centralProps_().setProperty('CENTRAL_KEY', String(key).trim());
+  return 'CentralDB config saved.';
+}
+
+function _testCentral() {
+  Logger.log(cdbGet_('getVehicles'));
+}
+function _centralUrl_() {
+  const u = _centralProps_().getProperty('CENTRAL_URL');
+  if (!u) throw new Error('CentralDB URL not set. Run setCentralConfig(url, key) once.');
+  return u;
+}
+function _centralKey_() {
+  const k = _centralProps_().getProperty('CENTRAL_KEY');
+  if (!k) throw new Error('CentralDB API key not set. Run setCentralConfig(url, key) once.');
+  return k;
+}
+
+function cdbGet_(action, params) {
+  const qs = ['apiKey=' + encodeURIComponent(_centralKey_()),
+              'action=' + encodeURIComponent(action)];
+  if (params) {
+    Object.keys(params).forEach(k => {
+      const v = params[k];
+      if (v !== undefined && v !== null && v !== '') {
+        qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
+      }
+    });
+  }
+  const url  = _centralUrl_() + '?' + qs.join('&');
+  const resp = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+  return _cdbParse_(resp, action);
+}
+
+function cdbPost_(action, body) {
+  const payload = Object.assign({ apiKey: _centralKey_(), action: action }, body || {});
+  const resp = UrlFetchApp.fetch(_centralUrl_(), {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  return _cdbParse_(resp, action);
+}
+
+function _cdbParse_(resp, action) {
+  let json;
+  try { json = JSON.parse(resp.getContentText()); }
+  catch (e) { throw new Error('CentralDB ' + action + ': invalid response (' + resp.getResponseCode() + ')'); }
+  if (!json.ok) throw new Error('CentralDB ' + action + ': ' + (json.error || 'unknown error'));
+  return json.data;
+}
+
+// Run several CentralDB GET actions in PARALLEL using UrlFetchApp.fetchAll.
+// `actions` = [{ action:'getRoutes', params:{...} }, ...]
+// Returns an array of parsed data in the same order. Any single failure is
+// returned as { __error: message } in that slot so one bad call never blocks the rest.
+function cdbGetAll_(actions) {
+  const key = _centralKey_();
+  const base = _centralUrl_();
+  const requests = actions.map(a => {
+    const qs = ['apiKey=' + encodeURIComponent(key), 'action=' + encodeURIComponent(a.action)];
+    const params = a.params || {};
+    Object.keys(params).forEach(k => {
+      const v = params[k];
+      if (v !== undefined && v !== null && v !== '') qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
+    });
+    return { url: base + '?' + qs.join('&'), method: 'get', muteHttpExceptions: true };
+  });
+  const responses = UrlFetchApp.fetchAll(requests);
+  return responses.map((resp, i) => {
+    try { return _cdbParse_(resp, actions[i].action); }
+    catch (e) { return { __error: e.message }; }
+  });
+}
+
+// Cached parallel GET: serves boot data from a short-lived script cache (~3 min)
+// so repeated loads don't re-hit the CentralDB. Falls back to a live fetch on a
+// cache miss, then stores the result. Cache is invalidated on writes via _bustBootCache_.
+const BOOT_CACHE_KEY = 'boot_data_v1';
+const BOOT_CACHE_SECONDS = 180;
+
+function cdbGetAllCached_(actions, cacheKey) {
+  actions = Array.isArray(actions) ? actions : [];
+  if (!actions.length) return [];
+
+  const cache = CacheService.getScriptCache();
+  const ck = cacheKey || BOOT_CACHE_KEY;
+
+  // Backward-compatible whole-batch hit. Keep reading old cache entries created by
+  // previous deployments, but do not depend on a single large CacheService item.
+  try {
+    const hit = cache.get(ck);
+    if (hit) {
+      const parsed = JSON.parse(hit);
+      if (parsed && parsed.length === actions.length) return parsed;
+    }
+  } catch (e) {}
+
+  // PERFORMANCE: cache each action independently. A combined drivers + vehicles +
+  // defects + routes payload can exceed the per-item cache limit, making the old
+  // cache silently ineffective. Per-slot entries also let us fetch only misses.
+  const out = new Array(actions.length);
+  const missActions = [];
+  const missIndexes = [];
+
+  actions.forEach((a, i) => {
+    const sig = String(a.action || '') + '|' + JSON.stringify(a.params || {});
+    try {
+      const part = cache.get(ck + '_p' + i);
+      if (part) {
+        const parsed = JSON.parse(part);
+        if (parsed && parsed.sig === sig && Object.prototype.hasOwnProperty.call(parsed, 'data')) {
+          out[i] = parsed.data;
+          return;
+        }
+      }
+    } catch (e) {}
+    missActions.push(a);
+    missIndexes.push(i);
+  });
+
+  if (missActions.length) {
+    const fresh = cdbGetAll_(missActions);
+    fresh.forEach((data, j) => {
+      const i = missIndexes[j];
+      out[i] = data;
+      if (!(data && data.__error)) {
+        const a = actions[i];
+        const sig = String(a.action || '') + '|' + JSON.stringify(a.params || {});
+        try { cache.put(ck + '_p' + i, JSON.stringify({ sig:sig, data:data }), BOOT_CACHE_SECONDS); } catch (e) {}
+      }
+    });
+  }
+
+  // Small batches may still fit as one item; writing it is only an optional fast path.
+  const allOk = out.every(r => !(r && r.__error));
+  if (allOk) {
+    try { cache.put(ck, JSON.stringify(out), BOOT_CACHE_SECONDS); } catch (e) {}
+  }
+  return out;
+}
+
+// Call after any write that changes drivers/vehicles/routes/customers so the next load is fresh.
+function _bustBootCache_() {
+  try {
+    const roots = ['boot_supervisor_v1', 'boot_viewer_v1', BOOT_CACHE_KEY];
+    const keys = roots.slice();
+    roots.forEach(k => { for (let i = 0; i < 10; i++) keys.push(k + '_p' + i); });
+    CacheService.getScriptCache().removeAll(keys);
+  } catch (e) {}
+}
+
+function _vehDate_(r, key) {
+  return r && r[key] ? toDateStr_(r[key]) : '';
+}
+
+function _vehFromDb_(r) {
+  return {
+    plate:      String(r.Plate  || '').trim(),
+    type:       String(r.Type   || '').trim(),
+    notes:      String(r.Notes  || '').trim(),
+    status:     String(r.Status || 'available').trim().toLowerCase() || 'available',
+    maintStart: _vehDate_(r, 'MaintStart'),
+    maintEnd:   _vehDate_(r, 'MaintEnd'),
+
+    contractType:        String(r.ContractType        || '').trim(),
+    vehicleDescription:  String(r.VehicleDescription  || '').trim(),
+    tachographType:      String(r.TachographType      || '').trim(),
+    insurer:             String(r.Insurer             || '').trim(),
+    make:                String(r.Make                || '').trim(),
+    range:               String(r.Range               || '').trim(),
+    cvrtMotExpiryDate:   _vehDate_(r, 'CvrtMotExpiryDate'),
+    tachoCalibrationDate:_vehDate_(r, 'TachoCalibrationDate'),
+    fuel:                String(r.Fuel                || '').trim(),
+    lastKmRecorded:      r.LastKmRecorded !== undefined && r.LastKmRecorded !== null ? String(r.LastKmRecorded).trim() : '',
+    contractStartDate:   _vehDate_(r, 'ContractStartDate'),
+    contractEndDate:     _vehDate_(r, 'ContractEndDate'),
+    bodyDetail:          String(r.BodyDetail          || '').trim(),
+    tailLiftDetail1:     String(r.TailLiftDetail1     || '').trim(),
+    tailLiftDetail2:     String(r.TailLiftDetail2     || '').trim(),
+    monthlyRentalExVat:  r.MonthlyRentalExVat !== undefined && r.MonthlyRentalExVat !== null ? String(r.MonthlyRentalExVat).trim() : '',
+    termMonths:          r.TermMonths !== undefined && r.TermMonths !== null ? String(r.TermMonths).trim() : '',
+    cvrtLast:            _vehDate_(r, 'CvrtLast'),
+    serviceLast:         _vehDate_(r, 'ServiceLast'),
+    serviceNext:         _vehDate_(r, 'ServiceNext'),
+    tachographLast:      _vehDate_(r, 'TachographLast'),
+    roadFundLicenceNext: _vehDate_(r, 'RoadFundLicenceNext'),
+    tlWeightTestLast:    _vehDate_(r, 'TlWeightTestLast'),
+    tlWeightTestNext:    _vehDate_(r, 'TlWeightTestNext'),
+    registrationDate:    _vehDate_(r, 'RegistrationDate'),
+    tlLolerNext:         _vehDate_(r, 'TlLolerNext'),
+    tlLolerLast:         _vehDate_(r, 'TlLolerLast')
+  };
+}
+
+function doGet(e) {
+  const page = (e && e.parameter && e.parameter.page) || 'app';
+  const key  = (e && e.parameter && e.parameter.s)    || '';
+
+  // Viewer is public — no key required
+  if (page === 'viewer') {
+    return HtmlService.createHtmlOutputFromFile('Viewer')
+      .setTitle('Roster — Logistics')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  }
+
+  // Supervisor app requires ?s=elis2025
+  if (key !== 'elis2025') {
+    return HtmlService.createHtmlOutput(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<title>Access Denied</title>'
+      + '<style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Arial,sans-serif;background:#0b1120;color:#f0f4ff;'
+      + 'display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}'
+      + '.card{background:#1a2740;border:1px solid #263352;border-radius:16px;padding:40px 32px;max-width:360px;width:100%}'
+      + '.logo{width:52px;height:52px;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}'
+      + '.logo img{width:36px;height:36px;object-fit:contain}'
+      + 'h1{font-size:20px;font-weight:800;margin-bottom:8px}'
+      + 'p{font-size:13px;color:#8ba0c0;line-height:1.6}'
+      + '.icon{font-size:40px;margin-bottom:16px}'
+      + '</style></head><body>'
+      + '<div class="card">'
+      + '<div class="logo"><img src="https://ie.elis.com/themes/custom/elis/img/logo.svg" alt="Elis"></div>'
+      + '<div class="icon">&#128274;</div>'
+      + '<h1>Access Denied</h1>'
+      + '<p>You do not have permission to access this page.<br><br>If you are a driver, please use the link provided by your supervisor.</p>'
+      + '</div></body></html>'
+    )
+    .setTitle('Access Denied')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // Authorised (key OK) — customer planner page
+  if (page === 'customers') {
+    return HtmlService.createHtmlOutputFromFile('CustomerPlanner')
+      .setTitle('Distribution — Customers')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // Authorised — serve the supervisor app
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('Roster Manager')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// ── Utilitários ─────────────────────────────────────────────
+
+function getSheet_(name) {
+  const s = ss_().getSheetByName(name);
+  if (!s) throw new Error('Aba "' + name + '" não encontrada na planilha.');
+  return s;
+}
+
+function toDateStr_(v) {
+  if (!v) return '';
+  try {
+    const d = (v instanceof Date) ? v : new Date(v);
+    // Always use UTC to avoid timezone-induced date shifts
+    return [d.getUTCFullYear(),
+            String(d.getUTCMonth()+1).padStart(2,'0'),
+            String(d.getUTCDate()).padStart(2,'0')].join('-');
+  } catch(e) { return String(v); }
+}
+
+function mondayOfWeek_(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const dow = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+  return d.toISOString().slice(0,10);
+}
+
+function todayMonday_() {
+  return mondayOfWeek_(new Date().toISOString().slice(0,10));
+}
+
+// ── Motoristas ──────────────────────────────────────────────
+
+// Devolve apenas motoristas activos
+function getDrivers() {
+  return getAllDrivers_().filter(d => d.active && !d.rosterHidden);
+}
+
+// Devolve TODOS (activos + inactivos) — para resolução histórica
+function getAllDrivers() {
+  return getAllDrivers_();
+}
+
+function _mapDriverRows_(rows) {
+  return (rows || [])
+    .filter(r => r.DriverID !== '' && r.DriverID !== null && r.DriverID !== undefined)
+    .map(r => ({
+      id:              String(r.DriverID).trim(),
+      name:            String(r.Name || '').trim(),
+      license:         String(r.LicenseType || '').trim(),
+      active:          (r.Active === '' || r.Active === null || r.Active === undefined)
+                        ? true
+                        : (String(r.Active).toLowerCase() === 'yes' || r.Active === true),
+      rosterHidden:    String(r.RosterHidden || '').toLowerCase() === 'yes' || r.RosterHidden === true,
+      joinedDate:      r.JoinedDate      ? toDateStr_(r.JoinedDate)      : '',
+      deactivatedDate: r.DeactivatedDate ? toDateStr_(r.DeactivatedDate) : ''
+    }));
+}
+
+function getAllDrivers_() {
+  try {
+    const rows = cdbGet_('getDrivers', { active: 'all' }) || []; // explicit all = active + inactive
+    return _mapDriverRows_(rows);
+  } catch (e) {
+    return [];
+  }
+}
+
+// ── Duplicate detection (alerts, never blocks) ─────────────────────────────
+// Normalize a name/plate for fuzzy matching: lowercase, strip spaces & punctuation.
+function _normKey_(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Returns drivers whose name looks the same as `name` (ignores case/spacing).
+// excludeId lets edits skip the record being edited.
+function checkDuplicateDriver(name, excludeId) {
+  try {
+    const key = _normKey_(name);
+    if (!key) return { ok:true, duplicates:[] };
+    const dups = getAllDrivers_()
+      .filter(d => _normKey_(d.name) === key && String(d.id) !== String(excludeId || ''))
+      .map(d => ({ id:d.id, name:d.name, active:d.active, rosterHidden:d.rosterHidden }));
+    return { ok:true, duplicates:dups };
+  } catch (e) { return { ok:false, msg:e.message, duplicates:[] }; }
+}
+
+// Returns vehicles whose plate looks the same as `plate` (ignores case/spacing/dashes).
+function checkDuplicateVehicle(plate, excludePlate) {
+  try {
+    const key = _normKey_(plate);
+    if (!key) return { ok:true, duplicates:[] };
+    const exKey = _normKey_(excludePlate || '');
+    const dups = getVehicles()
+      .filter(v => _normKey_(v.plate) === key && _normKey_(v.plate) !== exKey)
+      .map(v => ({ plate:v.plate, type:v.type, status:v.status }));
+    return { ok:true, duplicates:dups };
+  } catch (e) { return { ok:false, msg:e.message, duplicates:[] }; }
+}
+
+function saveDriver(d) {
+  _bustBootCache_();
+  try {
+    if (d.isNew) {
+      const res = cdbPost_('addDriver', {
+        Name:        String(d.name).trim(),
+        LicenseType: String(d.license || '').trim(),
+        RosterHidden: d.rosterHidden ? 'Yes' : 'No',
+        JoinedDate:  todayMonday_()
+      });
+      return { ok: true, id: res && res.driverId ? String(res.driverId) : undefined };
+    }
+    cdbPost_('updateDriver', {
+      driverId:    String(d.id),
+      Name:        String(d.name).trim(),
+      LicenseType: String(d.license || '').trim(),
+      RosterHidden: d.rosterHidden ? 'Yes' : 'No',
+      Active:      'Yes'
+    });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function deactivateDriver(id) {
+  _bustBootCache_();
+  try {
+    cdbPost_('deactivateDriver', { driverId: String(id) });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function reactivateDriver(id) {
+  _bustBootCache_();
+  try {
+    cdbPost_('reactivateDriver', { driverId: String(id) });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function setDriverRosterHidden(id, hidden) {
+  _bustBootCache_();
+  try {
+    cdbPost_('updateDriver', {
+      driverId: String(id),
+      RosterHidden: hidden ? 'Yes' : 'No'
+    });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+
+
+// ── Rotas ────────────────────────────────────────────────────
+
+// Update KM and Hours for a specific route+day row
+function saveRouteStats(routeNum, day, stats) {
+  try {
+    cdbPost_('saveRouteStats', {
+      route: String(routeNum || '').trim(),
+      day: String(day || '').trim(),
+      km: stats && stats.km !== undefined ? stats.km : undefined,
+      hours: stats && stats.hours !== undefined ? stats.hours : undefined
+    });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function _routeFromDb_(r) {
+  return {
+    route:       String(r.Route || r.route || '').trim().replace(/\.0+$/, ''),
+    code:        String(r.Code || r.code || '').trim(),
+    day:         String(r.Day || r.day || '').trim(),
+    km:          parseFloat(r.KM !== undefined ? r.KM : r.km) || 0,
+    hours:       parseFloat(r.Hours !== undefined ? r.Hours : r.hours) || 0,
+    stops:       parseInt(r.Stops !== undefined ? r.Stops : r.stops) || 0,
+    colour:      String(r.Colour || r.Color || r.colour || r.color || '#94a3b8').trim() || '#94a3b8',
+    displayName: String(r.DisplayName || r.displayName || r.Route || r.route || '').trim(),
+    routeType:   String(r.RouteType || r.routeType || 'STANDARD').trim().toUpperCase() || 'STANDARD',
+    active:      !['no','false','0','inactive'].includes(String(r.Active === undefined ? 'yes' : r.Active).trim().toLowerCase()),
+    validFrom:   String(r.ValidFrom || r.validFrom || '').slice(0,10),
+    validUntil:  String(r.ValidUntil || r.validUntil || '').slice(0,10)
+  };
+}
+
+function _getLocalRoutes_() {
+  const vals = getSheet_(SHEET.ROUTES).getDataRange().getValues();
+  return vals.slice(1)
+    .filter(r => r[0] !== '' && r[0] !== null)
+    .map(r => ({
+      route:       String(r[0]).trim().replace(/\.0+$/, ''),
+      code:        String(r[1]||'').trim(),
+      day:         String(r[2]||'').trim(),
+      km:          parseFloat(r[3])||0,
+      hours:       parseFloat(r[4])||0,
+      stops:       parseInt(r[5])||0,
+      colour:      String(r[6]||'#94a3b8').trim() || '#94a3b8',
+      displayName: String(r[7]||r[0]).trim(),
+      routeType:   'STANDARD',
+      active:      true,
+      validFrom:   '',
+      validUntil:  ''
+    }))
+    .filter(r => r.route);
+}
+
+function getRoutes() {
+  try {
+    const rows = cdbGet_('getRoutes') || [];
+    const dbRoutes = rows.map(_routeFromDb_).filter(r => r.route);
+
+    // IMPORTANT: when CentralDB is reachable but Routes is still empty,
+    // do not leave the screen blank. Show local routes until you run
+    // syncLocalRoutesToCentralDB() one time.
+    if (dbRoutes.length) return dbRoutes;
+
+    const localRoutes = _getLocalRoutes_();
+    if (localRoutes.length) return localRoutes;
+    return [];
+  } catch(e) {
+    // Fallback local only if CentralDB has an error.
+    return _getLocalRoutes_();
+  }
+}
+
+/**
+ * ONE-TIME MIGRATION: sends the local spreadsheet tab Routes to CentralDB.
+ * Run this in the Roster/Distribution Apps Script editor after deploying
+ * the CentralDB file that contains saveRoute/getRoutes.
+ */
+function syncLocalRoutesToCentralDB() {
+  const localRoutes = _getLocalRoutes_();
+  const results = [];
+  localRoutes.forEach(r => {
+    try {
+      const res = cdbPost_('saveRoute', {
+        Route:       r.route,
+        Code:        r.code,
+        Day:         r.day,
+        KM:          r.km,
+        Hours:       r.hours,
+        Stops:       r.stops,
+        Colour:      r.colour,
+        DisplayName: r.displayName,
+        RouteType:   r.routeType || 'STANDARD',
+        Active:      r.active === false ? 'No' : 'Yes',
+        ValidFrom:   r.validFrom || '',
+        ValidUntil:  r.validUntil || ''
+      });
+      results.push({ ok:true, route:r.route, day:r.day, displayName:r.displayName, result:res });
+    } catch(e) {
+      results.push({ ok:false, route:r.route, day:r.day, displayName:r.displayName, error:e.message });
+    }
+  });
+  return {
+    success: results.every(x => x.ok),
+    totalLocalRoutes: localRoutes.length,
+    savedToCentralDB: results.filter(x => x.ok).length,
+    failed: results.filter(x => !x.ok),
+    sample: results.slice(0, 20)
+  };
+}
+
+function testCentralRoutes() {
+  const rows = cdbGet_('getRoutes') || [];
+  return { centralRoutesCount: rows.length, sample: rows.slice(0, 10) };
+}
+
+function saveRoute(r) {
+  _bustBootCache_();
+  try {
+    cdbPost_('saveRoute', {
+      Route:       String(r.route || '').trim(),
+      Code:        String(r.code || '').trim(),
+      Day:         String(r.day || '').trim(),
+      KM:          parseFloat(r.km) || 0,
+      Hours:       parseFloat(r.hours) || 0,
+      Stops:       parseInt(r.stops) || 0,
+      Colour:      String(r.colour || '#94a3b8').trim(),
+      DisplayName: String(r.displayName || r.route || '').trim(),
+      RouteType:   String(r.routeType || 'STANDARD').trim().toUpperCase(),
+      Active:      r.active === false ? 'No' : 'Yes',
+      ValidFrom:   String(r.validFrom || '').trim(),
+      ValidUntil:  String(r.validUntil || '').trim()
+    });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+
+// Create/update an EXTERNAL route as one Routes row per selected operating day.
+// CentralDB applies the whole day set under one document lock and blocks the
+// removal of a day while active external-delivery stops still use that day.
+function saveExternalRouteDays(r) {
+  _bustBootCache_();
+  try {
+    const days = Array.isArray(r && r.days) ? r.days.map(String) : [];
+    const result = cdbPost_('saveRouteDays', {
+      Route:       String((r && r.route) || '').trim(),
+      Code:        String((r && r.code) || '').trim(),
+      Days:        days,
+      OriginalDays:Array.isArray(r && r.originalDays) ? r.originalDays.map(String) : [],
+      KM:          parseFloat(r && r.km) || 0,
+      Hours:       parseFloat(r && r.hours) || 0,
+      Stops:       parseInt(r && r.stops) || 0,
+      Colour:      String((r && r.colour) || '#94a3b8').trim(),
+      DisplayName: String((r && (r.displayName || r.route)) || '').trim(),
+      RouteType:   'EXTERNAL',
+      Active:      r && r.active === false ? 'No' : 'Yes',
+      ValidFrom:   String((r && r.validFrom) || '').trim(),
+      ValidUntil:  String((r && r.validUntil) || '').trim()
+    });
+    return { ok: true, result: result };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function deleteRoute(routeNum, displayName, day) {
+  _bustBootCache_();
+  try {
+    cdbPost_('deleteRoute', {
+      Route: String(routeNum || '').trim(),
+      DisplayName: String(displayName || '').trim(),
+      Day: String(day || '').trim()
+    });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+// ── Roster (JSON storage — 1 row per week) ──────────────────
+//
+//  New format — 2 columns:
+//    A: WeekStart as plain text  "2026-04-28"
+//    B: JSON string  {"assignments":[...],"requiredRoutes":{...}}
+//
+//  Old format (backward compat) — 9 columns, one row per driver.
+//  Both formats are readable; all writes use new format.
+// ─────────────────────────────────────────────────────────────
+
+function ensureRosterSheet_() {
+  let sh = ss_().getSheetByName(SHEET.ROSTER);
+  if (!sh) {
+    sh = ss_().insertSheet(SHEET.ROSTER);
+    sh.getRange(1,1,1,2).setValues([['WeekStart','Data (JSON)']])
+      .setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+    sh.setColumnWidth(1,120);
+    sh.setColumnWidth(2,600);
+  }
+  return sh;
+}
+
+// Detect which storage format a data row uses.
+// New JSON format: col[1] is a string starting with '{'
+// Old format: col[1] is a driver ID or '__REQ__'
+function isJsonRow_(cols) {
+  return String(cols[1]||'').trim().startsWith('{');
+}
+
+// Normalise column A to a "YYYY-MM-DD" string regardless of format
+function rowWeekKey_(cols) {
+  const raw = cols[0];
+  if (!raw) return '';
+  const s = String(raw).trim();
+  // New format: already "YYYY-MM-DD"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Old format: might be a Date object or a locale-formatted string
+  return toDateStr_(raw);
+}
+
+function getAvailableWeeks() {
+  const sh = ensureRosterSheet_();
+  const vals = sh.getDataRange().getValues();
+  const weeks = new Set();
+  for (let i = 1; i < vals.length; i++) {
+    const wk = rowWeekKey_(vals[i]);
+    if (wk) weeks.add(wk);
+  }
+  return [...weeks].sort().reverse();
+}
+
+function getRoster(weekStart) {
+  const sh = ensureRosterSheet_();
+  const vals = sh.getDataRange().getValues();
+
+  // ── Try new JSON format first ──
+  for (let i = 1; i < vals.length; i++) {
+    if (rowWeekKey_(vals[i]) !== weekStart) continue;
+    if (!isJsonRow_(vals[i])) break; // same week but old format — fall through
+    try {
+      const d = JSON.parse(String(vals[i][1]));
+      return {
+        assignments:    d.assignments    || [],
+        requiredRoutes: d.requiredRoutes || {mon:0,tue:0,wed:0,thu:0,fri:0,sat:0,sun:0},
+        published:      d.published      || false,
+        actualHours:    d.actualHours    || {}
+      };
+    } catch(e) { break; }
+  }
+
+  // ── Old multi-row format (backward compat) ──
+  const assignments = [];
+  let requiredRoutes = null; // null = fresh week, frontend should copy from previous
+  let foundOldRows  = false;
+  for (let i = 1; i < vals.length; i++) {
+    if (rowWeekKey_(vals[i]) !== weekStart) continue;
+    foundOldRows = true;
+    const did = String(vals[i][1]);
+    if (did === '__REQ__') {
+      requiredRoutes = {
+        mon:Number(vals[i][2])||0, tue:Number(vals[i][3])||0,
+        wed:Number(vals[i][4])||0, thu:Number(vals[i][5])||0,
+        fri:Number(vals[i][6])||0, sat:Number(vals[i][7])||0,
+        sun:Number(vals[i][8])||0
+      };
+    } else {
+      assignments.push({
+        driverId: did,
+        mon:String(vals[i][2]||''), tue:String(vals[i][3]||''),
+        wed:String(vals[i][4]||''), thu:String(vals[i][5]||''),
+        fri:String(vals[i][6]||''), sat:String(vals[i][7]||''),
+        sun:String(vals[i][8]||'')
+      });
+    }
+  }
+  if (foundOldRows) return { assignments, requiredRoutes: requiredRoutes || {mon:0,tue:0,wed:0,thu:0,fri:0,sat:0,sun:0} };
+
+  // ── Fresh week — copy requiredRoutes from most recent saved week ──
+  const fallbackReq = getMostRecentRequiredRoutes_() || {mon:0,tue:0,wed:0,thu:0,fri:0,sat:0,sun:0};
+  return { assignments: [], requiredRoutes: fallbackReq, isFresh: true };
+}
+
+// Appends a JSON roster row and forces column A to text format
+// to prevent Google Sheets from auto-converting "2026-04-27" to a Date value.
+function _appendJsonRow(sh, wk, json) {
+  const row = sh.getLastRow() + 1;
+  sh.getRange(row, 1).setNumberFormat('@STRING@'); // plain text format
+  sh.getRange(row, 1, 1, 2).setValues([[wk, json]]);
+}
+
+// Publish (or unpublish) a roster week — makes it visible to drivers
+function publishRoster(weekStart, publish) {
+  try {
+    const sh   = ensureRosterSheet_();
+    const vals = sh.getDataRange().getValues();
+    for (let i = 1; i < vals.length; i++) {
+      if (rowWeekKey_(vals[i]) !== String(weekStart).trim()) continue;
+      if (!isJsonRow_(vals[i])) continue;
+      const d    = JSON.parse(String(vals[i][1]));
+      d.published = (publish !== false);
+      const json  = JSON.stringify(d);
+      sh.getRange(i+1, 1).setNumberFormat('@STRING@');
+      sh.getRange(i+1, 1, 1, 2).setValues([[String(weekStart).trim(), json]]);
+      return { ok: true, published: d.published };
+    }
+    return { ok: false, msg: 'Week not found. Save the roster first.' };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+// VANs may be used by two drivers on the same day. The second use is shown
+// in the UI as 2T (second turn). Trucks and other/unknown vehicle types remain
+// exclusive to one driver per day.
+function _validateRosterVehicleSharing_(assignments) {
+  const rows = getVehicles() || [];
+  if (!rows.length) return []; // frontend still validates; do not block local save on a CentralDB outage
+  const typeByPlate = {};
+  rows.forEach(v => {
+    const key = String(v.plate || '').replace(/\s+/g, '').toUpperCase();
+    if (key) typeByPlate[key] = String(v.type || '').toUpperCase();
+  });
+  const labels = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday', sun:'Sunday' };
+  const uses = {};
+  (assignments || []).forEach(a => {
+    Object.keys(labels).forEach(day => {
+      const val = String(a[day] || '');
+      const sep = val.indexOf('|');
+      if (sep < 0) return;
+      const plate = val.slice(sep + 1).trim();
+      if (!plate) return;
+      const keyPlate = plate.replace(/\s+/g, '').toUpperCase();
+      const key = day + '|' + keyPlate;
+      if (!uses[key]) uses[key] = { day:day, plate:plate, driverIds:[] };
+      uses[key].driverIds.push(String(a.driverId || ''));
+    });
+  });
+  const conflicts = [];
+  Object.keys(uses).forEach(key => {
+    const use = uses[key];
+    const type = typeByPlate[String(use.plate).replace(/\s+/g, '').toUpperCase()] || '';
+    const limit = type === 'VAN' ? 2 : 1;
+    if (use.driverIds.length > limit) {
+      conflicts.push({ plate:use.plate, day:labels[use.day], type:type || 'UNKNOWN', count:use.driverIds.length, max:limit });
+    }
+  });
+  return conflicts;
+}
+
+function saveRoster(payload) {
+  try {
+    const sh   = ensureRosterSheet_();
+    const vals = sh.getDataRange().getValues();
+    const wk   = String(payload.weekStart).trim(); // plain text — no Date object
+    const leaveConflicts = _rosterLeaveConflicts_(payload.assignments || [], wk);
+    if (leaveConflicts.length) {
+      return { ok:false, msg:'Driver leave conflict: ' + leaveConflicts.slice(0,3).map(c => c.driverName + ' ' + c.date).join(', ') + (leaveConflicts.length > 3 ? ' +' + (leaveConflicts.length-3) + ' more' : ''), conflicts: leaveConflicts };
+    }
+    const vehicleConflicts = _validateRosterVehicleSharing_(payload.assignments || []);
+    if (vehicleConflicts.length) {
+      return {
+        ok:false,
+        msg:'Vehicle sharing conflict: ' + vehicleConflicts.slice(0,3).map(c => c.plate + ' on ' + c.day + ' (' + c.count + '/' + c.max + ')').join(', '),
+        vehicleConflicts:vehicleConflicts
+      };
+    }
+    const json = JSON.stringify({
+      assignments:    payload.assignments    || [],
+      requiredRoutes: payload.requiredRoutes || {}
+    });
+
+    // Find all existing rows for this week (old or new format)
+    const rowIndexes = [];
+    for (let i = 1; i < vals.length; i++) {
+      if (rowWeekKey_(vals[i]) === wk) rowIndexes.push(i + 1);
+    }
+
+    if (rowIndexes.length === 1 && isJsonRow_(vals[rowIndexes[0]-1])) {
+      // Already single JSON row — update in place, keep text format on col A
+      const r = rowIndexes[0];
+      sh.getRange(r, 1).setNumberFormat('@STRING@');
+      sh.getRange(r, 1, 1, 2).setValues([[wk, json]]);
+    } else if (rowIndexes.length > 0) {
+      // Old multi-row format — delete all, append new JSON row
+      for (let i = rowIndexes.length - 1; i >= 0; i--) sh.deleteRow(rowIndexes[i]);
+      _appendJsonRow(sh, wk, json);
+    } else {
+      _appendJsonRow(sh, wk, json);
+    }
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function deleteWeek(weekStart) {
+  try {
+    const sh = ensureRosterSheet_();
+    const vals = sh.getDataRange().getValues();
+    const del = [];
+    for (let i = 1; i < vals.length; i++) {
+      if (rowWeekKey_(vals[i]) === String(weekStart).trim()) del.push(i + 1);
+    }
+    for (let i = del.length - 1; i >= 0; i--) sh.deleteRow(del[i]);
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+// ── Maintenance Log ──────────────────────────────────────────
+
+function ensureMaintLogSheet_() {
+  let sh = ss_().getSheetByName(SHEET.MAINT_LOG);
+  if (!sh) {
+    sh = ss_().insertSheet(SHEET.MAINT_LOG);
+    const hdr = sh.getRange(1, 1, 1, 7);
+    hdr.setValues([['ID', 'Plate', 'Type', 'Status', 'Start Date', 'End Date', 'Notes']]);
+    hdr.setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+    sh.setColumnWidths(1, 7, [60, 120, 80, 120, 110, 110, 200]);
+  }
+  return sh;
+}
+
+function getMaintLog() {
+  const sh   = ensureMaintLogSheet_();
+  const vals = sh.getDataRange().getValues();
+  return vals.slice(1)
+    .filter(r => r[0] !== '' && r[0] !== null)
+    .map(r => ({
+      id:         String(r[0]).trim(),
+      plate:      String(r[1]||'').trim(),
+      type:       String(r[2]||'').trim(),
+      status:     String(r[3]||'').trim(),
+      startDate:  r[4] ? toDateStr_(r[4]) : '',
+      endDate:    r[5] ? toDateStr_(r[5]) : '',
+      notes:      String(r[6]||'').trim()
+    }))
+    .sort((a, b) => (b.startDate||'').localeCompare(a.startDate||''));
+}
+
+function addMaintLogEntry(entry) {
+  try {
+    const sh   = ensureMaintLogSheet_();
+    const vals = sh.getDataRange().getValues();
+    // Generate next ID
+    const maxId = vals.slice(1).reduce((m, r) => Math.max(m, parseInt(r[0])||0), 0);
+    const id    = String(maxId + 1);
+    const toDate = d => d ? new Date(d + 'T12:00:00Z') : '';
+    sh.appendRow([
+      id,
+      String(entry.plate||'').trim(),
+      String(entry.type||'').trim(),
+      String(entry.status||'').trim(),
+      toDate(entry.startDate),
+      toDate(entry.endDate),
+      String(entry.notes||'').trim()
+    ]);
+    return { ok: true, id };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function updateMaintLogEntry(entry) {
+  try {
+    const sh   = ensureMaintLogSheet_();
+    const vals = sh.getDataRange().getValues();
+    const toDate = d => d ? new Date(d + 'T12:00:00Z') : '';
+    for (let i = 1; i < vals.length; i++) {
+      if (String(vals[i][0]).trim() === String(entry.id).trim()) {
+        sh.getRange(i+1, 1, 1, 7).setValues([[
+          entry.id,
+          String(entry.plate||'').trim(),
+          String(entry.type||'').trim(),
+          String(entry.status||'').trim(),
+          toDate(entry.startDate),
+          toDate(entry.endDate),
+          String(entry.notes||'').trim()
+        ]]);
+        return { ok: true };
+      }
+    }
+    return { ok: false, msg: 'Entry not found.' };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function deleteMaintLogEntry(id) {
+  try {
+    const sh   = ensureMaintLogSheet_();
+    const vals = sh.getDataRange().getValues();
+    for (let i = 1; i < vals.length; i++) {
+      if (String(vals[i][0]).trim() === String(id).trim()) {
+        sh.deleteRow(i + 1);
+        return { ok: true };
+      }
+    }
+    return { ok: false, msg: 'Entry not found.' };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+
+// Returns drivers assigned to a given vehicle in current + future roster weeks
+function checkVehicleInRosters(plate) {
+  try {
+    const sh      = ensureRosterSheet_();
+    const vals    = sh.getDataRange().getValues();
+    const todayWk = todayMonday_();
+    const normP   = s => String(s||'').replace(/\s+/g,'').toLowerCase();
+    const drvMap  = {};
+    getAllDrivers_().forEach(d => { drvMap[String(d.id)] = d.name; });
+    const DAY_LABELS = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday', sun:'Sunday' };
+    const affected = [];
+
+    for (let i = 1; i < vals.length; i++) {
+      if (!vals[i][0]) continue;
+      const col2 = String(vals[i][1]||'').trim();
+      if (!col2.startsWith('{')) continue;
+      const wk = rowWeekKey_(vals[i]);
+      if (!wk || wk < todayWk) continue; // current + future only
+      try {
+        const d = JSON.parse(col2);
+        (d.assignments||[]).forEach(a => {
+          ['mon','tue','wed','thu','fri','sat','sun'].forEach(day => {
+            const val = String(a[day]||'');
+            if (!val) return;
+            const sep = val.indexOf('|');
+            const veh = sep !== -1 ? val.slice(sep+1) : '';
+            if (normP(veh) === normP(plate)) {
+              affected.push({
+                weekStart:  wk,
+                driverName: drvMap[String(a.driverId)] || ('Driver #'+a.driverId),
+                day:        DAY_LABELS[day]
+              });
+            }
+          });
+        });
+      } catch(e) {}
+    }
+    return { ok: true, affected };
+  } catch(e) { return { ok: true, affected: [] }; }
+}
+
+// Returns vehicles/log entries whose maintenance end date has passed and are not yet confirmed.
+// Accepting an already-loaded vehicle list avoids a second CentralDB getVehicles call
+// during getInitialData().
+function _pendingVehicleReturnsFromVehicles_(vehicles) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const pending  = [];
+  const seen     = new Set();
+
+  // 1. From the supplied DB vehicle snapshot.
+  (vehicles || []).forEach(v => {
+    if (v.status !== 'maintenance' && v.status !== 'scheduled') return;
+    if (!v.maintEnd) return;
+    if (todayStr > v.maintEnd) {
+      pending.push({ plate: v.plate, type: v.type, maintEnd: v.maintEnd, source: 'vehicle' });
+      seen.add(v.plate);
+    }
+  });
+
+  // 2. From LOCAL Maint Log.
+  const logSh = ss_().getSheetByName(SHEET.MAINT_LOG);
+  if (logSh) {
+    const logVals = logSh.getDataRange().getValues();
+    for (let i = 1; i < logVals.length; i++) {
+      const plate  = String(logVals[i][1] || '').trim();
+      const type   = String(logVals[i][2] || '').trim();
+      const status = String(logVals[i][3] || '').trim().toLowerCase();
+      const endStr = logVals[i][5] ? toDateStr_(logVals[i][5]) : '';
+      if (!plate || !endStr) continue;
+      if (status === 'completed') continue;
+      if (todayStr <= endStr) continue;
+      if (seen.has(plate)) continue;
+      pending.push({ plate, type, maintEnd: endStr, source: 'log' });
+      seen.add(plate);
+    }
+  }
+  return pending;
+}
+
+function getPendingVehicleReturns() {
+  try { return _pendingVehicleReturnsFromVehicles_(getVehicles()); }
+  catch (e) { return []; }
+}
+
+function confirmVehicleReturn(plate) {
+  try {
+    // 1. DB: if still in maintenance/scheduled, set available.
+    try {
+      const v = _vehFromDb_(cdbGet_('getVehicleById', { plate: String(plate).trim().toUpperCase() }));
+      if (v.status === 'maintenance' || v.status === 'scheduled') {
+        cdbPost_('setVehicleStatus', {
+          plate: v.plate, status: 'available', maintStart: '', maintEnd: ''
+        });
+      }
+    } catch (e) { /* vehicle may not exist; Maint Log step still runs */ }
+
+    // 2. LOCAL Maint Log: mark all open entries for this plate completed.
+    const logSh = ss_().getSheetByName(SHEET.MAINT_LOG);
+    if (logSh) {
+      const todayDate = new Date();
+      const logVals = logSh.getDataRange().getValues();
+      for (let j = 1; j < logVals.length; j++) {
+        if (String(logVals[j][1]).trim() !== String(plate).trim()) continue;
+        const logStatus = String(logVals[j][3] || '').trim().toLowerCase();
+        if (logStatus !== 'completed') {
+          logSh.getRange(j + 1, 4).setValue('completed');
+          const currentEnd = logVals[j][5] ? toDateStr_(logVals[j][5]) : '';
+          const todayStr   = todayDate.toISOString().slice(0, 10);
+          if (!currentEnd || currentEnd < todayStr) {
+            logSh.getRange(j + 1, 6).setValue(todayDate);
+          }
+        }
+      }
+    }
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function getVehicles() {
+  try {
+    const rows = cdbGet_('getVehicles') || [];
+    return rows.map(_vehFromDb_).filter(v => v.plate && v.plate !== '.');
+  } catch (e) {
+    return [];
+  }
+}
+
+function getVehicleHistory(plate) {
+  try {
+    return { ok: true, rows: cdbGet_('getVehicleHistory', { plate: String(plate || '').trim(), limit: 250 }) || [] };
+  } catch(e) { return { ok: false, msg: e.message, rows: [] }; }
+}
+
+
+// ── Fleet Maintenance & Defect Management ───────────────────
+
+function setupFleetMaintenance() {
+  try {
+    cdbPost_('setupFleetMaintenance', {});
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function getVehicleDefects(opts) {
+  try {
+    opts = opts || {};
+    const params = { limit: opts.limit || 1000 };
+    if (opts.plate) params.plate = String(opts.plate).trim();
+    if (opts.status) params.status = String(opts.status).trim();
+    if (opts.severity) params.severity = String(opts.severity).trim();
+    if (opts.vehicleStatus) params.vehicleStatus = String(opts.vehicleStatus).trim();
+    if (opts.openOnly) params.openOnly = 'true';
+    return { ok: true, rows: cdbGet_('getVehicleDefects', params) || [] };
+  } catch(e) { return { ok: false, msg: e.message, rows: [] }; }
+}
+
+function getVehicleDefectStats() {
+  try {
+    return cdbGet_('getVehicleDefectStats') || {
+      critical: 0, major: 0, minor: 0, outOfService: 0,
+      totalOpen: 0, affectedVehicles: 0, affectedPlates: []
+    };
+  } catch(e) {
+    return {
+      critical: 0, major: 0, minor: 0, outOfService: 0,
+      totalOpen: 0, affectedVehicles: 0, affectedPlates: [], error: e.message
+    };
+  }
+}
+
+function saveVehicleDefect(defect) {
+  try {
+    defect = defect || {};
+    const payload = {
+      ReportNumber: String(defect.reportNumber || defect.ReportNumber || '').trim(),
+      VehiclePlate: String(defect.vehiclePlate || defect.VehiclePlate || defect.plate || '').trim(),
+      VehicleType: String(defect.vehicleType || defect.VehicleType || '').trim(),
+      DriverInspector: String(defect.driverInspector || defect.DriverInspector || '').trim(),
+      Severity: String(defect.severity || defect.Severity || '').trim(),
+      Category: String(defect.category || defect.Category || '').trim(),
+      Description: String(defect.description || defect.Description || '').trim(),
+      VehicleStatus: String(defect.vehicleStatus || defect.VehicleStatus || '').trim(),
+      ExpectedReturnDate: defect.expectedReturnDate || defect.ExpectedReturnDate || '',
+      SupervisorName: String(defect.supervisorName || defect.SupervisorName || '').trim(),
+      Status: String(defect.status || defect.Status || 'Open').trim()
+    };
+    const action = payload.ReportNumber ? 'updateVehicleDefect' : 'createVehicleDefect';
+    const res = cdbPost_(action, payload);
+    return { ok: true, reportNumber: res && res.reportNumber ? res.reportNumber : payload.ReportNumber };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function closeVehicleDefect(closeData) {
+  try {
+    closeData = closeData || {};
+    const payload = {
+      ReportNumber: String(closeData.reportNumber || closeData.ReportNumber || '').trim(),
+      RepairDate: closeData.repairDate || closeData.RepairDate || '',
+      Workshop: String(closeData.workshop || closeData.Workshop || '').trim(),
+      Cost: closeData.cost || closeData.Cost || '',
+      CompletedBy: String(closeData.completedBy || closeData.CompletedBy || '').trim(),
+      ClosedBy: String(closeData.closedBy || closeData.ClosedBy || closeData.completedBy || closeData.CompletedBy || '').trim(),
+      Notes: String(closeData.notes || closeData.Notes || '').trim()
+    };
+    const res = cdbPost_('closeVehicleDefect', payload);
+    return { ok: true, reportNumber: res && res.reportNumber ? res.reportNumber : payload.ReportNumber };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  UNIFIED VEHICLE EVENT — one entry point for both corrective (defect) and
+//  scheduled maintenance. ALWAYS keeps the vehicle's real status in sync so the
+//  Roster knows whether the truck is available.
+//
+//  evt = {
+//    kind: 'corrective' | 'scheduled',
+//    plate, type,
+//    startDate, endDate,                // out-of-service window
+//    notes,
+//    // corrective only:
+//    driverInspector, severity, category, description,
+//    vehicleStatus,                     // 'Roadworthy'|'Restricted Use'|'Out Of Service'
+//    expectedReturnDate, supervisorName, reportNumber (when editing)
+//    // control:
+//    blockRoster: true|false            // force the truck unavailable on the roster
+//  }
+// ═══════════════════════════════════════════════════════════════════════════
+function recordVehicleEvent(evt) {
+  try {
+    evt = evt || {};
+    const kind  = String(evt.kind || 'corrective').toLowerCase();
+    const plate = String(evt.plate || '').trim();
+    if (!plate) return { ok:false, msg:'Vehicle is required.' };
+
+    const type      = String(evt.type || '').trim();
+    const startDate = evt.startDate || '';
+    const endDate   = evt.endDate   || evt.expectedReturnDate || '';
+    const notes     = String(evt.notes || evt.description || '').trim();
+
+    let defectReportNumber = '';
+    let newVehicleStatus   = 'available';
+
+    if (kind === 'corrective') {
+      // 1. Save the defect report (keeps the professional A4 record).
+      const defOut = saveVehicleDefect({
+        reportNumber:    evt.reportNumber || '',
+        vehiclePlate:    plate,
+        vehicleType:     type,
+        driverInspector: evt.driverInspector || '',
+        severity:        evt.severity || '',
+        category:        evt.category || '',
+        description:     evt.description || notes,
+        vehicleStatus:   evt.vehicleStatus || '',
+        expectedReturnDate: endDate,
+        supervisorName:  evt.supervisorName || ''
+      });
+      if (!defOut.ok) return { ok:false, msg: defOut.msg || 'Could not save defect.' };
+      defectReportNumber = defOut.reportNumber || '';
+
+      // 2. Decide whether the truck must be blocked on the roster.
+      //    "Out Of Service" (or an explicit blockRoster flag) → maintenance.
+      const oos = String(evt.vehicleStatus || '').toLowerCase().indexOf('out of service') !== -1;
+      newVehicleStatus = (oos || evt.blockRoster === true) ? 'maintenance' : 'available';
+
+    } else {
+      // Scheduled maintenance → always blocks during the window.
+      newVehicleStatus = 'scheduled';
+    }
+
+    // 3. ALWAYS sync the vehicle's real status (this is what the Roster reads).
+    //    saveVehicle() also writes a MaintLog row when status is maintenance/scheduled,
+    //    so the maintenance history is recorded automatically.
+    if (newVehicleStatus === 'available') {
+      // Corrective but not out-of-service: clear any maintenance flag, keep it usable.
+      saveVehicle({ plate: plate, origPlate: plate, type: type, status: 'available',
+                    maintStart: '', maintEnd: '', notes: notes, isNew: false });
+    } else {
+      saveVehicle({ plate: plate, origPlate: plate, type: type, status: newVehicleStatus,
+                    maintStart: startDate, maintEnd: endDate, notes: notes, isNew: false });
+    }
+
+    return { ok:true, reportNumber: defectReportNumber, vehicleStatus: newVehicleStatus,
+             blocked: newVehicleStatus !== 'available' };
+  } catch (e) {
+    return { ok:false, msg: e.message };
+  }
+}
+
+function getVehicleMaintenanceHistory(opts) {
+  try {
+    opts = opts || {};
+    const params = { limit: opts.limit || 1000 };
+    if (opts.plate) params.plate = String(opts.plate).trim();
+    if (opts.reportNumber) params.reportNumber = String(opts.reportNumber).trim();
+    return { ok: true, rows: cdbGet_('getVehicleMaintenanceHistory', params) || [] };
+  } catch(e) { return { ok: false, msg: e.message, rows: [] }; }
+}
+
+function getVehicleTimeline(plate) {
+  try {
+    return { ok: true, rows: cdbGet_('getVehicleTimeline', { plate: String(plate || '').trim(), limit: 250 }) || [] };
+  } catch(e) { return { ok: false, msg: e.message, rows: [] }; }
+}
+
+
+function getDriverInfringements(driverId) {
+  try {
+    const params = { limit: 1000 };
+    if (driverId) params.driverId = String(driverId).trim();
+    return { ok: true, rows: cdbGet_('getDriverInfringements', params) || [] };
+  } catch(e) { return { ok: false, msg: e.message, rows: [] }; }
+}
+
+function saveDriverInfringement(entry) {
+  try {
+    entry = entry || {};
+    const payload = {
+      infringementId: entry.infringementId || entry.InfringementID || '',
+      DriverID: String(entry.driverId || entry.DriverID || '').trim(),
+      DriverName: String(entry.driverName || entry.DriverName || '').trim(),
+      OccurredAt: String(entry.occurredAt || entry.OccurredAt || '').trim(),
+      Severity: String(entry.severity || entry.Severity || '').trim(),
+      InfringementType: String(entry.infringementType || entry.InfringementType || '').trim(),
+      Description: String(entry.description || entry.Description || '').trim()
+    };
+    cdbPost_('saveDriverInfringement', payload);
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function deleteDriverInfringement(infringementId) {
+  try {
+    cdbPost_('deleteDriverInfringement', { infringementId: String(infringementId || '').trim() });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function _vehiclePayload_(v, includeOrig) {
+  const payload = {
+    Plate:      String(v.plate || '').trim(),
+    Type:       String(v.type  || '').trim().toUpperCase(),
+    Notes:      String(v.notes || '').trim(),
+    Status:     String(v.status || 'available').toLowerCase(),
+    MaintStart: v.maintStart || '',
+    MaintEnd:   v.maintEnd   || '',
+    SkipFutureDateValidation: String(v.status || '').toLowerCase() === 'returned'
+  };
+  if (includeOrig) payload.origPlate = String(v.origPlate || v.plate || '').trim().toUpperCase();
+  const map = {
+    contractType:'ContractType', vehicleDescription:'VehicleDescription', tachographType:'TachographType', insurer:'Insurer', make:'Make', range:'Range',
+    cvrtMotExpiryDate:'CvrtMotExpiryDate', tachoCalibrationDate:'TachoCalibrationDate', fuel:'Fuel', lastKmRecorded:'LastKmRecorded',
+    contractStartDate:'ContractStartDate', contractEndDate:'ContractEndDate', bodyDetail:'BodyDetail', tailLiftDetail1:'TailLiftDetail1', tailLiftDetail2:'TailLiftDetail2',
+    monthlyRentalExVat:'MonthlyRentalExVat', termMonths:'TermMonths', cvrtLast:'CvrtLast', serviceLast:'ServiceLast', serviceNext:'ServiceNext', tachographLast:'TachographLast',
+    roadFundLicenceNext:'RoadFundLicenceNext', tlWeightTestLast:'TlWeightTestLast', tlWeightTestNext:'TlWeightTestNext', registrationDate:'RegistrationDate',
+    tlLolerNext:'TlLolerNext', tlLolerLast:'TlLolerLast'
+  };
+  Object.keys(map).forEach(k => {
+    if (Object.prototype.hasOwnProperty.call(v, k)) payload[map[k]] = v[k] || '';
+  });
+  return payload;
+}
+
+function saveVehicle(v) {
+  _bustBootCache_();
+  try {
+    v = v || {};
+    v.type = String(v.type || '').trim().toUpperCase();
+    v.contractType = String(v.contractType || '').trim();
+    const status = String(v.status || 'available').toLowerCase();
+    if (!String(v.plate || '').trim()) throw new Error('Plate is required.');
+    if (['TRUCK','VAN'].indexOf(v.type) < 0) throw new Error('Type must be VAN or TRUCK.');
+    if (!v.contractType) throw new Error('Contract Type is required.');
+    if (['available','maintenance','scheduled','returned'].indexOf(status) < 0) throw new Error('Invalid vehicle status.');
+    const shouldLog = (status === 'maintenance' || status === 'scheduled')
+                      && (v.maintStart || v.maintEnd);
+
+    if (v.isNew) {
+      cdbPost_('addVehicle', _vehiclePayload_(v, false));
+      if (shouldLog) {
+        addMaintLogEntry({
+          plate: String(v.plate).trim(), type: String(v.type || '').trim(),
+          status: status, startDate: v.maintStart || '', endDate: v.maintEnd || '',
+          notes: String(v.notes || '').trim()
+        });
+      }
+      return { ok: true };
+    }
+
+    const orig = String(v.origPlate || v.plate).trim().toUpperCase();
+    let prev = null;
+    try { prev = _vehFromDb_(cdbGet_('getVehicleById', { plate: orig })); } catch (e) {}
+
+    cdbPost_('updateVehicle', _vehiclePayload_(v, true));
+
+    if (shouldLog) {
+      const statusChanged = !prev || prev.status !== status;
+      const datesChanged  = !prev || prev.maintStart !== (v.maintStart || '')
+                                  || prev.maintEnd   !== (v.maintEnd   || '');
+      if (statusChanged || datesChanged) {
+        addMaintLogEntry({
+          plate: String(v.plate).trim(), type: String(v.type || '').trim(),
+          status: status, startDate: v.maintStart || '', endDate: v.maintEnd || '',
+          notes: String(v.notes || '').trim()
+        });
+      }
+    }
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+function deleteVehicle(plate) {
+  _bustBootCache_();
+  try {
+    cdbPost_('deleteVehicle', { plate: String(plate).trim() });
+    return { ok: true };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+
+// Run once after publishing the updated Central DB script to import/update the rows from distri_trucks.xlsx.
+function importDistriTrucksVehicles() {
+  try {
+    return Object.assign({ ok: true }, cdbPost_('seedDistriTrucksVehicles', {}));
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+// Devolve o requiredRoutes da semana mais recente guardada (para copiar para semanas novas)
+function getMostRecentRequiredRoutes_() {
+  const sh   = ensureRosterSheet_();
+  const vals = sh.getDataRange().getValues();
+  let bestWk  = '';
+  let bestReq = null;
+  for (let i = 1; i < vals.length; i++) {
+    if (!vals[i][0]) continue;
+    const col2 = String(vals[i][1]||'').trim();
+    if (!col2.startsWith('{')) continue;
+    const wk = rowWeekKey_(vals[i]);
+    if (!wk || wk <= bestWk) continue;
+    try {
+      const d = JSON.parse(col2);
+      if (d.requiredRoutes) { bestWk = wk; bestReq = d.requiredRoutes; }
+    } catch(e) {}
+  }
+  return bestReq;
+}
+
+// ── Customers ────────────────────────────────────────────────
+
+
+
+// ============================================================
+//  LOCAL DRIVER LEAVE / HOLIDAY MANAGEMENT
+//  Stored in this Roster spreadsheet, not in CentralDB.
+// ============================================================
+const LEAVE_REQUEST_HEADERS = [
+  'RequestID','CreatedAt','UpdatedAt','DriverID','DriverName','LeaveType',
+  'StartDate','EndDate','Days','Notes','Status','ReviewedAt','ReviewedBy',
+  'DecisionNotes','ConflictSummary','Source'
+];
+const LEAVE_CALENDAR_HEADERS = [
+  'LeaveID','RequestID','CreatedAt','DriverID','DriverName','LeaveType',
+  'StartDate','EndDate','LeaveDate','Notes','ApprovedBy'
+];
+
+function setupDriverLeave() {
+  ensureLeaveRequestsSheet_();
+  ensureLeaveCalendarSheet_();
+  return { ok:true, success:true, sheets:[SHEET.LEAVE_REQUESTS, SHEET.LEAVE_CALENDAR] };
+}
+
+function setLeaveSupervisorEmail(email) {
+  if (!email || String(email).indexOf('@') === -1) throw new Error('Valid email required');
+  PropertiesService.getScriptProperties().setProperty('LEAVE_SUPERVISOR_EMAIL', String(email).trim());
+  return 'Leave supervisor email saved: ' + String(email).trim();
+}
+
+function getLeaveSupervisorEmailSetting() {
+  return PropertiesService.getScriptProperties().getProperty('LEAVE_SUPERVISOR_EMAIL') || Session.getEffectiveUser().getEmail() || '';
+}
+
+function getLeaveSupervisorEmail() {
+  return getLeaveSupervisorEmailSetting();
+}
+
+function _ensureLocalSheet_(name, headers) {
+  let sh = ss_().getSheetByName(name);
+  if (!sh) {
+    sh = ss_().insertSheet(name);
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+  } else if (sh.getLastRow() < 1 || !String(sh.getRange(1,1).getValue() || '').trim()) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.setFrozenRows(1);
+  } else {
+    const current = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), headers.length)).getValues()[0].map(String);
+    headers.forEach(h => {
+      if (current.indexOf(h) === -1) {
+        const col = sh.getLastColumn() + 1;
+        sh.getRange(1, col).setValue(h).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+      }
+    });
+  }
+  return sh;
+}
+
+function ensureLeaveRequestsSheet_() { return _ensureLocalSheet_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS); }
+function ensureLeaveCalendarSheet_() { return _ensureLocalSheet_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS); }
+
+function _readLocalObjects_(sheetName, headers) {
+  const sh = _ensureLocalSheet_(sheetName, headers);
+  const last = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (last < 2) return [];
+  const hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  return sh.getRange(2, 1, last - 1, lastCol).getValues()
+    .filter(r => r.some(v => v !== '' && v !== null))
+    .map(r => Object.fromEntries(hdr.map((h, i) => [h, r[i] === '' || r[i] === null ? '' : r[i]])));
+}
+
+function _appendLocalObject_(sheetName, headers, obj) {
+  const sh = _ensureLocalSheet_(sheetName, headers);
+  const hdr = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const rowNumber = sh.getLastRow() + 1;
+  const dateCols = ['CreatedAt','UpdatedAt','StartDate','EndDate','ReviewedAt','LeaveDate'];
+  dateCols.forEach(h => { const idx = hdr.indexOf(h); if (idx >= 0) sh.getRange(rowNumber, idx + 1).setNumberFormat('@'); });
+  sh.getRange(rowNumber, 1, 1, hdr.length).setValues([hdr.map(h => obj[h] === undefined || obj[h] === null ? '' : String(obj[h]))]);
+}
+
+function _writeLocalObjects_(sheetName, headers, rows) {
+  if (!rows || !rows.length) return 0;
+  const sh = _ensureLocalSheet_(sheetName, headers);
+  const hdr = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const start = sh.getLastRow() + 1;
+  const values = rows.map(obj => hdr.map(h => obj[h] === undefined || obj[h] === null ? '' : String(obj[h])));
+  const dateCols = ['CreatedAt','UpdatedAt','StartDate','EndDate','ReviewedAt','LeaveDate'];
+  dateCols.forEach(h => { const idx = hdr.indexOf(h); if (idx >= 0) sh.getRange(start, idx + 1, values.length, 1).setNumberFormat('@'); });
+  sh.getRange(start, 1, values.length, hdr.length).setValues(values);
+  return values.length;
+}
+
+function _findLeaveRequestLocal_(requestId) {
+  const sh = ensureLeaveRequestsSheet_();
+  const last = sh.getLastRow();
+  if (last < 2) return null;
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const idx = headers.indexOf('RequestID');
+  if (idx < 0) throw new Error('RequestID column not found in ' + SHEET.LEAVE_REQUESTS);
+  const values = sh.getRange(2, idx + 1, last - 1, 1).getValues();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() === String(requestId).trim()) {
+      const rowNumber = i + 2;
+      const row = sh.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+      return { sheet: sh, rowNumber, headers, data: Object.fromEntries(headers.map((h, j) => [h, row[j]])) };
+    }
+  }
+  return null;
+}
+
+function _updateLeaveRequestLocal_(found, updates) {
+  const dateCols = ['CreatedAt','UpdatedAt','StartDate','EndDate','ReviewedAt'];
+  found.headers.forEach((h, i) => {
+    if (updates[h] !== undefined) {
+      if (dateCols.indexOf(h) !== -1) found.sheet.getRange(found.rowNumber, i + 1).setNumberFormat('@');
+      found.sheet.getRange(found.rowNumber, i + 1).setValue(updates[h] === null ? '' : String(updates[h]));
+    }
+  });
+}
+
+function _leaveNow_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'); }
+
+function _addDaysStr_(dateStr, days) {
+  const d = new Date(String(dateStr) + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + (parseInt(days, 10) || 0));
+  return d.toISOString().slice(0, 10);
+}
+
+function _leaveDateList_(startDate, endDate) {
+  const s = toDateStr_(startDate);
+  const e = toDateStr_(endDate || startDate);
+  if (!s) throw new Error('StartDate is required');
+  if (!e) throw new Error('EndDate is required');
+  if (e < s) throw new Error('EndDate cannot be before StartDate');
+  const out = [];
+  const d = new Date(s + 'T12:00:00Z');
+  const end = new Date(e + 'T12:00:00Z');
+  while (d <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    if (out.length > 370) throw new Error('Leave range cannot exceed 370 days');
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function _dayKeyForDate_(dateStr) {
+  const d = new Date(String(dateStr) + 'T12:00:00Z');
+  return ['sun','mon','tue','wed','thu','fri','sat'][d.getUTCDay()];
+}
+
+function _isRosterWorkValue_(val) {
+  val = String(val || '').trim();
+  if (!val) return false;
+  return ['Off','Hols','Absent','Sick'].indexOf(val) === -1;
+}
+
+function _driverByIdLocal_(driverId) {
+  return (getAllDrivers_() || []).find(d => String(d.id) === String(driverId)) || null;
+}
+
+function _nextLeaveRequestIdLocal_() {
+  const rows = _readLocalObjects_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS);
+  const max = rows.reduce((m, r) => Math.max(m, parseInt(String(r.RequestID || '').replace(/\D/g, ''), 10) || 0), 0);
+  return 'LR-' + String(max + 1).padStart(5, '0');
+}
+
+function _nextLeaveCalendarIdLocal_() {
+  const rows = _readLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS);
+  let n = rows.reduce((m, r) => Math.max(m, parseInt(String(r.LeaveID || '').replace(/\D/g, ''), 10) || 0), 0);
+  return function() { n++; return 'LC-' + String(n).padStart(5, '0'); };
+}
+
+function _rosterAssignmentConflictsForLeave_(driverId, startDate, endDate) {
+  const dates = _leaveDateList_(startDate, endDate);
+  const byWeek = {};
+  const conflicts = [];
+  dates.forEach(date => {
+    const wk = mondayOfWeek_(date);
+    if (!byWeek[wk]) byWeek[wk] = getRosterData(wk);
+    const roster = byWeek[wk] || { assignments: [] };
+    const asg = (roster.assignments || []).find(a => String(a.driverId) === String(driverId));
+    if (!asg) return;
+    const day = _dayKeyForDate_(date);
+    const val = asg[day] || '';
+    if (_isRosterWorkValue_(val)) conflicts.push({ type:'Roster Assignment', date, weekStart:wk, value:val, message:'Already assigned on roster for ' + date });
+  });
+  return conflicts;
+}
+
+function checkDriverLeaveConflictsLocal_(driverId, startDate, endDate, excludeRequestId) {
+  setupDriverLeave();
+  driverId = String(driverId || '').trim();
+  if (!driverId) throw new Error('DriverID is required');
+  const dates = _leaveDateList_(startDate, endDate);
+  const dateSet = new Set(dates);
+  const exclude = String(excludeRequestId || '').trim();
+  const conflicts = [];
+  const warnings = [];
+
+  _readLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS).forEach(r => {
+    if (String(r.DriverID).trim() !== driverId) return;
+    if (exclude && String(r.RequestID).trim() === exclude) return;
+    const d = toDateStr_(r.LeaveDate);
+    if (dateSet.has(d)) conflicts.push({ type:'Approved Leave', date:d, requestId:r.RequestID || '', leaveType:r.LeaveType || '', message:'Already approved leave on ' + d });
+  });
+
+  _readLocalObjects_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS).forEach(r => {
+    if (String(r.DriverID).trim() !== driverId) return;
+    if (exclude && String(r.RequestID).trim() === exclude) return;
+    if (String(r.Status || '').toLowerCase() !== 'pending') return;
+    const rDates = _leaveDateList_(r.StartDate, r.EndDate);
+    if (rDates.some(d => dateSet.has(d))) warnings.push({ type:'Pending Request', requestId:r.RequestID || '', startDate:toDateStr_(r.StartDate), endDate:toDateStr_(r.EndDate), message:'There is already a pending request in this range.' });
+  });
+
+  return { ok:true, success:true, allowed:conflicts.length === 0, conflicts, warnings, days:dates.length };
+}
+
+function checkDriverLeaveRequestPublic(payload) {
+  try {
+    payload = payload || {};
+    const driverId = String(payload.DriverID || payload.driverId || '').trim();
+    const startDate = toDateStr_(payload.StartDate || payload.startDate);
+    const endDate = toDateStr_(payload.EndDate || payload.endDate || startDate);
+    if (!driverId || !startDate || !endDate) return { ok:false, success:false, allowed:false, msg:'Driver, start date and end date are required.', conflicts:[] };
+    const leaveCheck = checkDriverLeaveConflictsLocal_(driverId, startDate, endDate);
+    const rosterConflicts = _rosterAssignmentConflictsForLeave_(driverId, startDate, endDate);
+    const conflicts = (leaveCheck.conflicts || []).concat(rosterConflicts);
+    return { ok:true, success:true, allowed:conflicts.length === 0, conflicts, warnings:leaveCheck.warnings || [], days:leaveCheck.days || 1 };
+  } catch(e) { return { ok:false, success:false, allowed:false, msg:e.message, conflicts:[] }; }
+}
+
+function _leaveSupervisorEmail_() {
+  return PropertiesService.getScriptProperties().getProperty('LEAVE_SUPERVISOR_EMAIL')
+      || Session.getEffectiveUser().getEmail()
+      || '';
+}
+
+function _notifyLeaveSupervisor_(request) {
+  var email = '';
+  try {
+    email = _leaveSupervisorEmail_();
+    if (!email) {
+      PropertiesService.getScriptProperties().setProperty('LEAVE_LAST_MAIL_ERROR',
+        _leaveNow_() + ' \u2014 No supervisor email configured. Run setLeaveSupervisorEmail("you@company.com").');
+      return false;
+    }
+    var url = '';
+    try { url = ScriptApp.getService().getUrl().replace('/dev', '/exec') + '?s=elis2025'; } catch (e) {}
+
+    var subject = 'Driver leave request: ' + (request.DriverName || '') +
+                  ' (' + (request.StartDate || '') + ' to ' + (request.EndDate || '') + ')';
+    var body = [
+      'A new driver leave / holiday request is waiting for approval.', '',
+      'Driver: ' + (request.DriverName || ''),
+      'Type: '   + (request.LeaveType  || ''),
+      'Dates: '  + (request.StartDate  || '') + ' to ' + (request.EndDate || ''),
+      'Days: '   + (request.Days       || ''),
+      'Notes: '  + (request.Notes      || ''), '',
+      'Open the Roster app and go to Leave Calendar to approve or reject:', url
+    ].join('\n');
+
+    try {
+      MailApp.sendEmail(email, subject, body);
+    } catch (mailErr) {
+      GmailApp.sendEmail(email, subject, body);
+    }
+
+    PropertiesService.getScriptProperties().setProperty('LEAVE_LAST_MAIL_OK',
+      _leaveNow_() + ' \u2014 sent to ' + email);
+    return true;
+
+  } catch (e) {
+    PropertiesService.getScriptProperties().setProperty('LEAVE_LAST_MAIL_ERROR',
+      _leaveNow_() + ' \u2014 to ' + email + ' \u2014 ' + (e && e.message ? e.message : e));
+    return false;
+  }
+}
+
+function diagnoseLeaveMail() {
+  var p = PropertiesService.getScriptProperties();
+  var out = {
+    supervisorEmail: _leaveSupervisorEmail_() || '(none set)',
+    lastMailOk:      p.getProperty('LEAVE_LAST_MAIL_OK')    || '(never)',
+    lastMailError:   p.getProperty('LEAVE_LAST_MAIL_ERROR') || '(none)',
+    remainingQuota:  MailApp.getRemainingDailyQuota()
+  };
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
+}
+
+function submitDriverLeaveRequestPublic(payload) {
+  payload = payload || {};
+  var check = checkDriverLeaveRequestPublic(payload);
+
+  // FIX: a real conflict must NOT report success. Force success:false so the UI shows the conflict.
+  if (!check.ok || !check.allowed) {
+    return { ok: check.ok !== false, success: false, allowed: false,
+             msg: check.msg || 'These dates have a conflict.',
+             conflicts: check.conflicts || [] };
+  }
+
+  var driver = _driverByIdLocal_(payload.DriverID || payload.driverId);
+  if (!driver) return { ok:false, success:false, msg:'Driver not found.', conflicts:[] };
+
+  var startDate = toDateStr_(payload.StartDate || payload.startDate);
+  var endDate   = toDateStr_(payload.EndDate   || payload.endDate || startDate);
+  var dates     = _leaveDateList_(startDate, endDate);
+
+  var rec = {
+    RequestID: _nextLeaveRequestIdLocal_(), CreatedAt:_leaveNow_(), UpdatedAt:_leaveNow_(),
+    DriverID: driver.id, DriverName: driver.name,
+    LeaveType: String(payload.LeaveType || payload.leaveType || 'Holiday').trim() || 'Holiday',
+    StartDate:startDate, EndDate:endDate, Days:dates.length,
+    Notes:String(payload.Notes || payload.notes || '').trim(), Status:'Pending',
+    ReviewedAt:'', ReviewedBy:'', DecisionNotes:'', ConflictSummary:'', Source:'Driver Link'
+  };
+  _appendLocalObject_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS, rec);
+
+  var emailed = _notifyLeaveSupervisor_(rec);
+
+  return { ok:true, success:true, request:rec, emailed:emailed,
+           message:'Leave request submitted for approval.' };
+}
+
+function getDriverLeaveRequests(opts) {
+  opts = opts || {};
+  setupDriverLeave();
+  const driverId = opts.driverId ? String(opts.driverId).trim() : '';
+  const status = opts.status ? String(opts.status).trim().toLowerCase() : '';
+  const dateFrom = opts.dateFrom ? toDateStr_(opts.dateFrom) : '';
+  const dateTo = opts.dateTo ? toDateStr_(opts.dateTo) : '';
+  const limit = parseInt(opts.limit, 10) || 1000;
+  return _readLocalObjects_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS).filter(r => {
+    if (driverId && String(r.DriverID).trim() !== driverId) return false;
+    if (status && String(r.Status || '').toLowerCase() !== status) return false;
+    if (dateFrom || dateTo) {
+      const s = toDateStr_(r.StartDate), e = toDateStr_(r.EndDate || r.StartDate);
+      if (dateFrom && e < dateFrom) return false;
+      if (dateTo && s > dateTo) return false;
+    }
+    return true;
+  }).sort((a,b) => String(b.CreatedAt || '').localeCompare(String(a.CreatedAt || ''))).slice(0, limit);
+}
+
+function getDriverLeaveCalendar(opts) {
+  opts = opts || {};
+  setupDriverLeave();
+  const driverId = opts.driverId ? String(opts.driverId).trim() : '';
+  const leaveType = opts.leaveType ? String(opts.leaveType).trim().toLowerCase() : '';
+  const dateFrom = opts.dateFrom ? toDateStr_(opts.dateFrom) : '';
+  const dateTo = opts.dateTo ? toDateStr_(opts.dateTo) : '';
+  const limit = parseInt(opts.limit, 10) || 5000;
+  return _readLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS).filter(r => {
+    if (driverId && String(r.DriverID).trim() !== driverId) return false;
+    if (leaveType && String(r.LeaveType || '').toLowerCase() !== leaveType) return false;
+    const d = toDateStr_(r.LeaveDate || r.StartDate);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    return true;
+  }).sort((a,b) => String(a.LeaveDate || '').localeCompare(String(b.LeaveDate || ''))).slice(0, limit);
+}
+
+// Public endpoint: everything a single driver needs to see their own days.
+// Returns approved leave days + their own pending/rejected requests.
+function getDriverLeaveOverviewPublic(driverId) {
+  try {
+    driverId = String(driverId || '').trim();
+    if (!driverId) return { ok:false, success:false, msg:'DriverID required', approved:[], requests:[] };
+    setupDriverLeave();
+
+    var approved = _readLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS)
+      .filter(function(r){ return String(r.DriverID).trim() === driverId; })
+      .map(function(r){
+        return { date: toDateStr_(r.LeaveDate || r.StartDate),
+                 leaveType: r.LeaveType || 'Leave',
+                 requestId: r.RequestID || '' };
+      })
+      .filter(function(r){ return r.date; });
+
+    var requests = _readLocalObjects_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS)
+      .filter(function(r){ return String(r.DriverID).trim() === driverId; })
+      .map(function(r){
+        return {
+          requestId: r.RequestID || '',
+          leaveType: r.LeaveType || 'Leave',
+          startDate: toDateStr_(r.StartDate),
+          endDate:   toDateStr_(r.EndDate || r.StartDate),
+          days:      r.Days || '',
+          status:    r.Status || 'Pending',
+          notes:     r.Notes || '',
+          decisionNotes: r.DecisionNotes || ''
+        };
+      })
+      .sort(function(a,b){ return String(b.startDate).localeCompare(String(a.startDate)); });
+
+    return { ok:true, success:true, approved:approved, requests:requests };
+  } catch (e) {
+    return { ok:false, success:false, msg:e.message, approved:[], requests:[] };
+  }
+}
+
+function getLeaveDataForSupervisor() {
+  const start = todayMonday_();
+  const end = _addDaysStr_(start, 370);
+  try {
+    return {
+      calendar: getDriverLeaveCalendar({ dateFrom:start, dateTo:end, limit:5000 }) || [],
+      requests: getDriverLeaveRequests({ status:'Pending', limit:1000 }) || []
+    };
+  } catch(e) { return { calendar:[], requests:[], error:e.message }; }
+}
+
+function approveDriverLeaveRequest(requestId, reviewedBy) {
+  const found = _findLeaveRequestLocal_(requestId);
+  if (!found) return { ok:false, success:false, msg:'Leave request not found.' };
+  const r = found.data;
+  const rosterConflicts = _rosterAssignmentConflictsForLeave_(r.DriverID, r.StartDate, r.EndDate);
+  if (rosterConflicts.length) return { ok:false, success:false, msg:'Cannot approve while the driver is already assigned on the roster.', conflicts:rosterConflicts };
+  const check = checkDriverLeaveConflictsLocal_(r.DriverID, r.StartDate, r.EndDate, r.RequestID);
+  if (!check.allowed) return { ok:false, success:false, msg:'Cannot approve: conflict with approved leave.', conflicts:check.conflicts };
+  const by = reviewedBy || 'Supervisor';
+  _updateLeaveRequestLocal_(found, { UpdatedAt:_leaveNow_(), Status:'Approved', ReviewedAt:_leaveNow_(), ReviewedBy:by });
+  const existing = new Set(getDriverLeaveCalendar({ dateFrom:r.StartDate, dateTo:r.EndDate, limit:5000 }).filter(x => String(x.RequestID) === String(r.RequestID)).map(x => toDateStr_(x.LeaveDate)));
+  const nextId = _nextLeaveCalendarIdLocal_();
+  const rows = _leaveDateList_(r.StartDate, r.EndDate).filter(d => !existing.has(d)).map(d => ({
+    LeaveID:nextId(), RequestID:r.RequestID, CreatedAt:_leaveNow_(), DriverID:r.DriverID, DriverName:r.DriverName,
+    LeaveType:r.LeaveType, StartDate:toDateStr_(r.StartDate), EndDate:toDateStr_(r.EndDate), LeaveDate:d, Notes:r.Notes || '', ApprovedBy:by
+  }));
+  _writeLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS, rows);
+  return { ok:true, success:true, calendarRows:rows.length, message:'Leave request approved.' };
+}
+
+function rejectDriverLeaveRequest(requestId, reviewedBy, decisionNotes) {
+  const found = _findLeaveRequestLocal_(requestId);
+  if (!found) return { ok:false, success:false, msg:'Leave request not found.' };
+  _updateLeaveRequestLocal_(found, {
+    UpdatedAt:_leaveNow_(), Status:'Rejected', ReviewedAt:_leaveNow_(), ReviewedBy:reviewedBy || 'Supervisor', DecisionNotes:decisionNotes || ''
+  });
+  return { ok:true, success:true, message:'Leave request rejected.' };
+}
+
+function addApprovedDriverLeave(payload) {
+  payload = payload || {};
+  const check = checkDriverLeaveRequestPublic(payload);
+  if (!check.ok || !check.allowed) return check;
+  const driver = _driverByIdLocal_(payload.DriverID || payload.driverId);
+  if (!driver) return { ok:false, success:false, msg:'Driver not found.' };
+  const startDate = toDateStr_(payload.StartDate || payload.startDate);
+  const endDate = toDateStr_(payload.EndDate || payload.endDate || startDate);
+  const dates = _leaveDateList_(startDate, endDate);
+  const requestId = _nextLeaveRequestIdLocal_();
+  const by = payload.ApprovedBy || payload.ReviewedBy || 'Supervisor';
+  const req = {
+    RequestID:requestId, CreatedAt:_leaveNow_(), UpdatedAt:_leaveNow_(), DriverID:driver.id, DriverName:driver.name,
+    LeaveType:String(payload.LeaveType || payload.leaveType || 'Holiday').trim() || 'Holiday',
+    StartDate:startDate, EndDate:endDate, Days:dates.length, Notes:String(payload.Notes || payload.notes || '').trim(),
+    Status:'Approved', ReviewedAt:_leaveNow_(), ReviewedBy:by, DecisionNotes:'', ConflictSummary:'', Source:'Supervisor'
+  };
+  _appendLocalObject_(SHEET.LEAVE_REQUESTS, LEAVE_REQUEST_HEADERS, req);
+  const nextId = _nextLeaveCalendarIdLocal_();
+  const calRows = dates.map(d => ({
+    LeaveID:nextId(), RequestID:requestId, CreatedAt:_leaveNow_(), DriverID:driver.id, DriverName:driver.name,
+    LeaveType:req.LeaveType, StartDate:startDate, EndDate:endDate, LeaveDate:d, Notes:req.Notes, ApprovedBy:by
+  }));
+  _writeLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS, calRows);
+  return { ok:true, success:true, request:req, calendarRows:calRows.length, message:'Approved leave saved.' };
+}
+
+// ── Supervisor-only: delete an approved leave entirely ──────────────────────
+// Removes the request row AND every LEAVE_CALENDAR day that belongs to it.
+function deleteApprovedDriverLeave(requestId) {
+  try {
+    requestId = String(requestId || '').trim();
+    if (!requestId) return { ok:false, success:false, msg:'RequestID required.' };
+    setupDriverLeave();
+
+    // 1. Delete the request row (if present)
+    const found = _findLeaveRequestLocal_(requestId);
+    if (found) found.sheet.deleteRow(found.rowNumber);
+
+    // 2. Delete all calendar rows with this RequestID (bottom-up to keep indices valid)
+    const removed = _deleteLeaveCalendarRowsByRequest_(requestId);
+
+    return { ok:true, success:true, calendarRowsRemoved:removed, message:'Approved leave deleted.' };
+  } catch (e) {
+    return { ok:false, success:false, msg:e.message };
+  }
+}
+
+// ── Supervisor-only: edit an approved leave (dates / type / notes) ──────────
+// Re-validates conflicts, then rewrites the request row and regenerates the
+// per-day calendar rows so the calendar always matches the new range.
+function updateApprovedDriverLeave(requestId, payload) {
+  try {
+    requestId = String(requestId || '').trim();
+    payload = payload || {};
+    if (!requestId) return { ok:false, success:false, msg:'RequestID required.' };
+    setupDriverLeave();
+
+    const found = _findLeaveRequestLocal_(requestId);
+    if (!found) return { ok:false, success:false, msg:'Leave not found.' };
+    const cur = found.data;
+
+    const driverId  = String(payload.DriverID || cur.DriverID || '').trim();
+    const driver    = _driverByIdLocal_(driverId);
+    const driverNm  = driver ? driver.name : (cur.DriverName || '');
+    const leaveType = String(payload.LeaveType || cur.LeaveType || 'Holiday').trim() || 'Holiday';
+    const startDate = toDateStr_(payload.StartDate || cur.StartDate);
+    const endDate   = toDateStr_(payload.EndDate   || payload.StartDate || cur.EndDate || startDate);
+    const notes     = (payload.Notes !== undefined) ? String(payload.Notes).trim() : String(cur.Notes || '');
+
+    if (!startDate || !endDate) return { ok:false, success:false, msg:'Start and end dates required.' };
+    if (endDate < startDate)   return { ok:false, success:false, msg:'End date cannot be before start date.' };
+
+    // Conflict checks that ignore THIS request's own days
+    const rosterConflicts = _rosterAssignmentConflictsForLeave_(driverId, startDate, endDate);
+    if (rosterConflicts.length) return { ok:false, success:false, msg:'The driver is assigned on the roster during these dates.', conflicts:rosterConflicts };
+    const check = checkDriverLeaveConflictsLocal_(driverId, startDate, endDate, requestId);
+    if (!check.allowed) return { ok:false, success:false, msg:'These dates conflict with other approved leave.', conflicts:check.conflicts };
+
+    const dates = _leaveDateList_(startDate, endDate);
+    const by = String(payload.ReviewedBy || payload.ApprovedBy || cur.ReviewedBy || 'Supervisor').trim() || 'Supervisor';
+
+    // 1. Update the request row
+    _updateLeaveRequestLocal_(found, {
+      UpdatedAt: _leaveNow_(), DriverID: driverId, DriverName: driverNm,
+      LeaveType: leaveType, StartDate: startDate, EndDate: endDate,
+      Days: dates.length, Notes: notes, Status: 'Approved', ReviewedBy: by
+    });
+
+    // 2. Replace the calendar rows for this request
+    _deleteLeaveCalendarRowsByRequest_(requestId);
+    const nextId = _nextLeaveCalendarIdLocal_();
+    const calRows = dates.map(d => ({
+      LeaveID:nextId(), RequestID:requestId, CreatedAt:_leaveNow_(), DriverID:driverId, DriverName:driverNm,
+      LeaveType:leaveType, StartDate:startDate, EndDate:endDate, LeaveDate:d, Notes:notes, ApprovedBy:by
+    }));
+    _writeLocalObjects_(SHEET.LEAVE_CALENDAR, LEAVE_CALENDAR_HEADERS, calRows);
+
+    return { ok:true, success:true, calendarRows:calRows.length, message:'Approved leave updated.' };
+  } catch (e) {
+    return { ok:false, success:false, msg:e.message };
+  }
+}
+
+// Delete every LEAVE_CALENDAR row that belongs to a RequestID. Bottom-up so
+// row indices stay valid as we delete. Returns the count removed.
+function _deleteLeaveCalendarRowsByRequest_(requestId) {
+  const sh = ensureLeaveCalendarSheet_();
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const idx = headers.indexOf('RequestID');
+  if (idx < 0) return 0;
+  const col = sh.getRange(2, idx + 1, last - 1, 1).getValues();
+  let removed = 0;
+  for (let i = col.length - 1; i >= 0; i--) {
+    if (String(col[i][0]).trim() === String(requestId).trim()) {
+      sh.deleteRow(i + 2);
+      removed++;
+    }
+  }
+  return removed;
+}
+
+function _rosterLeaveConflicts_(assignments, weekStart) {
+  const end = _addDaysStr_(weekStart, 6);
+  const leaves = getDriverLeaveCalendar({ dateFrom:weekStart, dateTo:end, limit:5000 }) || [];
+  const byDriverDate = {};
+  leaves.forEach(l => { byDriverDate[String(l.DriverID) + '|' + toDateStr_(l.LeaveDate)] = l; });
+  const conflicts = [];
+  (assignments || []).forEach(a => {
+    ['mon','tue','wed','thu','fri','sat','sun'].forEach((day, idx) => {
+      const val = a[day] || '';
+      if (!_isRosterWorkValue_(val)) return;
+      const date = _addDaysStr_(weekStart, idx);
+      const leave = byDriverDate[String(a.driverId) + '|' + date];
+      if (leave) conflicts.push({ driverId:a.driverId, driverName:leave.DriverName || a.driverId, date, day, value:val, leaveType:leave.LeaveType || 'Leave' });
+    });
+  });
+  return conflicts;
+}
+
+function getInitialData() {
+  let viewerUrl = '';
+  try { viewerUrl = ScriptApp.getService().getUrl().replace('/dev', '/exec') + '?page=viewer'; } catch(e) {}
+
+  const todayWk = todayMonday_();
+
+  // ── PERFORMANCE: only data required for the first roster paint is in the
+  // critical boot request. Routes are loaded immediately afterwards in the
+  // browser and are also returned by the Routes delivery planner endpoint.
+  let allDrivers = [], vehicles = [], vehicleDefects = [], routes = [];
+  try {
+    const batch = cdbGetAllCached_([
+      { action: 'getDrivers',        params: { active: 'all' } },
+      { action: 'getVehicles',       params: {} },
+      { action: 'getVehicleDefects', params: { openOnly: 'true', limit: 1000 } }
+    ], 'boot_supervisor_v1');
+    const dRows = (batch[0] && !batch[0].__error) ? batch[0] : [];
+    const vRows = (batch[1] && !batch[1].__error) ? batch[1] : [];
+    const fRows = (batch[2] && !batch[2].__error) ? batch[2] : [];
+    allDrivers     = _mapDriverRows_(dRows);
+    vehicles       = (vRows || []).map(_vehFromDb_).filter(v => v.plate && v.plate !== '.');
+    vehicleDefects = fRows || [];
+  } catch (e) {
+    // If the batch itself fails, keep the app usable with the slower per-call path.
+    allDrivers     = getAllDrivers();
+    vehicles       = getVehicles();
+    vehicleDefects = getVehicleDefects({ openOnly: true }).rows || [];
+  }
+
+  // roster-visible active drivers, derived locally (no extra HTTP call)
+  const drivers = allDrivers.filter(d => d.active && !d.rosterHidden);
+
+  // Local-sheet reads (fast, no CentralDB network)
+  const weeks     = getAvailableWeeks();
+  const targetWk  = weeks.includes(todayWk) ? todayWk : (weeks[0] || todayWk);
+  const roster    = getRoster(targetWk);
+  const leaveData = getLeaveDataForSupervisor();
+
+  return {
+    drivers, allDrivers, routes,
+    weeks, currentWeek: todayWk,
+    viewerUrl,
+    customers: [],            // lazy-loaded only when the Routes/Customers screens need it
+    vehicles, vehicleDefects,
+    vehicleDefectStats: {},   // derived client-side from open defects
+    infringements: [],        // lazy-loaded on Drivers/History screens
+    // Reuse the vehicle snapshot already loaded above. The previous code called
+    // getVehicles() again here, adding a redundant CentralDB round trip to startup.
+    pendingReturns: _pendingVehicleReturnsFromVehicles_(vehicles),
+    leaveCalendar: leaveData.calendar || [],
+    leaveRequests: leaveData.requests || [],
+    roster: {
+      weekStart:      targetWk,
+      assignments:    roster.assignments    || [],
+      requiredRoutes: roster.requiredRoutes || {mon:0,tue:0,wed:0,thu:0,fri:0,sat:0,sun:0},
+      published:      roster.published      || false,
+      actualHours:    roster.actualHours    || {},
+      isFresh:        roster.isFresh        || false
+    }
+  };
+}
+
+function getCustomersForRosterAdmin() {
+  try { return { ok: true, rows: getCustomers() || [] }; }
+  catch(e) { return { ok: false, msg: e.message, rows: [] }; }
+}
+
+function getAllDriverInfringementsForAdmin() {
+  return getDriverInfringements();
+}
+
+
+// Save actual hours worked for a specific week
+function saveActualHours(weekStart, actualHours) {
+  try {
+    const sh   = ensureRosterSheet_();
+    const vals = sh.getDataRange().getValues();
+    for (let i = 1; i < vals.length; i++) {
+      if (rowWeekKey_(vals[i]) !== String(weekStart).trim()) continue;
+      if (!isJsonRow_(vals[i])) continue;
+      const d = JSON.parse(String(vals[i][1]));
+      d.actualHours = actualHours; // { driverId: number }
+      const json = JSON.stringify(d);
+      sh.getRange(i+1, 1).setNumberFormat('@STRING@');
+      sh.getRange(i+1, 1, 1, 2).setValues([[String(weekStart).trim(), json]]);
+      return { ok: true };
+    }
+    return { ok: false, msg: 'Week not found. Save the roster first.' };
+  } catch(e) { return { ok: false, msg: e.message }; }
+}
+
+// Weekly Vehicle Mileage — stored centrally in VehicleMileage.
+function getVehicleMileageWeekData(weekStart) {
+  try {
+    const wk = String(weekStart || '').trim();
+    if (!wk) throw new Error('weekStart required');
+    const roster = getRoster(wk);
+    const rows = cdbGet_('getVehicleMileage', { weekStart:wk, limit:1000 }) || [];
+    return {
+      ok:true,
+      roster:{
+        weekStart:wk,
+        assignments:roster.assignments || [],
+        requiredRoutes:roster.requiredRoutes || {},
+        published:roster.published || false
+      },
+      rows:rows.map(r => ({
+        mileageId:String(r.MileageID || '').trim(),
+        weekStart:toDateStr_(r.WeekStart || wk),
+        weekEnd:toDateStr_(r.WeekEnd || ''),
+        plate:String(r.Plate || '').trim(),
+        vehicleType:String(r.VehicleType || '').trim(),
+        plannedKm:Number(r.PlannedKm) || 0,
+        actualKm:(r.ActualKm === '' || r.ActualKm === null || r.ActualKm === undefined) ? '' : Number(r.ActualKm),
+        varianceKm:Number(r.VarianceKm) || 0,
+        recordedBy:String(r.RecordedBy || '').trim(),
+        createdAt:String(r.CreatedAt || '').trim(),
+        updatedAt:String(r.UpdatedAt || '').trim()
+      }))
+    };
+  } catch(e) { return { ok:false, msg:e.message, roster:{assignments:[]}, rows:[] }; }
+}
+
+function saveVehicleMileage(weekStart, entries) {
+  try {
+    const wk = String(weekStart || '').trim();
+    if (!wk) throw new Error('weekStart required');
+    const clean = (entries || []).map(e => ({
+      plate:String(e.plate || '').trim(),
+      vehicleType:String(e.vehicleType || '').trim().toUpperCase(),
+      plannedKm:Number(e.plannedKm) || 0,
+      actualKm:Number(e.actualKm)
+    })).filter(e => e.plate && isFinite(e.actualKm) && e.actualKm >= 0);
+    if (!clean.length) throw new Error('Enter mileage for at least one vehicle.');
+    const res = cdbPost_('saveVehicleMileageBatch', { weekStart:wk, entries:clean });
+    return { ok:true, saved:Number(res.saved) || clean.length, rows:res.rows || [] };
+  } catch(e) { return { ok:false, msg:e.message }; }
+}
+
+function getRosterData(weekStart) {
+  const r = getRoster(weekStart);
+  return {
+    weekStart,
+    assignments:    r.assignments,
+    requiredRoutes: r.requiredRoutes,
+    published:      r.published      || false,
+    actualHours:    r.actualHours    || {},
+    isFresh:        r.isFresh        || false
+  };
+}
+
+// Para o Viewer — devolve semana actual + pré-visualização da próxima se sexta/sáb/dom
+// Para o Viewer — devolve semana actual + pré-visualização da próxima se publicada
+function getLatestRosterFull() {
+  try {
+    const sh      = ensureRosterSheet_();
+    const vals    = sh.getDataRange().getValues();
+    const todayWk = todayMonday_();
+
+    // Calcular segunda da próxima semana
+    const nextDate = new Date(todayWk + 'T12:00:00Z');
+    nextDate.setUTCDate(nextDate.getUTCDate() + 7);
+    const nextWk = nextDate.toISOString().slice(0, 10);
+
+    // ── Recolhe todas as linhas JSON válidas ──
+    // Aceita coluna A como texto "YYYY-MM-DD" OU como Date object (fallback)
+    const jsonRows = []; // [{wk, data}]
+    for (let i = 1; i < vals.length; i++) {
+      if (!vals[i][0]) continue;
+      const col2 = String(vals[i][1] || '').trim();
+      if (!col2.startsWith('{')) continue;
+      const wk = rowWeekKey_(vals[i]);
+      if (wk && /^\d{4}-\d{2}-\d{2}$/.test(wk)) jsonRows.push({ wk, data: col2 });
+    }
+
+    // ── Escolhe semana correcta ──
+    function parseRow(row) {
+      try {
+        const d = JSON.parse(row.data);
+        return {
+          weekStart:      row.wk,
+          assignments:    d.assignments    || [],
+          requiredRoutes: d.requiredRoutes || {},
+          published:      d.published      === true   // explicit boolean check
+        };
+      } catch(e) { return null; }
+    }
+
+    let currentRoster = null;
+
+    // 1. Semana actual
+    const curRow = jsonRows.find(r => r.wk === todayWk);
+    if (curRow) currentRoster = parseRow(curRow);
+
+    // 2. Semana passada mais recente
+    if (!currentRoster) {
+      const past = jsonRows.filter(r => r.wk < todayWk).sort((a,b) => b.wk.localeCompare(a.wk));
+      for (const row of past) { currentRoster = parseRow(row); if (currentRoster) break; }
+    }
+
+    // 3. Qualquer semana futura como último recurso
+    if (!currentRoster) {
+      const future = jsonRows.filter(r => r.wk > todayWk).sort((a,b) => a.wk.localeCompare(b.wk));
+      for (const row of future) { currentRoster = parseRow(row); if (currentRoster) break; }
+    }
+
+    if (!currentRoster) currentRoster = { weekStart: todayWk, assignments: [], requiredRoutes: {} };
+
+    // ── Next week: show if published=true OR if today is Sunday (auto-publish) ──
+    const todayDow   = new Date().getUTCDay(); // 0=Sunday
+    const isSunday   = todayDow === 0;
+    const nextRow    = jsonRows.find(r => r.wk === nextWk);
+    let nextRoster   = null;
+    if (nextRow) {
+      const candidate = parseRow(nextRow);
+      if (candidate && (candidate.published === true || isSunday)) {
+        nextRoster = candidate;
+      }
+    }
+
+    // PERFORMANCE: fetch drivers + routes + customers in PARALLEL (one batch),
+    // instead of 5 sequential calls. The viewer does not use vehicles or the
+    // full allDrivers list, so those calls were removed entirely.
+    let _drivers = [], _routes = [], _customers = [];
+    try {
+      const batch = cdbGetAllCached_([
+        { action: 'getDrivers',           params: { active: 'all' } },
+        { action: 'getRoutes',            params: {} },
+        { action: 'getDeliveryCustomersEffective', params: {} }
+      ], 'boot_viewer_v1');
+      const dRows = (batch[0] && !batch[0].__error) ? batch[0] : [];
+      const rRows = (batch[1] && !batch[1].__error) ? batch[1] : null;
+      const cRows = (batch[2] && !batch[2].__error) ? batch[2] : [];
+      _drivers = _mapDriverRows_(dRows).filter(d => d.active && !d.rosterHidden);
+      if (rRows === null) {
+        _routes = _getLocalRoutes_();
+      } else {
+        const dbRoutes = (rRows || []).map(_routeFromDb_).filter(r => r.route);
+        _routes = dbRoutes.length ? dbRoutes : _getLocalRoutes_();
+      }
+      _customers = (cRows || []).map(_customerFromDbRow_).filter(r => r.customer && r.customer !== '.');
+    } catch (e) {
+      _drivers   = getDrivers();
+      _routes    = getRoutes();
+      _customers = getCustomers();
+    }
+
+    const shared = {
+      drivers:    _drivers,
+      routes:     _routes,
+      customers:  _customers,
+      leaveCalendar: getDriverLeaveCalendar({ dateFrom: _addDaysStr_(todayWk, -90), dateTo: _addDaysStr_(todayWk, 365), limit: 5000 })
+    };
+
+    return {
+      ...shared,
+      weekStart:      currentRoster.weekStart,
+      assignments:    currentRoster.assignments,
+      requiredRoutes: currentRoster.requiredRoutes,
+      nextWeek: nextRoster ? {
+        weekStart:      nextRoster.weekStart,
+        assignments:    nextRoster.assignments,
+        requiredRoutes: nextRoster.requiredRoutes
+      } : null
+    };
+  } catch(e) {
+    // Último recurso: resposta mínima válida
+    return {
+      drivers: getDrivers(), routes: getRoutes(), customers: getCustomers(), vehicles: getVehicles(),
+      weekStart: todayMonday_(), assignments: [], requiredRoutes: {}, nextWeek: null
+    };
+  }
+}
+
+function migrateVehiclesToCentral() {
+  const sh = ss_().getSheetByName(SHEET.VEHICLES)
+          || ss_().getSheetByName('Vehicles')
+          || ss_().getSheetByName('vehicles');
+  if (!sh) return 'Aba VEHICLES local não encontrada — nada a migrar.';
+
+  const vals = sh.getDataRange().getValues();
+  let ok = 0, skip = 0, fail = 0;
+  const errors = [];
+
+  for (let i = 1; i < vals.length; i++) {
+    const plate = String(vals[i][0] || '').trim();
+    if (!plate || plate === '.') { skip++; continue; }
+
+    const payload = {
+      Plate:      plate,
+      Type:       String(vals[i][1] || '').trim(),
+      Notes:      String(vals[i][2] || '').trim(),
+      Status:     String(vals[i][3] || 'available').trim().toLowerCase() || 'available',
+      MaintStart: vals[i][4] ? toDateStr_(vals[i][4]) : '',
+      MaintEnd:   vals[i][5] ? toDateStr_(vals[i][5]) : ''
+    };
+
+    try {
+      cdbPost_('addVehicle', payload);
+      ok++;
+    } catch (e) {
+      // "already exists" é seguro de ignorar (re-execução)
+      if (String(e.message).indexOf('already exists') !== -1) { skip++; }
+      else { fail++; errors.push(plate + ': ' + e.message); }
+    }
+  }
+
+  const msg = 'Migração concluída — adicionados: ' + ok + ', ignorados: ' + skip + ', falhas: ' + fail
+            + (errors.length ? '\n' + errors.join('\n') : '');
+  Logger.log(msg);
+  return msg;
+}
+
+// ============================================================
+//  DISTRIBUTION APP — Customers read from CentralDB (PHASE A)
+//  Married to production: reads CustomerMaster + CustomerSchedule.
+//  Requires the CENTRALDB CLIENT block already pasted + configured,
+//  and CentralDB_customers_married.gs deployed.
+// ============================================================
+//
+//  SEQUENCE
+//    1. seedDeliveryOrderFromLocal(true)   -> DRY RUN: reports how many
+//                                             app rows match DB rows
+//                                             (sets nothing).
+//    2. seedDeliveryOrderFromLocal(false)  -> writes DeliveryOrder onto the
+//                                             matching CustomerSchedule rows.
+//    3. REPLACE the app's getCustomers() with the version below so the list
+//       comes from the DB.
+//
+//  NOTE: after step 3, the app shows ONLY customers that exist in the DB.
+//  Customers still missing from the DB won't appear until they are added on
+//  the production side (CustomerMaster + CustomerSchedule). The dry run in
+//  step 1 lists exactly which app rows have no DB match.
+// ============================================================
+
+
+// ---- One-time DeliveryOrder seed (reads LOCAL Customers, writes DB) ----
+function seedDeliveryOrderFromLocal(dryRun) {
+  
+  const isDry = (dryRun !== false);
+
+  const sh = ss_().getSheetByName(SHEET.CUSTOMER)
+          || ss_().getSheetByName('Customers')
+          || ss_().getSheetByName('customer')
+          || ss_().getSheetByName('CUSTOMER');
+  if (!sh) return 'Local Customers sheet not found.';
+
+  const vals = sh.getDataRange().getValues();
+  const rows = [];
+  for (let i = 1; i < vals.length; i++) {
+    const r = vals[i];
+    const order = parseInt(r[0]) || 0;
+    const customer = String(r[4] || '').trim();
+    const route = String(r[1] || '').trim();
+    const day = String(r[2] || '').trim();
+    if (!customer || customer === '.' || order <= 0 || !route || !day) continue;
+    rows.push({ customer: customer, route: route, day: day, order: order });
+  }
+
+  const res = cdbPost_('seedDeliveryOrder', { rows: rows, dryRun: isDry });
+  res.appRowsSent = rows.length;
+  Logger.log(JSON.stringify(res, null, 2));
+  return res;
+}
+
+// Rode esta para o TESTE (não grava nada)
+function seedDeliveryOrder_DryRun() {
+  return seedDeliveryOrderFromLocal(true);
+}
+
+// Rode esta para GRAVAR de verdade
+function seedDeliveryOrder_Apply() {
+  return seedDeliveryOrderFromLocal(false);
+}
+
+
+// One-time/manual repair: CentralDB closes gaps and removes duplicates across
+// official delivery customers and collection-only stops.
+function repairAllDeliveryOrders() {
+  try {
+    const result = cdbPost_('repairDeliveryOrders', {
+      ChangedBy: 'distribution-admin',
+      ChangeReason: 'Manual full delivery-order normalization'
+    });
+    _invalidateScheduleCache_();
+    _bustBootCache_();
+    return { ok: true, result: result };
+  } catch (e) {
+    return { ok: false, msg: e.message };
+  }
+}
+
+// ---- REPLACE the existing getCustomers() with this ----
+function _customerFromDbRow_(r) {
+  return {
+    order:          parseInt(r.order) || 0,
+    route:          String(r.route || '').trim(),
+    day:            String(r.day || '').trim(),
+    time:           String(r.time || '').trim(),
+    customer:       String(r.customer || '').trim(),
+    stops:          parseInt(r.stops) || 1,
+    eircode:        String(r.eircode || '').trim(),
+    kg:             parseFloat(r.kg) || 0,
+    trolleyClothes: String(r.trolleyClothes || '').trim(),
+    trolleyMop:     String(r.trolleyMop || '').trim(),
+    notes:          String(r.notes || '').trim(),
+    colour:         String(r.colour || '').trim(),
+    displayName:    String(r.displayName || '').trim(),
+    customerId:     String(r.customerId || '').trim(),
+    rowIndex:       String(r.rowIndex || '').trim(),
+    overlay:        r.overlay || null   // supervisor marker; null for normal rows
+  };
+}
+
+function getCustomers() {
+  try {
+    // Effective delivery list = production placements WITH active overlays
+    // (collection stops, temp moves, hides) applied. Drivers see the real result.
+    const rows = cdbGet_('getDeliveryCustomersEffective') || [];
+    return rows.map(_customerFromDbRow_).filter(r => r.customer && r.customer !== '.');
+  } catch (e) {
+    // Do not hide DB errors while testing. This message will show the real problem in the app/load error.
+    throw new Error('getCustomers DB error: ' + e.message);
+  }
+}
+
+
+// READ: tudo que a tela precisa (Routes screen / supervisor).
+// Now overlay-aware: customers come from the EFFECTIVE list (collection stops,
+// temp moves and hides already applied) and the raw overlay markers are
+// returned so the supervisor sees explicit indicators.
+function getDeliveryPlanner() {
+  try {
+    // PERFORMANCE: these three reads are independent. Running them through fetchAll
+    // removes two network round-trip waits from the Routes screen critical path.
+    const batch = cdbGetAll_([
+      { action:'getDeliveryCustomersEffective', params:{} },
+      { action:'getRoutes', params:{} },
+      { action:'getDeliveryOverlays', params:{ activeOnly:'true' } }
+    ]);
+
+    const customerRows = batch[0];
+    if (customerRows && customerRows.__error) throw new Error(customerRows.__error);
+    const customers = customerRows || [];
+
+    const routeRows = batch[1];
+    let routes = [];
+    if (routeRows && routeRows.__error) {
+      routes = _getLocalRoutes_();
+    } else {
+      const dbRoutes = (routeRows || []).map(_routeFromDb_).filter(r => r.route);
+      routes = dbRoutes.length ? dbRoutes : _getLocalRoutes_();
+    }
+
+    const overlayRows = batch[2];
+    const overlays = (overlayRows && overlayRows.__error) ? [] : (overlayRows || []);
+    return { ok: true, customers: customers, routes: routes, overlays: overlays };
+  } catch (e) {
+    return { ok: false, msg: e.message, customers: [], routes: [], overlays: [] };
+  }
+}
+
+// READ: active official customer names for the Add collection autocomplete.
+// Selecting one only copies its name/Eircode into the collection overlay; it does
+// not create or modify any CustomerMaster/CustomerSchedule row.
+function getCollectionCustomerOptions() {
+  try {
+    // CustomerMaster is the preferred source. CustomerSchedule and the effective
+    // delivery list are fallbacks, because older databases may have inconsistent
+    // Active values or incomplete master rows while the customer is still operational.
+    const batch = cdbGetAll_([
+      { action: 'getCustomers', params: { active: 'true' } },
+      { action: 'getCustomerSchedule', params: {} },
+      { action: 'getDeliveryCustomersEffective', params: {} }
+    ]);
+
+    const masterRows = batch[0] && !batch[0].__error && Array.isArray(batch[0]) ? batch[0] : [];
+    const scheduleRows = batch[1] && !batch[1].__error && Array.isArray(batch[1]) ? batch[1] : [];
+    const deliveryRows = batch[2] && !batch[2].__error && Array.isArray(batch[2]) ? batch[2] : [];
+    const byKey = {};
+
+    function addRow(r) {
+      r = r || {};
+      const name = String(
+        r.CustomerName || r.customerName || r.DisplayName || r.displayName ||
+        r.Name || r.name || r.Customer || r.customer || ''
+      ).trim();
+      if (!name) return;
+      const customerId = String(r.CustomerID || r.customerId || r.CustomerId || '').trim();
+      const key = customerId ? ('id:' + customerId.toLowerCase()) : ('name:' + name.toLowerCase());
+      const eircode = String(r.Eircode || r.EIRCODE || r.eircode || r.Postcode || '').trim();
+      if (!byKey[key]) {
+        byKey[key] = { customerId: customerId, name: name, eircode: eircode };
+      } else {
+        if (!byKey[key].customerId && customerId) byKey[key].customerId = customerId;
+        if (!byKey[key].eircode && eircode) byKey[key].eircode = eircode;
+        if (!byKey[key].name && name) byKey[key].name = name;
+      }
+    }
+
+    masterRows.forEach(addRow);
+    scheduleRows.forEach(addRow);
+    deliveryRows.forEach(addRow);
+
+    // Deduplicate again by normalized name, favouring the row with an Eircode/ID.
+    const byName = {};
+    Object.keys(byKey).forEach(k => {
+      const c = byKey[k];
+      const nk = String(c.name || '').trim().toLowerCase();
+      if (!nk) return;
+      if (!byName[nk]) byName[nk] = c;
+      else {
+        if (!byName[nk].customerId && c.customerId) byName[nk].customerId = c.customerId;
+        if (!byName[nk].eircode && c.eircode) byName[nk].eircode = c.eircode;
+      }
+    });
+
+    const customers = Object.keys(byName).map(k => byName[k]);
+    customers.sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      ok: true,
+      customers: customers,
+      sources: {
+        master: masterRows.length,
+        schedule: scheduleRows.length,
+        delivery: deliveryRows.length
+      }
+    };
+  } catch (e) {
+    return { ok: false, msg: e.message, customers: [] };
+  }
+}
+
+// READ: customers that can be placed in a standard delivery.
+function getPlaceableCustomers() {
+  try {
+    const sched = cdbGet_('getCustomerSchedule') || [];
+    const byCust = {};
+    sched.forEach(r => {
+      const id = String(r.CustomerID || '').trim();
+      if (!id) return;
+      if (!byCust[id]) byCust[id] = {
+        customerId: id,
+        name: String(r.CustomerName || '').trim(),
+        serviceType: String(r.ServiceType || '').trim(),
+        rows: []
+      };
+      byCust[id].rows.push({
+        rowIndex:      id + '::' + String(r.ProductionDay || '').trim(),
+        productionDay: String(r.ProductionDay || '').trim(),
+        deliveryDay:   String(r.DeliveryDay || '').trim(),
+        route:         String(r.Route || '').trim().replace(/\.0+$/, '')
+      });
+    });
+    const list = Object.keys(byCust).map(k => byCust[k]);
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    return { ok: true, customers: list };
+  } catch (e) {
+    return { ok: false, msg: e.message, customers: [] };
+  }
+}
+
+
+// WRITE: reorder a complete route/day containing both official customers and
+// collection/temporary overlay rows. CentralDB owns the complete sequence and
+// writes every mixed route/day atomically under one document lock.
+function saveDeliveryRouteOrder(items) {
+  try {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) return { ok: false, msg: 'No delivery rows supplied.' };
+
+    const managedItems = list.map((item, idx) => {
+      const p = item || {};
+      return {
+        rowIndex:      String(p.rowIndex || '').trim(),
+        overlayId:     String(p.overlayId || '').trim(),
+        route:         String(p.route || '').trim(),
+        deliveryDay:   String(p.deliveryDay || '').trim(),
+        order:         idx + 1
+      };
+    });
+
+    const result = cdbPost_('saveDeliveryRouteOrderManaged', {
+      items: managedItems,
+      ChangedBy: 'distribution-planner',
+      ChangeReason: 'Distribution planner mixed route reorder'
+    });
+    if (result && result.success === false) {
+      throw new Error(result.message || 'Some delivery orders were not saved.');
+    }
+
+    _invalidateScheduleCache_();
+    _bustBootCache_();
+    return {
+      ok: true,
+      updated: managedItems.length,
+      scopes: result && result.scopes || 0,
+      missing: result && result.missing || []
+    };
+  } catch (e) {
+    return { ok: false, msg: e.message };
+  }
+}
+
+// Backward-compatible endpoint used by older cached frontends.
+function saveDeliveryOrder(items) {
+  return saveDeliveryRouteOrder(items);
+}
+
+// WRITE: remover da entrega (padrão mantém a ficha de produção)
+function deleteDeliveryCustomer(payload) {
+  try {
+    const c = payload || {};
+    if (!c.customerId || !c.productionDay) {
+      return { ok: false, msg: 'customerId and productionDay are required.' };
+    }
+    if (c.hard === true) {
+      cdbPost_('removeCustomerScheduleScope', {
+        scope: 'DELETE_DAY_ALL',
+        customerId: String(c.customerId),
+        productionDay: String(c.productionDay),
+        ChangedBy: 'distribution-planner',
+        ChangeReason: 'Distribution planner hard delete'
+      });
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+      _bustBootCache_();
+      return { ok: true, hard: true };
+    }
+    cdbPost_('updateCustomer', {
+      customerId:    String(c.customerId),
+      productionDay: String(c.productionDay),
+      Route:         '',
+      DeliveryDay:   '',
+      DeliveryTime:  '',
+      DeliveryOrder: ''
+    });
+    _invalidateScheduleCache_();
+    _bustBootCache_();
+    return { ok: true, hard: false };
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+
+// Acha a linha do cliente no banco (usado pelas telas antigas)
+function _findDeliveryRow_(route, day, order, customerName) {
+  const rows = cdbGet_('getDeliveryCustomers') || [];
+  const nd = s => String(s || '').trim().toLowerCase();
+  const nr = s => String(s || '').replace(/\s+/g, '').toUpperCase().replace(/\.0+$/, '');
+  let hit = rows.find(r =>
+    nr(r.route) === nr(route) && nd(r.day) === nd(day) && parseInt(r.order) === parseInt(order));
+  if (!hit && customerName) {
+    hit = rows.find(r => nd(r.customer) === nd(customerName) && nd(r.day) === nd(day));
+  }
+  return hit || null;
+}
+
+
+// Versão NOVA de deleteCustomer (substitui a antiga automaticamente)
+function deleteCustomer(route, day, order) {
+  _bustBootCache_();
+  try {
+    const hit = _findDeliveryRow_(route, day, order, '');
+    if (!hit) return { ok: false, msg: 'Registro não encontrado.' };
+    return deleteDeliveryCustomer({ customerId: hit.customerId, productionDay: hit.productionDay, hard: false });
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+
+
+// WRITE: adicionar OU editar — agora inclui Eircode / KG / Stops
+function saveDeliveryCustomer(payload) {
+  try {
+    const c = payload || {};
+    if (!c.customerId || !c.productionDay) {
+      return { ok: false, msg: 'customerId and productionDay are required.' };
+    }
+
+    const body = {
+      customerId:    String(c.customerId),
+      productionDay: String(c.productionDay),
+      // Campos de entrega (CustomerSchedule, por dia)
+      Route:         String(c.route || '').trim().replace(/\.0+$/, ''),
+      DeliveryDay:   String(c.day || '').trim(),
+      DeliveryTime:  String(c.time || '').trim(),
+      DeliveryOrder: parseInt(c.order) || '',
+      RouteColor:    String(c.colour || '').trim(),
+      DisplayName:   String(c.displayName || '').trim(),
+      QtyClothes:    String(c.trolleyClothes || '').trim(),
+      TrolleyMop:    String(c.trolleyMop || '').trim(),
+      // Instrução exclusiva para a entrega/motorista.
+      // CentralDB grava em CustomerSchedule.DeliveryNotes.
+      DeliveryNotes: String(c.notes || '').trim()
+    };
+
+    // Campos de identidade (CustomerMaster) — só enviados quando vierem
+    // preenchidos, para o modal de "Adicionar" (que não tem esses campos)
+    // não apagar nada por engano.
+    if (c.eircode !== undefined && c.eircode !== null && String(c.eircode).trim() !== '') {
+      body.Eircode = String(c.eircode).trim();
+    }
+    if (c.kg !== undefined && c.kg !== null && String(c.kg).trim() !== '') {
+      body.KGEstimated = c.kg;
+    }
+    if (c.stops !== undefined && c.stops !== null && String(c.stops).trim() !== '') {
+      body.Stops = parseInt(c.stops) || 1;
+    }
+
+    cdbPost_('updateCustomer', body);
+    _invalidateScheduleCache_();
+    _invalidateMasterCache_();
+    _bustBootCache_();
+    return { ok: true };
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+
+// Versão nova de saveCustomer — repassa Eircode / KG / Stops ao editar
+function saveCustomer(c) {
+  _bustBootCache_();
+  try {
+    if (c.isNew) {
+      return { ok: false, msg: 'Para adicionar, use a tela do Planner (botão Add customer).' };
+    }
+    const hit = _findDeliveryRow_(c.origRoute, c.origDay, c.origOrder, c.customer);
+    if (!hit) return { ok: false, msg: 'Cliente não encontrado no banco para editar.' };
+    return saveDeliveryCustomer({
+      customerId:     hit.customerId,
+      productionDay:  hit.productionDay,
+      route:          c.route,
+      day:            c.day,
+      time:           c.time,
+      order:          c.order,
+      colour:         c.colour,
+      displayName:    c.displayName,
+      trolleyClothes: c.trolleyClothes,
+      trolleyMop:     c.trolleyMop,
+      notes:          c.notes,     // Customer Stop -> CustomerSchedule.DeliveryNotes
+      eircode:        c.eircode,   // <-- agora salvos
+      kg:             c.kg,        // <-- agora salvos
+      stops:          c.stops      // <-- agora salvos
+    });
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+
+
+/* ============================================================
+ *  DELIVERY OVERLAY — distribution-only temporary layer (v1.6.0)
+ *  ----------------------------------------------------------
+ *  Thin wrappers that the Routes screen calls via google.script.run.
+ *  They forward to the CentralDB overlay endpoints and bust the boot
+ *  cache so the planner reflects changes immediately.
+ *
+ *  Overlay kinds:
+ *    COLLECTION – collection-only stop (Routes + driver, no Customers/production row)
+ *    TEMP_MOVE  – move a customer to another route for delivery testing
+ *    HIDE       – hide a customer on a route/day (delivery only)
+ *    TEMP_STOP  – legacy alias retained for old saved rows
+ * ============================================================ */
+
+// READ: planner data WITH overlays applied (supervisor view).
+// Returns the same shape as getDeliveryPlanner plus an `overlays` array
+// so the Routes screen can render the explicit markers.
+function getDeliveryPlannerWithOverlays() {
+  // Backward-compatible alias. Keep every caller on the same parallelized path
+  // instead of reintroducing three sequential CentralDB reads.
+  return getDeliveryPlanner();
+}
+
+// READ: raw overlay list (for an audit/markers panel if needed).
+function listDeliveryOverlays(activeOnly) {
+  try {
+    const rows = cdbGet_('getDeliveryOverlays', {
+      activeOnly: (activeOnly === false ? 'false' : 'true')
+    }) || [];
+    return { ok: true, overlays: rows };
+  } catch (e) { return { ok: false, msg: e.message, overlays: [] }; }
+}
+
+// WRITE: create/update an overlay.
+function saveDeliveryOverlay(payload) {
+  _bustBootCache_();
+  try {
+    const p = payload || {};
+    const res = cdbPost_('saveDeliveryOverlay', {
+      overlayId:     p.overlayId || '',
+      kind:          p.kind || '',
+      customerId:    p.customerId || '',
+      customerName:  p.customerName || '',
+      fromRoute:     p.fromRoute || '',
+      fromDay:       p.fromDay || '',
+      route:         p.route || '',
+      deliveryDay:   p.deliveryDay || p.day || '',
+      deliveryTime:  p.deliveryTime || p.time || '',
+      deliveryOrder: p.deliveryOrder || p.order || '',
+      routeColor:    p.routeColor || p.colour || '',
+      displayName:   p.displayName || '',
+      eircode:       p.eircode || '',
+      kgEstimated:   p.kgEstimated || p.kg || '',
+      qtyClothes:    p.qtyClothes || p.trolleyClothes || '',
+      trolleyMop:    p.trolleyMop || '',
+      notes:         p.notes || '',
+      expiresOn:     p.expiresOn || '',
+      reason:        p.reason || '',
+      changedBy:     p.changedBy || 'distribution-planner'
+    });
+    return { ok: true, result: res };
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+
+// Collection-only stop. Stored in DeliveryOverlay, never in CustomerMaster/CustomerSchedule.
+function addCollection(payload) {
+  const p = payload || {};
+  return saveDeliveryOverlay({
+    overlayId:    p.overlayId || '',
+    kind:         'COLLECTION',
+    customerId:   p.customerId || '',
+    customerName: p.customerName || p.name || '',
+    route:        p.route || '',
+    deliveryDay:  p.deliveryDay || p.day || '',
+    deliveryTime: p.deliveryTime || p.time || '',
+    deliveryOrder:p.deliveryOrder || p.order || '',
+    routeColor:   p.routeColor || p.colour || '',
+    eircode:      p.eircode || '',
+    kgEstimated:  p.kgEstimated || p.kg || '',
+    qtyClothes:   p.qtyClothes || p.trolleyClothes || '',
+    trolleyMop:   p.trolleyMop || '',
+    notes:        p.notes || '',
+    expiresOn:    p.expiresOn || '',
+    reason:       p.reason || '',
+    changedBy:    p.changedBy || 'distribution-planner'
+  });
+}
+
+// Delivery-only stop for an EXTERNAL route. It can reference an existing customer
+// or a free-typed location, but it never writes CustomerMaster/CustomerSchedule.
+function addExternalDeliveryStop(payload) {
+  const p = payload || {};
+  return saveDeliveryOverlay({
+    overlayId:    p.overlayId || '',
+    kind:         'EXTERNAL_DELIVERY',
+    customerId:   p.customerId || '',
+    customerName: p.customerName || p.name || '',
+    route:        p.route || '',
+    deliveryDay:  p.deliveryDay || p.day || '',
+    deliveryTime: p.deliveryTime || p.time || '',
+    deliveryOrder:p.deliveryOrder || p.order || '',
+    routeColor:   p.routeColor || p.colour || '',
+    displayName:  p.displayName || '',
+    eircode:      p.eircode || '',
+    kgEstimated:  p.kgEstimated || p.kg || '',
+    qtyClothes:   p.qtyClothes || p.trolleyClothes || '',
+    trolleyMop:   p.trolleyMop || '',
+    notes:        p.notes || '',
+    expiresOn:    p.expiresOn || '',
+    reason:       p.reason || 'External delivery route stop',
+    changedBy:    p.changedBy || 'distribution-planner'
+  });
+}
+
+
+// Add the same delivery stop to several operating days of one External Route.
+// The CentralDB creates all rows under one lock and validates that every day
+// has a corresponding EXTERNAL route row.
+function addExternalDeliveryStopsBatch(payload) {
+  const p = payload || {};
+  try {
+    const result = cdbPost_('saveExternalDeliveryStopsBatch', {
+      kind:         'EXTERNAL_DELIVERY',
+      customerId:   p.customerId || '',
+      customerName: p.customerName || p.name || '',
+      route:        p.route || '',
+      days:         Array.isArray(p.days) ? p.days.map(String) : [],
+      deliveryTime: p.deliveryTime || p.time || '',
+      deliveryOrder:p.deliveryOrder || p.order || '',
+      routeColor:   p.routeColor || p.colour || '',
+      displayName:  p.displayName || '',
+      eircode:      p.eircode || '',
+      kgEstimated:  p.kgEstimated || p.kg || '',
+      qtyClothes:   p.qtyClothes || p.trolleyClothes || '',
+      trolleyMop:   p.trolleyMop || '',
+      notes:        p.notes || '',
+      expiresOn:    p.expiresOn || '',
+      reason:       p.reason || 'External delivery route stop',
+      changedBy:    p.changedBy || 'distribution-planner'
+    });
+    return { ok: true, createdCount: Number(result && result.createdCount) || 0, result: result };
+  } catch(e) { return { ok:false, msg:e.message }; }
+}
+
+// Backward compatibility for an old cached frontend or historic integration.
+function addTempStop(payload) {
+  return addCollection(payload);
+}
+
+// Convenience: temporarily move a customer to another route/day.
+function moveCustomerTemporarily(payload) {
+  const p = payload || {};
+  return saveDeliveryOverlay({
+    kind:         'TEMP_MOVE',
+    customerId:   p.customerId || '',
+    customerName: p.customerName || '',
+    fromRoute:    p.fromRoute || '',
+    fromDay:      p.fromDay || '',
+    route:        p.route || '',
+    deliveryDay:  p.deliveryDay || p.day || p.fromDay || '',
+    deliveryTime: p.deliveryTime || p.time || '',
+    deliveryOrder:p.deliveryOrder || p.order || '',
+    routeColor:   p.routeColor || p.colour || '',
+    expiresOn:    p.expiresOn || '',
+    reason:       p.reason || '',
+    changedBy:    p.changedBy || 'distribution-planner'
+  });
+}
+
+// Convenience: hide a customer on a route/day (delivery only).
+function hideCustomerOnDay(payload) {
+  const p = payload || {};
+  return saveDeliveryOverlay({
+    kind:        'HIDE',
+    customerId:  p.customerId || '',
+    customerName:p.customerName || '',
+    fromRoute:   p.fromRoute || p.route || '',
+    fromDay:     p.fromDay || p.day || '',
+    expiresOn:   p.expiresOn || '',
+    reason:      p.reason || '',
+    changedBy:   p.changedBy || 'distribution-planner'
+  });
+}
+
+// WRITE: remove/deactivate an overlay (unhide / cancel temp move / remove temp stop).
+function removeDeliveryOverlay(overlayId, hard) {
+  _bustBootCache_();
+  try {
+    const res = cdbPost_('deleteDeliveryOverlay', {
+      overlayId: overlayId,
+      hard: hard === true,
+      changedBy: 'distribution-planner'
+    });
+    return { ok: true, result: res };
+  } catch (e) { return { ok: false, msg: e.message }; }
+}
+/* ==========================================================================
+ *  CUSTOMER / MOP — Customer Planner (ported from the Sorting app)
+ *  Replaces the old row-based Customer layer. Talks to the SAME CentralDB
+ *  via the Roster project's cdbGet_/cdbPost_. Batch helpers
+ *  use the aliases below so they reuse the Roster CentralDB URL/key.
+ * ======================================================================== */
+function _prodDbUrl_(){ return _centralUrl_(); }
+function _prodDbKey_(){ return _centralKey_(); }
+
+
+/* --- cache + base utils --- */
+
+/** Cache de scripts para evitar múltiplas chamadas ao CentralDB na mesma execução */
+const _dbCache_ = {};
+function _dbCachedGet_(key, action, params, ttlSec) {
+  if (_dbCache_[key]) return _dbCache_[key];
+  // Tenta cache do Apps Script
+  const sc  = CacheService.getScriptCache();
+  const hit = sc.get('db_' + key);
+  if (hit) {
+    try { _dbCache_[key] = JSON.parse(hit); return _dbCache_[key]; } catch(e){}
+  }
+  const data = cdbGet_(action, params);
+  _dbCache_[key] = data;
+  try { sc.put('db_' + key, JSON.stringify(data), ttlSec || 120); } catch(e){}
+  return data;
+}
+
+
+/* ============================================================
+   UTILITÁRIOS BASE
+   ============================================================ */
+function resOk(obj)  { return Object.assign({ status:'success' }, obj||{}); }
+function resErr(msg) { return { status:'error', message:String(msg||'Error') }; }
+
+function safeTry_(fn) {
+  try { return fn(); }
+  catch (e) { console.error(e); return resErr(e && e.message ? e.message : String(e)); }
+}
+// Versão segura para funções que devem SEMPRE devolver array.
+// Se o resultado não for array (ex: { status:'error' } de safeTry_), devolve [].
+function safeTryArr_(fn) {
+  const r = safeTry_(fn);
+  return Array.isArray(r) ? r : [];
+}
+
+/* --- customer/MOP CentralDB layer --- */
+
+function _getScheduleRows_() {
+  return _dbCachedGet_('schedule_all', 'getCustomerSchedule', {}, 300); // 5-min TTL: customer list changes rarely mid-shift
+}
+function _getMasterRows_() {
+  return _dbCachedGet_('master_all', 'getCustomers', { active: 'true' }, 300);
+}
+
+function _invalidateScheduleCache_() {
+  delete _dbCache_['schedule_all'];
+  try { CacheService.getScriptCache().remove('db_schedule_all'); } catch(e) {}
+}
+
+function _toDayShort_(v) {
+  const s = String(v||'').trim();
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1,3).toLowerCase();
+}
+
+function _centralDay_(v) {
+  const s = String(v||'').trim();
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const n = s.toLowerCase().slice(0,3);
+  for (let i=0; i<days.length; i++) if (days[i].toLowerCase().slice(0,3)===n) return days[i];
+  return s;
+}
+
+function _splitCentralRowKey_(rowIndex) {
+  // rowIndex = "CustomerID::ProductionDay"  ou  "CustomerID::ProductionDay::MOP"
+  const parts = String(rowIndex||'').split('::');
+  return { customerId: parts[0]||'', day: parts[1]||'' };
+}
+
+// Headers completos que o novo HTML espera
+const CENTRAL_CUSTOMER_HEADER = [
+  'ProductionDay','CustomerName','RouteColor','QtyClothes',
+  'TrolleyMop','ClothesNotes','MopInstructions','MopProducts',
+  'DeliveryDay','Route','DisplayName','DeliveryOrder','CustomerID','ServiceType','ClothesOrder','MopOrder'
+];
+const CENTRAL_MOP_HEADER = [
+  'ProductionDay','CustomerName','TrolleyMop','RouteColor',
+  'MopInstructions','MopProducts','DeliveryDay','Route','DisplayName','DeliveryOrder',
+  'CustomerID','ServiceType','MopOrder'
+];
+
+// Converte array de valores (alinhado com header) → payload para o CentralDB
+function _valsToPayload_(vals, header) {
+  const h = (header || CENTRAL_CUSTOMER_HEADER).map(x => String(x || '').trim().toLowerCase().replace(/\s+/g, ''));
+  function get() {
+    for (let i = 0; i < arguments.length; i++) {
+      const idx = h.indexOf(String(arguments[i]).toLowerCase().replace(/\s+/g, ''));
+      if (idx >= 0 && vals[idx] != null && String(vals[idx]).trim() !== '') return String(vals[idx]).trim();
+    }
+    return '';
+  }
+  return {
+    ProductionDay:   _centralDay_(get('productionday','day')),
+    CustomerName:    get('customername','customer'),
+    RouteColor:      get('routecolor','colour','color'),
+    QtyClothes:      get('qtyclothes','qtycloth'),
+    TrolleyMop:      get('trolleymop','trolley','qtymops'),
+    ClothesNotes:    get('clothesnotes','clothesnote'),
+    MopInstructions: get('mopinstructions','mopinstruction'),
+    MopProducts:     get('mopproducts','mopproduct'),
+    ServiceType:     get('servicetype') || 'CLOTHES',
+    DeliveryDay:     _centralDay_(get('deliveryday')),
+    Route:           get('route'),
+    DisplayName:     get('displayname'),
+    DeliveryOrder:   get('deliveryorder'),
+    CustomerID:      get('customerid'),
+    ClothesOrder:    get('clothesorder'),
+    MopOrder:        get('moporder')
+  };
+}
+
+/* ── getCustomerList (bootstrap / Sorting Area select) ── */
+function getCustomerList() {
+  return safeTryArr_(() => {
+    const sched = _getScheduleRows_();
+    if (!Array.isArray(sched)) return [];
+    const seen = new Set(), list = [];
+    sched.forEach(r => {
+      const n = String(r.CustomerName||'').trim();
+      if (n && !seen.has(n)) { seen.add(n); list.push(n); }
+    });
+    list.sort((a,b)=>a.localeCompare(b));
+    return list;
+  });
+}
+
+/* ── getCustomerColorMap (bootstrap — colora o Sorting Area) ── */
+function getCustomerColorMap() {
+  return safeTry_(() => {
+    const sched = _getScheduleRows_();
+    if (!Array.isArray(sched)) return { map:{}, orderedRows:[] };
+    const map = {}, orderedRows = [];
+    sched.forEach((r,i) => {
+      if (!String(r.ServiceType||'').toUpperCase().includes('CLOTHES')) return;
+      const name = String(r.CustomerName||'').trim();
+      let color   = String(r.RouteColor||'').trim();
+      const day   = String(r.ProductionDay||'').trim();
+      if (!name) return;
+      if (/^[0-9a-fA-F]{6}$/.test(color)) color = '#'+color;
+      const dayShort = _toDayShort_(day);
+      const rowIndex = String(r.CustomerID||'')+'::'+day;
+      if (!map[name]) map[name] = [];
+      if (!map[name].some(e=>e.day===day&&e.color===color))
+        map[name].push({ day, dayShort, color, rowIndex });
+      orderedRows.push({ name, day, color, rowIndex });
+    });
+    return { map, orderedRows };
+  });
+}
+
+/* ── getMopColorMap (bootstrap — colora o Sorting Area) ── */
+function getMopColorMap() {
+  return safeTry_(() => {
+    const sched = _getScheduleRows_();
+    if (!Array.isArray(sched)) return {};
+    const map = {};
+    sched.forEach((r,i) => {
+      if (!String(r.ServiceType||'').toUpperCase().includes('MOP')) return;
+      const name    = String(r.CustomerName||'').trim();
+      let   color   = String(r.RouteColor||'').trim();
+      const day     = String(r.ProductionDay||'').trim();
+      const trolley = String(r.TrolleyMop||'').trim();
+      if (!name) return;
+      if (/^[0-9a-fA-F]{6}$/.test(color)) color = '#'+color;
+      const dayShort = _toDayShort_(day);
+      const rowIndex = String(r.CustomerID||'')+'::'+day+'::MOP';
+      if (!map[name]) map[name] = [];
+      if (!map[name].some(e=>e.day===day&&e.color===color))
+        map[name].push({ day, dayShort, color, trolley, rowIndex, isMop:true });
+    });
+    return map;
+  });
+}
+
+/* ── getCustomerData (Customer tab — Clothes view) ── */
+function getCustomerData() {
+  return safeTry_(() => {
+    const sched = _asArray_(_getScheduleRows_());
+    const rows = sched.filter(r => String(r.ServiceType || '').toUpperCase().includes('CLOTHES'));
+    if (!rows.length) return { status: 'ok', data: [CENTRAL_CUSTOMER_HEADER], rowIndices: [] };
+    const data = [CENTRAL_CUSTOMER_HEADER].concat(rows.map(r => CENTRAL_CUSTOMER_HEADER.map(c => r[c] != null ? String(r[c]) : '')));
+    const rowIndices = rows.map(r => String(r.CustomerID || '') + '::' + String(r.ProductionDay || ''));
+    return { status: 'ok', data, rowIndices };
+  });
+}
+
+/* ── getMopData (Customer tab — MOP view) ── */
+function getMopData() {
+  return safeTry_(() => {
+    const sched = _asArray_(_getScheduleRows_());
+    const rows = sched.filter(r => String(r.ServiceType || '').toUpperCase().includes('MOP'));
+    if (!rows.length) return { status: 'ok', data: [CENTRAL_MOP_HEADER], rowIndices: [] };
+    const data = [CENTRAL_MOP_HEADER].concat(rows.map(r => CENTRAL_MOP_HEADER.map(c => r[c] != null ? String(r[c]) : '')));
+    const rowIndices = rows.map(r => String(r.CustomerID || '') + '::' + String(r.ProductionDay || '') + '::MOP');
+    return { status: 'ok', data, rowIndices };
+  });
+}
+
+
+/* ── updateMop ── */
+function updateMop(rowIndex, mopData, position) {
+  return safeTry_(() => {
+    const key = _splitCentralRowKey_(rowIndex);
+    if (!key.customerId) return resErr('CustomerID missing in rowIndex key.');
+    const p = _valsToPayload_(mopData, CENTRAL_MOP_HEADER);
+    cdbPost_('updateCustomer', {
+      customerId:      key.customerId,
+      productionDay:   p.ProductionDay || key.day,
+      CustomerName:    p.CustomerName,
+      ServiceType:     p.ServiceType || 'MOP',
+      RouteColor:      p.RouteColor,
+      TrolleyMop:      p.TrolleyMop,
+      MopInstructions: p.MopInstructions,
+      MopProducts:     p.MopProducts,
+    });
+    _invalidateScheduleCache_();
+    return resOk({ message:'MOP customer updated.' });
+  });
+}
+
+/* ── deleteCustomerDay ── apaga UMA ocorrência (CustomerID + ProductionDay) ── */
+function deleteCustomerDay(rowIndex) {
+  return safeTry_(() => {
+    const key = _splitCentralRowKey_(rowIndex);
+    if (!key.customerId) return resErr('CustomerID missing in rowIndex key.');
+    cdbPost_('deleteCustomerSchedule', {
+      customerId:    key.customerId,
+      productionDay: key.day,
+    });
+    _invalidateScheduleCache_();
+    return resOk({ message:'Customer day removed.' });
+  });
+}
+
+/* ── deleteMopDay ── alias de deleteCustomerDay ── */
+function deleteMopDay(rowIndex) {
+  return deleteCustomerDay(rowIndex);
+}
+
+
+/* --- planner helpers --- */
+
+function _normName_(s) {
+  return String(s || '').trim().toUpperCase().replace(/&/g, 'AND').replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function _serviceParts_(serviceType) {
+  const st = String(serviceType || '').toUpperCase();
+  const out = [];
+  if (st.indexOf('CLOTHES') >= 0) out.push('CLOTHES');
+  if (st.indexOf('MOP') >= 0) out.push('MOP');
+  return out.length ? out : ['CLOTHES'];
+}
+
+function _hasService_(serviceType, service) {
+  const st = String(serviceType || '').toUpperCase();
+  const sv = String(service || '').toUpperCase();
+  return st.indexOf(sv) >= 0;
+}
+
+function _mergeServiceTypes_(a, b) {
+  const parts = [];
+  if (_hasService_(a, 'CLOTHES') || _hasService_(b, 'CLOTHES')) parts.push('CLOTHES');
+  if (_hasService_(a, 'MOP') || _hasService_(b, 'MOP')) parts.push('MOP');
+  if (!parts.length) return String(b || a || 'CLOTHES').trim().toUpperCase();
+  return parts.join(' + ');
+}
+
+function _asArray_(data) {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== 'object') return [];
+  // Tolerates CentralDB variants that return { rows:[...] }, { items:[...] } or { data:[...] }.
+  if (Array.isArray(data.rows)) return data.rows;
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.records)) return data.records;
+  if (Array.isArray(data.data)) return data.data;
+  return [];
+}
+
+function _activeUserLabel_() {
+  try {
+    const email = Session.getActiveUser().getEmail();
+    return email || 'customer-planner-webapp';
+  } catch (e) {
+    return 'customer-planner-webapp';
+  }
+}
+
+function _invalidateMasterCache_() {
+  delete _dbCache_['master_all'];
+  try { CacheService.getScriptCache().remove('db_master_all'); } catch(e) {}
+}
+
+function _prodCdbPostRequest_(action, body) {
+  const payload = Object.assign({ action, apiKey: _prodDbKey_() }, body || {});
+  return {
+    url: _prodDbUrl_(),
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+}
+
+function _prodParseCdbPostResponse_(resp, action) {
+  const code = resp.getResponseCode();
+  const text = resp.getContentText();
+  let json;
+  try { json = JSON.parse(text); } catch (e) { throw new Error('CentralDB returned non-JSON HTTP ' + code + ': ' + text.slice(0, 300)); }
+  if (!json.ok) throw new Error('[CentralDB POST ' + action + '] HTTP ' + code + ': ' + (json.error || text.slice(0, 300) || 'Unknown error'));
+  return json.data;
+}
+
+function _prodCdbPostMany_(actionBodies) {
+  const jobs = (actionBodies || []).filter(Boolean);
+  if (!jobs.length) return [];
+  const requests = jobs.map(j => _prodCdbPostRequest_(j.action, j.body || {}));
+  const responses = UrlFetchApp.fetchAll(requests);
+  return responses.map((resp, i) => _prodParseCdbPostResponse_(resp, jobs[i].action));
+}
+
+function _centralScheduleRowsFresh_(customerId) {
+  const rows = _asArray_(cdbGet_('getCustomerSchedule', customerId ? { customerId: customerId } : {}));
+  return rows;
+}
+
+function _findMasterByIdOrName_(customerId, customerName) {
+  const rows = _asArray_(_getMasterRows_());
+  const id = String(customerId || '').trim();
+  if (id) {
+    const byId = rows.find(r => String(r.CustomerID || '').trim() === id);
+    if (byId) return byId;
+  }
+  const nameKey = _normName_(customerName);
+  if (!nameKey) return null;
+  return rows.find(r => _normName_(r.CustomerName) === nameKey) || null;
+}
+
+function _nextOrderFor_(scheduleRows, day, service, excludeCustomerId) {
+  const targetDay = _centralDay_(day);
+  const orderField = String(service || '').toUpperCase() === 'MOP' ? 'MopOrder' : 'ClothesOrder';
+  let max = 0;
+  scheduleRows.forEach(r => {
+    if (_centralDay_(r.ProductionDay) !== targetDay) return;
+    if (excludeCustomerId && String(r.CustomerID || '').trim() === String(excludeCustomerId).trim()) return;
+    if (!_hasService_(r.ServiceType, service)) return;
+    const n = Number(r[orderField] || 0);
+    if (n > max) max = n;
+  });
+  return max + 1;
+}
+
+function _scheduleSummaryByCustomer_(scheduleRows) {
+  const map = {};
+  scheduleRows.forEach(r => {
+    const id = String(r.CustomerID || '').trim();
+    if (!id) return;
+    if (!map[id]) map[id] = { days: [], byDay: {} };
+    const day = _centralDay_(r.ProductionDay);
+    const rec = {
+      day: day,
+      serviceType: String(r.ServiceType || ''),
+      hasClothes: _hasService_(r.ServiceType, 'CLOTHES'),
+      hasMop: _hasService_(r.ServiceType, 'MOP'),
+      clothesOrder: r.ClothesOrder || '',
+      mopOrder: r.MopOrder || '',
+      routeColor: r.RouteColor || '',
+      qtyClothes: r.QtyClothes || '',
+      trolleyMop: r.TrolleyMop || ''
+    };
+    map[id].days.push(rec);
+    map[id].byDay[day] = rec;
+  });
+  return map;
+}
+
+function _serviceStillExistsInCentral_(customerId, productionDay, serviceType) {
+  const day = _centralDay_(productionDay);
+  const svc = String(serviceType || '').toUpperCase();
+  return _centralScheduleRowsFresh_(customerId).some(r =>
+    String(r.CustomerID || '').trim() === String(customerId || '').trim() &&
+    _centralDay_(r.ProductionDay) === day &&
+    _hasService_(r.ServiceType, svc)
+  );
+}
+
+function _customerScheduleRowsStillExistInCentral_(customerId) {
+  customerId = String(customerId || '').trim();
+  if (!customerId) return false;
+  return _centralScheduleRowsFresh_(customerId).some(r =>
+    String(r.CustomerID || '').trim() === customerId
+  );
+}
+
+function _verifyCustomerAllPlannerRowsDeleted_(customerId, label) {
+  customerId = String(customerId || '').trim();
+  if (!customerId) throw new Error('CustomerID is required to verify planner delete.');
+  if (_customerScheduleRowsStillExistInCentral_(customerId)) {
+    throw new Error(
+      (label || 'ALL_DAYS delete') + ' returned success, but fresh CentralDB verification still found ' +
+      'CustomerSchedule row(s) for ' + customerId + '. No cached planner data was used for this check.'
+    );
+  }
+}
+
+function _removeCustomerServiceStrict_(customerId, productionDay, serviceType, reason) {
+  customerId = String(customerId || '').trim();
+  productionDay = _centralDay_(productionDay);
+  serviceType = String(serviceType || '').trim().toUpperCase();
+  if (!customerId) throw new Error('CustomerID is required to remove planner service.');
+  if (!productionDay) throw new Error('ProductionDay is required to remove planner service.');
+  if (!serviceType) throw new Error('ServiceType is required to remove planner service.');
+
+  const payload = {
+    scope: 'SERVICE_DAY',
+    customerId: customerId,
+    CustomerID: customerId,
+    productionDay: productionDay,
+    ProductionDay: productionDay,
+    serviceType: serviceType,
+    ServiceType: serviceType,
+    ChangedBy: _activeUserLabel_(),
+    ChangeReason: reason || ('Customer Planner remove ' + serviceType + ' from ' + productionDay)
+  };
+
+  let lastError = '';
+
+  // Preferred governed endpoint.
+  try {
+    const res = cdbPost_('removeCustomerScheduleScope', payload);
+    if (!_serviceStillExistsInCentral_(customerId, productionDay, serviceType)) {
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+      return res || { success: true };
+    }
+    lastError = 'removeCustomerScheduleScope returned success but ' + serviceType + ' still exists in DB.';
+  } catch (err) {
+    lastError = String(err && err.message || err);
+  }
+
+  // Direct endpoint fallback for DB versions that have service removal but not scope removal.
+  try {
+    const res2 = cdbPost_('removeCustomerServiceFromSchedule', payload);
+    if (!_serviceStillExistsInCentral_(customerId, productionDay, serviceType)) {
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+      return res2 || { success: true };
+    }
+    lastError = 'removeCustomerServiceFromSchedule returned success but verification still found ' + serviceType + ' still exists in DB.';
+  } catch (err2) {
+    lastError += ' | direct remove failed: ' + String(err2 && err2.message || err2);
+  }
+
+  throw new Error(
+    'Could not remove ' + serviceType + ' from ' + customerId + ' / ' + productionDay + '. ' +
+    'Update and redeploy CentralDB with the included CentralDB_v1_5_15.gs. Details: ' + lastError
+  );
+}
+
+
+/* --- planner endpoints (frontend-facing) --- */
+
+function getCustomerMasterOptions() {
+  return safeTry_(() => {
+    const masters = _asArray_(_getMasterRows_());
+    const schedule = _asArray_(_getScheduleRows_());
+    const summary = _scheduleSummaryByCustomer_(schedule);
+
+    // Operational route colours already used in CustomerSchedule.
+    // The Add Customer modal uses this list instead of a free native colour spectrum,
+    // so operators normally choose a known route colour and only add a new hex colour when needed.
+    const colorCounts = {};
+    schedule.forEach(r => {
+      let c = String(r.RouteColor || '').trim();
+      if (!c) return;
+      if (/^[0-9a-fA-F]{6}$/.test(c)) c = '#' + c;
+      if (!/^#[0-9a-fA-F]{6}$/.test(c)) return;
+      c = c.toLowerCase();
+      colorCounts[c] = (colorCounts[c] || 0) + 1;
+    });
+    const routeColors = Object.keys(colorCounts)
+      .sort((a, b) => colorCounts[b] - colorCounts[a] || a.localeCompare(b))
+      .map(c => ({ color: c, count: colorCounts[c] }));
+
+    const customers = masters.map(m => ({
+      CustomerID: String(m.CustomerID || ''),
+      CustomerName: String(m.CustomerName || ''),
+      ServiceType: String(m.ServiceType || ''),
+      CustomerType: String(m.CustomerType || ''),
+      Eircode: String(m.Eircode || ''),
+      KGEstimated: String(m.KGEstimated || ''),
+      Stops: String(m.Stops || ''),
+      Information: String(m.Information || ''),
+      Active: String(m.Active || ''),
+      schedule: (summary[String(m.CustomerID || '').trim()] || { days: [] }).days
+    })).filter(c => c.CustomerName).sort((a, b) => a.CustomerName.localeCompare(b.CustomerName));
+    return resOk({ customers, routeColors });
+  });
+}
+
+function addCustomerSmart(req) {
+  return safeTry_(() => {
+    const p = Object.assign({}, req || {});
+    p.ChangedBy = p.ChangedBy || _activeUserLabel_();
+    p.ChangeReason = p.ChangeReason || 'Customer Planner add/update placement';
+
+    // Preferred CentralDB v1.5.9+ endpoint. It performs the duplicate protection,
+    // service merge, placement save and CustomerChangeLog audit inside the DB.
+    try {
+      const saved = cdbPost_('saveCustomerPlannerPlacement', p);
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+      return resOk({
+        message: saved.message || 'Customer placement saved.',
+        customerId: saved.customerId || saved.CustomerID || p.CustomerID || '',
+        CustomerID: saved.CustomerID || saved.customerId || p.CustomerID || '',
+        CustomerName: saved.CustomerName || p.CustomerName || '',
+        ProductionDay: saved.ProductionDay || p.ProductionDay || '',
+        ServiceType: saved.ServiceType || p.ServiceType || '',
+        action: saved.action || 'saved_by_centraldb',
+        createdMaster: !!saved.createdMaster,
+        ClothesOrder: saved.ClothesOrder || '',
+        MopOrder: saved.MopOrder || ''
+      });
+    } catch (err) {
+      // Backward-compatible fallback for older CentralDB deployments.
+      if (String(err.message || '').indexOf('Unknown POST action') < 0) throw err;
+    }
+
+    const name = String(p.CustomerName || '').trim();
+    const day = _centralDay_(p.ProductionDay || p.day || '');
+    const requestedService = _mergeServiceTypes_('', p.ServiceType || p.serviceType || 'CLOTHES');
+    if (!name) return resErr('Customer name is required.');
+    if (!day) return resErr('Production day is required.');
+
+    let scheduleRows = _asArray_(_getScheduleRows_());
+    let master = _findMasterByIdOrName_(p.CustomerID || p.customerId, name);
+    let customerId = master ? String(master.CustomerID || '').trim() : '';
+    let createdMaster = false;
+    let matchedExisting = !!master;
+
+    if (!customerId) {
+      const added = cdbPost_('addCustomer', {
+        CustomerName: name,
+        ServiceType: requestedService,
+        CustomerType: p.CustomerType || '',
+        Eircode: p.Eircode || '',
+        KGEstimated: p.KGEstimated || '',
+        Stops: p.Stops || 1,
+        Information: p.Information || p.Notes || p.ClothesNotes || p.MopInstructions || '',
+        ChangedBy: p.ChangedBy,
+        ChangeReason: p.ChangeReason
+      });
+      customerId = (added && (added.customerId || added.CustomerID)) || '';
+      if (!customerId) throw new Error('Failed to obtain CustomerID from CentralDB.');
+      createdMaster = true;
+    } else {
+      const mergedMasterService = _mergeServiceTypes_(master.ServiceType, requestedService);
+      const masterUpdates = {
+        customerId: customerId,
+        CustomerName: String(master.CustomerName || name).trim() || name,
+        ServiceType: mergedMasterService
+      };
+      if (p.CustomerType !== undefined) masterUpdates.CustomerType = p.CustomerType;
+      if (p.Eircode !== undefined) masterUpdates.Eircode = p.Eircode;
+      if (p.KGEstimated !== undefined) masterUpdates.KGEstimated = p.KGEstimated;
+      if (p.Stops !== undefined) masterUpdates.Stops = p.Stops;
+      if (p.Information !== undefined || p.Notes !== undefined) masterUpdates.Information = p.Information || p.Notes || master.Information || '';
+      if (mergedMasterService !== String(master.ServiceType || '') || Object.keys(masterUpdates).length > 3) {
+        cdbPost_('updateCustomer', masterUpdates);
+      }
+    }
+
+    const scheduleRow = scheduleRows.find(r => String(r.CustomerID || '').trim() === customerId && _centralDay_(r.ProductionDay) === day);
+    const services = _serviceParts_(requestedService);
+    const hasClothes = services.indexOf('CLOTHES') >= 0;
+    const hasMop = services.indexOf('MOP') >= 0;
+    const clothesOrder = hasClothes ? (p.ClothesOrder || _nextOrderFor_(scheduleRows, day, 'CLOTHES', scheduleRow ? customerId : '')) : '';
+    const mopOrder = hasMop ? (p.MopOrder || _nextOrderFor_(scheduleRows, day, 'MOP', scheduleRow ? customerId : '')) : '';
+
+    let action = 'created';
+    let finalService = requestedService;
+    const baseBody = {
+      CustomerID: customerId,
+      customerId: customerId,
+      productionDay: day,
+      CustomerName: master && master.CustomerName ? master.CustomerName : name,
+      ServiceType: requestedService,
+      ProductionDay: day,
+      RouteColor: p.RouteColor || (scheduleRow && scheduleRow.RouteColor) || '',
+      DisplayName: p.DisplayName || (scheduleRow && scheduleRow.DisplayName) || '',
+      DeliveryTime: p.DeliveryTime || (scheduleRow && scheduleRow.DeliveryTime) || '',
+      Route: p.Route || (scheduleRow && scheduleRow.Route) || '',
+      QtyClothes: hasClothes ? (p.QtyClothes || (scheduleRow && scheduleRow.QtyClothes) || '') : (scheduleRow && scheduleRow.QtyClothes) || '',
+      TrolleyMop: hasMop ? (p.TrolleyMop || (scheduleRow && scheduleRow.TrolleyMop) || '') : (scheduleRow && scheduleRow.TrolleyMop) || '',
+      ClothesNotes: p.ClothesNotes || (scheduleRow && scheduleRow.ClothesNotes) || '',
+      MopInstructions: p.MopInstructions || (scheduleRow && scheduleRow.MopInstructions) || '',
+      MopProducts: p.MopProducts || (scheduleRow && scheduleRow.MopProducts) || '',
+      Information: p.Information || p.Notes || (scheduleRow && scheduleRow.Information) || '',
+      ClothesOrder: clothesOrder || (scheduleRow && scheduleRow.ClothesOrder) || '',
+      MopOrder: mopOrder || (scheduleRow && scheduleRow.MopOrder) || ''
+    };
+
+    if (scheduleRow) {
+      finalService = _mergeServiceTypes_(scheduleRow.ServiceType, requestedService);
+      baseBody.ServiceType = finalService;
+      cdbPost_('updateCustomer', baseBody);
+      action = 'updated_existing_day';
+    } else {
+      cdbPost_('addCustomerSchedule', baseBody);
+      action = 'added_schedule_day';
+    }
+
+    _invalidateScheduleCache_();
+    _invalidateMasterCache_();
+
+    const orders = [];
+    if (hasClothes || _hasService_(finalService, 'CLOTHES')) orders.push('Clothes #' + (baseBody.ClothesOrder || _nextOrderFor_(scheduleRows, day, 'CLOTHES')));
+    if (hasMop || _hasService_(finalService, 'MOP')) orders.push('MOP #' + (baseBody.MopOrder || _nextOrderFor_(scheduleRows, day, 'MOP')));
+
+    return resOk({
+      message: (createdMaster ? 'New customer created' : (matchedExisting ? 'Existing customer used' : 'Customer saved')) + ': ' + name + ' • ' + day + ' • ' + finalService + (orders.length ? ' • ' + orders.join(' / ') : ''),
+      customerId,
+      CustomerID: customerId,
+      CustomerName: name,
+      ProductionDay: day,
+      ServiceType: finalService,
+      action,
+      createdMaster,
+      matchedExisting,
+      ClothesOrder: baseBody.ClothesOrder || '',
+      MopOrder: baseBody.MopOrder || '',
+      rowIndex: customerId + '::' + day + (String(finalService).toUpperCase() === 'MOP' ? '::MOP' : '')
+    });
+  });
+}
+
+function addCustomerSmartMulti(req) {
+  return safeTry_(() => {
+    const p = Object.assign({}, req || {});
+    const placements = Array.isArray(p.placements) ? p.placements : [];
+    const requestedService = _mergeServiceTypes_('', p.ServiceType || p.serviceType || 'CLOTHES');
+    if (!String(p.CustomerName || '').trim() && !String(p.CustomerID || p.customerId || '').trim()) return resErr('Customer name or CustomerID is required.');
+    if (!placements.length) return resErr('At least one production day is required.');
+    if (requestedService !== 'CLOTHES' && requestedService !== 'MOP') return resErr('Add Customer must be scoped to one service: CLOTHES or MOP.');
+
+    let customerId = String(p.CustomerID || p.customerId || '').trim();
+    let customerName = String(p.CustomerName || '').trim();
+    const saved = [];
+    const errors = [];
+
+    placements.forEach((placement, index) => {
+      const day = _centralDay_(placement && placement.ProductionDay || placement && placement.day || '');
+      if (!day) { errors.push({ index, message: 'ProductionDay is required.' }); return; }
+      const one = Object.assign({}, p, placement || {}, {
+        CustomerID: customerId,
+        customerId: customerId,
+        CustomerName: customerName,
+        ProductionDay: day,
+        productionDay: day,
+        ServiceType: requestedService,
+        serviceType: requestedService,
+        ChangedBy: p.ChangedBy || _activeUserLabel_(),
+        ChangeReason: p.ChangeReason || 'Customer Planner add/update multi-day placement'
+      });
+      delete one.placements;
+      const r = addCustomerSmart(one);
+      if (!r || r.status === 'error') {
+        errors.push({ index, day, message: r && r.message || 'Could not save placement.' });
+        return;
+      }
+      customerId = String(r.CustomerID || r.customerId || customerId || '').trim();
+      customerName = String(r.CustomerName || customerName || '').trim();
+      saved.push({
+        ProductionDay: r.ProductionDay || day,
+        ServiceType: r.ServiceType || requestedService,
+        CustomerID: customerId,
+        CustomerName: customerName,
+        ClothesOrder: r.ClothesOrder || placement.ClothesOrder || '',
+        MopOrder: r.MopOrder || placement.MopOrder || '',
+        RouteColor: placement.RouteColor || '',
+        QtyClothes: placement.QtyClothes || '',
+        TrolleyMop: placement.TrolleyMop || '',
+        MopProducts: placement.MopProducts || '',
+        Information: placement.Information || '',
+        ClothesNotes: placement.ClothesNotes || '',
+        MopInstructions: placement.MopInstructions || '',
+        action: r.action || ''
+      });
+    });
+
+    _invalidateScheduleCache_();
+    _invalidateMasterCache_();
+
+    if (errors.length && !saved.length) return resErr(errors.map(e => e.day ? (e.day + ': ' + e.message) : e.message).join(' | '));
+    return resOk({
+      message: 'Saved ' + saved.length + ' placement' + (saved.length === 1 ? '' : 's') + (errors.length ? ' with ' + errors.length + ' warning(s).' : '.') ,
+      customerId,
+      CustomerID: customerId,
+      CustomerName: customerName,
+      ServiceType: requestedService,
+      placements: saved,
+      errors
+    });
+  });
+}
+
+function saveCustomerDaysBatch(tasks, listType) {
+  return safeTry_(() => {
+    const arr = Array.isArray(tasks) ? tasks : [];
+    if (!arr.length) return resErr('No customer changes received.');
+
+    const mode = String(listType || 'clothes').toLowerCase() === 'mop' ? 'mop' : 'clothes';
+    const serviceToManage = mode === 'mop' ? 'MOP' : 'CLOTHES';
+    const header = mode === 'mop' ? CENTRAL_MOP_HEADER : CENTRAL_CUSTOMER_HEADER;
+    const scheduleRows = _asArray_(_getScheduleRows_());
+    const jobs = [];
+    const addJobs = [];
+    const removeJobs = [];
+    let unchanged = 0;
+
+    function normField_(v) {
+      return String(v || '').trim().toLowerCase().replace(/\s+/g, '');
+    }
+
+    arr.forEach((t, idx) => {
+      const enabled = t.enabled !== false; // Backward compatibility: old callers did not send enabled.
+      const wasOnList = !!t.wasOnList;
+      const vals = Array.isArray(t.vals) ? t.vals : [];
+      const p = _valsToPayload_(vals, header);
+      const key = _splitCentralRowKey_(t.sheetRow || '');
+      const resolvedDay = _centralDay_(p.ProductionDay || t.day || key.day || '');
+      if (!resolvedDay) throw new Error('Production day is required for row ' + (idx + 1));
+      p.ProductionDay = resolvedDay;
+
+      // New audited UI sends changedFields for existing rows. Legacy callers omit it,
+      // in which case we preserve the previous write behaviour for compatibility.
+      const hasChangeList = Array.isArray(t.changedFields);
+      const changedFields = new Set((t.changedFields || []).map(normField_).filter(Boolean));
+      const changed = fieldName => !wasOnList || !hasChangeList || changedFields.has(normField_(fieldName));
+
+      // OFF + existing row means the operator explicitly removed this service/day in the Edit modal.
+      // For CLOTHES + MOP rows, CentralDB keeps the other service and clears only fields for the removed service.
+      if (!enabled) {
+        if (wasOnList && key.customerId) {
+          removeJobs.push({
+            action: 'removeCustomerServiceFromSchedule',
+            body: {
+              customerId: key.customerId,
+              productionDay: resolvedDay,
+              serviceType: serviceToManage,
+              ChangedBy: _activeUserLabel_(),
+              ChangeReason: 'Customer Planner edit modal: day switched OFF for ' + serviceToManage
+            }
+          });
+        }
+        return;
+      }
+
+      if (!p.CustomerName) throw new Error('Customer name is required for row ' + (idx + 1));
+
+      if (mode === 'mop') {
+        // Editing in the MOP tab must only manage the MOP service.
+        p.ServiceType = 'MOP';
+      } else {
+        // Editing in the Clothes tab must only manage the CLOTHES service.
+        p.ServiceType = 'CLOTHES';
+      }
+
+      let customerId = key.customerId || p.CustomerID || '';
+      if (!customerId) {
+        const existing = scheduleRows.find(r => String(r.CustomerName || '').trim().toLowerCase() === p.CustomerName.toLowerCase());
+        customerId = (existing && existing.CustomerID) || '';
+      }
+
+      // Existing schedule row for this customer+day. Used to PRESERVE the other
+      // service's data and to ASSIGN/keep the managed service's order number.
+      const existingRow = scheduleRows.find(r =>
+        String(r.CustomerID || '').trim() === String(customerId).trim() &&
+        _centralDay_(r.ProductionDay) === p.ProductionDay);
+
+      // If the audited UI says an existing enabled day has no changed fields, do
+      // not perform a no-op update. This also avoids replaying stale snapshots.
+      if (wasOnList && hasChangeList && changedFields.size === 0) {
+        unchanged++;
+        return;
+      }
+
+      const body = {
+        CustomerID: customerId,
+        customerId: customerId,
+        productionDay: p.ProductionDay,
+        ProductionDay: p.ProductionDay,
+        ChangedBy: _activeUserLabel_(),
+        ChangeReason: 'Customer Planner edit modal save (' + serviceToManage + ')'
+      };
+
+      // CustomerName is a master/shared identity field. Write it only when changed
+      // on an existing row; new schedule rows still require it.
+      if (changed('CustomerName')) body.CustomerName = p.CustomerName;
+
+      // Shared per-day delivery fields are written only when the operator changed
+      // them (or for a newly enabled day). This is crucial for comment-only edits:
+      // a stale Clothes modal must never revert newer Route/DeliveryDay/DeliveryOrder/RouteColor
+      // values used by MOP/Distribution on the same CustomerSchedule row.
+      if (changed('DeliveryDay'))   body.DeliveryDay = p.DeliveryDay;
+      if (changed('Route'))         body.Route = p.Route;
+      if (changed('DeliveryOrder')) body.DeliveryOrder = p.DeliveryOrder;
+      if (changed('RouteColor'))    body.RouteColor = p.RouteColor;
+      if (changed('DisplayName'))   body.DisplayName = p.DisplayName;
+
+      // Only ever write the fields of the service being managed. The OTHER service's
+      // columns are intentionally OMITTED (left undefined) so CentralDB does not
+      // overwrite them with ''. Blank values are still sent when the operator
+      // explicitly clears a managed field because changedFields records that edit.
+      if (mode === 'clothes') {
+        if (changed('QtyClothes'))   body.QtyClothes = p.QtyClothes;
+        if (changed('ClothesNotes')) body.ClothesNotes = p.ClothesNotes;
+        if (changed('ClothesOrder')) {
+          body.ClothesOrder = p.ClothesOrder
+            || (existingRow && existingRow.ClothesOrder)
+            || _nextOrderFor_(scheduleRows, p.ProductionDay, 'CLOTHES', customerId);
+        }
+      } else {
+        if (changed('TrolleyMop'))      body.TrolleyMop = p.TrolleyMop;
+        if (changed('MopInstructions')) body.MopInstructions = p.MopInstructions;
+        if (changed('MopProducts'))     body.MopProducts = p.MopProducts;
+        if (changed('MopOrder')) {
+          body.MopOrder = p.MopOrder
+            || (existingRow && existingRow.MopOrder)
+            || _nextOrderFor_(scheduleRows, p.ProductionDay, 'MOP', customerId);
+        }
+      }
+
+      if (wasOnList && customerId) {
+        // A changedFields entry that is not writable here (for example a future
+        // UI-only field) must not generate a metadata-only CentralDB call.
+        const mutableKeys = Object.keys(body).filter(k => [
+          'CustomerID','customerId','productionDay','ProductionDay','ChangedBy','ChangeReason'
+        ].indexOf(k) < 0);
+        if (!mutableKeys.length) {
+          unchanged++;
+          return;
+        }
+        // Plain edit of an existing day: never send ServiceType. CentralDB
+        // updateCustomer can sync ServiceType through CustomerMaster; service
+        // add/remove is handled only by the explicit planner operations below.
+        jobs.push({ action: 'updateCustomer', body });
+      } else if (customerId) {
+        body.ServiceType = p.ServiceType;
+        jobs.push({ action: 'addCustomerSchedule', body });
+      } else {
+        // New customer with no CustomerID yet: create master first, then schedule after ID returns.
+        body.ServiceType = p.ServiceType;
+        addJobs.push({ p, body });
+      }
+    });
+
+    // Remove OFF days first. Use strict verified removal because MOP rows may be
+    // CLOTHES + MOP, and a stale/old CentralDB deploy must not silently leave the
+    // customer visible in the MOP planner after the user unticks the day.
+    removeJobs.forEach(j => {
+      const b = j.body || {};
+      _removeCustomerServiceStrict_(b.customerId || b.CustomerID, b.productionDay || b.ProductionDay, b.serviceType || b.ServiceType,
+        b.ChangeReason || 'Customer Planner edit modal service removal');
+    });
+    if (jobs.length) _prodCdbPostMany_(jobs);
+
+    // Rare path: truly new customer names need a CustomerID before adding schedule row.
+    addJobs.forEach(j => {
+      const added = cdbPost_('addCustomer', {
+        CustomerName: j.p.CustomerName,
+        ServiceType: j.p.ServiceType,
+        Information: j.p.ClothesNotes || j.p.MopInstructions || '',
+        ChangedBy: _activeUserLabel_(),
+        ChangeReason: 'Customer Planner edit modal created customer'
+      });
+      const customerId = (added && added.customerId) || (added && added.CustomerID) || '';
+      if (!customerId) throw new Error('Failed to obtain CustomerID for ' + j.p.CustomerName);
+      j.body.CustomerID = customerId;
+      j.body.customerId = customerId;
+      cdbPost_('addCustomerSchedule', j.body);
+    });
+
+    if (jobs.length || removeJobs.length || addJobs.length) {
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+    }
+    return resOk({
+      message: (jobs.length || removeJobs.length || addJobs.length) ? 'Changes saved.' : 'No data changes detected.',
+      updated: jobs.length,
+      removed: removeJobs.length,
+      addedNewCustomers: addJobs.length,
+      unchanged
+    });
+  });
+}
+
+function updateCustomerOrderBatch(items, listType) {
+  return safeTry_(() => {
+    const arr = Array.isArray(items) ? items : [];
+    const mode = String(listType || 'clothes').toLowerCase() === 'mop' ? 'mop' : 'clothes';
+    if (!arr.length) return resErr('No rows received to reorder.');
+
+    const jobs = arr.map((it, idx) => {
+      const key = _splitCentralRowKey_(it && it.rowIndex);
+      if (!key.customerId) throw new Error('CustomerID missing for order row ' + (idx + 1));
+      const order = Number((it && it.order) || (idx + 1));
+      const payload = { customerId: key.customerId, productionDay: key.day };
+      if (mode === 'mop') payload.MopOrder = order;
+      else payload.ClothesOrder = order;
+      return { action: 'updateCustomer', body: payload };
+    });
+
+    // Preferred CentralDB v1.5.12+ endpoint: one atomic write under DB lock.
+    // This prevents delayed partial HTTP updates from moving rows back after the user continues dragging.
+    try {
+      const saved = cdbPost_('saveCustomerScheduleOrderBatch', {
+        listType: mode,
+        serviceType: mode === 'mop' ? 'MOP' : 'CLOTHES',
+        items: arr,
+        ChangedBy: _activeUserLabel_(),
+        ChangeReason: 'Customer Planner drag order save'
+      });
+      _invalidateScheduleCache_();
+      return resOk({ message: (saved && saved.message) || 'Order saved.', updated: saved && saved.updated || arr.length, detail: saved });
+    } catch (err) {
+      if (String(err.message || '').indexOf('Unknown POST action') < 0) throw err;
+    }
+
+    // Backward-compatible fallback for older CentralDB deployments.
+    _prodCdbPostMany_(jobs);
+    _invalidateScheduleCache_();
+    return resOk({ message: 'Order saved.', updated: arr.length });
+  });
+}
+
+function getCustomerDeleteOptions(rowIndex) {
+  return safeTry_(() => {
+    const key = _splitCentralRowKey_(rowIndex);
+    if (!key.customerId) return resErr('CustomerID missing in rowIndex key.');
+    const clickedService = String(rowIndex || '').indexOf('::MOP') >= 0 ? 'MOP' : 'CLOTHES';
+    const schedule = _asArray_(_getScheduleRows_()).filter(r => String(r.CustomerID || '').trim() === key.customerId);
+    if (!schedule.length) return resErr('No schedule rows found for this customer.');
+    const dayOrder = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const first = schedule[0] || {};
+    const rows = schedule.map(r => ({
+      CustomerID: String(r.CustomerID || ''),
+      CustomerName: String(r.CustomerName || ''),
+      ProductionDay: _centralDay_(r.ProductionDay),
+      ServiceType: String(r.ServiceType || ''),
+      hasClothes: _hasService_(r.ServiceType, 'CLOTHES'),
+      hasMop: _hasService_(r.ServiceType, 'MOP'),
+      ClothesOrder: r.ClothesOrder || '',
+      MopOrder: r.MopOrder || '',
+      QtyClothes: r.QtyClothes || '',
+      TrolleyMop: r.TrolleyMop || '',
+      RouteColor: r.RouteColor || '',
+      clicked: _centralDay_(r.ProductionDay) === _centralDay_(key.day)
+    })).sort((a,b) => dayOrder.indexOf(a.ProductionDay) - dayOrder.indexOf(b.ProductionDay));
+    const clickedRow = rows.find(r => r.clicked) || rows[0];
+    const actions = [];
+    if (clickedRow && ((clickedService === 'CLOTHES' && clickedRow.hasClothes) || (clickedService === 'MOP' && clickedRow.hasMop))) {
+      actions.push({
+        scope: 'SERVICE_DAY', customerId: key.customerId, customerName: clickedRow.CustomerName,
+        productionDay: clickedRow.ProductionDay, serviceType: clickedService,
+        title: 'Remove only ' + clickedService + ' from ' + clickedRow.ProductionDay,
+        detail: clickedRow.hasClothes && clickedRow.hasMop
+          ? 'This is a CLOTHES + MOP day. Only ' + clickedService + ' will be removed; the other service stays.'
+          : 'This is the only service on this day, so the day row will be deleted.'
+      });
+    }
+    if (clickedRow && clickedRow.hasClothes && clickedRow.hasMop) {
+      actions.push({
+        scope: 'DELETE_DAY_ALL', customerId: key.customerId, customerName: clickedRow.CustomerName,
+        productionDay: clickedRow.ProductionDay, serviceType: 'CLOTHES + MOP',
+        title: 'Remove the full day: ' + clickedRow.ProductionDay,
+        detail: 'Deletes both CLOTHES and MOP from this production day only.'
+      });
+    }
+    const clothesDays = rows.filter(r => r.hasClothes).length;
+    const mopDays = rows.filter(r => r.hasMop).length;
+    if (clothesDays > 1 || (clickedService === 'MOP' && clothesDays > 0)) {
+      actions.push({ scope: 'SERVICE_ALL', customerId: key.customerId, customerName: first.CustomerName || '', serviceType: 'CLOTHES', title: 'Remove CLOTHES from all days', detail: 'Removes CLOTHES from ' + clothesDays + ' day(s). MOP remains where it exists.' });
+    }
+    if (mopDays > 1 || (clickedService === 'CLOTHES' && mopDays > 0)) {
+      actions.push({ scope: 'SERVICE_ALL', customerId: key.customerId, customerName: first.CustomerName || '', serviceType: 'MOP', title: 'Remove MOP from all days', detail: 'Removes MOP from ' + mopDays + ' day(s). CLOTHES remains where it exists.' });
+    }
+    actions.push({ scope: 'ALL_DAYS', customerId: key.customerId, customerName: first.CustomerName || '', serviceType: 'CLOTHES + MOP', title: 'Remove customer from all planner days', detail: 'Deletes all CustomerSchedule rows for this customer. CustomerMaster remains for audit/history.' });
+    return resOk({ CustomerID: key.customerId, CustomerName: first.CustomerName || '', clickedDay: _centralDay_(key.day), clickedService, schedule: rows, actions });
+  });
+}
+
+function deleteCustomerPlannerAction(action) {
+  return safeTry_(() => {
+    const a = Object.assign({}, action || {});
+    if (!a.customerId) return resErr('customerId is required.');
+
+    // Extra guard: the destructive full-customer option must never be treated as
+    // a service-only delete, even if an older cached client sends an inconsistent
+    // action object. The button title is generated by getCustomerDeleteOptions().
+    const titleTxt = String(a.title || '').toUpperCase();
+    if (titleTxt.indexOf('REMOVE CUSTOMER FROM ALL PLANNER DAYS') >= 0 || titleTxt.indexOf('ALL PLANNER ROWS') >= 0) {
+      a.scope = 'ALL_DAYS';
+      a.serviceType = 'CLOTHES + MOP';
+      delete a.productionDay;
+    }
+
+    a.ChangedBy = a.ChangedBy || _activeUserLabel_();
+    a.ChangeReason = a.ChangeReason || 'Customer Planner precise delete: ' + (a.scope || '');
+    const scope = String(a.scope || '').toUpperCase();
+
+    // Highest-risk action: delete the customer from every planner day. This must
+    // be one DB-side operation that removes CustomerSchedule rows by CustomerID.
+    // Never fall back to sequential CLOTHES/MOP service removals, because that can
+    // leave a CLOTHES + MOP row converted to MOP instead of deleting the row.
+    //
+    // Compatibility note: some deployed CentralDB Web Apps already have the fixed
+    // removeCustomerScheduleScope(ALL_DAYS) endpoint but not the newer
+    // forceRemoveCustomerScheduleAllDays alias. In that case, use the fixed scope
+    // endpoint and then verify against a fresh CentralDB read before returning OK.
+    if (scope === 'ALL_DAYS') {
+      const allDaysPayload = {
+        customerId: a.customerId,
+        CustomerID: a.customerId,
+        scope: 'ALL_DAYS',
+        serviceType: 'CLOTHES + MOP',
+        ServiceType: 'CLOTHES + MOP',
+        ChangedBy: a.ChangedBy,
+        ChangeReason: a.ChangeReason
+      };
+
+      let done;
+      let actionUsed = 'forceRemoveCustomerScheduleAllDays';
+      let forceMissingMsg = '';
+
+      try {
+        done = cdbPost_('forceRemoveCustomerScheduleAllDays', allDaysPayload);
+      } catch (err) {
+        const msg = String(err && err.message || err || '');
+        if (msg.indexOf('Unknown POST action') < 0) throw err;
+        forceMissingMsg = msg;
+        actionUsed = 'removeCustomerScheduleScope(ALL_DAYS fallback)';
+
+        try {
+          done = cdbPost_('removeCustomerScheduleScope', allDaysPayload);
+        } catch (fallbackErr) {
+          const fallbackMsg = String(fallbackErr && fallbackErr.message || fallbackErr || '');
+          if (fallbackMsg.indexOf('Unknown POST action') >= 0) {
+            return resErr(
+              'CentralDB Web App is not redeployed with the required planner all-days delete endpoint. ' +
+              'Deploy the current CentralDB code, then try Delete all planner days again. ' +
+              'forceRemoveCustomerScheduleAllDays error: ' + forceMissingMsg + ' | ' +
+              'removeCustomerScheduleScope fallback error: ' + fallbackMsg
+            );
+          }
+          throw fallbackErr;
+        }
+      }
+
+      _verifyCustomerAllPlannerRowsDeleted_(a.customerId, actionUsed);
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+      return resOk({
+        message: (done && done.message) || 'All planner rows deleted.',
+        detail: done,
+        actionUsed: actionUsed
+      });
+    }
+
+    // For the most common and highest-risk action (remove one service from one
+    // day), use strict verified removal. This fixes the MOP case where the UI
+    // said deleted but the MOP service was still present in CentralDB.
+    if (scope === 'SERVICE_DAY') {
+      const done = _removeCustomerServiceStrict_(a.customerId, a.productionDay, a.serviceType, a.ChangeReason);
+      return resOk({ message: 'Deleted: ' + String(a.serviceType || '').toUpperCase() + ' removed from ' + _centralDay_(a.productionDay) + '.', detail: done });
+    }
+
+    // For other wider scopes, still try the governed DB endpoint first. It is
+    // atomic in the current DB and records the scope in CustomerChangeLog.
+    try {
+      const done = cdbPost_('removeCustomerScheduleScope', a);
+      _invalidateScheduleCache_();
+      _invalidateMasterCache_();
+      return resOk({ message: (done && done.message) || 'Delete completed.', detail: done });
+    } catch (err) {
+      if (String(err.message || '').indexOf('Unknown POST action') < 0) throw err;
+    }
+
+    // Backward-compatible fallback for broader non-ALL_DAYS scopes using strict
+    // single-day removals. ALL_DAYS is intentionally excluded above because it
+    // must be a direct row delete only.
+    const schedule = _asArray_(_getScheduleRows_()).filter(r => String(r.CustomerID || '').trim() === String(a.customerId).trim());
+    const ops = [];
+    function add(day, svc) { ops.push({ day: _centralDay_(day), service: String(svc || '').toUpperCase() }); }
+    // Reuse the scope already declared above in this function. Redeclaring it here
+    // causes Apps Script to fail at parse time with: Identifier 'scope' has already been declared.
+    if (scope === 'DELETE_DAY_ALL') {
+      schedule.forEach(r => {
+        if (_centralDay_(r.ProductionDay) === _centralDay_(a.productionDay)) {
+          if (_hasService_(r.ServiceType, 'CLOTHES')) add(r.ProductionDay, 'CLOTHES');
+          if (_hasService_(r.ServiceType, 'MOP')) add(r.ProductionDay, 'MOP');
+        }
+      });
+    } else if (scope === 'SERVICE_ALL') {
+      schedule.forEach(r => { if (_hasService_(r.ServiceType, a.serviceType)) add(r.ProductionDay, a.serviceType); });
+    } else if (scope === 'ALL_DAYS') {
+      return resErr('ALL_DAYS delete requires CentralDB forceRemoveCustomerScheduleAllDays or fixed removeCustomerScheduleScope(ALL_DAYS). No sequential service-removal fallback was run.');
+    } else {
+      return resErr('Unknown delete scope: ' + a.scope);
+    }
+    ops.forEach(op => _removeCustomerServiceStrict_(a.customerId, op.day, op.service, a.ChangeReason));
+    _invalidateScheduleCache_();
+    _invalidateMasterCache_();
+    return resOk({ message: 'Delete completed: ' + ops.length + ' operation(s).', operations: ops.length });
+  });
+}
+
+/* ------------------- CONFIG via CentralDB API ------------------- */

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Finish Production | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/finish-production.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/production-station-kiosk.js" defer></script>
+  <script src="../assets/js/finish-production.js" defer></script>
+</head>
+<body class="finish-page" data-production-station-area="FINISH">
+  <div class="finish-page-shell" data-operational-shell-root>
+    <main class="finish-content">
+      <header class="finish-topbar finish-topbar-compact">
+        <div class="finish-title-block">
+          <h1 id="finishViewTitle">Finish Production</h1>
+          <div class="finish-title-meta">
+            <span id="finishBusinessDate">—</span>
+            <span id="finishScannerMode">Multi-table scanner</span>
+          </div>
+          <p id="finishViewEyebrow" hidden>Finish operational workspace</p>
+          <span id="finishViewSubtitle" hidden></span>
+          <span id="finishTarget" hidden>23.5 kg/staff-hour</span>
+          <span id="finishSignedIn" hidden>—</span>
+        </div>
+        <div class="finish-top-actions">
+          <div class="finish-shift-tabs">
+            <button id="finishShiftAutoButton" class="active" type="button" title="Use the governed shift schedule">Auto</button>
+            <button data-shift="MORNING" type="button">Morning</button>
+            <button data-shift="EVENING" type="button">Evening</button>
+          </div>
+          <button id="finishRefreshButton" class="secondary" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <nav id="finishWorkspaceTabs" class="finish-workspace-tabs" aria-label="Finish workspace">
+        <button type="button" data-finish-view="production">Production</button>
+        <button type="button" data-finish-view="staff">Staff</button>
+      </nav>
+
+      <p id="finishMessage" class="finish-message" aria-live="polite"></p>
+
+      <section id="finishProductionView" class="finish-view-panel">
+        <section class="finish-table-focus finish-table-focus-compact">
+          <header class="finish-table-focus-head">
+            <h2 id="finishFocusedTableTitle">Table 1</h2>
+            <div id="finishTableFocusTabs" class="finish-table-focus-tabs" aria-label="Finish Table selector">
+              <button type="button" data-focus-table="FINISH_TABLE_1">Table 1</button>
+              <button type="button" data-focus-table="FINISH_TABLE_2">Table 2</button>
+              <button type="button" data-focus-table="FINISH_TABLE_3">Table 3</button>
+            </div>
+          </header>
+          <section id="finishMetrics" class="finish-metrics"></section>
+        </section>
+
+        <div class="finish-workspace finish-production-workspace">
+          <div class="finish-main-column">
+            <section class="finish-card finish-rewash-card">
+              <header class="finish-card-header">
+                <div><p>Table / Shift record</p><h2>ReWash</h2><span id="finishRewashSubtitle">One real production record for this Table and Shift. No trolley required.</span></div>
+                <div class="finish-rewash-header-actions"><strong id="finishRewashSummary" class="finish-rewash-summary">No ReWash recorded</strong><button id="finishOpenRewashButton" type="button" class="secondary">Record ReWash</button></div>
+              </header>
+              <div id="finishRewashLines" class="finish-rewash-lines"></div>
+            </section>
+            <section class="finish-card">
+              <header class="finish-card-header finish-saved-head">
+                <div><p>Saved today</p><h2 id="finishRecentTitle">Table 1 · Evening</h2><span id="finishRecentSubtitle" hidden></span></div>
+                <div id="finishSavedSummary" class="finish-saved-summary"></div>
+              </header>
+              <div id="finishRecentEntries" class="finish-history finish-saved-list"></div>
+            </section>
+          </div>
+
+          <aside class="finish-queue-card">
+            <header>
+              <div class="finish-queue-title-row">
+                <div><p>Finish work</p><h2>Customers</h2><span id="finishQueueModeHint" hidden></span></div>
+                <div class="finish-queue-summary"><strong id="finishQueueCount" class="finish-queue-count">0</strong><span id="finishQueueWashedSummary" class="finish-queue-washed-summary">0 washed · 0.0 kg</span></div>
+              </div>
+              <div id="finishQueueModeTabs" class="finish-queue-mode-tabs" role="group" aria-label="Customer list mode">
+                <button type="button" class="active" data-queue-mode="TODAY">Operational</button>
+                <button type="button" data-queue-mode="AVAILABLE">Available</button>
+              </div>
+              <div id="finishQueueDayTabs" class="finish-queue-day-tabs" role="group" aria-label="Finish schedule day" hidden></div>
+              <input id="finishQueueSearch" type="search" placeholder="Search customer or route…">
+            </header>
+            <div id="finishQueue" class="finish-queue"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="finishStaffView" class="finish-view-panel" hidden>
+        <section class="finish-staff-overview-card">
+          <header class="finish-card-header">
+            <div>
+              <p>Shift check-in</p>
+              <h2>Finish staff</h2>
+              <span id="finishStaffScheduleNote">Roster names are pre-filled. Confirm the actual table or correct it when needed.</span>
+            </div>
+            <button id="finishAddStaffButton" type="button" class="secondary">Add staff manually</button>
+            <strong id="finishStaffCount" class="finish-staff-count">0 staff</strong>
+          </header>
+          <div id="finishStaffTableSummary" class="finish-staff-table-summary"></div>
+          <div id="finishStaffList" class="finish-staff-work-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="finishProductionDialog" class="finish-dialog finish-production-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div>
+          <p>Production registration</p>
+          <h2 id="finishFormTitle">Select a customer</h2>
+          <span id="finishFormSubtitle">Choose a washed Clothes customer from the list.</span>
+        </div>
+        <div class="finish-dialog-header-actions">
+          <span id="finishCutoffBadge" class="cutoff-badge">Delivery cutoff —</span>
+          <button id="finishProductionDialogClose" type="button" class="finish-dialog-close" aria-label="Close">×</button>
+        </div>
+      </header>
+
+      <form id="finishProductionForm">
+        <input id="finishFlowId" type="hidden">
+        <input id="finishEditEntryId" type="hidden">
+        <div id="finishEditBanner" hidden><strong id="finishEditLabel"></strong><button id="finishCancelEditButton" type="button"></button></div>
+
+        <div class="finish-form-grid three finish-registration-context">
+          <label>Table
+            <select id="finishTable" required>
+              <option value="">Choose table…</option>
+              <option value="FINISH_TABLE_1">Table 1</option>
+              <option value="FINISH_TABLE_2">Table 2</option>
+              <option value="FINISH_TABLE_3">Table 3</option>
+            </select>
+            <small id="finishTableHint"></small>
+          </label>
+          <label>Shift<input id="finishShiftDisplay" type="text" readonly></label>
+          <label class="finish-processed-by-field">Processed by
+            <select id="finishProcessedBy" required>
+              <option value="">Select staff…</option>
+            </select>
+            <small id="finishProcessedByHint"></small>
+          </label>
+        </div>
+
+        <div class="finish-customer-summary" id="finishCustomerSummary" hidden></div>
+
+        <section id="finishExistingRecordsWrap" class="finish-existing-records" hidden>
+          <div class="finish-section-row compact">
+            <div><strong>Existing batch records</strong><small>Edit a saved Table / Business Date / Shift record while the Delivery Date cutoff is still open.</small></div>
+          </div>
+          <div id="finishExistingRecords" class="finish-existing-record-list"></div>
+        </section>
+
+        <div class="finish-section-row">
+          <div><strong>Batch, Weight / Type</strong><small>The same batch may have a KG and Units line in this record. Continuation requires a new batch.</small></div>
+          <button id="finishAddBatchButton" type="button" class="secondary">+ Add batch line</button>
+        </div>
+        <div id="finishBatchLines" class="finish-batch-lines"></div>
+        <div class="finish-total-row"><span>Record total</span><strong id="finishRecordTotal">0.00 kg · 0 units</strong></div>
+
+        <div class="finish-form-grid two">
+          <section class="finish-trolley-production-card">
+            <div class="finish-trolley-production-head">
+              <div><span>Customer trolley plan</span><strong id="finishTrolleyPlanText">No trolley requirement</strong></div>
+              <button id="finishOpenTrolleyButton" type="button" class="secondary">Scan trolley</button>
+            </div>
+            <div id="finishTrolleySummary" class="finish-trolley-summary">No trolley scanned.</div>
+            <textarea id="finishTrolleys" hidden aria-hidden="true"></textarea>
+          </section>
+          <label>Notes<textarea id="finishNotes" rows="5" maxlength="1000" placeholder="Optional production note"></textarea></label>
+        </div>
+        <label id="finishCorrectionReasonWrap" hidden><input id="finishCorrectionReason" type="hidden"></label>
+        <p id="finishProductionDialogMessage" class="finish-message" aria-live="polite"></p>
+
+        <div class="finish-form-actions">
+          <button id="finishClearButton" type="button" class="secondary">Clear</button>
+          <button id="finishProductionCancelButton" type="button" class="secondary">Cancel</button>
+          <button id="finishSaveButton" type="submit" class="primary">Save Finish production</button>
+        </div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="finishRewashDialog" class="finish-dialog finish-rewash-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Actual production</p><h2 id="finishRewashDialogTitle">Record ReWash</h2><span id="finishRewashDialogSubtitle">Table / Shift record. Each line needs a valid customer and KG; batch is optional.</span></div>
+        <button id="finishRewashDialogClose" type="button" class="finish-dialog-close" aria-label="Close">×</button>
+      </header>
+      <form id="finishRewashForm" class="finish-rewash-form">
+        <div class="finish-form-grid three finish-rewash-context">
+          <label>Table<input id="finishRewashTable" type="text" readonly></label>
+          <label>Shift<input id="finishRewashShift" type="text" readonly></label>
+          <label>Processed by<select id="finishRewashProcessedBy" required><option value="">Select staff…</option></select></label>
+        </div>
+        <section class="finish-rewash-line-section">
+          <div class="finish-section-row"><div><strong>ReWash customers</strong><small>One line per customer. Customer and KG are required; Batch is optional.</small></div><button id="finishAddRewashLineButton" type="button" class="secondary">+ Add customer</button></div>
+          <datalist id="finishRewashCustomerOptions"></datalist>
+          <div class="finish-rewash-line-head"><span>Customer</span><span>Batch</span><span>KG</span><span></span></div>
+          <div id="finishRewashBatchLines" class="finish-rewash-batch-lines"></div>
+          <div class="finish-rewash-total"><span>ReWash total</span><strong id="finishRewashTotal">0.0 kg</strong></div>
+        </section>
+        <label>Notes<input id="finishRewashNotes" type="text" maxlength="1000" placeholder="Optional operational note"></label>
+        <p id="finishRewashDialogMessage" class="finish-message" aria-live="polite"></p>
+        <div class="finish-form-actions"><button id="finishRewashCancelButton" type="button" class="secondary">Cancel</button><button id="finishRewashSaveButton" type="submit" class="primary">Save ReWash</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="finishDeliveryReconciliationDialog" class="finish-dialog finish-delivery-reconciliation-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Delivery check</p><h2 id="finishDeliveryReconciliationTitle">Finish confirmation required</h2><span id="finishDeliveryReconciliationSubtitle">A washed customer has no Finish record after its delivery deadline.</span></div>
+      </header>
+      <form id="finishDeliveryReconciliationForm" class="finish-delivery-reconciliation-form">
+        <section id="finishDeliveryReconciliationSummary" class="finish-delivery-reconciliation-summary"></section>
+        <p class="finish-delivery-reconciliation-intro">Confirm what happened before continuing. This keeps the delivery list accurate and prevents a customer from being left behind.</p>
+        <div class="finish-delivery-reconciliation-fields">
+          <label>Approximate processed date<input id="finishDeliveryReconciliationProcessedOn" type="date" required></label>
+          <label>Approximate processed quantity<div class="finish-delivery-reconciliation-quantity"><input id="finishDeliveryReconciliationKg" type="text" inputmode="decimal" autocomplete="off" required><select id="finishDeliveryReconciliationUnit" aria-label="Processed quantity unit" required><option value="KG">KG</option><option value="UNIT">Units</option></select></div></label>
+          <label>Batch reference <span>Optional</span><input id="finishDeliveryReconciliationBatch" type="text" maxlength="120" placeholder="Optional batch number"></label>
+          <label class="finish-delivery-reconciliation-wide">Note / reason<input id="finishDeliveryReconciliationNotes" type="text" maxlength="1000" placeholder="Optional operational note"></label>
+        </div>
+        <p id="finishDeliveryReconciliationMessage" class="finish-message" aria-live="polite"></p>
+        <div class="finish-form-actions finish-delivery-reconciliation-actions"><button id="finishDeliveryNotProcessedButton" type="button" class="secondary danger-outline">Not processed · remind in 2 hours</button><button type="submit" class="primary">Confirm processed</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="finishTrolleyDialog" class="finish-dialog finish-trolley-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Trolley scan</p><h2 id="finishTrolleyDialogTitle">Scan trolley</h2><span id="finishTrolleyDialogSubtitle">Compare the physical trolley with the published customer requirement.</span></div>
+        <button id="finishTrolleyDialogClose" type="button" class="finish-dialog-close" aria-label="Close">×</button>
+      </header>
+      <div class="finish-trolley-dialog-body">
+        <section id="finishTrolleyRequirementCard" class="finish-trolley-requirement-card"></section>
+        <div class="finish-trolley-scan-row">
+          <label>Scan trolley code<input id="finishTrolleyScanInput" type="text" autocomplete="off" inputmode="text" placeholder="Scan barcode or type trolley code"></label>
+          <button id="finishTrolleyAddButton" type="button" class="primary">Add</button>
+        </div>
+        <div id="finishTrolleyScannedList" class="finish-trolley-scanned-list"></div>
+        <div id="finishTrolleyTally" class="finish-trolley-tally"></div>
+        <div id="finishTrolleyIssues" class="finish-trolley-issues"></div>
+        <div class="finish-trolley-dialog-actions">
+          <div class="finish-trolley-dialog-left-actions">
+            <button id="finishTrolleyNoTrolleyButton" type="button" class="secondary finish-no-trolley-button">No trolley yet</button>
+            <button id="finishTrolleyDialogReportButton" type="button" class="finish-report-button">Report trolley plan</button>
+          </div>
+          <div>
+            <button id="finishTrolleyDialogCancel" type="button" class="secondary">Cancel</button>
+            <button id="finishTrolleyDialogConfirm" type="button" class="primary">Use scanned trolleys</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog id="finishStaffDialog" class="finish-dialog finish-staff-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Actual staffing</p><h2 id="finishStaffDialogTitle">Edit Finish staff</h2><span id="finishStaffDialogSubtitle">Roster remains Planned; this saves Actual Table/time.</span></div>
+        <button id="finishStaffDialogClose" type="button" class="finish-dialog-close" aria-label="Close">×</button>
+      </header>
+      <form id="finishStaffForm" class="finish-staff-form finish-staff-time-editor">
+        <input id="finishStaffSelect" type="hidden">
+        <label class="finish-staff-name-field">Staff member<input id="finishStaffName" type="search" list="finishStaffCandidates" autocomplete="off" required placeholder="Type staff name"><datalist id="finishStaffCandidates"></datalist></label>
+        <label>Actual Table<select id="finishStaffTable" required><option value="">Choose table…</option><option value="FINISH_TABLE_1">Table 1</option><option value="FINISH_TABLE_2">Table 2</option><option value="FINISH_TABLE_3">Table 3</option></select></label>
+        <label class="finish-staff-clock-field">Started at<input id="finishStaffStart" type="time" required></label>
+        <label class="finish-staff-clock-field">Leaving at<input id="finishStaffEnd" type="time"><small id="finishStaffEndHint">The planned leaving time is shown as a reference.</small></label>
+        <label class="finish-staff-clock-field">Break (minutes)<input id="finishStaffBreak" type="number" min="0" max="240" step="5" required><small>Change only when the actual break was different.</small></label>
+        <label class="finish-staff-departure-toggle"><input id="finishStaffCloseShift" type="checkbox"> Record this as the actual leaving time and close the shift.</label>
+        <label class="finish-staff-note-field">Note / reason<input id="finishStaffReason" type="text" maxlength="500" placeholder="Optional operational note"></label>
+        <p id="finishStaffDialogMessage" class="finish-message" aria-live="polite"></p>
+        <div class="finish-form-actions"><button id="finishStaffCancelButton" type="button" class="secondary">Cancel</button><button class="primary" type="submit">Save Staff Actual</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="finishStaffAttendanceDialog" class="finish-dialog finish-staff-action-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Actual attendance</p><h2 id="finishAttendanceDialogTitle">Mark staff absent</h2><span id="finishAttendanceDialogSubtitle">This changes the actual attendance for this shift and can be corrected if the person arrives later.</span></div>
+        <button id="finishAttendanceDialogClose" type="button" class="finish-dialog-close" aria-label="Close">&times;</button>
+      </header>
+      <form id="finishAttendanceForm" class="finish-staff-action-form">
+        <input id="finishAttendanceStaffId" type="hidden">
+        <label>Reason<select id="finishAttendanceReason" required><option value="">Choose reason...</option><option value="SICK">Sick</option><option value="NO_SHOW">No show</option><option value="TRAINING">Training</option><option value="OTHER">Other</option></select></label>
+        <label>Note<input id="finishAttendanceNotes" type="text" maxlength="1000" placeholder="Optional"></label>
+        <p id="finishAttendanceDialogMessage" class="finish-message" aria-live="polite"></p>
+        <div class="finish-form-actions"><button id="finishAttendanceCancelButton" type="button" class="secondary">Cancel</button><button class="danger" type="submit">Mark absent</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="finishStaffMoveDialog" class="finish-dialog finish-staff-action-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Table transfer</p><h2 id="finishMoveDialogTitle">Move staff</h2><span id="finishMoveDialogSubtitle">The selected time closes the current Table and starts the next one, keeping Table metrics accurate.</span></div>
+        <button id="finishMoveDialogClose" type="button" class="finish-dialog-close" aria-label="Close">&times;</button>
+      </header>
+      <form id="finishMoveForm" class="finish-staff-action-form">
+        <input id="finishMoveStaffId" type="hidden">
+        <input id="finishMoveFromTable" type="hidden">
+        <label>Move to<select id="finishMoveToTable" required><option value="">Choose table...</option><option value="FINISH_TABLE_1">Table 1</option><option value="FINISH_TABLE_2">Table 2</option><option value="FINISH_TABLE_3">Table 3</option><option value="SORTING">Sorting Area (cover only)</option></select></label>
+        <label>Move at<input id="finishMoveTime" type="time" required></label>
+        <label class="finish-staff-action-wide">Note / reason<input id="finishMoveNotes" type="text" maxlength="1000" placeholder="Optional"></label>
+        <p id="finishMoveDialogMessage" class="finish-message" aria-live="polite"></p>
+        <div class="finish-form-actions"><button id="finishMoveCancelButton" type="button" class="secondary">Cancel</button><button class="primary" type="submit">Move staff</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <dialog id="finishStaffDepartureDialog" class="finish-dialog finish-staff-action-dialog">
+    <section class="finish-dialog-card">
+      <header class="finish-dialog-header">
+        <div><p>Early departure</p><h2 id="finishDepartureDialogTitle">Record early departure</h2><span id="finishDepartureDialogSubtitle">This closes the active Table time at the selected hour.</span></div>
+        <button id="finishDepartureDialogClose" type="button" class="finish-dialog-close" aria-label="Close">&times;</button>
+      </header>
+      <form id="finishDepartureForm" class="finish-staff-action-form">
+        <input id="finishDepartureStaffId" type="hidden">
+        <input id="finishDepartureTable" type="hidden">
+        <label>Left at<input id="finishDepartureTime" type="time" required></label>
+        <label>Note / reason<input id="finishDepartureNotes" type="text" maxlength="1000" placeholder="Optional"></label>
+        <p id="finishDepartureDialogMessage" class="finish-message" aria-live="polite"></p>
+        <div class="finish-form-actions"><button id="finishDepartureCancelButton" type="button" class="secondary">Cancel</button><button class="primary" type="submit">Record departure</button></div>
+      </form>
+    </section>
+  </dialog>
+</body>
+</html>

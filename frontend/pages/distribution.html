@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distribution | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/distribution.css">
+  <link rel="stylesheet" href="../assets/css/roster.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/distribution.js" defer></script>
+</head>
+<body class="distribution-page">
+  <div class="operational-tool-page-shell" data-operational-shell-root>
+    <div class="distribution-shell">
+      <header class="distribution-header operational-page-header">
+        <div class="distribution-brand">
+          <div>
+            <h1>Distribution</h1>
+            <p>Daily dispatch, routes, drivers and fleet</p>
+          </div>
+        </div>
+        <div class="distribution-header-actions">
+          <label class="distribution-date-field"><span>Distribution date</span><input id="distributionDate" type="date"></label>
+          <button id="distributionTodayButton" class="distribution-button secondary" type="button">Today</button>
+          <button id="distributionRefreshButton" class="distribution-button primary" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="distribution-main">
+        <p id="distributionMessage" class="distribution-message" aria-live="polite"></p>
+        <section id="distributionKpis" class="distribution-kpis" aria-label="Distribution summary"></section>
+        <nav id="distributionTabs" class="distribution-tabs" aria-label="Distribution workspace"></nav>
+        <section id="distributionPanel" class="distribution-panel">
+          <div class="distribution-loading">Loading Distribution workspace...</div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="distributionRunDialog" class="distribution-dialog">
+    <form id="distributionRunForm" method="dialog" onsubmit="return false;">
+      <header><div><p>Route execution</p><h2 id="distributionRunTitle">Route</h2><span id="distributionRunSubtitle"></span></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionRunDialog" aria-label="Close">×</button></header>
+      <input id="distributionRunId" type="hidden"><input id="distributionRunRouteId" type="hidden"><input id="distributionRunVersion" type="hidden">
+      <div class="distribution-form-grid">
+        <label><span>Primary driver</span><select id="distributionRunPrimaryDriver"></select></label>
+        <label><span>Support driver</span><select id="distributionRunSupportDriver"></select></label>
+        <label><span>Vehicle</span><select id="distributionRunVehicle"></select></label>
+        <label><span>Planning status</span><select id="distributionRunStatus"><option value="DRAFT">Draft</option><option value="READY">Ready</option></select></label>
+        <label class="wide"><span>Dispatch notes</span><textarea id="distributionRunNotes" rows="3" maxlength="1500"></textarea></label>
+      </div>
+      <p id="distributionRunMessage" class="distribution-inline-message" aria-live="polite"></p>
+      <footer><button class="distribution-button secondary" type="button" data-close-dialog="distributionRunDialog">Cancel</button><button id="distributionRunSave" class="distribution-button primary" type="submit">Save Route</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="distributionStopDialog" class="distribution-dialog distribution-stop-dialog">
+    <form id="distributionStopForm" method="dialog" onsubmit="return false;">
+      <header><div><p>Route detail</p><h2 id="distributionStopTitle">Stops</h2><span id="distributionStopSubtitle"></span></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionStopDialog" aria-label="Close">×</button></header>
+      <div id="distributionStopList" class="distribution-stop-list"></div>
+      <div id="distributionManualStopForm" class="distribution-manual-stop hidden">
+        <h3>Add operational stop</h3>
+        <div class="distribution-form-grid">
+          <label><span>Type</span><select id="distributionManualStopKind"><option value="COLLECTION">Collection</option><option value="EXTERNAL">External delivery</option></select></label>
+          <label><span>Name</span><input id="distributionManualStopName" maxlength="160"></label>
+          <label><span>Eircode</span><input id="distributionManualStopEircode" maxlength="24"></label>
+          <label><span>Estimated KG</span><input id="distributionManualStopKg" type="number" min="0" step="0.1"></label>
+          <label class="wide"><span>Instructions</span><textarea id="distributionManualStopInstructions" rows="2" maxlength="1500"></textarea></label>
+        </div>
+        <button id="distributionManualStopSave" class="distribution-button secondary" type="button">Add stop</button>
+      </div>
+      <p id="distributionStopMessage" class="distribution-inline-message" aria-live="polite"></p>
+      <footer><button id="distributionAddStopButton" class="distribution-button secondary" type="button">Add operational stop</button><button class="distribution-button primary" type="button" data-close-dialog="distributionStopDialog">Done</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="distributionRosterEntryDialog" class="distribution-dialog">
+    <form id="distributionRosterEntryForm" method="dialog" onsubmit="return false;">
+      <header><div><p>Weekly roster</p><h2 id="distributionRosterEntryTitle">Route assignment</h2><span id="distributionRosterEntrySubtitle"></span></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionRosterEntryDialog" aria-label="Close">&times;</button></header>
+      <input id="distributionRosterEntryRouteId" type="hidden"><input id="distributionRosterEntryDate" type="hidden"><input id="distributionRosterEntryDriverId" type="hidden">
+      <select id="distributionRosterEntryRoute" class="hidden"></select><select id="distributionRosterEntryStatus" class="hidden"><option value="PLANNED">Working</option><option value="OFF">Off</option><option value="HOLIDAY">Holiday</option><option value="TRAINING">Training</option><option value="ABSENT">Absent</option><option value="SICK">Sick</option><option value="CLEAR">Clear</option></select><select id="distributionRosterEntryPrimary" class="hidden"></select><select id="distributionRosterEntrySupport" class="hidden"></select><select id="distributionRosterEntryVehicle" class="hidden"></select>
+      <div class="distribution-roster-modal-body">
+        <section class="distribution-roster-modal-section">
+          <div class="distribution-roster-modal-label">Current</div>
+          <div id="distributionRosterCurrent" class="distribution-roster-current">-</div>
+        </section>
+        <section class="distribution-roster-modal-section">
+          <div class="distribution-roster-modal-label">1. Select Route <span id="distributionRosterDayTag"></span></div>
+          <div id="distributionRosterRouteButtons" class="distribution-roster-option-grid"></div>
+        </section>
+        <section id="distributionRosterTakenSection" class="distribution-roster-modal-section hidden">
+          <div class="distribution-roster-modal-label muted">Already assigned to another driver</div>
+          <div id="distributionRosterTakenButtons" class="distribution-roster-option-grid"></div>
+        </section>
+        <section class="distribution-roster-modal-section">
+          <div class="distribution-roster-modal-label">2. Select Vehicle</div>
+          <div id="distributionRosterVehicleButtons" class="distribution-roster-option-grid vehicle"></div>
+        </section>
+        <button id="distributionRosterConfirm" class="distribution-roster-confirm" type="button" disabled>Select a route first</button>
+        <section class="distribution-roster-modal-section">
+          <div class="distribution-roster-modal-label">Status</div>
+          <div class="distribution-roster-status-grid">
+            <button type="button" data-roster-quick-status="OFF" class="off">Off</button>
+            <button type="button" data-roster-quick-status="HOLIDAY" class="holiday">Hols</button>
+            <button type="button" data-roster-quick-status="TRAINING" class="training">Training</button>
+            <button type="button" data-roster-quick-status="ABSENT" class="absent">Absent</button>
+            <button type="button" data-roster-quick-status="SICK" class="sick">Sick</button>
+            <button type="button" data-roster-quick-status="CLEAR" class="clear">Clear</button>
+          </div>
+        </section>
+        <label class="distribution-roster-note"><span>Planning note</span><textarea id="distributionRosterEntryNote" rows="2" maxlength="1500"></textarea></label>
+      </div>
+      <p id="distributionRosterEntryMessage" class="distribution-inline-message" aria-live="polite"></p>
+      <footer><button class="distribution-button secondary" type="button" data-close-dialog="distributionRosterEntryDialog">Cancel</button><button id="distributionRosterEntrySave" class="distribution-button primary" type="submit">Apply assignment</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="distributionMasterDialog" class="distribution-dialog">
+    <form id="distributionMasterForm" method="dialog" onsubmit="return false;">
+      <header><div><p id="distributionMasterEyebrow">Distribution master</p><h2 id="distributionMasterTitle">Record</h2></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionMasterDialog" aria-label="Close">×</button></header>
+      <div id="distributionMasterFields" class="distribution-form-grid"></div>
+      <p id="distributionMasterMessage" class="distribution-inline-message" aria-live="polite"></p>
+      <footer><button class="distribution-button secondary" type="button" data-close-dialog="distributionMasterDialog">Cancel</button><button id="distributionMasterSave" class="distribution-button primary" type="submit">Save</button></footer>
+    </form>
+  </dialog>
+</body>
+</html>

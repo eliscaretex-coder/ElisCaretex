@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Customers | ElisCaretex</title>
+
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/customers.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/customers.js" defer></script>
+</head>
+
+<body class="customers-page">
+  <div class="customers-page-shell" data-operational-shell-root>
+  <div class="customers-shell">
+
+    <header class="customers-header">
+      <div class="customers-brand">
+        <a href="../index.html" class="customers-logo-link" aria-label="Return to Home">
+          <img src="../assets/img/elis-logo.svg" alt="Elis" class="customers-logo">
+        </a>
+
+        <div>
+          <p class="customers-environment">ElisCaretex-dev</p>
+          <h1>Customers</h1>
+          <p class="customers-subtitle">
+            Customer Master and published production schedules
+          </p>
+        </div>
+      </div>
+
+      <div class="customers-header-actions">
+        <input id="customersEffectiveDate" type="hidden">
+
+        <a href="../index.html" class="customers-header-button">Home</a>
+
+        <button id="customersSignOutButton" class="customers-header-button" type="button">
+          Sign out
+        </button>
+      </div>
+    </header>
+
+    <p id="customersPageMessage" class="customers-page-message" aria-live="polite"></p>
+
+    <nav id="customersMainTabs" class="customers-main-tabs" aria-label="Customer module"></nav>
+
+    <main id="customersMainPanel" class="customers-main-panel">
+      <div class="customers-loading">
+        <span class="customers-spinner" aria-hidden="true"></span>
+        <p>Loading Customers module...</p>
+      </div>
+    </main>
+  </div>
+  </div>
+
+  <!-- Schedule detail modal -->
+  <div id="scheduleDetailModal" class="customers-modal hidden" role="dialog" aria-modal="true">
+    <button
+      id="scheduleDetailBackdrop"
+      class="customers-modal-backdrop"
+      type="button"
+      aria-label="Close schedule details"
+    ></button>
+
+    <section class="customers-modal-card customers-schedule-modal">
+      <header class="customers-modal-header">
+        <div>
+          <p id="scheduleDetailCode" class="customers-modal-code"></p>
+          <h2 id="scheduleDetailTitle">Customer Schedule</h2>
+          <div id="scheduleDetailBadges" class="customers-badge-row"></div>
+        </div>
+
+        <button
+          id="scheduleDetailClose"
+          class="customers-icon-button"
+          type="button"
+          aria-label="Close schedule details"
+        >
+          ×
+        </button>
+      </header>
+
+      <div id="scheduleDetailBody" class="customers-modal-body"></div>
+
+      <footer class="customers-studio-footer">
+        <div class="customers-studio-protection">
+          <span class="customers-studio-lock" aria-hidden="true">▣</span>
+          <span>Published schedules are protected. Editing creates a new revision and never overwrites history.</span>
+        </div>
+        <button id="scheduleDetailCloseSecondary" class="customers-secondary-button" type="button">
+          Close
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <!-- Customer Schedule action confirmation -->
+  <div id="scheduleActionModal" class="customers-modal hidden" role="dialog" aria-modal="true">
+    <button
+      id="scheduleActionBackdrop"
+      class="customers-modal-backdrop"
+      type="button"
+      aria-label="Close schedule action"
+    ></button>
+
+    <section class="customers-modal-card customers-schedule-action-modal">
+      <header class="customers-modal-header">
+        <div>
+          <p class="customers-modal-code">Customer Studio</p>
+          <h2 id="scheduleActionTitle">Schedule action</h2>
+          <p id="scheduleActionDescription" class="customers-modal-subtitle"></p>
+        </div>
+
+        <button
+          id="scheduleActionClose"
+          class="customers-icon-button"
+          type="button"
+          aria-label="Close schedule action"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="customers-modal-body customers-schedule-action-body">
+        <div id="scheduleActionAlert" class="customers-form-alert hidden" aria-live="polite"></div>
+
+        <label id="scheduleActionEffectiveField" class="customers-form-field hidden">
+          <span>Effective from *</span>
+          <input id="scheduleActionEffectiveFrom" type="date">
+        </label>
+
+        <label id="scheduleActionReasonField" class="customers-form-field">
+          <span>Reason *</span>
+          <textarea id="scheduleActionReason" rows="4" maxlength="1000"></textarea>
+        </label>
+
+        <div id="scheduleActionReview" class="customers-schedule-review hidden"></div>
+      </div>
+
+      <footer class="customers-modal-footer">
+        <button id="scheduleActionCancel" class="customers-secondary-button" type="button">
+          Cancel
+        </button>
+        <button id="scheduleActionConfirm" class="customers-primary-button" type="button">
+          Confirm
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <!-- Customer Master form modal -->
+  <div id="customerFormModal" class="customers-modal hidden" role="dialog" aria-modal="true">
+    <button
+      id="customerFormBackdrop"
+      class="customers-modal-backdrop"
+      type="button"
+      aria-label="Close customer form"
+    ></button>
+
+    <section class="customers-modal-card customers-form-modal">
+      <header class="customers-modal-header">
+        <div>
+          <p class="customers-modal-code">Customer Master</p>
+          <h2 id="customerFormTitle">Add Customer</h2>
+          <p id="customerFormSubtitle" class="customers-modal-subtitle"></p>
+        </div>
+
+        <button
+          id="customerFormClose"
+          class="customers-icon-button"
+          type="button"
+          aria-label="Close customer form"
+        >
+          ×
+        </button>
+      </header>
+
+      <form id="customerMasterForm" class="customers-form" novalidate>
+        <div id="customerFormAlert" class="customers-form-alert hidden" aria-live="polite"></div>
+
+        <div id="customerFormStatus" class="customers-form-status" aria-live="polite">
+          <span class="customers-form-status-dot" aria-hidden="true"></span>
+          <span id="customerFormStatusText">Complete the required fields to continue.</span>
+        </div>
+
+        <section class="customers-form-section">
+          <h3>Customer information</h3>
+
+          <div class="customers-form-grid">
+            <label class="customers-form-field">
+              <span>Customer code</span>
+              <input id="customerFormCode" type="text" readonly placeholder="Generated automatically">
+            </label>
+
+            <label class="customers-form-field customers-form-field-wide">
+              <span>Customer name *</span>
+              <input id="customerFormName" type="text" maxlength="180" required>
+            </label>
+
+            <label class="customers-form-field">
+              <span>Eircode</span>
+              <input id="customerFormEircode" type="text" maxlength="20">
+            </label>
+          </div>
+        </section>
+
+        <section class="customers-form-section">
+          <h3>Services *</h3>
+          <p class="customers-form-help">
+            Select the services this customer is allowed to use in production schedules.
+          </p>
+          <div id="customerFormServices" class="customers-service-options"></div>
+          <div id="customerFormServiceImpact" class="customers-warning-callout customers-service-impact hidden"></div>
+        </section>
+
+        <section id="customerDistributionSection" class="customers-form-section">
+          <h3>Distribution reference</h3>
+
+          <div class="customers-form-grid">
+            <label class="customers-form-field">
+              <span>Estimated KG</span>
+              <input id="customerFormEstimatedKg" type="number" min="0" step="0.01">
+            </label>
+
+            <label class="customers-form-field">
+              <span>Stops</span>
+              <input id="customerFormStops" type="number" min="0" step="1">
+            </label>
+          </div>
+        </section>
+
+        <section class="customers-form-section">
+          <h3>Notes and alerts</h3>
+
+          <label class="customers-form-field">
+            <span>General notes</span>
+            <textarea id="customerFormNotes" rows="3"></textarea>
+          </label>
+
+          <label class="customers-form-field">
+            <span>Operational alert</span>
+            <textarea id="customerFormAlertText" rows="3"></textarea>
+          </label>
+        </section>
+
+        <section id="customerFormNextStepSection" class="customers-form-section customers-next-step-section">
+          <label class="customers-next-step-option">
+            <input id="customerFormOpenSchedule" type="checkbox" checked>
+            <span>
+              <strong id="customerFormOpenScheduleTitle">Open schedule setup after saving</strong>
+              <small id="customerFormOpenScheduleHelp">Continue directly to the weekly production schedule.</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="customers-form-section customers-reason-section">
+          <details id="customerFormAuditDetails" class="customers-audit-details">
+            <summary>
+              <span>Audit note</span>
+              <small>Optional — a clear note is generated automatically.</small>
+            </summary>
+            <label class="customers-form-field">
+              <span id="customerFormReasonLabel">Custom audit note</span>
+              <textarea id="customerFormReason" rows="2" maxlength="1000" placeholder="Add extra context only when needed."></textarea>
+            </label>
+          </details>
+        </section>
+
+        <footer class="customers-modal-footer customers-master-form-footer">
+          <span id="customerFormSaveHint" class="customers-form-save-hint">Complete the required fields.</span>
+          <div class="customers-modal-footer-actions">
+            <button id="customerFormCancel" class="customers-secondary-button" type="button">
+              Cancel
+            </button>
+            <button id="customerFormSave" class="customers-primary-button" type="submit" disabled>
+              Save Customer
+            </button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- Deactivation confirmation -->
+  <div id="customerDeactivateModal" class="customers-modal hidden" role="dialog" aria-modal="true">
+    <button
+      id="customerDeactivateBackdrop"
+      class="customers-modal-backdrop"
+      type="button"
+      aria-label="Close deactivation confirmation"
+    ></button>
+
+    <section class="customers-modal-card customers-confirm-modal">
+      <header class="customers-modal-header">
+        <div>
+          <p class="customers-modal-code">Customer Master</p>
+          <h2>Deactivate Customer</h2>
+        </div>
+
+        <button
+          id="customerDeactivateClose"
+          class="customers-icon-button"
+          type="button"
+          aria-label="Close deactivation confirmation"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="customers-modal-body">
+        <div class="customers-danger-callout">
+          <strong id="customerDeactivateName">Customer</strong>
+          will disappear from operational planners. Historical data will be preserved.
+        </div>
+
+        <label class="customers-form-field">
+          <span>Deactivation reason *</span>
+          <textarea id="customerDeactivateReason" rows="4"></textarea>
+        </label>
+
+        <div id="customerDeactivateAlert" class="customers-form-alert hidden" aria-live="polite"></div>
+      </div>
+
+      <footer class="customers-modal-footer">
+        <button id="customerDeactivateCancel" class="customers-secondary-button" type="button">
+          Cancel
+        </button>
+        <button id="customerDeactivateConfirm" class="customers-danger-button" type="button">
+          Deactivate Customer
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="customersToast" class="customers-toast" aria-live="polite"></div>
+</body>
+</html>

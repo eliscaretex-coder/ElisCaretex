@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Staff Master | ElisCaretex</title>
+
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/staff.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/staff.js" defer></script>
+</head>
+
+<body class="staff-page">
+  <div class="staff-page-shell" data-operational-shell-root>
+  <div class="staff-shell">
+    <header class="staff-header">
+      <div class="staff-brand">
+        <a href="../index.html" class="staff-logo-link" aria-label="Return to Home">
+          <img src="../assets/img/elis-logo.svg" alt="Elis" class="staff-logo">
+        </a>
+        <div>
+          <p class="staff-environment">ElisCaretex-dev</p>
+          <h1>Staff Master</h1>
+          <p>Operational staff, default work location, COVER capability and roster eligibility</p>
+        </div>
+      </div>
+
+      <div class="staff-header-actions">
+        <a href="../index.html" class="staff-header-button">Home</a>
+        <button id="staffSignOutButton" class="staff-header-button" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <p id="staffPageMessage" class="staff-page-message" aria-live="polite"></p>
+
+    <main id="staffMainPanel" class="staff-main-panel">
+      <div class="staff-loading">
+        <span class="staff-spinner" aria-hidden="true"></span>
+        <p>Loading Staff Master...</p>
+      </div>
+    </main>
+  </div>
+  </div>
+
+  <div id="staffEditorModal" class="staff-modal hidden" role="dialog" aria-modal="true" aria-labelledby="staffEditorTitle">
+    <button id="staffEditorBackdrop" class="staff-modal-backdrop" type="button" aria-label="Close Staff Master editor"></button>
+    <section class="staff-modal-card staff-editor-card">
+      <header class="staff-modal-header">
+        <div>
+          <p class="staff-modal-eyebrow">Staff Master</p>
+          <h2 id="staffEditorTitle">Add Staff</h2>
+          <p id="staffEditorSubtitle">Create a governed operational staff record.</p>
+        </div>
+        <button id="staffEditorClose" class="staff-icon-button" type="button" aria-label="Close Staff Master editor">×</button>
+      </header>
+
+      <form id="staffEditorForm" class="staff-form" novalidate>
+        <input id="staffEditorId" type="hidden">
+        <input id="staffEditorRowVersion" type="hidden">
+
+        <section class="staff-form-section">
+          <div class="staff-form-section-heading">
+            <h3>Identity and roster status</h3>
+            <p>Application permissions are managed separately from operational work roles.</p>
+          </div>
+
+          <div class="staff-form-grid two-columns">
+            <label class="staff-field wide">
+              <span>Display name *</span>
+              <input id="staffDisplayName" type="text" maxlength="160" required autocomplete="off">
+            </label>
+
+            <label class="staff-field">
+              <span>Employee code</span>
+              <input id="staffEmployeeCode" type="text" maxlength="40" autocomplete="off" placeholder="Generated when empty">
+            </label>
+
+            <label class="staff-field">
+              <span>Default shift</span>
+              <select id="staffDefaultShift"></select>
+            </label>
+
+            <label class="staff-toggle-field">
+              <input id="staffRosterEligible" type="checkbox" checked>
+              <span>
+                <strong>Roster eligible</strong>
+                <small>Include this active person in normal roster planning.</small>
+              </span>
+            </label>
+
+            <label class="staff-field">
+              <span>Joined date</span>
+              <input id="staffJoinedOn" type="date">
+            </label>
+          </div>
+        </section>
+
+        <section class="staff-form-section">
+          <div class="staff-form-section-heading">
+            <h3>Primary work assignment</h3>
+            <p>This remains the staff member's original function even when they work as COVER.</p>
+          </div>
+
+          <div class="staff-form-grid three-columns">
+            <label class="staff-field">
+              <span>Primary role *</span>
+              <select id="staffPrimaryRole" required></select>
+            </label>
+
+            <label class="staff-field">
+              <span>Default area</span>
+              <select id="staffDefaultArea"></select>
+            </label>
+
+            <label class="staff-field">
+              <span>Default table / station</span>
+              <select id="staffDefaultStation"></select>
+            </label>
+          </div>
+        </section>
+
+        <section class="staff-form-section">
+          <div class="staff-form-section-heading">
+            <h3>COVER capability</h3>
+            <p>A COVER assignment is temporary and never replaces the primary role above.</p>
+          </div>
+          <div id="staffCoverOptions" class="staff-cover-grid"></div>
+        </section>
+
+        <section class="staff-form-section">
+          <div class="staff-form-section-heading">
+            <h3>Training and capability</h3>
+            <p>Legacy empty values are stored as No, as confirmed for this project.</p>
+          </div>
+          <div class="staff-training-grid">
+            <label class="staff-check-card fire">
+              <input id="staffFireTraining" type="checkbox">
+              <span><strong>Fire Training</strong><small>Yes / No</small></span>
+            </label>
+            <label class="staff-check-card first-aid">
+              <input id="staffFirstAidTraining" type="checkbox">
+              <span><strong>First Aid</strong><small>Yes / No</small></span>
+            </label>
+            <label class="staff-check-card eod">
+              <input id="staffEodCapable" type="checkbox">
+              <span><strong>EOD capable</strong><small>Yes / No</small></span>
+            </label>
+          </div>
+        </section>
+
+        <section id="staffImportReviewSection" class="staff-form-section hidden">
+          <div class="staff-form-section-heading">
+            <h3>Import review</h3>
+            <p>Use this only for a legacy value that still needs a management decision.</p>
+          </div>
+          <label class="staff-toggle-field">
+            <input id="staffImportReviewRequired" type="checkbox">
+            <span><strong>Review required</strong><small>Keep this staff record in the import-review filter.</small></span>
+          </label>
+          <label class="staff-field">
+            <span>Review notes</span>
+            <textarea id="staffImportReviewNotes" rows="3" maxlength="1000"></textarea>
+          </label>
+        </section>
+
+        <section class="staff-form-section">
+          <div class="staff-form-grid two-columns">
+            <label class="staff-field wide">
+              <span>Staff notes</span>
+              <textarea id="staffNotes" rows="3" maxlength="1500"></textarea>
+            </label>
+            <label class="staff-field wide">
+              <span>Audit reason *</span>
+              <textarea id="staffChangeReason" rows="3" maxlength="500" required placeholder="Explain why this Staff Master record is being created or changed."></textarea>
+            </label>
+          </div>
+        </section>
+
+        <p id="staffEditorMessage" class="staff-inline-message" aria-live="polite"></p>
+      </form>
+
+      <footer class="staff-modal-footer">
+        <button id="staffEditorCancel" class="staff-secondary-button" type="button">Cancel</button>
+        <button id="staffEditorSave" class="staff-primary-button" type="submit" form="staffEditorForm">Save Staff</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="staffRosterRoleModal" class="staff-modal hidden" role="dialog" aria-modal="true" aria-labelledby="staffRosterRoleTitle">
+    <button id="staffRosterRoleBackdrop" class="staff-modal-backdrop" type="button" aria-label="Close roster role decision"></button>
+    <section class="staff-modal-card staff-status-card">
+      <header class="staff-modal-header">
+        <div>
+          <p class="staff-modal-eyebrow">Editable rosters</p>
+          <h2 id="staffRosterRoleTitle">Apply this role to editable rosters?</h2>
+          <p id="staffRosterRoleSubtitle"></p>
+        </div>
+        <button id="staffRosterRoleClose" class="staff-icon-button" type="button" aria-label="Close roster role decision">&times;</button>
+      </header>
+      <div id="staffRosterRoleSummary" class="staff-role-change-summary"></div>
+      <footer class="staff-modal-footer staff-role-change-actions">
+        <button id="staffRosterRoleCancel" class="staff-secondary-button" type="button">Cancel</button>
+        <button id="staffRosterRoleKeep" class="staff-secondary-button" type="button">Keep existing drafts</button>
+        <button id="staffRosterRoleApply" class="staff-primary-button" type="button">Apply to editable drafts</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="staffStatusModal" class="staff-modal hidden" role="dialog" aria-modal="true" aria-labelledby="staffStatusTitle">
+    <button id="staffStatusBackdrop" class="staff-modal-backdrop" type="button" aria-label="Close staff status action"></button>
+    <section class="staff-modal-card staff-status-card">
+      <header class="staff-modal-header">
+        <div>
+          <p class="staff-modal-eyebrow">Staff lifecycle</p>
+          <h2 id="staffStatusTitle">Deactivate Staff</h2>
+          <p id="staffStatusSubtitle"></p>
+        </div>
+        <button id="staffStatusClose" class="staff-icon-button" type="button" aria-label="Close staff status action">×</button>
+      </header>
+
+      <form id="staffStatusForm" class="staff-form" novalidate>
+        <input id="staffStatusId" type="hidden">
+        <input id="staffStatusRowVersion" type="hidden">
+        <input id="staffStatusAction" type="hidden">
+
+        <label id="staffDeactivatedDateField" class="staff-field">
+          <span>Deactivation date</span>
+          <input id="staffDeactivatedOn" type="date">
+        </label>
+
+        <label id="staffReactivateRosterField" class="staff-toggle-field hidden">
+          <input id="staffReactivateRosterEligible" type="checkbox" checked>
+          <span><strong>Roster eligible after reactivation</strong><small>Include the staff member in normal roster planning.</small></span>
+        </label>
+
+        <label class="staff-field">
+          <span>Reason *</span>
+          <textarea id="staffStatusReason" rows="4" maxlength="500" required></textarea>
+        </label>
+
+        <p id="staffStatusMessage" class="staff-inline-message" aria-live="polite"></p>
+      </form>
+
+      <footer class="staff-modal-footer">
+        <button id="staffStatusCancel" class="staff-secondary-button" type="button">Cancel</button>
+        <button id="staffStatusConfirm" class="staff-danger-button" type="submit" form="staffStatusForm">Confirm</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="accountEditorModal" class="staff-modal hidden" role="dialog" aria-modal="true" aria-labelledby="accountEditorTitle">
+    <button id="accountEditorBackdrop" class="staff-modal-backdrop" type="button" aria-label="Close account editor"></button>
+    <section class="staff-modal-card staff-status-card">
+      <header class="staff-modal-header">
+        <div>
+          <p class="staff-modal-eyebrow">Account administration</p>
+          <h2 id="accountEditorTitle">Add account</h2>
+          <p id="accountEditorSubtitle"></p>
+        </div>
+        <button id="accountEditorClose" class="staff-icon-button" type="button" aria-label="Close account editor">&times;</button>
+      </header>
+      <form id="accountEditorForm" class="staff-form" novalidate>
+        <input id="accountEditorId" type="hidden">
+        <label class="staff-field">
+          <span>Account type *</span>
+          <select id="accountEditorType"><option value="USER">System user</option><option value="TERMINAL">Production computer</option></select>
+        </label>
+        <label class="staff-field">
+          <span>Account name *</span>
+          <input id="accountEditorName" type="text" maxlength="160" required autocomplete="off">
+        </label>
+        <label class="staff-field">
+          <span>Email *</span>
+          <input id="accountEditorEmail" type="email" maxlength="320" required autocomplete="email">
+        </label>
+        <label class="staff-field">
+          <span>Initial or replacement password *</span>
+          <input id="accountEditorPassword" type="password" minlength="12" autocomplete="new-password">
+        </label>
+        <label class="staff-field">
+          <span>Linked Staff Master record (optional)</span>
+          <select id="accountEditorStaff"></select>
+        </label>
+        <section id="accountTerminalFields" class="staff-form-section hidden">
+          <div class="staff-form-section-heading"><h3>Production computer</h3><p>The technical sign-in email is generated automatically. No person or Staff Master record is required.</p></div>
+          <div class="staff-form-grid two-columns">
+            <label class="staff-field"><span>Computer code *</span><input id="accountTerminalCode" type="text" maxlength="80" autocomplete="off"></label>
+            <label class="staff-field"><span>Computer name *</span><input id="accountTerminalName" type="text" maxlength="160" autocomplete="off"></label>
+            <label class="staff-field wide"><span>Registered station *</span><select id="accountTerminalStation"></select></label>
+          </div>
+        </section>
+        <section class="staff-form-section">
+          <div class="staff-form-section-heading">
+            <h3>Access permissions</h3>
+            <p>Select the areas this account can access. Permissions belong to this account, not to Staff Master.</p>
+          </div>
+          <div id="accountEditorRoleOptions" class="staff-cover-grid"></div>
+        </section>
+        <p id="accountEditorMessage" class="staff-inline-message" aria-live="polite"></p>
+      </form>
+      <footer class="staff-modal-footer">
+        <button id="accountEditorCancel" class="staff-secondary-button" type="button">Cancel</button>
+        <button id="accountEditorSave" class="staff-primary-button" type="submit" form="accountEditorForm">Create account</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="terminalPasswordResetModal" class="staff-modal hidden" role="dialog" aria-modal="true" aria-labelledby="terminalPasswordResetTitle">
+    <button id="terminalPasswordResetBackdrop" class="staff-modal-backdrop" type="button" aria-label="Close terminal password reset"></button>
+    <section class="staff-modal-card staff-status-card">
+      <header class="staff-modal-header">
+        <div>
+          <p class="staff-modal-eyebrow">Production computer</p>
+          <h2 id="terminalPasswordResetTitle">Reset terminal password</h2>
+          <p id="terminalPasswordResetComputer"></p>
+        </div>
+        <button id="terminalPasswordResetClose" class="staff-icon-button" type="button" aria-label="Close terminal password reset">&times;</button>
+      </header>
+      <form id="terminalPasswordResetForm" class="staff-form" novalidate>
+        <input id="terminalPasswordResetAccountId" type="hidden">
+        <p class="staff-subtext">Set a new password known to the production team. The existing password cannot be displayed.</p>
+        <label class="staff-field">
+          <span>New password *</span>
+          <input id="terminalPasswordResetValue" type="password" minlength="12" required autocomplete="new-password">
+        </label>
+        <label class="staff-field">
+          <span>Confirm new password *</span>
+          <input id="terminalPasswordResetConfirmation" type="password" minlength="12" required autocomplete="new-password">
+        </label>
+        <label class="staff-toggle-field">
+          <input id="terminalPasswordResetShow" type="checkbox">
+          <span><strong>Show password while setting</strong><small>Use this only while the password is being recorded for the production team.</small></span>
+        </label>
+        <p id="terminalPasswordResetMessage" class="staff-inline-message" aria-live="polite"></p>
+      </form>
+      <footer class="staff-modal-footer">
+        <button id="terminalPasswordResetCancel" class="staff-secondary-button" type="button">Cancel</button>
+        <button id="terminalPasswordResetSave" class="staff-primary-button" type="submit" form="terminalPasswordResetForm">Set new password</button>
+      </footer>
+    </section>
+  </div>
+
+</body>
+</html>

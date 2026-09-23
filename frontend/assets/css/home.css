@@ -1,0 +1,23 @@
+.module-card-active {
+  text-decoration: none;
+  border-color: #9ccfce;
+  background:
+    linear-gradient(145deg, #ffffff 0%, #f0fdfa 100%);
+  box-shadow: 0 8px 22px rgba(15, 118, 110, 0.1);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.module-card-active:hover,
+.module-card-active:focus-visible {
+  transform: translateY(-2px);
+  border-color: #0f766e;
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.16);
+  outline: none;
+}
+
+.module-card-active small {
+  color: #0f766e;
+}

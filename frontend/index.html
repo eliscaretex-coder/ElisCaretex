@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ElisCaretex</title>
+
+  <link rel="stylesheet" href="./assets/css/global.css">
+  <link rel="stylesheet" href="./assets/css/app-shell.css">
+  <link rel="stylesheet" href="./assets/css/home.css">
+  <link rel="stylesheet" href="./assets/css/enterprise-ui.css">
+
+  <!-- Official Supabase browser library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- File order is important -->
+  <script src="./assets/js/config.js" defer></script>
+  <script src="./assets/js/supabase-client.js" defer></script>
+  <script src="./assets/js/app-shell-policy.js" defer></script>
+  <script src="./assets/js/app.js" defer></script>
+</head>
+
+<body>
+  <main class="page">
+
+    <!-- Login view -->
+    <section id="loginView" class="card auth-card">
+      <div class="brand">
+        <img
+          class="brand-logo"
+          src="./assets/img/elis-logo.svg"
+          alt="Elis"
+        >
+
+        <div>
+          <h1>Elis Caretex</h1>
+        </div>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">Email or workstation user</label>
+
+          <input
+            id="email"
+            name="email"
+            type="text"
+            autocomplete="username"
+            required
+          >
+          <small class="auth-field-hint">Workstations can sign in with their assigned username; no mailbox is required.</small>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          >
+
+          <a class="auth-link" href="./pages/forgot-password.html">
+            Forgot your password?
+          </a>
+        </div>
+
+        <button id="loginButton" class="primary-button" type="submit">
+          Sign in
+        </button>
+      </form>
+
+      <p id="loginMessage" class="message" aria-live="polite"></p>
+    </section>
+
+    <!-- Authenticated application view -->
+    <section id="appView" class="hidden">
+
+      <!-- Administrative shell -->
+      <div id="administrativeShell" class="app-shell hidden">
+        <header class="topbar">
+          <div>
+            <p class="environment-label">ElisCaretex-dev</p>
+            <h1>Home</h1>
+          </div>
+
+          <button id="adminLogoutButton" class="secondary-button" type="button">
+            Sign out
+          </button>
+        </header>
+
+        <section class="profile-card">
+          <div>
+            <p class="eyebrow">Signed-in user</p>
+            <h2 id="adminProfileName">Loading...</h2>
+            <p id="adminProfileEmail" class="muted"></p>
+          </div>
+
+          <div>
+            <p class="eyebrow">Employee code</p>
+            <p id="adminEmployeeCode">—</p>
+          </div>
+
+          <div>
+            <p class="eyebrow">Roles</p>
+            <div id="adminRoleList" class="role-list"></div>
+          </div>
+        </section>
+
+        <p id="adminAppMessage" class="message" aria-live="polite"></p>
+
+        <section class="module-grid" aria-label="System modules">
+          <a id="adminCustomersModule" class="module-card module-card-active" href="./pages/customers.html">
+            <strong>Customers</strong>
+            <span>Customer records and production schedules</span>
+            <small>Open module</small>
+          </a>
+
+          <a id="adminTrolleysModule" class="module-card module-card-active" href="./pages/trolleys.html">
+            <strong>Trolleys</strong>
+            <span>Current locations, customer days and Trolley Master</span>
+            <small>Open module</small>
+          </a>
+
+          <a id="adminStaffModule" class="module-card module-card-active" href="./pages/staff.html">
+            <strong>Staff Master</strong>
+            <span>Operational staff, work roles and roster eligibility</span>
+            <small>Open module</small>
+          </a>
+
+          <a id="adminSortingModule" class="module-card module-card-active" href="./pages/sorting.html">
+            <strong>Sorting</strong>
+            <span>Roster-led trolley receipt and washing preparation</span>
+            <small>Open module</small>
+          </a>
+
+          <a id="adminProductionTrackerModule" class="module-card module-card-active" href="./pages/production-tracker.html">
+            <strong>Production Tracker</strong>
+            <span>Shared Clothes and MOP production status across operational areas</span>
+            <small>Open module</small>
+          </a>
+          <a id="adminDistributionModule" class="module-card module-card-active" href="./pages/distribution.html">
+            <strong>Distribution</strong>
+            <span>Daily dispatch, drivers, fleet and delivery routes</span>
+            <small>Open module</small>
+          </a>
+          <a id="adminFinishModule" class="module-card module-card-active" href="./pages/finish-production.html">
+            <strong>Finish</strong>
+            <span>Finish Area production by table and shift</span>
+            <small>Open module</small>
+          </a>
+
+          <a id="adminMopModule" class="module-card module-card-active" href="./pages/mop-production.html">
+            <strong>Mop Production</strong>
+            <span>Mop production, trolley evidence and ABS trace</span>
+            <small>Open module</small>
+          </a>
+
+          <a id="adminRosterModule" class="module-card module-card-active" href="./pages/roster.html">
+            <strong>Production Roster</strong>
+            <span>Weekly production staffing, publication and history</span>
+            <small>Open module</small>
+          </a>
+        </section>
+      </div>
+
+      <!-- Operational shell -->
+      <div id="operationalShell" class="operational-shell hidden">
+        <aside class="operational-sidebar" aria-label="Operational navigation">
+          <div class="operational-sidebar-brand">
+            <img
+              class="operational-sidebar-logo"
+              src="./assets/img/elis-logo.svg"
+              alt="Elis"
+            >
+            <div class="operational-brand-copy">
+              <strong>ElisCaretex</strong>
+              <span>Operational workspace</span>
+            </div>
+          </div>
+
+          <button
+            id="operationalSidebarToggle"
+            class="operational-sidebar-toggle"
+            type="button"
+            aria-label="Expand navigation"
+            aria-expanded="false"
+            title="Expand navigation"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 5 7 7-7 7"></path>
+            </svg>
+          </button>
+
+          <nav id="operationalNav" class="operational-nav"></nav>
+
+          <div class="operational-sidebar-footer">
+            <div class="operational-user-mini" title="Signed-in staff member">
+              <span id="operationalUserAvatar" class="operational-user-avatar">—</span>
+              <div class="operational-user-copy">
+                <strong id="operationalSidebarUserName">Loading...</strong>
+                <span id="operationalSidebarUserRole">Operational User</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="operational-main">
+          <header class="operational-topbar">
+            <div class="operational-topbar-left">
+              <div class="operational-topbar-title">
+                <p id="operationalAreaCode">Operations</p>
+                <h1 id="operationalAreaName">Operational Home</h1>
+              </div>
+            </div>
+
+            <div class="operational-topbar-right">
+              <div class="operational-date-block">
+                <strong id="operationalDate">—</strong>
+                <span id="operationalEnvironment">ElisCaretex-dev</span>
+              </div>
+
+              <button
+                id="operationalLogoutButton"
+                class="operational-signout"
+                type="button"
+                aria-label="Sign out"
+                title="Sign out"
+              ></button>
+            </div>
+          </header>
+
+          <section class="operational-content">
+            <div class="operational-welcome">
+              <article class="operational-primary-card">
+                <p class="operational-primary-eyebrow">Ready for work</p>
+                <h2 id="operationalGreeting">Welcome</h2>
+                <p id="operationalIntroduction">
+                  Open the operational tool assigned to your role.
+                </p>
+                <div id="operationalPrimaryAction"></div>
+              </article>
+
+              <aside class="operational-context-card">
+                <h2>Work context</h2>
+                <p>
+                  This screen shows operational tools only. Administrative modules are not part of this workspace.
+                </p>
+
+                <div class="operational-context-list">
+                  <div class="operational-context-row">
+                    <span>Staff</span>
+                    <strong id="operationalProfileName">—</strong>
+                  </div>
+                  <div class="operational-context-row">
+                    <span>Employee code</span>
+                    <strong id="operationalEmployeeCode">—</strong>
+                  </div>
+                  <div class="operational-context-row">
+                    <span>Role</span>
+                    <strong id="operationalRoleName">—</strong>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <div class="operational-section-heading">
+              <div>
+                <h2>Available tools</h2>
+                <p>Only tools relevant to the active operational role are shown.</p>
+              </div>
+            </div>
+
+            <section
+              id="operationalModuleGrid"
+              class="operational-module-grid"
+              aria-label="Operational modules"
+            ></section>
+
+            <p id="operationalAppMessage" class="message operational-message" aria-live="polite"></p>
+          </section>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</body>
+</html>

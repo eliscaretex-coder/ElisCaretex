@@ -1,0 +1,914 @@
+/*
+  ElisCaretex enterprise UI foundation.
+  This file is deliberately loaded after module styles. It owns shared visual
+  rules while each module retains its layout and business-specific states.
+*/
+
+:root {
+  --ec-ink: #172033;
+  --ec-ink-muted: #5d6b7e;
+  --ec-canvas: #f4f6f8;
+  --ec-surface: #ffffff;
+  --ec-surface-muted: #f8fafb;
+  --ec-line: #d9e1e8;
+  --ec-line-strong: #bdc9d4;
+  --ec-primary: #0b646b;
+  --ec-primary-strong: #074f55;
+  --ec-primary-soft: #e4f3f3;
+  --ec-info: #1d5fa7;
+  --ec-info-soft: #e9f2fb;
+  --ec-success: #18794e;
+  --ec-success-soft: #eaf7ef;
+  --ec-warning: #a56000;
+  --ec-warning-soft: #fff4df;
+  --ec-danger: #b42318;
+  --ec-danger-soft: #fff0ef;
+  --ec-radius: 8px;
+  --ec-radius-sm: 6px;
+  --ec-shadow: 0 1px 2px rgba(23, 32, 51, 0.08), 0 6px 16px rgba(23, 32, 51, 0.05);
+  --ec-font: "Segoe UI Variable", "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+html {
+  background: var(--ec-canvas);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--ec-font);
+}
+
+body {
+  color: var(--ec-ink);
+  background: var(--ec-canvas);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid rgba(29, 95, 167, 0.28);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: 0.875rem;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-height: 38px;
+  border: 1px solid var(--ec-line-strong);
+  border-radius: var(--ec-radius-sm);
+  background: var(--ec-surface);
+  color: var(--ec-ink);
+  box-shadow: none;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ec-info);
+  box-shadow: 0 0 0 3px rgba(29, 95, 167, 0.13);
+  outline: 0;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled {
+  cursor: not-allowed;
+}
+
+dialog {
+  border-color: var(--ec-line-strong);
+  border-radius: var(--ec-radius);
+  box-shadow: 0 20px 50px rgba(23, 32, 51, 0.22);
+}
+
+dialog::backdrop {
+  background: rgba(23, 32, 51, 0.46);
+}
+
+table {
+  color: var(--ec-ink);
+}
+
+table th {
+  color: var(--ec-ink-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Login and home use the same restrained product identity as workspaces. */
+.page {
+  background: var(--ec-canvas);
+}
+
+.card,
+.app-shell {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow);
+}
+
+.auth-card {
+  border-top: 4px solid var(--ec-primary);
+}
+
+.brand h1,
+.topbar h1,
+.profile-card h2 {
+  color: var(--ec-ink);
+  letter-spacing: 0;
+}
+
+.primary-button,
+.secondary-button,
+.button-link {
+  min-height: 40px;
+  border-radius: var(--ec-radius-sm);
+  font-weight: 700;
+}
+
+.primary-button {
+  background: var(--ec-primary);
+}
+
+.primary-button:hover:not(:disabled),
+.primary-button:focus-visible {
+  background: var(--ec-primary-strong);
+}
+
+.secondary-button {
+  border: 1px solid var(--ec-line-strong);
+  background: var(--ec-surface);
+  color: var(--ec-ink);
+}
+
+.profile-card,
+.auth-state-panel,
+.password-rules {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-surface-muted);
+}
+
+.module-card {
+  min-height: 152px;
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+  box-shadow: none;
+  text-decoration: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.module-card-active:hover,
+.module-card-active:focus-visible {
+  border-color: var(--ec-primary);
+  box-shadow: var(--ec-shadow);
+  transform: translateY(-1px);
+}
+
+.role-badge {
+  border-radius: 999px;
+  background: var(--ec-info-soft);
+  color: var(--ec-info);
+}
+
+/* Global shell and page frame. */
+body.elis-operational-mode,
+body.elis-operational-tool-page {
+  background: var(--ec-canvas);
+}
+
+.operational-shell {
+  --operational-sidebar-width: 72px;
+  background: var(--ec-canvas);
+}
+
+.operational-shell.sidebar-expanded,
+.operational-shell.sidebar-hover-expanded {
+  --operational-sidebar-width: 256px;
+}
+
+.operational-sidebar {
+  border-right-color: #cfd9e2;
+  background: #fbfcfd;
+  box-shadow: none;
+}
+
+.operational-sidebar-brand {
+  min-height: 68px;
+  border-bottom-color: var(--ec-line);
+}
+
+.operational-brand-copy strong,
+.operational-topbar-title p {
+  color: var(--ec-primary);
+}
+
+.operational-sidebar-toggle,
+.operational-signout {
+  border-color: var(--ec-line-strong);
+  border-radius: var(--ec-radius-sm);
+  background: var(--ec-surface);
+}
+
+.operational-nav {
+  padding: 8px 10px 14px;
+}
+
+.operational-nav-item {
+  min-height: 44px;
+  border-radius: var(--ec-radius-sm);
+  color: var(--ec-ink-muted);
+}
+
+.operational-nav-item:hover,
+.operational-nav-item:focus-visible {
+  background: var(--ec-primary-soft);
+  color: var(--ec-primary-strong);
+}
+
+.operational-nav-item.active {
+  background: var(--ec-primary-soft);
+  color: var(--ec-primary-strong);
+}
+
+.operational-nav-item.active::before {
+  top: 8px;
+  bottom: 8px;
+  background: var(--ec-primary);
+}
+
+.operational-user-mini {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+}
+
+.operational-user-avatar {
+  border-radius: var(--ec-radius-sm);
+  background: var(--ec-primary);
+}
+
+.operational-topbar {
+  min-height: 72px;
+  padding: 12px 28px;
+  border-bottom-color: var(--ec-line);
+}
+
+.operational-content {
+  max-width: 1600px;
+  padding: 28px;
+}
+
+/* Tool pages deliberately use a quiet, dense work surface. */
+body.elis-operational-tool-page .operational-shell {
+  grid-template-columns: var(--operational-sidebar-width) minmax(0, 1fr);
+}
+
+body.elis-operational-tool-page .operational-page-header,
+.customers-header,
+.staff-header,
+.roster-app-header,
+.sorting-topbar,
+.finish-topbar,
+.finish-results-topbar,
+.production-tracker-header,
+.trolleys-header,
+.distribution-header {
+  border-color: var(--ec-line);
+  border-radius: 0;
+  background: var(--ec-surface);
+  box-shadow: none;
+}
+
+body.elis-operational-tool-page .operational-page-header {
+  min-height: 68px;
+  margin: 0;
+  padding: 12px 24px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+body.elis-operational-tool-page .operational-page-header h1,
+.customers-header h1,
+.staff-header h1,
+.roster-app-header h1,
+.sorting-topbar h1,
+.finish-topbar h1,
+.finish-results-topbar h1,
+.production-tracker-header h1,
+.trolleys-header h1,
+.distribution-header h1 {
+  color: var(--ec-ink);
+  letter-spacing: 0;
+}
+
+.customers-main-panel,
+.staff-main-panel,
+.roster-scope,
+.sorting-content,
+.finish-content,
+.finish-results-content,
+.production-tracker-main,
+.trolleys-main-panel,
+.distribution-main {
+  max-width: 1600px;
+}
+
+body.elis-operational-tool-page .customers-main-panel,
+body.elis-operational-tool-page .staff-main-panel,
+body.elis-operational-tool-page .roster-scope,
+body.elis-operational-tool-page .sorting-content,
+body.elis-operational-tool-page .finish-content,
+body.elis-operational-tool-page .finish-results-content,
+body.elis-operational-tool-page .production-tracker-main,
+body.elis-operational-tool-page .trolleys-main-panel,
+body.elis-operational-tool-page .distribution-main {
+  margin-inline: auto;
+}
+
+/* Repeated work patterns: controls, tabs, panels, data grids and dialogs. */
+.customers-header-button,
+.staff-header-button,
+.roster-header-button,
+.sorting-button,
+.finish-button,
+.finish-results-button,
+.production-tracker-button,
+.trolleys-button,
+.distribution-button {
+  min-height: 36px;
+  border-radius: var(--ec-radius-sm);
+  font-weight: 700;
+}
+
+.customers-header-button.primary,
+.staff-header-button.primary,
+.roster-header-button.primary,
+.sorting-button.primary,
+.finish-button.primary,
+.finish-results-button.primary,
+.production-tracker-button.primary,
+.trolleys-button.primary,
+.distribution-button.primary {
+  background: var(--ec-primary);
+  color: #ffffff;
+}
+
+.customers-header-button.primary:hover:not(:disabled),
+.staff-header-button.primary:hover:not(:disabled),
+.roster-header-button.primary:hover:not(:disabled),
+.sorting-button.primary:hover:not(:disabled),
+.finish-button.primary:hover:not(:disabled),
+.finish-results-button.primary:hover:not(:disabled),
+.production-tracker-button.primary:hover:not(:disabled),
+.trolleys-button.primary:hover:not(:disabled),
+.distribution-button.primary:hover:not(:disabled) {
+  background: var(--ec-primary-strong);
+}
+
+.distribution-tabs,
+.customers-tabs,
+.staff-tabs,
+.roster-tabs,
+.sorting-tabs,
+.finish-tabs,
+.finish-results-tabs,
+.production-tracker-tabs,
+.trolleys-tabs {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-surface-muted);
+}
+
+.distribution-tab,
+.customers-tab,
+.staff-tab,
+.roster-tab,
+.sorting-tab,
+.finish-tab,
+.finish-results-tab,
+.production-tracker-tab,
+.trolleys-tab {
+  border-radius: var(--ec-radius-sm);
+}
+
+.distribution-tab.active,
+.customers-tab.active,
+.staff-tab.active,
+.roster-tab.active,
+.sorting-tab.active,
+.finish-tab.active,
+.finish-results-tab.active,
+.production-tracker-tab.active,
+.trolleys-tab.active {
+  background: var(--ec-surface);
+  color: var(--ec-primary-strong);
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.1);
+}
+
+.distribution-route-card,
+.production-tracker-card,
+.trolleys-card,
+.customers-card,
+.staff-card,
+.roster-card,
+.sorting-card,
+.finish-card,
+.finish-results-card {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+  box-shadow: none;
+}
+
+.distribution-table-wrap,
+.distribution-roster-table-wrap,
+.customers-table-wrap,
+.staff-table-wrap,
+.roster-table-wrap,
+.sorting-table-wrap,
+.finish-table-wrap,
+.finish-results-table-wrap,
+.production-tracker-table-wrap,
+.trolleys-table-wrap {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-surface);
+}
+
+.distribution-table th,
+.distribution-roster-table thead th,
+.customers-table th,
+.staff-table th,
+.roster-table th,
+.sorting-table th,
+.finish-table th,
+.finish-results-table th,
+.production-tracker-table th,
+.trolleys-table th {
+  background: var(--ec-surface-muted);
+  color: var(--ec-ink-muted);
+}
+
+.distribution-table tr:hover td,
+.customers-table tr:hover td,
+.staff-table tr:hover td,
+.roster-table tr:hover td,
+.sorting-table tr:hover td,
+.finish-table tr:hover td,
+.finish-results-table tr:hover td,
+.production-tracker-table tr:hover td,
+.trolleys-table tr:hover td {
+  background: #f5fafb;
+}
+
+.distribution-dialog,
+.customers-dialog,
+.staff-dialog,
+.roster-dialog,
+.sorting-dialog,
+.finish-dialog,
+.trolleys-dialog,
+.production-tracker-dialog {
+  border-color: var(--ec-line-strong);
+  border-radius: var(--ec-radius);
+}
+
+/* Standalone roster views are still part of the same product. */
+.gm-page,
+#rvMain {
+  background: var(--ec-canvas);
+}
+
+.gm-header,
+.rv-header {
+  border-color: var(--ec-line);
+  background: var(--ec-surface);
+  box-shadow: none;
+}
+
+/* Finish keeps its existing two-column workflow, but the working area must
+   remain legible rather than inheriting the compact snapshot density. */
+body.elis-operational-tool-page .finish-content {
+  width: 100%;
+  max-width: none;
+  padding: 24px 28px 32px;
+}
+
+body.elis-operational-tool-page .finish-topbar-compact {
+  min-height: 60px;
+  margin-bottom: 14px;
+  padding: 0;
+}
+
+body.elis-operational-tool-page .finish-topbar-compact h1 {
+  font-size: 1.35rem;
+}
+
+body.elis-operational-tool-page .finish-workspace-tabs,
+body.elis-operational-tool-page .finish-shift-tabs,
+body.elis-operational-tool-page .finish-table-focus-tabs,
+body.elis-operational-tool-page .finish-queue-mode-tabs {
+  border: 1px solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-surface-muted);
+}
+
+body.elis-operational-tool-page .finish-workspace-tabs button,
+body.elis-operational-tool-page .finish-shift-tabs button,
+body.elis-operational-tool-page .finish-table-focus-tabs button,
+body.elis-operational-tool-page .finish-queue-mode-tabs button {
+  min-height: 34px;
+  border-radius: var(--ec-radius-sm);
+  font-size: 0.78rem;
+}
+
+body.elis-operational-tool-page .finish-workspace-tabs button.active,
+body.elis-operational-tool-page .finish-shift-tabs button.active,
+body.elis-operational-tool-page .finish-table-focus-tabs button.active,
+body.elis-operational-tool-page .finish-queue-mode-tabs button.active {
+  background: var(--ec-surface);
+  color: var(--ec-primary-strong);
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.1);
+}
+
+body.elis-operational-tool-page .finish-table-focus-compact {
+  margin-bottom: 14px;
+}
+
+body.elis-operational-tool-page .finish-metrics {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+}
+
+body.elis-operational-tool-page .finish-kpi {
+  min-height: 82px;
+  padding: 13px 14px;
+}
+
+body.elis-operational-tool-page .finish-kpi strong {
+  margin-top: 4px;
+  font-size: 1.15rem;
+}
+
+body.elis-operational-tool-page .finish-kpi span,
+body.elis-operational-tool-page .finish-kpi small {
+  font-size: 0.7rem;
+}
+
+body.elis-operational-tool-page .finish-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+  gap: 16px;
+}
+
+body.elis-operational-tool-page .finish-card,
+body.elis-operational-tool-page .finish-queue-card {
+  border-color: var(--ec-line);
+  border-radius: var(--ec-radius);
+}
+
+body.elis-operational-tool-page .finish-card-header,
+body.elis-operational-tool-page .finish-queue-card header {
+  padding: 13px 14px;
+}
+
+body.elis-operational-tool-page .finish-card-header h2,
+body.elis-operational-tool-page .finish-queue-card h2 {
+  font-size: 1rem;
+}
+
+body.elis-operational-tool-page .finish-queue-card {
+  top: 84px;
+  max-height: calc(100vh - 104px);
+}
+
+body.elis-operational-tool-page .finish-queue {
+  padding: 7px;
+  gap: 5px;
+}
+
+body.elis-operational-tool-page .finish-queue-line {
+  min-height: 48px;
+  grid-template-columns: 28px 42px minmax(0, 1fr) 58px auto;
+  gap: 8px;
+  padding: 6px 8px 6px 7px;
+  border-radius: var(--ec-radius-sm);
+}
+
+body.elis-operational-tool-page .finish-queue-copy strong {
+  font-size: 0.8rem;
+}
+
+body.elis-operational-tool-page .finish-queue-copy small,
+body.elis-operational-tool-page .finish-queue-status {
+  font-size: 0.65rem;
+}
+
+body.elis-operational-tool-page .finish-saved-table-head,
+body.elis-operational-tool-page .finish-saved-row {
+  grid-template-columns: 54px minmax(190px, 1.3fr) minmax(200px, 1.4fr) minmax(160px, 1fr) 60px;
+  gap: 10px;
+  padding-inline: 12px;
+}
+
+body.elis-operational-tool-page .finish-saved-row {
+  min-height: 58px;
+  padding-block: 8px;
+}
+
+body.elis-operational-tool-page .finish-saved-customer-cell > strong {
+  font-size: 0.84rem;
+}
+
+/* One shared treatment for the primary workspace submenus. */
+body.elis-operational-tool-page .sorting-workspace-tabs,
+body.elis-operational-tool-page .finish-workspace-tabs,
+body.elis-operational-tool-page .distribution-tabs,
+body.elis-operational-tool-page .trolleys-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 46px;
+  margin: 0 0 16px;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-surface-muted) !important;
+  box-shadow: none !important;
+}
+
+body.elis-operational-tool-page .sorting-workspace-tab,
+body.elis-operational-tool-page .finish-workspace-tabs button,
+body.elis-operational-tool-page .distribution-tab,
+body.elis-operational-tool-page .trolleys-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 0 !important;
+  border-radius: var(--ec-radius-sm);
+  background: transparent !important;
+  color: var(--ec-ink-muted) !important;
+  box-shadow: none !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body.elis-operational-tool-page .sorting-workspace-tab.active,
+body.elis-operational-tool-page .finish-workspace-tabs button.active,
+body.elis-operational-tool-page .distribution-tab.active,
+body.elis-operational-tool-page .trolleys-tab.active {
+  background: var(--ec-primary) !important;
+  color: #ffffff !important;
+}
+
+body.elis-operational-tool-page .sorting-workspace-tab:hover:not(.active),
+body.elis-operational-tool-page .finish-workspace-tabs button:hover:not(.active),
+body.elis-operational-tool-page .distribution-tab:hover:not(.active),
+body.elis-operational-tool-page .trolleys-tab:hover:not(.active) {
+  background: #e8f0f3 !important;
+  color: var(--ec-primary-strong) !important;
+}
+
+/* Finish Results is an inspection workspace: use the available work surface. */
+body.elis-operational-tool-page .finish-results-content {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: 22px 28px 36px;
+}
+
+body.elis-operational-tool-page .finish-results-topbar {
+  min-height: 68px;
+  margin-bottom: 14px;
+  padding: 12px 0;
+  border-width: 0 0 1px;
+}
+
+body.elis-operational-tool-page .finish-results-totals article {
+  min-height: 92px;
+  padding: 15px 16px;
+}
+
+body.elis-operational-tool-page .finish-results-totals strong {
+  font-size: 1.45rem;
+}
+
+body.elis-operational-tool-page .finish-results-section {
+  margin-top: 16px;
+}
+
+body.elis-operational-tool-page .finish-results-section > header {
+  min-height: 62px;
+  padding: 12px 16px;
+}
+
+body.elis-operational-tool-page .finish-results-section > header h2 {
+  font-size: 1rem;
+}
+
+body.elis-operational-tool-page .finish-results-shifts {
+  gap: 12px;
+  padding: 12px;
+}
+
+body.elis-operational-tool-page .finish-results-shift-card {
+  min-height: 122px;
+  padding: 14px;
+}
+
+body.elis-operational-tool-page .finish-results-matrix-row {
+  min-height: 52px;
+  padding: 8px 16px;
+  font-size: 0.78rem;
+}
+
+body.elis-operational-tool-page .finish-results-entry-head,
+body.elis-operational-tool-page .finish-results-entry {
+  grid-template-columns: 68px minmax(240px, 1.35fr) minmax(150px, 0.9fr) minmax(260px, 1.4fr) minmax(240px, 1.2fr) 70px;
+  gap: 14px;
+}
+
+body.elis-operational-tool-page .finish-results-entry-head {
+  padding: 10px 16px;
+}
+
+body.elis-operational-tool-page .finish-results-entry {
+  min-height: 64px;
+  padding: 9px 16px 9px 18px;
+  font-size: 0.78rem;
+}
+
+body.elis-operational-tool-page .finish-results-customer > strong,
+body.elis-operational-tool-page .finish-results-entry > div > strong {
+  font-size: 0.82rem;
+}
+
+/* Registered Finish and Sorting terminals */
+.production-station-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px max(24px, calc((100vw - 1440px) / 2));
+  border-bottom: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.production-station-status-copy { min-width: 0; display: grid; gap: 2px; }
+.production-station-status-copy b { color: #0f172a; font-size: 13px; }
+.production-station-status-copy small { color: #475569; font-size: 12px; }
+.production-station-status .secondary {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.production-station-dialog {
+  width: min(500px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  box-shadow: 0 24px 56px rgb(15 23 42 / 25%);
+  color: #0f172a;
+}
+.production-station-dialog::backdrop { background: rgb(15 23 42 / 52%); }
+.production-station-card { display: grid; gap: 20px; padding: 24px; }
+.production-station-card header { display: flex; gap: 16px; justify-content: space-between; }
+.production-station-card header p { margin: 0 0 4px; color: #0f766e; font-size: 12px; font-weight: 800; letter-spacing: 0; text-transform: uppercase; }
+.production-station-card h2 { margin: 0; font-size: 20px; line-height: 1.2; }
+.production-station-card header span { display: block; max-width: 390px; margin-top: 7px; color: #475569; font-size: 13px; line-height: 1.45; }
+.production-station-close { width: 30px; height: 30px; padding: 0; border: 0; background: transparent; color: #475569; font-size: 24px; line-height: 1; cursor: pointer; }
+.production-station-form-grid { display: grid; gap: 14px; }
+.production-station-form-grid label { display: grid; gap: 6px; color: #334155; font-size: 12px; font-weight: 750; }
+.production-station-form-grid input, .production-station-enroll input, .production-station-enroll select { width: 100%; min-height: 40px; box-sizing: border-box; padding: 8px 10px; border: 1px solid #94a3b8; border-radius: 5px; background: #fff; color: #0f172a; font: inherit; font-size: 14px; }
+.production-station-form-grid input:focus, .production-station-enroll input:focus, .production-station-enroll select:focus { outline: 2px solid #0f9f9a; outline-offset: 1px; border-color: #0f9f9a; }
+.production-station-enroll { display: grid; gap: 14px; padding: 14px; border: 1px solid #bfdbfe; border-radius: 5px; background: #eff6ff; }
+.production-station-enroll label { display: grid; gap: 6px; color: #334155; font-size: 12px; font-weight: 750; }
+.production-station-error { min-height: 18px; margin: -8px 0 0; color: #b91c1c; font-size: 12px; line-height: 1.4; }
+.production-station-error.success { color: #047857; }
+.production-station-card footer { display: flex; justify-content: flex-end; gap: 10px; }
+.production-station-card footer button { min-height: 38px; padding: 8px 12px; border-radius: 5px; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+.production-station-card .secondary { border: 1px solid #94a3b8; background: #fff; color: #0f172a; }
+.production-station-card .primary { border: 1px solid #0f766e; background: #0f8f8b; color: #fff; }
+.production-station-card button:disabled { cursor: wait; opacity: .65; }
+
+/* Staff Master administrative views */
+body.elis-operational-tool-page .staff-workspace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 46px;
+  margin: 0 0 16px;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  background: var(--ec-surface-muted);
+}
+body.elis-operational-tool-page .staff-workspace-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--ec-radius-sm);
+  background: transparent;
+  color: var(--ec-ink-muted);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+body.elis-operational-tool-page .staff-workspace-tab.active { background: var(--ec-primary); color: #fff; }
+body.elis-operational-tool-page .staff-access-table td { vertical-align: top; }
+body.elis-operational-tool-page .staff-access-table .staff-code { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 1000px) {
+  body.elis-operational-tool-page .finish-results-content {
+    padding: 18px 20px 30px;
+  }
+
+  body.elis-operational-tool-page .finish-results-entry {
+    grid-template-columns: 45px 1fr auto;
+    gap: 8px;
+    padding: 8px 12px 8px 14px;
+  }
+}
+
+@media (max-width: 1180px) {
+  body.elis-operational-tool-page .finish-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  body.elis-operational-tool-page .finish-queue-card {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 700px) {
+  body.elis-operational-tool-page .staff-workspace-tabs { margin-bottom: 12px; }
+  .production-station-status { align-items: flex-start; padding: 10px 16px; }
+  .production-station-card { padding: 20px; }
+  .production-station-card footer { align-items: stretch; flex-direction: column-reverse; }
+  .production-station-card footer button { width: 100%; }
+
+  .operational-topbar,
+  body.elis-operational-tool-page .operational-page-header {
+    padding-inline: 16px;
+  }
+
+  .customers-main-panel,
+  .staff-main-panel,
+  .roster-scope,
+  .sorting-content,
+  .finish-content,
+  .finish-results-content,
+  .production-tracker-main,
+  .trolleys-main-panel,
+  .distribution-main {
+    padding-inline: 14px;
+  }
+
+  body.elis-operational-tool-page .finish-content {
+    padding: 16px 14px 24px;
+  }
+
+  body.elis-operational-tool-page .finish-queue-line {
+    grid-template-columns: 25px 36px minmax(0, 1fr) 52px;
+  }
+}

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Finish Results | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/finish-results.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/finish-results.js" defer></script>
+</head>
+<body class="finish-results-page">
+  <div class="finish-results-shell" data-operational-shell-root>
+    <main class="finish-results-content">
+      <header class="finish-results-topbar">
+        <div>
+          <p>Finish Area</p>
+          <h1>Finish Results</h1>
+          <span>Daily production performance by Table and Shift.</span>
+        </div>
+        <div class="finish-results-controls">
+          <button id="finishResultsPrev" class="secondary" type="button" aria-label="Previous day">‹</button>
+          <input id="finishResultsDate" type="date" aria-label="Business date">
+          <button id="finishResultsNext" class="secondary" type="button" aria-label="Next day">›</button>
+          <button id="finishResultsToday" class="secondary" type="button">Today</button>
+          <button id="finishResultsRefresh" class="primary" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <p id="finishResultsMessage" class="finish-results-message" aria-live="polite"></p>
+
+      <section id="finishResultsTotals" class="finish-results-totals"></section>
+
+      <section class="finish-results-section">
+        <header><div><p>Shift summary</p><h2>Morning / Evening</h2></div></header>
+        <div id="finishResultsShifts" class="finish-results-shifts"></div>
+      </section>
+
+      <section class="finish-results-section">
+        <header><div><p>Table performance</p><h2>Table × Shift</h2></div></header>
+        <div id="finishResultsMatrix" class="finish-results-matrix"></div>
+      </section>
+
+      <section class="finish-results-section finish-results-production-section">
+        <header>
+          <div><p>Production detail</p><h2>Customers processed</h2></div>
+          <strong id="finishResultsEntryCount" class="finish-results-count">0</strong>
+        </header>
+        <div id="finishResultsEntries" class="finish-results-entries"></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title>Holiday Review | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/roster-gm-review.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/roster-gm-review.js" defer></script>
+</head>
+<body>
+  <main class="gm-page">
+    <section class="gm-card" aria-labelledby="gmTitle">
+      <header class="gm-header">
+        <img src="../assets/img/elis-logo.svg" alt="Elis">
+        <div><p>ElisCaretex</p><h1 id="gmTitle">Holiday request review</h1><span>General Manager decision</span></div>
+      </header>
+      <div id="gmLoading" class="gm-loading"><span></span><strong>Opening secure review…</strong></div>
+      <div id="gmContent" class="gm-content hidden">
+        <div id="gmState" class="gm-state"></div>
+        <dl class="gm-details">
+          <div><dt>Staff</dt><dd id="gmStaff"></dd></div>
+          <div><dt>Dates</dt><dd id="gmDates"></dd></div>
+          <div><dt>Duration</dt><dd id="gmDuration"></dd></div>
+          <div><dt>Reason</dt><dd id="gmReason"></dd></div>
+        </dl>
+        <label class="gm-note"><span>Decision note (optional)</span><textarea id="gmNote" maxlength="500" placeholder="Optional note for the request history"></textarea></label>
+        <p class="gm-help">Your decision is recorded in the request history. It does not edit an already published Production Roster; the Roster Manager reviews the approved overlay and publishes a new roster version when required.</p>
+        <div id="gmActions" class="gm-actions"><button id="gmReject" class="gm-button reject" type="button">Reject Holiday</button><button id="gmApprove" class="gm-button approve" type="button">Approve Holiday</button></div>
+        <p id="gmMessage" class="gm-message" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

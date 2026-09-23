@@ -1,0 +1,1335 @@
+/* Role-aware application shells.
+   Administrative users keep the management home.
+   Operational users receive a compact, task-focused shell. */
+
+#appView {
+  width: 100%;
+}
+
+body.elis-administrative-mode .page {
+  align-items: center;
+  justify-content: center;
+}
+
+body.elis-operational-mode {
+  background: #eef2f6;
+  overflow-x: hidden;
+}
+
+body.elis-operational-mode .page {
+  display: block;
+  min-height: 100vh;
+  padding: 0;
+}
+
+body.elis-operational-mode #appView {
+  min-height: 100vh;
+}
+
+.operational-shell {
+  --operational-sidebar-width: 64px;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--operational-sidebar-width) minmax(0, 1fr);
+  background: #eef2f6;
+  transition: grid-template-columns 180ms ease;
+}
+
+.operational-shell.sidebar-expanded,
+.operational-shell.sidebar-hover-expanded {
+  --operational-sidebar-width: 236px;
+}
+
+.operational-sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  border-right: 1px solid #d9e2ea;
+  box-shadow: 3px 0 14px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 20;
+}
+
+.operational-sidebar-brand {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.operational-sidebar-logo {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  object-fit: contain;
+}
+
+.operational-brand-copy {
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 120ms ease, transform 160ms ease;
+  white-space: nowrap;
+}
+
+.sidebar-expanded .operational-brand-copy,
+.sidebar-hover-expanded .operational-brand-copy {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.operational-brand-copy strong,
+.operational-brand-copy span {
+  display: block;
+}
+
+.operational-brand-copy strong {
+  color: #0f5663;
+  font-size: 0.92rem;
+}
+
+.operational-brand-copy span {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.operational-sidebar-toggle {
+  width: 34px;
+  height: 34px;
+  margin: 7px auto 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8e1e8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #526271;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.sidebar-expanded .operational-sidebar-toggle,
+.sidebar-hover-expanded .operational-sidebar-toggle {
+  margin-right: 14px;
+}
+
+.operational-sidebar-toggle:hover,
+.operational-sidebar-toggle:focus-visible {
+  color: #087f84;
+  border-color: #8ec9cc;
+  background: #f0fdfa;
+}
+
+.operational-sidebar-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: transform 180ms ease;
+}
+
+.sidebar-expanded .operational-sidebar-toggle svg,
+.sidebar-hover-expanded .operational-sidebar-toggle svg {
+  transform: rotate(180deg);
+}
+
+.operational-nav {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 5px 10px 14px;
+  overflow-y: auto;
+}
+
+.operational-nav-group {
+  display: grid;
+  gap: 4px;
+}
+
+.operational-nav-group + .operational-nav-group {
+  margin-top: 8px;
+}
+
+.operational-nav-group h2 {
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #7b8a9a;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: height 140ms ease, opacity 120ms ease;
+}
+
+.sidebar-expanded .operational-nav-group h2,
+.sidebar-hover-expanded .operational-nav-group h2 {
+  height: auto;
+  margin: 10px 12px 4px;
+  opacity: 1;
+}
+
+.operational-nav-group-items {
+  display: grid;
+  gap: 2px;
+}
+
+.operational-nav-item {
+  min-height: 42px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #526271;
+  text-decoration: none;
+  text-align: left;
+  position: relative;
+  transition: background 130ms ease, color 130ms ease;
+}
+
+.operational-nav-item:hover,
+.operational-nav-item:focus-visible {
+  background: #eaf6f6;
+  color: #087f84;
+  outline: none;
+}
+
+.operational-nav-item.active {
+  background: #e0f2f1;
+  color: #087f84;
+  font-weight: 800;
+}
+
+.operational-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #087f84;
+}
+
+.operational-nav-item.planned {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.operational-nav-item.planned:hover {
+  background: transparent;
+  color: #94a3b8;
+}
+
+.operational-nav-icon {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.operational-nav-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.operational-nav-copy {
+  min-width: 0;
+  flex: 1;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 110ms ease, transform 160ms ease;
+  white-space: nowrap;
+}
+
+.sidebar-expanded .operational-nav-copy,
+.sidebar-hover-expanded .operational-nav-copy {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.operational-nav-copy strong,
+.operational-nav-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.operational-nav-copy strong {
+  font-size: 0.82rem;
+}
+
+.operational-nav-copy small {
+  display: none;
+}
+
+.operational-nav-status {
+  display: none;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: #8492a3;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sidebar-expanded .operational-nav-status,
+.sidebar-hover-expanded .operational-nav-status {
+  display: inline-flex;
+}
+
+.operational-nav-sublist {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 4px;
+  padding: 0 0 0 7px;
+}
+
+.operational-nav-subitem {
+  min-height: 0;
+  display: none;
+  align-items: center;
+  padding: 5px 8px 5px 36px;
+  border-radius: 8px;
+  color: #526271;
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sidebar-expanded .operational-nav-subitem,
+.sidebar-hover-expanded .operational-nav-subitem {
+  display: flex;
+}
+
+.operational-nav-subitem:hover,
+.operational-nav-subitem:focus-visible {
+  background: #eef7f7;
+  color: #087f84;
+  outline: none;
+}
+
+.operational-nav-subitem.active {
+  background: #f0fdfa;
+  color: #0f766e;
+  font-weight: 900;
+}
+
+.operational-sidebar-footer {
+  padding: 9px 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.operational-sign-out {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 7px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.operational-sign-out:hover,
+.operational-sign-out:focus-visible {
+  background: #fef2f2;
+  color: #b91c1c;
+  outline: none;
+}
+
+.operational-sign-out span {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+}
+
+.operational-sign-out svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.operational-sign-out strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  opacity: 0;
+  transition: opacity 110ms ease;
+  white-space: nowrap;
+}
+
+.sidebar-expanded .operational-sign-out strong,
+.sidebar-hover-expanded .operational-sign-out strong {
+  opacity: 1;
+}
+
+.operational-user-mini {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 7px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.operational-user-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #0f7f85;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.operational-user-copy {
+  min-width: 0;
+  flex: 1;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.sidebar-expanded .operational-user-copy,
+.sidebar-hover-expanded .operational-user-copy {
+  opacity: 1;
+}
+
+.operational-user-copy strong,
+.operational-user-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operational-user-copy strong {
+  font-size: 0.76rem;
+  color: #1f2937;
+}
+
+.operational-user-copy span {
+  margin-top: 2px;
+  color: #7b8794;
+  font-size: 0.65rem;
+}
+
+.operational-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.operational-topbar {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #dce3ea;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+.operational-topbar-left,
+.operational-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.operational-topbar-title {
+  min-width: 0;
+}
+
+.operational-topbar-title p,
+.operational-topbar-title h1 {
+  margin: 0;
+}
+
+.operational-topbar-title p {
+  color: #0f7f85;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.operational-topbar-title h1 {
+  margin-top: 3px;
+  color: #18212b;
+  font-size: 1.18rem;
+}
+
+.operational-date-block {
+  text-align: right;
+}
+
+.operational-date-block strong,
+.operational-date-block span {
+  display: block;
+}
+
+.operational-date-block strong {
+  color: #334155;
+  font-size: 0.78rem;
+}
+
+.operational-date-block span {
+  margin-top: 2px;
+  color: #8492a3;
+  font-size: 0.66rem;
+}
+
+.operational-signout {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dce3ea;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.operational-signout:hover,
+.operational-signout:focus-visible {
+  color: #b42318;
+  border-color: #f1b7b3;
+  background: #fff5f4;
+}
+
+.operational-signout svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.operational-content {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.operational-welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.operational-primary-card,
+.operational-context-card,
+.operational-module-card {
+  border: 1px solid #dce3ea;
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.operational-primary-card {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 26px;
+  background: linear-gradient(135deg, #0c7379 0%, #15959a 100%);
+  color: #ffffff;
+  overflow: hidden;
+  position: relative;
+}
+
+.operational-primary-card::after {
+  content: "";
+  position: absolute;
+  right: -70px;
+  bottom: -92px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  border: 40px solid rgba(255, 255, 255, 0.07);
+}
+
+.operational-primary-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.operational-primary-eyebrow {
+  margin: 0;
+  font-size: 0.69rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.operational-primary-card h2 {
+  max-width: 720px;
+  margin: 13px 0 0;
+  font-size: clamp(1.45rem, 3vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.operational-primary-card p {
+  max-width: 690px;
+  margin: 12px 0 0;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.operational-primary-action {
+  width: fit-content;
+  min-height: 42px;
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0a6c72;
+  font-size: 0.83rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 130ms ease, box-shadow 130ms ease;
+}
+
+.operational-primary-action:hover,
+.operational-primary-action:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 9px 20px rgba(3, 58, 63, 0.22);
+  outline: none;
+}
+
+.operational-primary-action svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.operational-context-card {
+  padding: 22px;
+}
+
+.operational-context-card h2,
+.operational-context-card p {
+  margin: 0;
+}
+
+.operational-context-card h2 {
+  font-size: 1rem;
+}
+
+.operational-context-card > p {
+  margin-top: 8px;
+  color: #64748b;
+  line-height: 1.5;
+  font-size: 0.82rem;
+}
+
+.operational-context-list {
+  display: grid;
+  gap: 11px;
+  margin-top: 20px;
+}
+
+.operational-context-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.operational-context-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.operational-context-row span {
+  color: #7b8794;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.operational-context-row strong {
+  color: #263341;
+  font-size: 0.79rem;
+  text-align: right;
+}
+
+.operational-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 12px;
+}
+
+.operational-section-heading h2,
+.operational-section-heading p {
+  margin: 0;
+}
+
+.operational-section-heading h2 {
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.operational-section-heading p {
+  color: #7b8794;
+  font-size: 0.75rem;
+}
+
+.operational-module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.operational-module-card {
+  min-height: 132px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px;
+  color: #263341;
+  text-decoration: none;
+  transition: border-color 130ms ease, transform 130ms ease, box-shadow 130ms ease;
+}
+
+.operational-module-card.available:hover,
+.operational-module-card.available:focus-visible {
+  border-color: #78bec1;
+  transform: translateY(-2px);
+  box-shadow: 0 9px 21px rgba(15, 118, 110, 0.1);
+  outline: none;
+}
+
+.operational-module-card.planned {
+  background: #f8fafc;
+  color: #83909c;
+}
+
+.operational-module-card-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: #e2f3f3;
+  color: #087f84;
+}
+
+.operational-module-card.planned .operational-module-card-icon {
+  background: #edf1f4;
+  color: #94a3b8;
+}
+
+.operational-module-card-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.operational-module-card-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.operational-module-card-copy strong,
+.operational-module-card-copy span,
+.operational-module-card-copy small {
+  display: block;
+}
+
+.operational-module-card-copy strong {
+  font-size: 0.9rem;
+}
+
+.operational-module-card-copy span {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.operational-module-card-copy small {
+  margin-top: 12px;
+  color: #087f84;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.operational-module-card.planned .operational-module-card-copy small {
+  color: #94a3b8;
+}
+
+.operational-message {
+  margin-top: 18px;
+  min-height: 24px;
+}
+
+@media (max-width: 980px) {
+  .operational-welcome {
+    grid-template-columns: 1fr;
+  }
+
+  .operational-module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  body.elis-operational-mode .page {
+    min-width: 320px;
+  }
+
+  .operational-shell,
+  .operational-shell.sidebar-expanded,
+  .operational-shell.sidebar-hover-expanded {
+    display: block;
+  }
+
+  .operational-sidebar {
+    height: auto;
+    position: sticky;
+    top: 0;
+    flex-direction: row;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid #d9e2ea;
+  }
+
+  .operational-sidebar-brand {
+    min-height: 60px;
+    padding: 7px 10px;
+    border-bottom: 0;
+    border-right: 1px solid #e2e8f0;
+  }
+
+  .operational-sidebar-logo {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .operational-brand-copy,
+  .operational-sidebar-toggle,
+  .operational-user-copy,
+  .operational-nav-copy,
+  .operational-nav-status,
+  .operational-sign-out strong {
+    display: none;
+  }
+
+  .operational-nav {
+    min-width: 0;
+    flex-direction: row;
+    padding: 7px;
+    overflow-x: auto;
+  }
+
+  .operational-nav-group {
+    display: contents;
+  }
+
+  .operational-nav-group h2 {
+    display: none;
+  }
+
+  .operational-nav-group-items {
+    display: flex;
+    gap: 4px;
+  }
+
+  .operational-nav-sublist {
+    display: none;
+  }
+
+  .operational-nav-item {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 9px 10px;
+    justify-content: center;
+  }
+
+  .operational-sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 9px 7px 2px;
+    border-top: 0;
+  }
+
+  .operational-user-mini {
+    min-height: 44px;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+  }
+
+  .operational-sign-out {
+    width: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 9px 10px;
+    justify-content: center;
+  }
+
+  .operational-topbar {
+    position: static;
+    min-height: 66px;
+    padding: 10px 14px;
+  }
+
+  .operational-date-block {
+    display: none;
+  }
+
+  .operational-content {
+    padding: 15px;
+  }
+
+  .operational-primary-card,
+  .operational-context-card {
+    padding: 19px;
+  }
+
+  .operational-module-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .operational-shell,
+  .operational-shell.sidebar-expanded,
+  .operational-shell.sidebar-hover-expanded {
+    display: block !important;
+  }
+
+  .operational-sidebar {
+    display: none !important;
+  }
+}
+
+/* Shared operational shell on standalone tools. */
+.operational-tool-page-shell{min-height:100vh}
+.operational-tool-page-shell>.operational-sidebar+*{min-width:0}
+body.elis-operational-tool-page{background:#eef2f6}
+
+/* The shared sidebar owns global navigation and sign-out on operational tools. */
+body.elis-operational-tool-page .customers-header-actions > .customers-header-button,
+body.elis-operational-tool-page .staff-header-actions > .staff-header-button,
+body.elis-operational-tool-page .roster-header-actions,
+body.elis-operational-tool-page .trolleys-header-actions > .trolleys-header-button,
+body.elis-operational-tool-page .production-tracker-header-actions > .production-tracker-button {
+  display:none;
+}
+
+/* Compact header system for operational workspaces. The sidebar carries the
+   product identity, so page headers retain only the current task and controls. */
+body.elis-operational-tool-page .operational-page-header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 8px 14px;
+  border: 1px solid #d9e2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+body.elis-operational-tool-page .operational-page-header h1 {
+  margin: 0;
+  color: #172033;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+body.elis-operational-tool-page .operational-page-header .customers-brand,
+body.elis-operational-tool-page .operational-page-header .staff-brand,
+body.elis-operational-tool-page .operational-page-header .roster-brand,
+body.elis-operational-tool-page .operational-page-header .production-tracker-brand,
+body.elis-operational-tool-page .operational-page-header .trolleys-brand,
+body.elis-operational-tool-page .operational-page-header .finish-title-block {
+  min-width: 0;
+  gap: 0;
+}
+
+body.elis-operational-tool-page .operational-page-header .customers-logo-link,
+body.elis-operational-tool-page .operational-page-header .staff-logo-link,
+body.elis-operational-tool-page .operational-page-header .roster-brand > a,
+body.elis-operational-tool-page .operational-page-header .production-tracker-brand > a,
+body.elis-operational-tool-page .operational-page-header .trolleys-logo-link,
+body.elis-operational-tool-page .operational-page-header .customers-environment,
+body.elis-operational-tool-page .operational-page-header .customers-subtitle,
+body.elis-operational-tool-page .operational-page-header .staff-environment,
+body.elis-operational-tool-page .operational-page-header .staff-brand p:last-child,
+body.elis-operational-tool-page .operational-page-header .roster-brand p,
+body.elis-operational-tool-page .operational-page-header .roster-brand span,
+body.elis-operational-tool-page .operational-page-header .sorting-eyebrow,
+body.elis-operational-tool-page .operational-page-header.sorting-topbar > div > p:last-child,
+body.elis-operational-tool-page .operational-page-header .finish-title-block > p,
+body.elis-operational-tool-page .operational-page-header #finishViewSubtitle,
+body.elis-operational-tool-page .operational-page-header .production-tracker-brand p,
+body.elis-operational-tool-page .operational-page-header .production-tracker-brand span,
+body.elis-operational-tool-page .operational-page-header .trolleys-environment,
+body.elis-operational-tool-page .operational-page-header .trolleys-brand > div > p:last-child,
+body.elis-operational-tool-page .operational-page-header.finish-results-topbar > div > p,
+body.elis-operational-tool-page .operational-page-header.finish-results-topbar > div > span {
+  display: none;
+}
+
+body.elis-operational-tool-page .operational-shell > :not(.operational-sidebar) {
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+
+body.elis-operational-tool-page .operational-shell.operational-page-ready > :not(.operational-sidebar) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.elis-operational-tool-page .operational-shell.operational-page-leaving > :not(.operational-sidebar) {
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+}
+
+body.elis-operational-tool-page .operational-page-header .finish-title-block {
+  display: flex;
+  align-items: center;
+}
+
+body.elis-operational-tool-page .operational-page-header .finish-title-meta > span {
+  padding: 3px 6px;
+  border-color: #d9e2ea;
+  background: #f8fafc;
+  color: #526271 !important;
+  font-size: 0.61rem !important;
+}
+
+body.elis-operational-tool-page .operational-page-header .customers-header-actions,
+body.elis-operational-tool-page .operational-page-header .trolleys-header-actions,
+body.elis-operational-tool-page .operational-page-header .sorting-topbar-actions,
+body.elis-operational-tool-page .operational-page-header .finish-top-actions,
+body.elis-operational-tool-page .operational-page-header .finish-results-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+body.elis-operational-tool-page .operational-page-header .customers-date-field > span,
+body.elis-operational-tool-page .operational-page-header .trolleys-as-of > span {
+  display: none;
+}
+
+body.elis-operational-tool-page .operational-page-header .customers-date-field,
+body.elis-operational-tool-page .operational-page-header .trolleys-as-of {
+  margin: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+}
+
+body.elis-operational-tool-page .operational-page-header .customers-date-wrapper,
+body.elis-operational-tool-page .operational-page-header .customers-date-field input {
+  height: 34px;
+}
+
+body.elis-operational-tool-page .operational-page-header .trolleys-as-of {
+  padding: 0 8px;
+  border: 1px solid #d9e2ea;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #526271;
+  font-size: 0.72rem;
+}
+
+body.elis-operational-tool-page .customers-shell {
+  padding: 8px;
+}
+
+body.elis-operational-tool-page .staff-shell {
+  width: min(100% - 16px, 1480px);
+  padding: 8px 0 24px;
+}
+
+body.elis-operational-tool-page .roster-scope {
+  padding-top: 4px;
+}
+
+body.elis-operational-tool-page .roster-container,
+body.elis-operational-tool-page .production-tracker-main {
+  max-width: none;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+body.elis-operational-tool-page .trolleys-shell > .development-data-banner,
+body.elis-operational-tool-page .production-tracker-main > .development-data-banner,
+body.elis-operational-tool-page .finish-dev-compact,
+body.elis-operational-tool-page .finish-results-dev,
+body.elis-operational-tool-page .sorting-content > .development-data-banner {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 700px) {
+  body.elis-operational-tool-page .operational-page-header {
+    min-height: 50px;
+    padding: 7px 10px;
+    gap: 8px;
+  }
+
+  body.elis-operational-tool-page .operational-page-header h1 {
+    font-size: 1rem;
+  }
+
+  body.elis-operational-tool-page .operational-page-header .finish-title-meta,
+  body.elis-operational-tool-page .operational-page-header .trolleys-as-of {
+    display: none;
+  }
+}
+
+/* Compact production workspace chrome. Keep blocking terminal warnings visible,
+   but avoid spending vertical space on informational status rows. */
+body.elis-operational-tool-page .production-station-status.admin,
+body.elis-operational-tool-page .production-station-status.registered {
+  display: none;
+}
+
+body.elis-operational-tool-page .production-station-status.terminal-required {
+  margin: 0 0 5px;
+  padding: 6px 9px;
+  border-color: #fecaca;
+  border-radius: 7px;
+  background: #fff7f7;
+}
+
+body.elis-operational-tool-page .production-station-status.terminal-required .production-station-status-copy b {
+  font-size: 11px;
+}
+
+body.elis-operational-tool-page .production-station-status.terminal-required .production-station-status-copy small {
+  font-size: 10px;
+}
+
+body.elis-operational-tool-page .operational-page-header {
+  min-height: 42px;
+  margin-bottom: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+}
+
+body.elis-operational-tool-page .operational-page-header h1 {
+  font-size: 1rem;
+}
+
+body.elis-operational-tool-page .operational-page-header .finish-title-meta > span {
+  padding: 2px 6px;
+  font-size: 0.58rem !important;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-content,
+body.elis-operational-tool-page.finish-page .finish-content {
+  padding: 5px 8px 24px;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-sidebar {
+  display: none;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-content {
+  margin-left: 0;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-workspace-tabs,
+body.elis-operational-tool-page.finish-page .finish-workspace-tabs,
+body.elis-operational-tool-page.staff-page .staff-workspace-tabs,
+body.elis-operational-tool-page.trolleys-page .trolleys-tabs,
+body.elis-operational-tool-page.customers-page .customers-main-tabs,
+body.elis-operational-tool-page.distribution-page .distribution-tabs {
+  display: none;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-workspace-tab,
+body.elis-operational-tool-page.finish-page .finish-workspace-tabs button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 0.66rem;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-context-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-context-strip > div {
+  display: inline-flex;
+  min-height: 0;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 1px solid #dbe4ea;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-context-strip span {
+  display: inline;
+  margin: 0;
+  color: #64748b;
+  font-size: 7px;
+  letter-spacing: 0.06em;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-context-strip strong {
+  font-size: 10px;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-message,
+body.elis-operational-tool-page.finish-page .finish-message {
+  min-height: 0;
+  margin: 0 0 4px;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-message:empty,
+body.elis-operational-tool-page.finish-page .finish-message:empty {
+  display: none;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-reception-staffbar {
+  margin-bottom: 6px;
+  padding: 5px 8px;
+  border-width: 1px;
+  border-radius: 8px;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-reception-staff-chip {
+  min-height: 42px;
+  padding: 4px 10px 4px 5px;
+  border-width: 2px;
+}
+
+body.elis-operational-tool-page.sorting-page .sorting-reception-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+
+body.elis-operational-tool-page.finish-page .finish-topbar,
+body.elis-operational-tool-page.finish-page .finish-topbar-compact {
+  margin-bottom: 4px;
+  padding: 0;
+}
+
+body.elis-operational-tool-page.finish-page .finish-table-focus,
+body.elis-operational-tool-page.finish-page .finish-table-focus-compact {
+  margin-bottom: 6px;
+}
+
+body.elis-operational-tool-page.production-tracker-page .production-tracker-view-switch,
+body.elis-operational-tool-page.sorting-page .production-tracker-view-switch {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  body.elis-operational-tool-page.sorting-page .sorting-content,
+  body.elis-operational-tool-page.finish-page .finish-content {
+    padding: 6px 7px 20px;
+  }
+
+  body.elis-operational-tool-page.sorting-page .sorting-context-strip {
+    gap: 3px;
+  }
+
+  body.elis-operational-tool-page.sorting-page .sorting-context-strip > div {
+    padding: 3px 6px;
+  }
+
+  body.elis-operational-tool-page.sorting-page .sorting-workspace-tabs,
+  body.elis-operational-tool-page.finish-page .finish-workspace-tabs,
+  body.elis-operational-tool-page.staff-page .staff-workspace-tabs,
+  body.elis-operational-tool-page.trolleys-page .trolleys-tabs,
+  body.elis-operational-tool-page.customers-page .customers-main-tabs,
+  body.elis-operational-tool-page.distribution-page .distribution-tabs,
+  body.elis-operational-tool-page.production-tracker-page .production-tracker-view-switch,
+  body.elis-operational-tool-page.sorting-page .production-tracker-view-switch {
+    display: flex;
+  }
+}

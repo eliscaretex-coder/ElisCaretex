@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Production Tracker | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/production-tracker.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js" defer></script>
+  <script src="../assets/js/production-tracker.js" defer></script>
+</head>
+<body class="production-tracker-page">
+  <div class="operational-tool-page-shell" data-operational-shell-root>
+    <div class="production-tracker-shell">
+    <header class="production-tracker-header">
+      <div class="production-tracker-brand">
+        <a href="../index.html" aria-label="Return to Home"><img src="../assets/img/elis-logo.svg" alt="Elis"></a>
+        <div>
+          <p>ElisCaretex-dev · Shared operational view</p>
+          <h1>Production Tracker</h1>
+          <span>One production truth across Sorting, Finish, MOP and authorized operational areas.</span>
+        </div>
+      </div>
+      <div class="production-tracker-header-actions">
+        <a href="../index.html" class="production-tracker-button secondary">Home</a>
+        <button id="productionTrackerSignOut" class="production-tracker-button secondary" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main class="production-tracker-main">
+      <p id="productionTrackerMessage" class="production-tracker-message" aria-live="polite"></p>
+
+      <section class="production-tracker-daybar">
+        <div id="productionTrackerDayCards" class="production-tracker-daycards"></div>
+        <div class="production-tracker-day-actions">
+          <button id="productionTrackerHistoryButton" class="production-tracker-button secondary" type="button">History</button>
+          <button id="productionTrackerRefreshButton" class="production-tracker-button primary" type="button">Refresh</button>
+          <small id="productionTrackerUpdated">—</small>
+        </div>
+      </section>
+
+      <div id="productionTrackerHistoryBanner" class="production-tracker-history-banner" hidden>
+        <span>Viewing history</span><strong id="productionTrackerHistoryDate">—</strong>
+        <button id="productionTrackerHistoryExit" type="button">Back to today</button>
+      </div>
+
+      <section class="production-tracker-kpis" aria-label="Daily production summary">
+        <article><strong id="productionTrackerKpiScheduled">—</strong><span>Scheduled</span></article>
+        <article class="miss"><strong id="productionTrackerKpiNotStarted">—</strong><span>Not started</span></article>
+        <article class="wash"><strong id="productionTrackerKpiWashed">—</strong><span>Washed</span></article>
+        <article class="abs"><strong id="productionTrackerKpiAbs">—</strong><span>ABS pending</span></article>
+        <article class="done"><strong id="productionTrackerKpiDone">—</strong><span>Tracker OK</span></article>
+        <article class="kg"><strong id="productionTrackerKpiKg">—</strong><span>Washed KG</span></article>
+      </section>
+
+      <section class="production-tracker-card">
+        <header class="production-tracker-toolbar">
+          <div>
+            <p>Production Flow</p>
+            <h2>Daily production by Route</h2>
+            <span>Routes are consolidated into visual blocks. Compare washed estimate vs processed actual, Route readiness and physical trolley load, floor space and known route weight.</span>
+          </div>
+          <div class="production-tracker-filters">
+            <input id="productionTrackerSearch" type="search" placeholder="Search customer, trolley, washer, ABS…" autocomplete="off">
+            <select id="productionTrackerStatusFilter">
+              <option value="">All statuses</option>
+              <option value="NOT_STARTED">Not started</option>
+              <option value="WASHED_ONLY">Washed</option>
+              <option value="ABS_PENDING">ABS pending</option>
+              <option value="TRACKER_OK">Tracker OK</option>
+              <option value="IN_PROGRESS">In progress</option>
+            </select>
+            <select id="productionTrackerTypeFilter">
+              <option value="">CLOTHES + MOP</option>
+              <option value="CLOTHES">CLOTHES only</option>
+              <option value="MOP">MOP only</option>
+            </select>
+            <div class="production-tracker-view-switch" role="group" aria-label="Tracker view">
+              <button id="productionTrackerBoardView" class="active" type="button" aria-pressed="true">Route board</button>
+              <button id="productionTrackerListView" type="button" aria-pressed="false">Operational list</button>
+            </div>
+            <div class="production-tracker-route-actions"><button id="productionTrackerExpandAll" type="button">Expand all</button><button id="productionTrackerCollapseAll" type="button">Collapse all</button></div>
+            <span id="productionTrackerRowCount">0 customers</span>
+          </div>
+        </header>
+        <div id="productionTrackerTableWrap" class="production-tracker-table-wrap">
+          <div class="production-tracker-empty">Loading Production Tracker…</div>
+        </div>
+      </section>
+    </main>
+    </div>
+  </div>
+
+  <dialog id="productionTrackerHistoryDialog" class="production-tracker-dialog">
+    <form method="dialog" onsubmit="return false;">
+      <header><div><p>Tracker history</p><h2>Choose a production date</h2><span>Sunday is not a production day.</span></div><button id="productionTrackerHistoryClose" type="button" aria-label="Close">×</button></header>
+      <label>Date<input id="productionTrackerHistoryInput" type="date"></label>
+      <p id="productionTrackerHistoryMessage"></p>
+      <footer><button id="productionTrackerHistoryCancel" class="production-tracker-button secondary" type="button">Cancel</button><button id="productionTrackerHistoryLoad" class="production-tracker-button primary" type="button">Load history</button></footer>
+    </form>
+  </dialog>
+</body>
+</html>

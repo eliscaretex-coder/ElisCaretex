@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en-IE">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Roster — Logistics</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b1120;--card:#1a2740;--cb:#263352;
+  --today-bg:#0f2050;--today-bd:#2563eb;
+  --text:#f0f4ff;--txt2:#8ba0c0;--txt3:#4d6280;
+  --blue:#3b82f6;--sheet:#1e2d45;--div:#263352;
+}
+html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ── Header ── */
+.hdr{background:#111c33;border-bottom:1px solid var(--cb);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.logo{width:32px;height:32px;background:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:4px}
+.logo img{width:24px;height:24px;object-fit:contain}
+.hdr-title{font-size:14px;font-weight:800}
+.hdr-sub{font-size:11px;color:var(--txt2);margin-top:1px}
+.live{display:flex;align-items:center;gap:5px;background:#052e16;color:#4ade80;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid #14532d}
+.dot{width:6px;height:6px;background:#4ade80;border-radius:50%;animation:pulse 1.5s ease infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ══════════════════════════════════
+   LIST VIEW
+   ══════════════════════════════════ */
+#list-view{min-height:calc(100vh - 60px)}
+
+/* Banner */
+.banner{padding:14px 16px 12px}
+.banner h2{font-size:16px;font-weight:800;color:#fff}
+.banner-sub{font-size:12px;color:#90caf9;margin-top:3px}
+
+/* Legend */
+.legend{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:#111c33;border-bottom:1px solid var(--cb)}
+.leg{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--txt2)}
+.lc{height:19px;padding:0 7px;border-radius:4px;font-size:10px;font-weight:700;display:inline-flex;align-items:center}
+
+/* Driver rows — compact list */
+.driver-list{padding:10px 12px;display:flex;flex-direction:column;gap:6px;padding-bottom:32px}
+.driver-row{background:var(--card);border:1px solid var(--cb);border-radius:12px;overflow:hidden;display:flex;align-items:stretch;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,transform .1s}
+.driver-row:active{transform:scale(.99);border-color:var(--blue)}
+
+/* Left: name + days */
+.dr-left{padding:12px 14px;display:flex;flex-direction:column;justify-content:center;min-width:110px;border-right:1px solid var(--cb)}
+.dr-num{font-size:10px;color:var(--txt3);font-weight:700;margin-bottom:2px}
+.dr-name{font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.2}
+.dr-days{display:flex;align-items:center;gap:3px;margin-top:5px;font-size:11px;color:#4ade80;font-weight:700}
+.dr-days svg{width:11px;height:11px;stroke:#4ade80;fill:none;stroke-width:2.5}
+
+/* Right: mini week grid */
+.dr-grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);align-items:center;padding:8px 6px;gap:3px}
+.dr-cell{display:flex;flex-direction:column;align-items:center;gap:2px}
+.dr-cell-lbl{font-size:7.5px;font-weight:700;text-transform:uppercase;color:var(--txt3);letter-spacing:.2px}
+.dr-badge{width:100%;height:20px;border-radius:4px;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+.dr-badge.today-col{outline:2px solid var(--blue)}
+.dr-b-empty{color:var(--txt3)}
+.dr-b-off{background:#1e293b;color:#64748b;border:1px solid #334155}
+.dr-b-hols{background:#4a1942;color:#f9a8d4}
+.dr-b-train{background:#1e3a5f;color:#93c5fd}
+.dr-b-absent{background:#431407;color:#fdba74}
+.dr-b-sick{background:#450a0a;color:#fecaca;border:1px solid #991b1b}
+
+/* Chevron */
+.dr-chevron{display:flex;align-items:center;padding:0 10px;color:var(--txt3)}
+.dr-chevron svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* Preview divider */
+.preview-div{display:flex;align-items:center;gap:8px;padding:4px 12px 8px}
+.preview-div span{font-size:11px;font-weight:700;color:#34d399;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.preview-div div{flex:1;height:1px;background:var(--div)}
+
+/* ══════════════════════════════════
+   FOCUS VIEW (single driver)
+   ══════════════════════════════════ */
+#focus-view{
+  position:fixed;inset:0;z-index:200;
+  background:var(--bg);
+  transform:translateX(100%);
+  transition:transform .28s cubic-bezier(.32,1,.23,1);
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+#focus-view.open{transform:translateX(0)}
+
+/* Focus header */
+.focus-hdr{
+  background:#111c33;
+  border-bottom:1px solid var(--cb);
+  padding:12px 16px;
+  display:flex;align-items:center;gap:12px;
+  position:sticky;top:0;z-index:10;
+}
+.back-btn{
+  background:#1e2d45;border:none;color:var(--txt2);
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;
+}
+.back-btn:active{background:#263352}
+.back-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5}
+.focus-hdr-info{flex:1;min-width:0}
+.focus-hdr-name{font-size:17px;font-weight:900;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.focus-hdr-week{font-size:11px;color:var(--txt2);margin-top:2px}
+
+/* Today hero section */
+.today-hero{
+  margin:14px 14px 0;
+  border-radius:14px;
+  background:var(--today-bg);
+  border:2px solid var(--today-bd);
+  overflow:hidden;
+}
+.today-hero-lbl{padding:8px 14px 0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#60a5fa}
+.today-route-wrap{padding:10px 14px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.today-route-badge{display:inline-flex;align-items:center;height:40px;padding:0 18px;border-radius:10px;font-size:17px;font-weight:900;letter-spacing:-.4px;cursor:pointer;-webkit-tap-highlight-color:transparent;border:none;transition:opacity .1s}
+.today-route-badge:active{opacity:.75}
+.today-status-badge{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:9px;font-size:15px;font-weight:700}
+.today-empty{font-size:13px;color:var(--txt3);font-style:italic;padding:8px 14px 12px}
+.today-veh{font-size:12px;color:#94a3b8;font-weight:600;margin-top:4px}.turn2{display:inline-flex;align-items:center;justify-content:center;margin-left:4px;padding:1px 5px;border-radius:999px;background:#1e3a8a;color:#bfdbfe;border:1px solid #3b82f6;font-size:9px;font-weight:900;line-height:1.2}
+.today-tap{font-size:11px;color:#60a5fa;font-weight:600;display:flex;align-items:center;gap:3px;flex-shrink:0}
+.today-tap svg{width:14px;height:14px;stroke:#60a5fa;fill:none;stroke-width:2}
+.today-tap.dim{color:var(--txt3)}
+
+/* Days stats bar */
+.stats-bar{display:flex;gap:10px;padding:12px 14px 0}
+.stat-chip{flex:1;background:var(--card);border:1px solid var(--cb);border-radius:10px;padding:10px 12px;text-align:center}
+.stat-chip .n{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1}
+.stat-chip .l{font-size:10px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+
+/* Full week grid in focus view */
+.focus-week{padding:14px}
+.focus-week-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);margin-bottom:10px}
+.focus-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.focus-day{display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+.focus-day.tod .fd-name{color:#60a5fa}
+.fd-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--txt3)}
+.fd-date{font-size:8px;color:var(--txt3);opacity:.8}
+.fd-badge{
+  width:100%;border-radius:7px;font-size:11px;font-weight:800;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 3px;min-height:48px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:opacity .1s,transform .1s;
+  border:none;
+  line-height:1.2;
+}
+.fd-badge:active{opacity:.7;transform:scale(.97)}
+.fd-badge.noop{cursor:default}
+.fd-b-empty{background:rgba(255,255,255,.03);color:var(--txt3);border:1px dashed var(--cb)}
+.fd-b-off{background:#1e293b;color:#64748b;border:1px solid #334155}
+.fd-b-hols{background:#4a1942;color:#f9a8d4}
+.fd-b-train{background:#1e3a5f;color:#93c5fd}
+.fd-b-absent{background:#431407;color:#fdba74}
+.fd-b-sick{background:#450a0a;color:#fecaca;border:1px solid #991b1b}
+.fd-veh{font-size:7.5px;font-weight:700;opacity:.8;margin-top:2px;max-width:100%;text-align:center;word-break:break-all;line-height:1.2}
+.fd-sdot{position:absolute;bottom:4px;right:4px;width:5px;height:5px;background:var(--blue);border-radius:50%}
+.fd-today-ring{position:absolute;inset:-2px;border-radius:9px;border:2px solid var(--blue);pointer-events:none}
+
+/* Loading / Error */
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:65vh;gap:14px;color:var(--txt2);text-align:center;padding:24px}
+.sp{width:26px;height:26px;border:2.5px solid var(--cb);border-top-color:var(--blue);border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.footer{text-align:center;padding:12px;font-size:11px;color:var(--txt3);border-top:1px solid var(--cb)}
+
+/* ══════════════════════════════════
+   BOTTOM SHEET (stops)
+   ══════════════════════════════════ */
+.sbg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:none;opacity:0;transition:opacity .25s}
+.sbg.open{display:block;opacity:1}
+.sht{position:fixed;bottom:0;left:0;right:0;z-index:301;background:var(--sheet);border-radius:18px 18px 0 0;max-height:88vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,1,.23,1);padding-bottom:env(safe-area-inset-bottom,0)}
+.sht.open{transform:translateY(0)}
+.sht-grab{width:36px;height:4px;background:#3d5475;border-radius:2px;margin:10px auto 0;flex-shrink:0}
+.sht-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--div);flex-shrink:0}
+.sht-title{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.sht-sub{font-size:12px;color:var(--txt2);margin-top:2px}
+.sht-close{background:#1e3a5f;border:none;color:#60a5fa;width:32px;height:32px;border-radius:999px;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.sht-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.stop{padding:14px 18px;border-bottom:1px solid var(--div)}
+.stop.collection-stop{background:linear-gradient(90deg,rgba(124,45,18,.32),rgba(26,39,64,0) 78%);border-left:3px solid #f97316}
+.stop.external-delivery-stop{background:linear-gradient(90deg,rgba(91,33,182,.34),rgba(26,39,64,0) 78%);border-left:3px solid #8b5cf6}
+.stop:last-child{border-bottom:none}
+.stop-row{display:flex;gap:12px;margin-bottom:8px}
+.stop-n{width:28px;height:28px;background:#1e3a5f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#60a5fa;flex-shrink:0}
+.stop-main{flex:1;min-width:0}
+.stop-time{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:3px}
+.stop-name{font-size:16px;font-weight:800;letter-spacing:-.3px;line-height:1.2}
+.collection-badge{display:inline-flex;align-items:center;gap:4px;margin:0 0 5px;padding:3px 8px;border-radius:999px;background:#7c2d12;color:#fed7aa;border:1px solid #ea580c;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase}
+.external-delivery-badge{display:inline-flex;align-items:center;gap:4px;margin:0 0 5px;padding:3px 8px;border-radius:999px;background:#4c1d95;color:#ddd6fe;border:1px solid #8b5cf6;font-size:9.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase}
+.stop-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--txt2);background:#0f1e35;padding:4px 9px;border-radius:6px}
+.chip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
+.trolleys{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.tr-c{background:#1a3a1a;color:#86efac;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px}
+.tr-m{background:#1a2a3a;color:#93c5fd;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px}
+.stop-note{margin-top:7px;font-size:12px;color:var(--txt2);line-height:1.4;background:#0f1e35;padding:6px 10px;border-radius:6px;border-left:2px solid #334155}
+.no-stops{padding:32px 18px;text-align:center;color:var(--txt2)}
+.no-stops .icon{font-size:32px;margin-bottom:10px}
+.no-stops h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px}
+.no-stops p{font-size:12px;line-height:1.6}
+
+/* Simple driver leave request */
+.lf-row{display:flex;gap:8px}.lf-field{display:flex;flex-direction:column;gap:4px;flex:1}.lf-field label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--txt2)}.lf-field input,.lf-field select,.lf-field textarea{width:100%;background:#0b1120;color:var(--text);border:1px solid var(--cb);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13px}.lf-submit{background:#2563eb;color:#fff;border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:900}.lf-submit:disabled{opacity:.55}.lf-msg{font-size:12px;line-height:1.45;padding:8px 10px;border-radius:8px;display:none}.lf-msg.ok{display:block;background:#052e16;color:#86efac;border:1px solid #14532d}.lf-msg.warn{display:block;background:#431407;color:#fdba74;border:1px solid #9a3412}.lf-msg.err{display:block;background:#450a0a;color:#fca5a5;border:1px solid #991b1b}@media(max-width:520px){.lf-row{flex-direction:column}}
+/* Success screen after submit */
+.lf-done{display:none;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:22px 14px}.lf-done.show{display:flex}.lf-done-ic{width:54px;height:54px;border-radius:50%;background:#052e16;border:1px solid #14532d;color:#34d399;display:flex;align-items:center;justify-content:center;font-size:28px}.lf-done h3{font-size:15px;font-weight:900;color:#fff}.lf-done p{font-size:12.5px;color:var(--txt2);line-height:1.5;max-width:260px}.lf-done .lf-again{margin-top:6px;background:#1f2d4a;color:#cbd5e1;border:1px solid var(--cb);border-radius:9px;padding:9px 16px;font-size:12.5px;font-weight:800}
+/* My days — monthly calendar */
+.mycal{margin-top:4px;border-top:1px solid var(--cb);padding-top:12px}.mycal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.mycal-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:var(--txt2)}.mycal-nav{display:flex;align-items:center;gap:8px}.mycal-nav button{width:28px;height:28px;border-radius:7px;border:1px solid var(--cb);background:#0b1120;color:#cbd5e1;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center}.mycal-month{font-size:12.5px;font-weight:800;color:#fff;min-width:118px;text-align:center}.mycal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}.mycal-dow{font-size:9px;font-weight:800;color:var(--txt3);text-align:center;padding:2px 0;text-transform:uppercase}.mycal-cell{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;background:#0b1120;border:1px solid #1b2942;color:#7b8db0;position:relative}.mycal-cell.blank{background:transparent;border:none}.mycal-cell.today{outline:2px solid var(--blue);outline-offset:-2px;color:#fff}.mycal-cell.holiday{background:#3b1029;border-color:#9d174d;color:#fbcfe8}.mycal-cell.dayoff{background:#13233f;border-color:#475569;color:#cbd5e1}.mycal-cell.pending{background:#3a2206;border-color:#9a3412;color:#fdba74}.mycal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;justify-content:center}.mycal-legend span{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--txt2)}.mycal-legend i{width:11px;height:11px;border-radius:3px;display:inline-block}.myreq{margin-top:12px;display:flex;flex-direction:column;gap:6px}.myreq-item{background:#0b1120;border:1px solid #1b2942;border-radius:9px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}.myreq-dates{font-size:12px;font-weight:700;color:#e2e8f0}.myreq-sub{font-size:10.5px;color:var(--txt3);margin-top:2px}.myreq-status{font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px;white-space:nowrap}.st-pending{background:#3a2206;color:#fdba74;border:1px solid #9a3412}.st-approved{background:#052e16;color:#86efac;border:1px solid #14532d}.st-rejected{background:#450a0a;color:#fca5a5;border:1px solid #991b1b}.myreq-empty{font-size:11.5px;color:var(--txt3);text-align:center;padding:10px}
+
+
+/* Holiday button in header */
+.hol-btn{display:inline-flex;align-items:center;gap:5px;background:#0f2050;color:#93c5fd;border:1px solid #1e3a8a;border-radius:999px;font-size:11px;font-weight:800;padding:5px 11px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .2s,background .2s}
+.hol-btn:hover:not(:disabled){background:#16306e}
+.hol-btn:disabled{opacity:.5;cursor:default}
+.hol-btn .hol-spin{width:11px;height:11px;border:2px solid rgba(147,197,253,.4);border-top-color:#93c5fd;border-radius:50%;animation:holspin .7s linear infinite;display:none}
+.hol-btn.loading .hol-spin{display:inline-block}
+.hol-btn.loading .hol-label{opacity:.7}
+@keyframes holspin{to{transform:rotate(360deg)}}
+
+/* Leave panel overlay */
+.lp-bg{position:fixed;inset:0;background:rgba(2,6,18,.72);opacity:0;visibility:hidden;transition:opacity .2s;z-index:90}
+.lp-bg.open{opacity:1;visibility:visible}
+.lp{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);width:calc(100% - 24px);max-width:460px;max-height:86vh;overflow:hidden;background:var(--card);border:1px solid var(--cb);border-radius:18px;z-index:100;display:flex;flex-direction:column;opacity:0;visibility:hidden;transition:opacity .2s,transform .2s}
+.lp.open{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+.lp-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--cb)}
+.lp-title{font-size:15px;font-weight:900;color:#fff}
+.lp-close{background:#1f2d4a;color:#cbd5e1;border:none;width:30px;height:30px;border-radius:8px;font-size:14px;cursor:pointer}
+.lp-tabs{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--cb)}
+.lp-tab{flex:1;background:#0b1120;color:var(--txt2);border:1px solid var(--cb);border-radius:9px;padding:9px;font-size:12px;font-weight:800;cursor:pointer}
+.lp-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.lp-body{padding:14px 16px;overflow-y:auto}
+.teamcal-day{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.tcd-empty{font-size:11.5px;color:var(--txt3);text-align:center;padding:10px}
+.tcd-item{background:#0b1120;border:1px solid #1b2942;border-radius:9px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tcd-name{font-size:12.5px;font-weight:700;color:#e2e8f0}
+.tcd-type{font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.tcd-type.holiday{background:#3b1029;color:#fbcfe8;border:1px solid #9d174d}
+.tcd-type.dayoff{background:#13233f;color:#cbd5e1;border:1px solid #475569}
+.mycal-cell.clickable{cursor:pointer}
+.mycal-cell.has{font-weight:900}
+.mycal-cell.sel{outline:2px solid #93c5fd;outline-offset:-2px}
+
+.lf-spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:holspin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+</style>
+</head>
+<body>
+
+<!-- ══ LIST VIEW ══ -->
+<div id="list-view">
+  <header class="hdr">
+    <div class="hdr-l">
+      <div class="logo"><img src="https://ie.elis.com/themes/custom/elis/img/logo.svg" alt="Elis"></div>
+      <div>
+        <div class="hdr-title">Logistics — Roster</div>
+        <div class="hdr-sub" id="last-updated">Loading...</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button id="next-week-btn" onclick="showNextWeek()" style="display:none;background:#052e16;color:#34d399;border:1px solid #14532d;border-radius:999px;font-size:11px;font-weight:700;padding:4px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+        📅 Next Week
+      </button>
+      <button id="holiday-btn" class="hol-btn" onclick="openLeavePanel()" disabled title="Loading…">
+        <span class="hol-spin"></span><span class="hol-label">📅 Holiday</span>
+      </button>
+      <div class="live"><div class="dot"></div>Live</div>
+    </div>
+  </header>
+  <div id="list-content">
+    <div class="center"><div class="sp"></div><span>Loading roster...</span></div>
+  </div>
+  <footer class="footer">Tap your name to see your full schedule · Refreshes every 5 min</footer>
+</div>
+
+<!-- ══ FOCUS VIEW (single driver) ══ -->
+<div id="focus-view">
+  <div class="focus-hdr">
+    <button class="back-btn" onclick="closeFocus()">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="focus-hdr-info">
+      <div class="focus-hdr-name" id="focus-name">Driver</div>
+      <div class="focus-hdr-week" id="focus-week"></div>
+    </div>
+    <div class="live" style="font-size:10px;padding:3px 8px"><div class="dot"></div>Live</div>
+  </div>
+  <div id="focus-content"></div>
+</div>
+
+<!-- ══ BOTTOM SHEET (stops) ══ -->
+<div class="sbg" id="sbg" onclick="closeSheet()"></div>
+<div class="sht" id="sht">
+  <div class="sht-grab"></div>
+  <div class="sht-hdr">
+    <div>
+      <div class="sht-title" id="sht-title"></div>
+      <div class="sht-sub"   id="sht-sub"></div>
+    </div>
+    <button class="sht-close" onclick="closeSheet()">&#x2715;</button>
+  </div>
+  <div class="sht-body" id="sht-body"></div>
+</div>
+
+<!-- ══ LEAVE PANEL (full overlay) ══ -->
+<div class="lp-bg" id="lp-bg" onclick="closeLeavePanel()"></div>
+<div class="lp" id="lp">
+  <div class="lp-hdr">
+    <div class="lp-title">📅 Holidays &amp; days off</div>
+    <button class="lp-close" onclick="closeLeavePanel()">&#x2715;</button>
+  </div>
+  <div class="lp-tabs">
+    <button class="lp-tab active" id="lp-tab-cal" onclick="lpTab('cal')">Team calendar</button>
+    <button class="lp-tab" id="lp-tab-req" onclick="lpTab('req')">Request time off</button>
+  </div>
+
+  <!-- TAB: team calendar -->
+  <div class="lp-body" id="lp-pane-cal">
+    <div class="mycal-head">
+      <div class="mycal-title">Approved days — everyone</div>
+      <div class="mycal-nav">
+        <button onclick="teamCalShift(-1)" aria-label="Previous month">‹</button>
+        <div class="mycal-month" id="teamcal-month">—</div>
+        <button onclick="teamCalShift(1)" aria-label="Next month">›</button>
+      </div>
+    </div>
+    <div class="mycal-grid" id="teamcal-grid"></div>
+    <div class="mycal-legend">
+      <span><i style="background:#3b1029;border:1px solid #9d174d"></i>Holiday</span>
+      <span><i style="background:#13233f;border:1px solid #475569"></i>Day off</span>
+    </div>
+    <div class="teamcal-day" id="teamcal-day"></div>
+  </div>
+
+  <!-- TAB: request -->
+  <div class="lp-body" id="lp-pane-req" style="display:none">
+    <div id="lf-fields">
+      <div class="lf-field"><label>Your name</label><select id="lr-driver" onchange="onLeaveDriverChange()"><option value="">Select your name</option></select></div>
+      <div class="lf-row">
+        <div class="lf-field"><label>Type</label><select id="lr-type" onchange="checkLeaveRequest()"><option>Holiday</option><option>Day Off</option><option>Other</option></select></div>
+        <div class="lf-field"><label>Start</label><input type="date" id="lr-start" onchange="syncLeaveEnd();checkLeaveRequest()"></div>
+        <div class="lf-field"><label>End</label><input type="date" id="lr-end" onchange="checkLeaveRequest()"></div>
+      </div>
+      <div class="lf-field"><label>Note (optional)</label><textarea id="lr-notes" rows="2" placeholder="Optional short note"></textarea></div>
+      <div id="lr-msg" class="lf-msg"></div>
+      <button class="lf-submit" id="lr-submit" onclick="submitLeaveRequest()" disabled>Send request for approval</button>
+
+      <div class="mycal" id="mycal-wrap" style="display:none">
+        <div class="mycal-head">
+          <div class="mycal-title">My booked days</div>
+          <div class="mycal-nav">
+            <button onclick="myCalShift(-1)" aria-label="Previous month">‹</button>
+            <div class="mycal-month" id="mycal-month">—</div>
+            <button onclick="myCalShift(1)" aria-label="Next month">›</button>
+          </div>
+        </div>
+        <div class="mycal-grid" id="mycal-grid"></div>
+        <div class="mycal-legend">
+          <span><i style="background:#3b1029;border:1px solid #9d174d"></i>Holiday</span>
+          <span><i style="background:#13233f;border:1px solid #475569"></i>Day off</span>
+          <span><i style="background:#3a2206;border:1px solid #9a3412"></i>Pending</span>
+        </div>
+        <div class="myreq" id="mycal-list"></div>
+      </div>
+    </div>
+
+    <div class="lf-done" id="lf-done">
+      <div class="lf-done-ic">✓</div>
+      <h3>Request sent</h3>
+      <p id="lf-done-text">Your supervisor will review it before it is added to the calendar.</p>
+      <button class="lf-again" onclick="resetLeaveForm()">Make another request</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var DAYS     = ['mon','tue','wed','thu','fri','sat','sun'];
+var DAY_S    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+var DAY_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+var STATUS   = ['Off','Hols','Training','Absent','Sick'];
+var APP      = null;
+
+/* ── Helpers ── */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function tc(hex) {
+  try {
+    var h=String(hex||'').replace('#','');
+    var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+    return (0.299*r+0.587*g+0.114*b)/255>0.55?'#000':'#fff';
+  } catch(e){ return '#fff'; }
+}
+
+function fmtFull(ds){ var p=String(ds||'').split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function fmtS(ds)   { var p=String(ds||'').split('-'); return p[2]+'/'+p[1]; }
+
+function getWeekDates(ws) {
+  var d = new Date(ws+'T12:00:00Z'), out = [];
+  for (var i=0;i<7;i++) { var x=new Date(d); x.setUTCDate(d.getUTCDate()+i); out.push(x.toISOString().slice(0,10)); }
+  return out;
+}
+
+function todayIdx() { var d=new Date().getUTCDay(); return d===0?6:d-1; }
+
+function parseCell(val) {
+  if (!val || STATUS.indexOf(val)!==-1) return {route:val||'',vehicle:''};
+  var i=val.indexOf('|');
+  return i===-1 ? {route:val,vehicle:''} : {route:val.slice(0,i),vehicle:val.slice(i+1)};
+}
+
+function isSecondTurn(assignments, dayKey, driverId, vehicle) {
+  var target=String(vehicle||'').replace(/\s+/g,'').toUpperCase();
+  if(!target) return false;
+  var users=[];
+  for(var i=0;i<(assignments||[]).length;i++){
+    var p=parseCell((assignments[i]||{})[dayKey]||'');
+    if(String(p.vehicle||'').replace(/\s+/g,'').toUpperCase()===target) users.push(assignments[i]);
+  }
+  for(var j=0;j<users.length;j++) if(String(users[j].driverId)===String(driverId)) return j>0;
+  return false;
+}
+
+function dayMatch(cd, dayKey) {
+  var s=(cd||'').toLowerCase().trim();
+  var fl=(DAY_FULL[DAYS.indexOf(dayKey)]||'').toLowerCase();
+  var fl3=fl.slice(0,3);
+  return s===fl||s===fl3||s.startsWith(fl3)||fl.startsWith(s.slice(0,3));
+}
+
+function findRoute(val) {
+  var route=parseCell(val).route;
+  if (!route||!APP) return null;
+  var rs=APP.routes||[];
+  for (var i=0;i<rs.length;i++) if (rs[i].displayName===route) return rs[i];
+  for (var j=0;j<rs.length;j++) if (rs[j].route===route) return rs[j];
+  return null;
+}
+
+function getStops(raw, dayKey) {
+  var rt=findRoute(raw); if (!rt) return [];
+  var out=[], cs=APP.customers||[];
+  for (var i=0;i<cs.length;i++) {
+    var c=cs[i];
+    if (String(c.route).trim()===String(rt.route).trim()&&dayMatch(c.day,dayKey)) out.push(c);
+  }
+  // Collection stops with no explicit order go to the end,
+  // keeping the supervisor's numbered sequence intact for the driver.
+  out.sort(function(a,b){
+    var ao=(a.order&&a.order>0)?a.order:9999;
+    var bo=(b.order&&b.order>0)?b.order:9999;
+    return ao-bo;
+  });
+  // Re-number sequentially so the driver always sees 1..N with no gaps.
+  for (var j=0;j<out.length;j++){ out[j]=Object.assign({},out[j],{order:j+1}); }
+  return out;
+}
+
+function hasStops(raw,dayKey){ return getStops(raw,dayKey).length>0; }
+
+
+/* ══════════════════════════════════════════
+   RENDER — List View
+   ══════════════════════════════════════════ */
+function render(data) {
+  APP = data;
+  var now = new Date().toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('last-updated').textContent = 'Updated '+now;
+
+  // Show/hide Next Week button
+  var nwBtn = document.getElementById('next-week-btn');
+  nwBtn.style.display = data.nextWeek ? '' : 'none';
+
+  renderLeaveDriverOptions(data.drivers||[]);
+
+  // Data is ready → enable the Holiday button
+  setHolidayBtnReady(true);
+  // If the panel is open, refresh the team calendar with fresh data
+  if (document.getElementById('lp').classList.contains('open')) renderTeamCalendar();
+
+  // Build current week view
+  buildListView(data.drivers, data.assignments||[], data.weekStart, false);
+}
+
+function showNextWeek() {
+  if (!APP || !APP.nextWeek) return;
+  // Show next week as a full replacement with a back banner
+  var nw = APP.nextWeek;
+  var dates = getWeekDates(nw.weekStart);
+  var h = '';
+
+  // Preview banner with back button
+  h += '<div style="background:linear-gradient(135deg,#064e3b,#065f46);padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
+  h +=   '<div>';
+  h +=     '<div style="font-size:15px;font-weight:800;color:#fff">&#128197; Next Week Preview</div>';
+  h +=     '<div style="font-size:11px;color:#6ee7b7;margin-top:2px">'+fmtFull(dates[0])+' &mdash; '+fmtFull(dates[6])+'</div>';
+  h +=   '</div>';
+  h +=   '<button onclick="showCurrentWeek()" style="background:#065f46;border:1px solid #34d399;border-radius:8px;color:#34d399;font-size:12px;font-weight:700;padding:6px 12px;cursor:pointer">&#8592; This Week</button>';
+  h += '</div>';
+
+  // Driver list for next week (no today highlight since it's next week)
+  h += '<div class="driver-list">';
+  var drivers  = APP.drivers||[];
+  var asgns    = nw.assignments||[];
+
+  for (var di=0; di<drivers.length; di++) {
+    var drv = drivers[di];
+    var a   = getAssignmentFromList(asgns, drv.id);
+    var daysW=0;
+    for (var x=0;x<DAYS.length;x++) {
+      var vx=a[DAYS[x]]||''; var px=parseCell(vx);
+      if (px.route==='Training'||(px.route&&STATUS.indexOf(px.route)===-1)) daysW++;
+    }
+
+    h += '<div class="driver-row" onclick="openFocusWeek(\''+esc(drv.id)+'\',\''+esc(nw.weekStart)+'\')">';
+    h += '<div class="dr-left">';
+    h +=   '<div class="dr-num">#'+esc(drv.id)+'</div>';
+    h +=   '<div class="dr-name">'+esc(drv.name)+'</div>';
+    if (daysW>0) h += '<div class="dr-days" style="color:#34d399"><svg viewBox="0 0 24 24" style="stroke:#34d399;fill:none;stroke-width:2.5;width:11px;height:11px"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>'+daysW+' day'+(daysW!==1?'s':'')+'</div>';
+    h += '</div>';
+
+    h += '<div class="dr-grid">';
+    for (var gi=0;gi<DAYS.length;gi++) {
+      var raw=a[DAYS[gi]]||''; var p=parseCell(raw);
+      var rt=raw&&STATUS.indexOf(p.route)===-1?findRoute(raw):null;
+      var bg=rt?rt.colour:null;
+      var bh='';
+      if (!p.route)                  bh='<div class="dr-badge dr-b-empty">&ndash;</div>';
+      else if (p.route==='Off')      bh='<div class="dr-badge dr-b-off">Off</div>';
+      else if (p.route==='Hols')     bh='<div class="dr-badge dr-b-hols">Hols</div>';
+      else if (p.route==='Training') bh='<div class="dr-badge dr-b-train">Tr</div>';
+      else if (p.route==='Absent')   bh='<div class="dr-badge dr-b-absent">Ab</div>';
+      else if (p.route==='Sick')     bh='<div class="dr-badge dr-b-sick">Sick</div>';
+      else bh='<div class="dr-badge" style="background:'+bg+';color:'+tc(bg)+'">'+esc(rt?rt.route:p.route)+'</div>';
+      h += '<div class="dr-cell"><div class="dr-cell-lbl">'+DAY_S[gi]+'</div>'+bh+'</div>';
+    }
+    h += '</div>';
+    h += '<div class="dr-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 6 15 12 9 18"/></svg></div>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  document.getElementById('list-content').innerHTML = h;
+}
+
+function showCurrentWeek() {
+  if (!APP) return;
+  buildListView(APP.drivers, APP.assignments||[], APP.weekStart, false);
+}
+
+function buildListView(drivers, assignments, weekStart, append) {
+  var dates   = getWeekDates(weekStart);
+  var tIdx    = todayIdx();
+  var bannerBg = 'background:linear-gradient(135deg,#1a237e,#1565c0)';
+  var h = '';
+
+  h += '<div class="banner" style="'+bannerBg+'"><h2>Week of '+fmtFull(dates[0])+'</h2><div class="banner-sub">'+fmtFull(dates[0])+' &mdash; '+fmtFull(dates[6])+'</div></div>';
+  h += '<div class="legend">'
+    + '<span class="leg"><span class="lc" style="background:#1e293b;color:#64748b;border:1px solid #334155">Off</span> Day Off</span>'
+    + '<span class="leg"><span class="lc" style="background:#4a1942;color:#f9a8d4">Hols</span> Hols</span>'
+    + '<span class="leg"><span class="lc" style="background:#1e3a5f;color:#93c5fd">Train</span> Training</span>'
+    + '<span class="leg"><span class="lc" style="background:#450a0a;color:#fecaca;border:1px solid #991b1b">Sick</span> Sick leave</span>'
+    + '<span class="leg"><span class="lc" style="background:#0f172a;color:#60a5fa;border:1px solid #263352">&#9654;</span> Tap name for full view</span>'
+    + '</div>';
+  h += '<div class="driver-list">';
+
+  for (var di=0; di<drivers.length; di++) {
+    var drv = drivers[di];
+    var a   = getAssignmentFromList(assignments, drv.id);
+    var daysW = 0;
+    for (var x=0;x<DAYS.length;x++) {
+      var vx=a[DAYS[x]]||''; var px=parseCell(vx);
+      if (px.route==='Training'||(px.route&&STATUS.indexOf(px.route)===-1)) daysW++;
+    }
+
+    h += '<div class="driver-row" onclick="openFocus(\''+esc(drv.id)+'\')" data-id="'+esc(drv.id)+'">';
+
+    // Left: name
+    h += '<div class="dr-left">';
+    h +=   '<div class="dr-num">#'+esc(drv.id)+'</div>';
+    h +=   '<div class="dr-name">'+esc(drv.name)+'</div>';
+    if (daysW>0) {
+      h += '<div class="dr-days"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>'+daysW+' day'+(daysW!==1?'s':'')+'</div>';
+    }
+    h += '</div>';
+
+    // Mini week grid
+    h += '<div class="dr-grid">';
+    for (var gi=0; gi<DAYS.length; gi++) {
+      var raw=a[DAYS[gi]]||'';
+      var p=parseCell(raw);
+      var rt=raw&&STATUS.indexOf(p.route)===-1?findRoute(raw):null;
+      var bg=rt?rt.colour:null;
+      var isT=gi===tIdx;
+      var cl='dr-badge'+(isT?' today-col':'');
+      var badgeHtml='';
+      if (!p.route)             badgeHtml='<div class="'+cl+' dr-b-empty">&ndash;</div>';
+      else if (p.route==='Off') badgeHtml='<div class="'+cl+' dr-b-off">Off</div>';
+      else if (p.route==='Hols')badgeHtml='<div class="'+cl+' dr-b-hols">Hols</div>';
+      else if (p.route==='Training')badgeHtml='<div class="'+cl+' dr-b-train">Tr</div>';
+      else if (p.route==='Absent')  badgeHtml='<div class="'+cl+' dr-b-absent">Ab</div>';
+      else if (p.route==='Sick')    badgeHtml='<div class="'+cl+' dr-b-sick">Sick</div>';
+      else {
+        var colour=tc(bg);
+        badgeHtml='<div class="'+cl+'" style="background:'+bg+';color:'+colour+'">'+esc(rt?rt.route:p.route)+'</div>';
+      }
+      h += '<div class="dr-cell"><div class="dr-cell-lbl">'+DAY_S[gi]+'</div>'+badgeHtml+'</div>';
+    }
+    h += '</div>';
+
+    h += '<div class="dr-chevron"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></div>';
+    h += '</div>'; // driver-row
+  }
+
+  h += '</div>'; // driver-list
+
+  if (append) {
+    document.getElementById('list-content').innerHTML += h;
+  } else {
+    document.getElementById('list-content').innerHTML = h;
+  }
+}
+
+function getAssignmentFromList(assignments, drvId) {
+  for (var i=0;i<assignments.length;i++) if (String(assignments[i].driverId)===String(drvId)) return assignments[i];
+  return {mon:'',tue:'',wed:'',thu:'',fri:'',sat:'',sun:''};
+}
+
+/* ══════════════════════════════════════════
+   FOCUS VIEW — single driver
+   ══════════════════════════════════════════ */
+var _focusDrvId  = null;
+var _focusWeekSt = null;
+var _focusAsgns  = null;
+
+function openFocus(drvId) { openFocusWeek(drvId, APP ? APP.weekStart : ''); }
+
+function openFocusWeek(drvId, weekStart) {
+  _focusDrvId  = drvId;
+  _focusWeekSt = weekStart;
+
+  // Determine which assignments to use
+  var useNext = APP && APP.nextWeek && weekStart === APP.nextWeek.weekStart;
+  _focusAsgns = useNext ? (APP.nextWeek.assignments||[]) : (APP ? APP.assignments||[] : []);
+
+  var drivers = APP ? APP.drivers : [];
+  var drv = null;
+  for (var i=0;i<drivers.length;i++) if (String(drivers[i].id)===String(drvId)) { drv=drivers[i]; break; }
+  if (!drv) return;
+
+  var dates   = getWeekDates(weekStart);
+  var tIdx    = APP && weekStart===APP.weekStart ? todayIdx() : -1;
+  var a       = getAssignmentFromList(_focusAsgns, drvId);
+  var isNext  = useNext;
+
+  document.getElementById('focus-name').textContent = drv.name;
+  document.getElementById('focus-week').textContent = fmtFull(dates[0]) + ' — ' + fmtFull(dates[6])
+    + (isNext ? '  ·  Next Week Preview' : '');
+
+  // Calculate stats
+  var daysW=0;
+  for (var xi=0;xi<DAYS.length;xi++) {
+    var vv=a[DAYS[xi]]||''; var pp=parseCell(vv);
+    if (pp.route==='Training'||(pp.route&&STATUS.indexOf(pp.route)===-1)) daysW++;
+  }
+
+  var h = '';
+
+  // Today hero (only for current week)
+  if (tIdx >= 0) {
+    var tKey = DAYS[tIdx];
+    var tRaw = a[tKey]||'';
+    var tP   = parseCell(tRaw);
+    var tRt  = tP.route&&STATUS.indexOf(tP.route)===-1 ? findRoute(tRaw) : null;
+    var tBg  = tRt ? tRt.colour : null;
+    var tSt  = tP.route;
+
+    h += '<div class="today-hero">';
+    h += '<div class="today-hero-lbl">&#9679; Today &mdash; '+DAY_S[tIdx]+' '+fmtS(dates[tIdx])+'</div>';
+    h += '<div class="today-route-wrap">';
+    if (!tSt) {
+      h += '<div class="today-empty">No assignment for today</div>';
+    } else if (STATUS.indexOf(tSt)!==-1) {
+      var stMap={Off:'background:#1e293b;color:#94a3b8',Hols:'background:#4a1942;color:#f9a8d4',Training:'background:#1e3a5f;color:#93c5fd',Absent:'background:#431407;color:#fdba74',Sick:'background:#450a0a;color:#fecaca;border:1px solid #991b1b'};
+      h += '<span class="today-status-badge" style="'+(stMap[tSt]||'')+'">'+tSt+'</span>';
+    } else {
+      var tColour=tc(tBg||'#3b82f6');
+      var tHas=hasStops(tRaw,tKey);
+      h += '<div>';
+      h +=   '<button class="today-route-badge" style="background:'+(tBg||'#3b82f6')+';color:'+tColour+'"'
+          +(tHas?' onclick="openSheet(\''+encodeURIComponent(tRaw)+'\',\''+tKey+'\',\''+encodeURIComponent(drv.name)+'\')"':'')+'>'
+          +(tRt?esc(tRt.displayName):esc(tSt))+'</button>';
+      if (tP.vehicle) h += '<div class="today-veh">&#128663; '+esc(tP.vehicle)+(isSecondTurn(_focusAsgns,tKey,drvId,tP.vehicle)?'<span class="turn2">2T</span>':'')+'</div>';
+      h += '</div>';
+      if (tHas) h += '<span class="today-tap">Tap for stops <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>';
+      else       h += '<span class="today-tap dim">No stop data</span>';
+    }
+    h += '</div></div>';
+  }
+
+  // Stats bar — days only (hours and km not shown to drivers)
+  h += '<div class="stats-bar">';
+  h += '<div class="stat-chip"><div class="n">'+daysW+'</div><div class="l">Days this week</div></div>';
+  h += '</div>';
+
+  // Full week grid
+  h += '<div class="focus-week">';
+  h += '<div class="focus-week-title">Full Week Schedule</div>';
+  h += '<div class="focus-days">';
+  for (var gi=0;gi<DAYS.length;gi++) {
+    var dayKey = DAYS[gi];
+    var raw    = a[dayKey]||'';
+    var p      = parseCell(raw);
+    var rt     = raw&&STATUS.indexOf(p.route)===-1 ? findRoute(raw) : null;
+    var bg     = rt ? rt.colour : null;
+    var colour = bg ? tc(bg) : null;
+    var dn     = rt ? rt.displayName : p.route;
+    var label  = dn && dn.length>10 ? dn.slice(0,9)+'.' : dn;
+    var stopsOk = rt ? hasStops(raw, dayKey) : false;
+    var isT     = gi===tIdx;
+
+    h += '<div class="focus-day'+(isT?' tod':'')+'"><div class="fd-name">'+DAY_S[gi]+'</div><div class="fd-date">'+fmtS(dates[gi])+'</div>';
+
+    var fdCl = 'fd-badge';
+    if (!p.route) {
+      h += '<div class="'+fdCl+' fd-b-empty noop">&ndash;</div>';
+    } else if (p.route==='Off') {
+      h += '<div class="'+fdCl+' fd-b-off noop">Off</div>';
+    } else if (p.route==='Hols') {
+      h += '<div class="'+fdCl+' fd-b-hols noop">Hols</div>';
+    } else if (p.route==='Training') {
+      h += '<div class="'+fdCl+' fd-b-train noop">Training</div>';
+    } else if (p.route==='Absent') {
+      h += '<div class="'+fdCl+' fd-b-absent noop">Absent</div>';
+    } else if (p.route==='Sick') {
+      h += '<div class="'+fdCl+' fd-b-sick noop">Sick</div>';
+    } else {
+      var clickAttr = 'onclick="openSheet(\''+encodeURIComponent(raw)+'\',\''+dayKey+'\',\''+encodeURIComponent(drv.name)+'\')"';
+      var outline   = stopsOk ? ';outline:2px solid rgba(255,255,255,.3)' : '';
+      h += '<button class="'+fdCl+'" style="background:'+bg+';color:'+colour+outline+'" '+clickAttr+'>'
+          + esc(label);
+      if (p.vehicle) h += '<span class="fd-veh">'+esc(p.vehicle)+(isSecondTurn(_focusAsgns,dayKey,drvId,p.vehicle)?' <span class="turn2">2T</span>':'')+'</span>';
+      h += '</button>';
+    }
+    if (stopsOk && p.route&&STATUS.indexOf(p.route)===-1) h += '<div class="fd-sdot"></div>';
+    if (isT) h += '<div class="fd-today-ring"></div>';
+    h += '</div>'; // focus-day
+  }
+  h += '</div></div>'; // focus-days, focus-week
+
+  document.getElementById('focus-content').innerHTML = h;
+  document.getElementById('focus-view').classList.add('open');
+  document.getElementById('focus-view').scrollTop = 0;
+}
+
+function closeFocus() {
+  document.getElementById('focus-view').classList.remove('open');
+}
+
+/* ══════════════════════════════════════════
+   BOTTOM SHEET
+   ══════════════════════════════════════════ */
+function openSheet(rawEnc, dayKey, nameEnc) {
+  var raw    = decodeURIComponent(rawEnc);
+  var drvName= decodeURIComponent(nameEnc);
+  var p      = parseCell(raw);
+  var dayIdx = DAYS.indexOf(dayKey);
+  var dayFull= DAY_FULL[dayIdx]||dayKey;
+  var dates  = APP ? getWeekDates(_focusWeekSt||APP.weekStart) : [];
+  var dayDisp= DAY_S[dayIdx]+(dates[dayIdx]?' '+fmtS(dates[dayIdx]):'');
+  var rt     = findRoute(raw);
+  var bg     = rt ? rt.colour : '#3b82f6';
+  var colour = tc(bg);
+  var stops  = getStops(raw, dayKey);
+  var dispName = rt ? rt.displayName : p.route;
+  var routeNum = rt ? rt.route : p.route;
+
+  var externalRoute = !!(rt && String(rt.routeType||'STANDARD').toUpperCase()==='EXTERNAL');
+  document.getElementById('sht-title').innerHTML = esc(dispName)
+    + '<span style="margin-left:8px;background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700">Route '+esc(routeNum)+'</span>'
+    + (externalRoute?'<span style="margin-left:6px;background:#4c1d95;color:#ddd6fe;border:1px solid #8b5cf6;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:900;text-transform:uppercase">External delivery</span>':'');
+  document.getElementById('sht-sub').textContent = dayFull+' · '+dayDisp+(drvName?' · '+drvName:'')+(p.vehicle?' · '+p.vehicle:'');
+
+  var body='';
+  if (!stops.length) {
+    body='<div class="no-stops"><div class="icon">&#128203;</div><h3>No route details</h3><p>No stops for Route '+esc(routeNum)+' on '+dayFull+'.<br>Contact your supervisor.</p></div>';
+  } else {
+    for (var i=0;i<stops.length;i++) {
+      var s=stops[i];
+      var hasTrC=s.trolleyClothes&&s.trolleyClothes!=='.';
+      var hasTrM=s.trolleyMop&&s.trolleyMop!=='.';
+      var hasEir=s.eircode&&s.eircode!=='.';
+      var hasKg=s.kg>0;
+      var hasNote=s.notes&&s.notes!=='.';
+      var overlayKind=s.overlay?String(s.overlay.kind||'').toUpperCase():'';
+      var isCollection=(overlayKind==='COLLECTION'||overlayKind==='TEMP_STOP');
+      var isExternalDelivery=(overlayKind==='EXTERNAL_DELIVERY');
+      body+='<div class="stop'+(isCollection?' collection-stop':'')+(isExternalDelivery?' external-delivery-stop':'')+'"><div class="stop-row"><div class="stop-n">'+s.order+'</div><div class="stop-main">';
+      if (isCollection) body+='<div class="collection-badge">&#128666; Collection only</div>';
+      if (isExternalDelivery) body+='<div class="external-delivery-badge">&#128230; External delivery</div>';
+      if (s.time) body+='<div class="stop-time">&#128336; '+esc(s.time)+'</div>';
+      body+='<div class="stop-name">'+esc(s.customer)+'</div></div></div>';
+      if (hasEir||hasKg) {
+        body+='<div class="stop-chips">';
+        if (hasEir) {
+          var mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(s.eircode + ', Ireland');
+          body += '<a href="' + mapsUrl + '" target="_blank" rel="noopener" style="text-decoration:none">'
+            + '<span class="chip" style="background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;cursor:pointer;-webkit-tap-highlight-color:transparent">'
+            + '<svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+            + esc(s.eircode) + ' &#x2197;</span></a>';
+        }
+        if (hasKg)  body+='<span class="chip"><svg viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><path d="M6 10V4h12v6"/><rect x="2" y="10" width="20" height="10" rx="1"/></svg>'+s.kg.toFixed(1)+' KG</span>';
+        body+='</div>';
+      }
+      if (hasTrC||hasTrM) {
+        body+='<div class="trolleys">';
+        if (hasTrC) body+='<span class="tr-c">&#129082; Clothes: '+esc(s.trolleyClothes)+'</span>';
+        if (hasTrM) body+='<span class="tr-m">&#129529; Mop: '+esc(s.trolleyMop)+'</span>';
+        body+='</div>';
+      }
+      if (hasNote) body+='<div class="stop-note">&#128221; '+esc(s.notes)+'</div>';
+      body+='</div>';
+    }
+  }
+  document.getElementById('sht-body').innerHTML = body;
+  document.getElementById('sbg').classList.add('open');
+  requestAnimationFrame(function(){ document.getElementById('sht').classList.add('open'); });
+}
+
+function closeSheet() {
+  document.getElementById('sht').classList.remove('open');
+  setTimeout(function(){ document.getElementById('sbg').classList.remove('open'); }, 260);
+}
+
+// Swipe down to close sheet
+var _sy=0;
+document.getElementById('sht').addEventListener('touchstart',function(e){_sy=e.touches[0].clientY;},{passive:true});
+document.getElementById('sht').addEventListener('touchend',function(e){if(e.changedTouches[0].clientY-_sy>80)closeSheet();},{passive:true});
+
+// Swipe right on focus view to close it
+var _fx=0;
+document.getElementById('focus-view').addEventListener('touchstart',function(e){_fx=e.touches[0].clientX;},{passive:true});
+document.getElementById('focus-view').addEventListener('touchend',function(e){if(e.changedTouches[0].clientX-_fx>80)closeFocus();},{passive:true});
+
+
+/* ── Leave panel + request form ── */
+var _leaveCheckTimer=null;
+var _myCalRef=new Date();
+var _myCalData={approved:[],requests:[]};
+var _teamCalRef=new Date();
+var _teamSelDay='';
+
+/* Enable / disable the header Holiday button based on data readiness */
+function setHolidayBtnReady(ready){
+  var b=document.getElementById('holiday-btn');
+  if(!b)return;
+  b.disabled=!ready;
+  b.classList.toggle('loading',!ready);
+  b.title=ready?'Holidays & days off':'Loading…';
+}
+
+function openLeavePanel(){
+  if(document.getElementById('holiday-btn').disabled)return;
+  document.getElementById('lp-bg').classList.add('open');
+  document.getElementById('lp').classList.add('open');
+  lpTab('cal');                 // default to team calendar
+  _teamCalRef=new Date();
+  renderTeamCalendar();
+  initLeaveDates();
+}
+function closeLeavePanel(){
+  document.getElementById('lp-bg').classList.remove('open');
+  document.getElementById('lp').classList.remove('open');
+}
+function lpTab(which){
+  var cal=which==='cal';
+  document.getElementById('lp-tab-cal').classList.toggle('active',cal);
+  document.getElementById('lp-tab-req').classList.toggle('active',!cal);
+  document.getElementById('lp-pane-cal').style.display=cal?'':'none';
+  document.getElementById('lp-pane-req').style.display=cal?'none':'';
+}
+
+/* ── Team calendar (approved days for everyone) ── */
+function teamCalShift(delta){
+  _teamCalRef=new Date(_teamCalRef.getFullYear(),_teamCalRef.getMonth()+delta,1);
+  _teamSelDay='';
+  renderTeamCalendar();
+}
+function teamApprovedList(){
+  return (APP && APP.leaveCalendar) ? APP.leaveCalendar : [];
+}
+function renderTeamCalendar(){
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var y=_teamCalRef.getFullYear(),m=_teamCalRef.getMonth();
+  var mEl=document.getElementById('teamcal-month');
+  if(mEl) mEl.textContent=MONTHS[m]+' '+y;
+
+  // Map date -> {count, hasHoliday, hasDayoff}
+  var map={};
+  teamApprovedList().forEach(function(r){
+    var d=String(r.LeaveDate||r.StartDate||'').slice(0,10);
+    if(!d)return;
+    if(!map[d])map[d]={count:0,hol:false,off:false};
+    map[d].count++;
+    var t=String(r.LeaveType||'').toLowerCase();
+    if(t.indexOf('holiday')!==-1)map[d].hol=true;else map[d].off=true;
+  });
+
+  var grid=document.getElementById('teamcal-grid');
+  if(!grid)return;
+  var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var html=DOW.map(function(d){return '<div class="mycal-dow">'+d+'</div>';}).join('');
+
+  var startDow=(new Date(y,m,1).getDay()+6)%7;
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var todayStr=new Date().toISOString().slice(0,10);
+
+  for(var i=0;i<startDow;i++) html+='<div class="mycal-cell blank"></div>';
+  for(var day=1;day<=daysInMonth;day++){
+    var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    var info=map[ds];
+    var cls='mycal-cell clickable';
+    if(info){cls+=' has '+(info.hol?'holiday':'dayoff');}
+    if(ds===todayStr)cls+=' today';
+    if(ds===_teamSelDay)cls+=' sel';
+    var badge=info?('<span style="position:absolute;top:2px;right:4px;font-size:8px;font-weight:900;color:#fff;background:#9d174d;border-radius:999px;padding:0 4px;line-height:1.4">'+info.count+'</span>'):'';
+    html+='<div class="'+cls+'" onclick="teamSelect(\''+ds+'\')">'+day+badge+'</div>';
+  }
+  grid.innerHTML=html;
+  renderTeamDay();
+}
+function teamSelect(ds){
+  _teamSelDay=(_teamSelDay===ds)?'':ds;
+  renderTeamCalendar();
+}
+function renderTeamDay(){
+  var box=document.getElementById('teamcal-day');
+  if(!box)return;
+  if(!_teamSelDay){box.innerHTML='<div class="tcd-empty">Tap a highlighted day to see who is off.</div>';return;}
+  var rows=teamApprovedList().filter(function(r){
+    return String(r.LeaveDate||r.StartDate||'').slice(0,10)===_teamSelDay;
+  });
+  if(!rows.length){box.innerHTML='<div class="tcd-empty">Nobody booked off on '+fmtFull(_teamSelDay)+'.</div>';return;}
+  box.innerHTML='<div class="mycal-title" style="margin-bottom:2px">'+fmtFull(_teamSelDay)+'</div>'+
+    rows.map(function(r){
+      var t=String(r.LeaveType||'').toLowerCase();
+      var cls=t.indexOf('holiday')!==-1?'holiday':'dayoff';
+      var label=t.indexOf('holiday')!==-1?'Holiday':(r.LeaveType||'Day off');
+      return '<div class="tcd-item"><div class="tcd-name">'+esc(r.DriverName||'Driver')+'</div>'+
+             '<div class="tcd-type '+cls+'">'+esc(label)+'</div></div>';
+    }).join('');
+}
+function initLeaveDates(){
+  var s=document.getElementById('lr-start'),e=document.getElementById('lr-end');
+  if(!s.value){var t=new Date().toISOString().slice(0,10);s.value=t;e.value=t;}
+}
+function syncLeaveEnd(){
+  var s=document.getElementById('lr-start'),e=document.getElementById('lr-end');
+  if(!e.value||e.value<s.value)e.value=s.value;
+}
+function setLeaveMsg(kind,msg){
+  var el=document.getElementById('lr-msg');
+  el.className='lf-msg '+(kind||'');
+  el.style.display=msg?'block':'none';
+  el.innerHTML=msg||'';
+}
+function renderLeaveDriverOptions(drivers){
+  var sel=document.getElementById('lr-driver');
+  if(!sel||sel.dataset.ready)return;
+  sel.innerHTML='<option value="">Select your name</option>'+(drivers||[]).map(function(d){
+    return '<option value="'+esc(d.id)+'">'+esc(d.name)+'</option>';
+  }).join('');
+  sel.dataset.ready='1';
+}
+function leavePayload(){
+  return{
+    DriverID:document.getElementById('lr-driver').value,
+    LeaveType:document.getElementById('lr-type').value,
+    StartDate:document.getElementById('lr-start').value,
+    EndDate:document.getElementById('lr-end').value||document.getElementById('lr-start').value,
+    Notes:document.getElementById('lr-notes').value||''
+  };
+}
+
+function onLeaveDriverChange(){
+  checkLeaveRequest();
+  var id=document.getElementById('lr-driver').value;
+  var wrap=document.getElementById('mycal-wrap');
+  if(!id){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  loadMyCalendar(id);
+}
+
+function loadMyCalendar(driverId){
+  document.getElementById('mycal-grid').innerHTML='';
+  document.getElementById('mycal-list').innerHTML='<div class="myreq-empty">Loading your days…</div>';
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(!r||r.ok===false){document.getElementById('mycal-list').innerHTML='<div class="myreq-empty">Could not load your days.</div>';return;}
+      _myCalData={approved:r.approved||[],requests:r.requests||[]};
+      _myCalRef=new Date();
+      renderMyCalendar();
+      renderMyRequests();
+    })
+    .withFailureHandler(function(){document.getElementById('mycal-list').innerHTML='<div class="myreq-empty">Could not load your days.</div>';})
+    .getDriverLeaveOverviewPublic(driverId);
+}
+
+function myCalShift(delta){
+  _myCalRef=new Date(_myCalRef.getFullYear(),_myCalRef.getMonth()+delta,1);
+  renderMyCalendar();
+}
+
+function renderMyCalendar(){
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var y=_myCalRef.getFullYear(),m=_myCalRef.getMonth();
+  document.getElementById('mycal-month').textContent=MONTHS[m]+' '+y;
+
+  var map={};
+  (_myCalData.approved||[]).forEach(function(a){
+    var t=String(a.leaveType||'').toLowerCase();
+    map[a.date]=t.indexOf('holiday')!==-1?'holiday':'dayoff';
+  });
+  (_myCalData.requests||[]).forEach(function(req){
+    if(String(req.status||'').toLowerCase()!=='pending')return;
+    eachDate(req.startDate,req.endDate,function(d){ if(!map[d]) map[d]='pending'; });
+  });
+
+  var grid=document.getElementById('mycal-grid');
+  var DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var html=DOW.map(function(d){return '<div class="mycal-dow">'+d+'</div>';}).join('');
+
+  var first=new Date(y,m,1);
+  var startDow=(first.getDay()+6)%7;
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var todayStr=new Date().toISOString().slice(0,10);
+
+  for(var i=0;i<startDow;i++) html+='<div class="mycal-cell blank"></div>';
+  for(var day=1;day<=daysInMonth;day++){
+    var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    var cls='mycal-cell '+(map[ds]||'')+(ds===todayStr?' today':'');
+    html+='<div class="'+cls.trim()+'">'+day+'</div>';
+  }
+  grid.innerHTML=html;
+}
+
+function renderMyRequests(){
+  var box=document.getElementById('mycal-list');
+  var reqs=_myCalData.requests||[];
+  if(!reqs.length){box.innerHTML='<div class="myreq-empty">No requests yet.</div>';return;}
+  box.innerHTML=reqs.slice(0,8).map(function(r){
+    var st=String(r.status||'Pending').toLowerCase();
+    var stCls=st==='approved'?'st-approved':(st==='rejected'?'st-rejected':'st-pending');
+    var dates=r.startDate===r.endDate?fmtFull(r.startDate):fmtFull(r.startDate)+' → '+fmtFull(r.endDate);
+    var sub=esc(r.leaveType||'Leave')+' · '+(r.days||1)+' day'+((r.days||1)!=1?'s':'');
+    return '<div class="myreq-item"><div><div class="myreq-dates">'+esc(dates)+'</div>'+
+           '<div class="myreq-sub">'+sub+'</div></div>'+
+           '<div class="myreq-status '+stCls+'">'+esc(r.status||'Pending')+'</div></div>';
+  }).join('');
+}
+
+function eachDate(start,end,fn){
+  if(!start)return;
+  var d=new Date(start+'T12:00:00Z'),e=new Date((end||start)+'T12:00:00Z');
+  var guard=0;
+  while(d<=e&&guard<400){fn(d.toISOString().slice(0,10));d.setUTCDate(d.getUTCDate()+1);guard++;}
+}
+
+function checkLeaveRequest(){
+  clearTimeout(_leaveCheckTimer);
+  _leaveCheckTimer=setTimeout(function(){
+    var p=leavePayload();
+    var btn=document.getElementById('lr-submit');
+    btn.disabled=true;
+    if(!p.DriverID||!p.StartDate||!p.EndDate){setLeaveMsg('','');return;}
+    if(p.EndDate<p.StartDate){setLeaveMsg('err','End date cannot be before start date.');return;}
+    setLeaveMsg('warn','Checking availability...');
+    google.script.run.withSuccessHandler(function(r){
+      if(!r||!r.ok){setLeaveMsg('err',esc((r&&r.msg)||'Could not check these dates.'));return;}
+      if(!r.allowed){
+        var items=(r.conflicts||[]).slice(0,3).map(function(c){return esc(c.date||'')+' — '+esc(c.message||c.type||'Conflict');}).join('<br>');
+        setLeaveMsg('err','These dates have a conflict:<br>'+items);btn.disabled=true;return;
+      }
+      var warn=(r.warnings&&r.warnings.length)?'<br>Note: there is already a pending request in this range.':'';
+      setLeaveMsg('ok','Available for request · '+(r.days||1)+' day'+((r.days||1)!==1?'s':'')+warn);
+      btn.disabled=false;
+    }).withFailureHandler(function(e){
+      setLeaveMsg('err',esc(e.message||'Error checking dates.'));
+    }).checkDriverLeaveRequestPublic(p);
+  },300);
+}
+
+function submitLeaveRequest(){
+  var p=leavePayload();
+  var btn=document.getElementById('lr-submit');
+  var prev=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<span class="lf-spin"></span>Sending…';
+  setLeaveMsg('warn','Sending request...');
+  google.script.run.withSuccessHandler(function(r){
+    btn.innerHTML=prev;
+    if(!r||r.ok===false||r.success===false){
+      setLeaveMsg('err',esc((r&&r.msg)||(r&&r.message)||'Could not send request.'));
+      checkLeaveRequest();
+      return;
+    }
+    var txt='Your supervisor will review it before it is added to the calendar.';
+    if(r.emailed===false) txt+=' (Notification email pending — your request is still saved.)';
+    document.getElementById('lf-done-text').textContent=txt;
+    document.getElementById('lf-fields').style.display='none';
+    document.getElementById('lf-done').classList.add('show');
+  }).withFailureHandler(function(e){
+    btn.innerHTML=prev;
+    setLeaveMsg('err',esc(e.message||'Error sending request.'));
+    checkLeaveRequest();
+  }).submitDriverLeaveRequestPublic(p);
+}
+
+function resetLeaveForm(){
+  document.getElementById('lf-done').classList.remove('show');
+  document.getElementById('lf-fields').style.display='';
+  document.getElementById('lr-notes').value='';
+  setLeaveMsg('','');
+  initLeaveDates();
+  var id=document.getElementById('lr-driver').value;
+  document.getElementById('lr-submit').disabled=true;
+  if(id) loadMyCalendar(id);
+}
+
+/* ── Load ── */
+function load() {
+  if (!APP) setHolidayBtnReady(false);   // only block on the very first load
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (!data) {
+        document.getElementById('list-content').innerHTML='<div class="center"><div style="font-size:32px">&#128203;</div><p>No roster published yet.</p><p style="font-size:12px;margin-top:4px">Contact your supervisor.</p></div>';
+        return;
+      }
+      render(data);
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('list-content').innerHTML='<div class="center"><div style="font-size:32px">&#9888;</div><p style="font-size:13px">'+(e.message||'Error')+'</p></div>';
+    })
+    .getLatestRosterFull();
+}
+
+load();
+setInterval(load, 5*60*1000);
+</script>
+</body>
+</html>

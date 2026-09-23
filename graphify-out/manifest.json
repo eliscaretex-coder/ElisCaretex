@@ -1,0 +1,1286 @@
+{
+  "frontend/assets/js/app-shell-policy.js": {
+    "mtime": 1786654186.0,
+    "seen": 1787773412.5656793,
+    "ast_hash": "b380c1305d9adc77cd50a77b7a6c2635",
+    "semantic_hash": "b380c1305d9adc77cd50a77b7a6c2635"
+  },
+  "frontend/assets/js/app.js": {
+    "mtime": 1787602643.2023594,
+    "seen": 1787773412.565686,
+    "ast_hash": "1e45c15652a09f242e65271e0544176b",
+    "semantic_hash": "1e45c15652a09f242e65271e0544176b"
+  },
+  "frontend/assets/js/config.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.565689,
+    "ast_hash": "64d17463c1c0ffe2676a004b144e4879",
+    "semantic_hash": "64d17463c1c0ffe2676a004b144e4879"
+  },
+  "frontend/assets/js/customers.js": {
+    "mtime": 1787081307.8790963,
+    "seen": 1787773412.5656915,
+    "ast_hash": "facf8557e71a22d81356d590aa008947",
+    "semantic_hash": "facf8557e71a22d81356d590aa008947"
+  },
+  "frontend/assets/js/distribution.js": {
+    "mtime": 1787085630.8378403,
+    "seen": 1787773412.5656934,
+    "ast_hash": "a58b6670797368395960c0401d2d525d",
+    "semantic_hash": "a58b6670797368395960c0401d2d525d"
+  },
+  "frontend/assets/js/finish-production.js": {
+    "mtime": 1787604506.2155845,
+    "seen": 1787773412.5656953,
+    "ast_hash": "c9591a25eb7036cf9853aa4ea2c347bf",
+    "semantic_hash": "c9591a25eb7036cf9853aa4ea2c347bf"
+  },
+  "frontend/assets/js/finish-results.js": {
+    "mtime": 1786639438.0,
+    "seen": 1787773412.5656972,
+    "ast_hash": "3d49d27b07d6accef4bbe8cbc02030f7",
+    "semantic_hash": "3d49d27b07d6accef4bbe8cbc02030f7"
+  },
+  "frontend/assets/js/forgot-password.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.565699,
+    "ast_hash": "1915e5d9c6ff31f19ee0d19c3ffd00a9",
+    "semantic_hash": "1915e5d9c6ff31f19ee0d19c3ffd00a9"
+  },
+  "frontend/assets/js/operational-page-nav.js": {
+    "mtime": 1787602644.1041281,
+    "seen": 1787773412.5657008,
+    "ast_hash": "8ebb8528500d4fd8257e0da16d9c0305",
+    "semantic_hash": "8ebb8528500d4fd8257e0da16d9c0305"
+  },
+  "frontend/assets/js/production-station-kiosk.js": {
+    "mtime": 1787600426.3023257,
+    "seen": 1787773412.5657024,
+    "ast_hash": "acd99321150bd16d974d8be51afc6eb2",
+    "semantic_hash": "acd99321150bd16d974d8be51afc6eb2"
+  },
+  "frontend/assets/js/production-tracker.js": {
+    "mtime": 1786562956.0,
+    "seen": 1787773412.5657043,
+    "ast_hash": "735af7aecc75097aa6dc980dfc244b84",
+    "semantic_hash": "735af7aecc75097aa6dc980dfc244b84"
+  },
+  "frontend/assets/js/roster-gm-review.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.5657065,
+    "ast_hash": "9bb3ac66fb495e38ef92695f4e16ed92",
+    "semantic_hash": "9bb3ac66fb495e38ef92695f4e16ed92"
+  },
+  "frontend/assets/js/roster-view.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.5657086,
+    "ast_hash": "01dd14d69614c67454c1bc9d878fc993",
+    "semantic_hash": "01dd14d69614c67454c1bc9d878fc993"
+  },
+  "frontend/assets/js/roster.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.5657105,
+    "ast_hash": "3a513901b5303270def5a6289d57d90f",
+    "semantic_hash": "3a513901b5303270def5a6289d57d90f"
+  },
+  "frontend/assets/js/sorting-area-navigation.js": {
+    "mtime": 1786647180.0,
+    "seen": 1787773412.5657122,
+    "ast_hash": "3dac1ea46624754c622845fd6255eeaf",
+    "semantic_hash": "3dac1ea46624754c622845fd6255eeaf"
+  },
+  "frontend/assets/js/sorting.js": {
+    "mtime": 1787606554.8479154,
+    "seen": 1787773412.5657141,
+    "ast_hash": "11234fba6fc139d9c68ff60eef7db139",
+    "semantic_hash": "11234fba6fc139d9c68ff60eef7db139"
+  },
+  "frontend/assets/js/staff.js": {
+    "mtime": 1787603243.686992,
+    "seen": 1787773412.5657158,
+    "ast_hash": "7d8abd3e8562722cdeec013ddeb2066d",
+    "semantic_hash": "7d8abd3e8562722cdeec013ddeb2066d"
+  },
+  "frontend/assets/js/supabase-client.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.5657175,
+    "ast_hash": "119acd54c87c025752b67b0ee8ca2593",
+    "semantic_hash": "119acd54c87c025752b67b0ee8ca2593"
+  },
+  "frontend/assets/js/trolleys.js": {
+    "mtime": 1787775131.5788438,
+    "seen": 1787775168.4550247,
+    "ast_hash": "d903528efc20ac0553fec831503ec98d",
+    "semantic_hash": "d903528efc20ac0553fec831503ec98d"
+  },
+  "frontend/assets/js/update-password.js": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.565721,
+    "ast_hash": "8bcb84e9825a5247a470f3bdcb90f395",
+    "semantic_hash": "8bcb84e9825a5247a470f3bdcb90f395"
+  },
+  "supabase/functions/admin-account-management/index.ts": {
+    "mtime": 1787602730.8074195,
+    "seen": 1787773412.5657687,
+    "ast_hash": "f9dfaa22e59b09fac613dabc6065c77a",
+    "semantic_hash": "f9dfaa22e59b09fac613dabc6065c77a"
+  },
+  "supabase/functions/production-roster-leave-email/index.ts": {
+    "mtime": 1786466860.0,
+    "seen": 1787773412.5657704,
+    "ast_hash": "fe8cc1e289f986c66e4af9d5c0087680",
+    "semantic_hash": "fe8cc1e289f986c66e4af9d5c0087680"
+  },
+  "docs/testing/CLEANUP-SIM_FINISH-SNAPSHOT-115-V1.sql": {
+    "mtime": 1786634868.0,
+    "seen": 1787773700.2962532,
+    "ast_hash": "7fc78009b1abbdc50958b94b7cd86908",
+    "semantic_hash": "7fc78009b1abbdc50958b94b7cd86908"
+  },
+  "docs/testing/CLEANUP-SIM_FINISH_SNAPSHOT_114_V1.sql": {
+    "mtime": 1786633738.0,
+    "seen": 1787773700.2962546,
+    "ast_hash": "075b36540d77ec8c92edadb3bf25f391",
+    "semantic_hash": "075b36540d77ec8c92edadb3bf25f391"
+  },
+  "docs/testing/CLEANUP-SIM_FULL_DAY_20260806_V1.sql": {
+    "mtime": 1786558488.0,
+    "seen": 1787773700.2962563,
+    "ast_hash": "e8dd6d72049b066f44fa4386f8763b43",
+    "semantic_hash": "e8dd6d72049b066f44fa4386f8763b43"
+  },
+  "supabase/migrations/202607160001_foundation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138692,
+    "ast_hash": "720bba40272cc866ccf0a94489215446",
+    "semantic_hash": "720bba40272cc866ccf0a94489215446"
+  },
+  "supabase/migrations/202607300002_customers_and_schedules.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138723,
+    "ast_hash": "9c0aa9204ce94c4d2cbba50f476e1309",
+    "semantic_hash": "9c0aa9204ce94c4d2cbba50f476e1309"
+  },
+  "supabase/migrations/202607300003_legacy_customer_staging.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138757,
+    "ast_hash": "ce3e66565b0ae8cc3ddfa7365a945911",
+    "semantic_hash": "ce3e66565b0ae8cc3ddfa7365a945911"
+  },
+  "supabase/migrations/202607300004_legacy_customer_review_decisions.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138788,
+    "ast_hash": "4cbd5fbc6cb7353a4c2c8943b85bd00e",
+    "semantic_hash": "4cbd5fbc6cb7353a4c2c8943b85bd00e"
+  },
+  "supabase/migrations/202607300005_final_legacy_trolley_decisions.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313881,
+    "ast_hash": "26cf0f569544eec9d99699e5077b3c34",
+    "semantic_hash": "26cf0f569544eec9d99699e5077b3c34"
+  },
+  "supabase/migrations/202607300006_legacy_customer_operational_import.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138828,
+    "ast_hash": "f82185432644eff8849bfb45f2e10409",
+    "semantic_hash": "f82185432644eff8849bfb45f2e10409"
+  },
+  "supabase/migrations/202607300007_customer_read_api.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138852,
+    "ast_hash": "8a2b725b424daa683c692b90f7065fa8",
+    "semantic_hash": "8a2b725b424daa683c692b90f7065fa8"
+  },
+  "supabase/migrations/202607300008_customer_master_management_api.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138876,
+    "ast_hash": "c8b013b6a0bc602ca1c108f33de31b7d",
+    "semantic_hash": "c8b013b6a0bc602ca1c108f33de31b7d"
+  },
+  "supabase/migrations/202607310001_customer_route_visual_read_api.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138897,
+    "ast_hash": "a1c5e6d39d673acd02bd3c1a44f372bd",
+    "semantic_hash": "a1c5e6d39d673acd02bd3c1a44f372bd"
+  },
+  "supabase/migrations/202607310002_customer_schedule_management_api.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138921,
+    "ast_hash": "9854ae844cdcd37230f3bb35e4c9d655",
+    "semantic_hash": "9854ae844cdcd37230f3bb35e4c9d655"
+  },
+  "supabase/migrations/202608030001_customer_planner_production_order_management.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138945,
+    "ast_hash": "3d456efccab06a712aa174d9c7de32e4",
+    "semantic_hash": "3d456efccab06a712aa174d9c7de32e4"
+  },
+  "supabase/migrations/202608030002_customer_schedule_history_management.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138967,
+    "ast_hash": "fc09aed8dfeb922b4be718668e106093",
+    "semantic_hash": "fc09aed8dfeb922b4be718668e106093"
+  },
+  "supabase/migrations/202608030003_customer_schedule_history_readability.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3138988,
+    "ast_hash": "2d167b54c734ae5b7130288e84bed6b3",
+    "semantic_hash": "2d167b54c734ae5b7130288e84bed6b3"
+  },
+  "supabase/migrations/202608030004_distribution_daily_planning.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139007,
+    "ast_hash": "4232590b2a9aa055f61ddc3925102186",
+    "semantic_hash": "4232590b2a9aa055f61ddc3925102186"
+  },
+  "supabase/migrations/202608030005_distribution_schedule_alignment.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139029,
+    "ast_hash": "e17eecc53736856c0e042e91e651ee93",
+    "semantic_hash": "e17eecc53736856c0e042e91e651ee93"
+  },
+  "supabase/migrations/202608030006_physical_trolley_lifecycle_management.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139045,
+    "ast_hash": "12e1f3002ddc846e4408175a120ade79",
+    "semantic_hash": "12e1f3002ddc846e4408175a120ade79"
+  },
+  "supabase/migrations/202608040001_trolley_production_sorting_flow.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139067,
+    "ast_hash": "644493c2c9d4e95a212b30e7b4a91ab2",
+    "semantic_hash": "644493c2c9d4e95a212b30e7b4a91ab2"
+  },
+  "supabase/migrations/202608040002_trolley_distribution_handoff.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139086,
+    "ast_hash": "1bec30753f40424e162c7e718801b73e",
+    "semantic_hash": "1bec30753f40424e162c7e718801b73e"
+  },
+  "supabase/migrations/202608040003_trolley_consultation_views.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139102,
+    "ast_hash": "190f6f32b428a043e993d9224e064b50",
+    "semantic_hash": "190f6f32b428a043e993d9224e064b50"
+  },
+  "supabase/migrations/202608040004_staff_master_management.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139122,
+    "ast_hash": "1632874f2385f8da85fbdba0d65f8af1",
+    "semantic_hash": "1632874f2385f8da85fbdba0d65f8af1"
+  },
+  "supabase/migrations/202608040005_staff_production_scope.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139138,
+    "ast_hash": "8edab585336b7332fd05fa4831a56cb5",
+    "semantic_hash": "8edab585336b7332fd05fa4831a56cb5"
+  },
+  "supabase/migrations/202608040006_production_roster_management.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139155,
+    "ast_hash": "43b5a8b42b871a8267e48e1eb1cb998f",
+    "semantic_hash": "43b5a8b42b871a8267e48e1eb1cb998f"
+  },
+  "supabase/migrations/202608040007_production_roster_compatibility_fix.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139172,
+    "ast_hash": "15fad35722125ebd720df3352389a621",
+    "semantic_hash": "15fad35722125ebd720df3352389a621"
+  },
+  "supabase/migrations/202608050001_production_roster_display_section.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313919,
+    "ast_hash": "5eba5aaf42a5d3c16a123231584dfdba",
+    "semantic_hash": "5eba5aaf42a5d3c16a123231584dfdba"
+  },
+  "supabase/migrations/202608050002_production_roster_shift_override.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139205,
+    "ast_hash": "9fde8d9dc14e5e6cf494668bac1c8588",
+    "semantic_hash": "9fde8d9dc14e5e6cf494668bac1c8588"
+  },
+  "supabase/migrations/202608050003_production_roster_shift_override_safe_repair.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139224,
+    "ast_hash": "677d41521eff6223507a723e050e909d",
+    "semantic_hash": "677d41521eff6223507a723e050e909d"
+  },
+  "supabase/migrations/202608050004_production_roster_staff_view_layout.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313924,
+    "ast_hash": "746beb37e27812c138178217e30c91b2",
+    "semantic_hash": "746beb37e27812c138178217e30c91b2"
+  },
+  "supabase/migrations/202608070001_production_roster_staff_portal_and_leave_requests.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139296,
+    "ast_hash": "0ffec0aa85c7eaf571ed3bc8ab81d889",
+    "semantic_hash": "0ffec0aa85c7eaf571ed3bc8ab81d889"
+  },
+  "supabase/migrations/202608070002_production_roster_leave_governance.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313931,
+    "ast_hash": "4b4ff80a0c59b45abacde4ac2d997580",
+    "semantic_hash": "4b4ff80a0c59b45abacde4ac2d997580"
+  },
+  "supabase/migrations/202608070003_production_roster_capacity_and_staff_history.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313933,
+    "ast_hash": "1774831d00360bafc489ca23bdbee27f",
+    "semantic_hash": "1774831d00360bafc489ca23bdbee27f"
+  },
+  "supabase/migrations/202608080001_production_roster_print_trace_and_sunday_autopublish.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139346,
+    "ast_hash": "fe6a88e8fb68f1a023c46023402bbf75",
+    "semantic_hash": "fe6a88e8fb68f1a023c46023402bbf75"
+  },
+  "supabase/migrations/202608080002_production_roster_staff_recent_requests_and_single_autopublish.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139365,
+    "ast_hash": "6dff61cc0698f3bb88baec655b65bc8f",
+    "semantic_hash": "6dff61cc0698f3bb88baec655b65bc8f"
+  },
+  "supabase/migrations/202608080003_legacy_production_roster_and_leave_history_import.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313938,
+    "ast_hash": "063d6eda52860d58fbee80d5e82b17bb",
+    "semantic_hash": "063d6eda52860d58fbee80d5e82b17bb"
+  },
+  "supabase/migrations/202608080004_production_roster_assignment_save_integrity.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.31394,
+    "ast_hash": "8e84c8506a377b3d86e0d65ee8f4dd85",
+    "semantic_hash": "8e84c8506a377b3d86e0d65ee8f4dd85"
+  },
+  "supabase/migrations/202608080005_production_roster_table_day_override_and_joined_availability.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139415,
+    "ast_hash": "d2779b264de021a5934b88fe684b447b",
+    "semantic_hash": "d2779b264de021a5934b88fe684b447b"
+  },
+  "supabase/migrations/202608080006_production_roster_shift_isolation_and_override_governance.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139434,
+    "ast_hash": "6241b0d38959998b02bf3996a3720d9e",
+    "semantic_hash": "6241b0d38959998b02bf3996a3720d9e"
+  },
+  "supabase/migrations/202608080007_sorting_v2_intake_foundation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313945,
+    "ast_hash": "815dccd8976a3d2f567cdaa76d6d9432",
+    "semantic_hash": "815dccd8976a3d2f567cdaa76d6d9432"
+  },
+  "supabase/migrations/202608080008_sorting_v2_trolley_suggestion_contract_fix.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313947,
+    "ast_hash": "25dfb52001480b2cb7f014bcece18fde",
+    "semantic_hash": "25dfb52001480b2cb7f014bcece18fde"
+  },
+  "supabase/migrations/202608080009_sorting_v2_washing_and_trace_foundation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139489,
+    "ast_hash": "0aab86982420711d31f1d761311bd34b",
+    "semantic_hash": "0aab86982420711d31f1d761311bd34b"
+  },
+  "supabase/migrations/202608080010_operational_work_sessions_and_sorting_staff_adjustments.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139505,
+    "ast_hash": "e64afa9c33c1abaae10d0b936eedd614",
+    "semantic_hash": "e64afa9c33c1abaae10d0b936eedd614"
+  },
+  "supabase/migrations/202608080011_sorting_staff_work_profile_time_resolution.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313952,
+    "ast_hash": "2db2c78f2aa04034fc03383c4c76696e",
+    "semantic_hash": "2db2c78f2aa04034fc03383c4c76696e"
+  },
+  "supabase/migrations/202608080012_sorting_manual_actual_staff_and_customer_route_board_CORRECTED_V2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139532,
+    "ast_hash": "8b78f187a53fdbe73971deae500b18b2",
+    "semantic_hash": "8b78f187a53fdbe73971deae500b18b2"
+  },
+  "supabase/migrations/202608100001_sorting_schedule_trace_mop_assignment_and_visual_board.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313955,
+    "ast_hash": "43b2000ed1db89ffe1755f5e23f3d23b",
+    "semantic_hash": "43b2000ed1db89ffe1755f5e23f3d23b"
+  },
+  "supabase/migrations/202608100002_production_roster_mop_and_staff_exit_guard.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139565,
+    "ast_hash": "16d4aa9e0ce69e6dab4261937bfe5d67",
+    "semantic_hash": "16d4aa9e0ce69e6dab4261937bfe5d67"
+  },
+  "supabase/migrations/202608100003_production_roster_mop_decision_and_sorting_selection_clarity.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139584,
+    "ast_hash": "d969f60ad648746ac87baaba434b6403",
+    "semantic_hash": "d969f60ad648746ac87baaba434b6403"
+  },
+  "supabase/migrations/202608100004_sorting_wash_corrections_and_late_entry.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.31396,
+    "ast_hash": "2a4216218d761cb3c297e629859aae40",
+    "semantic_hash": "2a4216218d761cb3c297e629859aae40"
+  },
+  "supabase/migrations/202608100005_operational_business_date_and_sorting_wash_search.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313962,
+    "ast_hash": "e7efc351159903660aa696f6a777c0a2",
+    "semantic_hash": "e7efc351159903660aa696f6a777c0a2"
+  },
+  "supabase/migrations/202608100006_sorting_staff_cards_time_and_work_mode_audit.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313964,
+    "ast_hash": "b9c3ea640aefee5b82307dc73fcd8349",
+    "semantic_hash": "b9c3ea640aefee5b82307dc73fcd8349"
+  },
+  "supabase/migrations/202608100007_sorting_attendance_performance_and_auto_shift.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139656,
+    "ast_hash": "2cafb3d73781ddf55c9feb582739e9af",
+    "semantic_hash": "2cafb3d73781ddf55c9feb582739e9af"
+  },
+  "supabase/migrations/202608100008_sorting_auto_absence_and_simple_time_editor.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313967,
+    "ast_hash": "3a0dc696f7fad03fe695fdf776fa5038",
+    "semantic_hash": "3a0dc696f7fad03fe695fdf776fa5038"
+  },
+  "supabase/migrations/202608110001_production_flow_foundation_and_wash_trace.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313969,
+    "ast_hash": "665e6d1ecc1be400da644976be02e518",
+    "semantic_hash": "665e6d1ecc1be400da644976be02e518"
+  },
+  "supabase/migrations/202608110002_production_flow_wash_weight_allocation_and_confirmation_guard.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.31397,
+    "ast_hash": "7b09d9d5270924e4c541e7afd5d5dd73",
+    "semantic_hash": "7b09d9d5270924e4c541e7afd5d5dd73"
+  },
+  "supabase/migrations/202608110003_production_flow_trace_typed_event_quantity_contract.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139722,
+    "ast_hash": "892681c0e808e4f8954e91f40e872873",
+    "semantic_hash": "892681c0e808e4f8954e91f40e872873"
+  },
+  "supabase/migrations/202608110004_sorting_trolley_contents_intake_and_flow_queue.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139737,
+    "ast_hash": "9a1cce8fc8cd8c88077ede69c3c28b1e",
+    "semantic_hash": "9a1cce8fc8cd8c88077ede69c3c28b1e"
+  },
+  "supabase/migrations/202608110005_sorting_trolley_kiosk_custody_trace.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139756,
+    "ast_hash": "fde0d5d009a9c1ad47e1350c72195b32",
+    "semantic_hash": "fde0d5d009a9c1ad47e1350c72195b32"
+  },
+  "supabase/migrations/202608110006_sorting_trolley_contract_sizes_and_reception_status.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139772,
+    "ast_hash": "de7008af9e10a5c7ef9273f8f966c7af",
+    "semantic_hash": "de7008af9e10a5c7ef9273f8f966c7af"
+  },
+  "supabase/migrations/202608110007_sorting_wash_requires_trolley_contents_scan.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139791,
+    "ast_hash": "e4f4b420cf412e76e9f9c1bd99682418",
+    "semantic_hash": "e4f4b420cf412e76e9f9c1bd99682418"
+  },
+  "supabase/migrations/202608110008_sorting_auto_shift_handover_fix.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139808,
+    "ast_hash": "52cce929d933d6e0c59f83847aa4e35c",
+    "semantic_hash": "52cce929d933d6e0c59f83847aa4e35c"
+  },
+  "supabase/migrations/202608110009_sorting_staff_no_work_and_area_transfer.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3139827,
+    "ast_hash": "95039f0678d7454ed5b8c9d22b1827ba",
+    "semantic_hash": "95039f0678d7454ed5b8c9d22b1827ba"
+  },
+  "supabase/migrations/202608110010_sorting_mop_production_and_no_trolley_arrival.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.313985,
+    "ast_hash": "504945c40dfc0671ee732763dc22f3cd",
+    "semantic_hash": "504945c40dfc0671ee732763dc22f3cd"
+  },
+  "supabase/migrations/202608110011_sorting_mop_ui_master_and_wash_reception_exception.sql": {
+    "mtime": 1786468838.0,
+    "seen": 1787773700.3139865,
+    "ast_hash": "c1f7ea4a4caedd0fe12f07675c46c314",
+    "semantic_hash": "c1f7ea4a4caedd0fe12f07675c46c314"
+  },
+  "supabase/migrations/202608110012_sorting_mop_type_master_management.sql": {
+    "mtime": 1786471250.0,
+    "seen": 1787773700.313989,
+    "ast_hash": "33d336e2a93d9d62b21db03e8ef0a52a",
+    "semantic_hash": "33d336e2a93d9d62b21db03e8ef0a52a"
+  },
+  "supabase/migrations/202608110013_sorting_mop_trace_abs_and_ui_compaction.sql": {
+    "mtime": 1786473772.0,
+    "seen": 1787773700.3139906,
+    "ast_hash": "35b844112290759cf182dbbfd17d5607",
+    "semantic_hash": "35b844112290759cf182dbbfd17d5607"
+  },
+  "supabase/migrations/202608110014_sorting_mop_wide_layout_and_trace_route_visual.sql": {
+    "mtime": 1786474638.0,
+    "seen": 1787773700.3139925,
+    "ast_hash": "c3760b77890cfd05935ab948861da0b0",
+    "semantic_hash": "c3760b77890cfd05935ab948861da0b0"
+  },
+  "supabase/migrations/202608110015_sorting_mop_production_correction_and_cancellation.sql": {
+    "mtime": 1786476470.0,
+    "seen": 1787773700.313994,
+    "ast_hash": "d2e546b86ce0b0ccdc9dd98d33c28303",
+    "semantic_hash": "d2e546b86ce0b0ccdc9dd98d33c28303"
+  },
+  "supabase/migrations/202608110016_sorting_daily_tracker_v2.sql": {
+    "mtime": 1786479722.0,
+    "seen": 1787773700.3139956,
+    "ast_hash": "7990d037cb53b0049d30f53434c9bd4a",
+    "semantic_hash": "7990d037cb53b0049d30f53434c9bd4a"
+  },
+  "supabase/migrations/202608120001_shared_production_tracker_and_trolley_route_clarity.sql": {
+    "mtime": 1786526016.0,
+    "seen": 1787773700.3139973,
+    "ast_hash": "b9463ba8ea1b4194d22e4df0ed89b06f",
+    "semantic_hash": "b9463ba8ea1b4194d22e4df0ed89b06f"
+  },
+  "supabase/migrations/202608120002_mop_late_reconciliation_deadlock_fix.sql": {
+    "mtime": 1786531112.0,
+    "seen": 1787773700.3139992,
+    "ast_hash": "6c3bc6fe7f289c0fa10897ffd3371e2f",
+    "semantic_hash": "6c3bc6fe7f289c0fa10897ffd3371e2f"
+  },
+  "supabase/migrations/202608120003_standalone_mop_workspace_scoped_access.sql": {
+    "mtime": 1786534678.0,
+    "seen": 1787773700.314001,
+    "ast_hash": "daeff2e9f1c69e312a4313433cd6b006",
+    "semantic_hash": "daeff2e9f1c69e312a4313433cd6b006"
+  },
+  "supabase/migrations/202608120004_production_tracker_quantity_and_route_trolley_load.sql": {
+    "mtime": 1786546294.0,
+    "seen": 1787773700.3140028,
+    "ast_hash": "c20e6674dfad78639f6fee4df7ca7d58",
+    "semantic_hash": "c20e6674dfad78639f6fee4df7ca7d58"
+  },
+  "supabase/migrations/202608120005_trolley_dimensions_and_tracker_vehicle_load.sql": {
+    "mtime": 1786552102.0,
+    "seen": 1787773700.3140044,
+    "ast_hash": "13ffefb9d45e51279b0ec82572504861",
+    "semantic_hash": "13ffefb9d45e51279b0ec82572504861"
+  },
+  "supabase/migrations/202608120006_trolley_type_master_management.sql": {
+    "mtime": 1786553794.0,
+    "seen": 1787773700.314006,
+    "ast_hash": "74327d62fac3e4411a929afca457bf8f",
+    "semantic_hash": "74327d62fac3e4411a929afca457bf8f"
+  },
+  "supabase/migrations/202608120007_operational_trolley_requirement_reports_and_history_only_exceptions.sql": {
+    "mtime": 1786556928.0,
+    "seen": 1787773700.3140078,
+    "ast_hash": "932e9c5c0f78609497284986ca1161c9",
+    "semantic_hash": "932e9c5c0f78609497284986ca1161c9"
+  },
+  "supabase/migrations/202608120008_finish_v2_production_foundation.sql": {
+    "mtime": 1786563250.0,
+    "seen": 1787773700.3140094,
+    "ast_hash": "5ffb0e4cf448a6b16479ac290dd7faf1",
+    "semantic_hash": "5ffb0e4cf448a6b16479ac290dd7faf1"
+  },
+  "supabase/migrations/202608120009_finish_staff_roster_actual_context.sql": {
+    "mtime": 1786566576.0,
+    "seen": 1787773700.3140113,
+    "ast_hash": "f64839504f8b975da1dfca5777143c85",
+    "semantic_hash": "f64839504f8b975da1dfca5777143c85"
+  },
+  "supabase/migrations/202608120010_finish_auto_shift_and_trolley_scan_control.sql": {
+    "mtime": 1786568152.0,
+    "seen": 1787773700.3140132,
+    "ast_hash": "d3a39ff94be50b8b06176607d85ca8f3",
+    "semantic_hash": "d3a39ff94be50b8b06176607d85ca8f3"
+  },
+  "supabase/migrations/202608130001_finish_processing_staff_attribution_and_route_saved_today.sql": {
+    "mtime": 1786633672.0,
+    "seen": 1787773700.3140152,
+    "ast_hash": "028904dd4331eb658848192c3acfb4ad",
+    "semantic_hash": "028904dd4331eb658848192c3acfb4ad"
+  },
+  "supabase/migrations/202608130002_finish_processing_staff_roster_fallback.sql": {
+    "mtime": 1786634822.0,
+    "seen": 1787773700.314017,
+    "ast_hash": "c97e4485f74691b25fb89c2ba991ea49",
+    "semantic_hash": "c97e4485f74691b25fb89c2ba991ea49"
+  },
+  "supabase/migrations/202608130003_finish_practical_edit_and_trolley_pending.sql": {
+    "mtime": 1786637852.0,
+    "seen": 1787773700.314019,
+    "ast_hash": "641583bd81338476992bf2c00379cb25",
+    "semantic_hash": "641583bd81338476992bf2c00379cb25"
+  },
+  "supabase/migrations/202608130004_finish_results_dashboard.sql": {
+    "mtime": 1786639374.0,
+    "seen": 1787773700.3140209,
+    "ast_hash": "8dc3f0a56f44554e037cadd1b61c5035",
+    "semantic_hash": "8dc3f0a56f44554e037cadd1b61c5035"
+  },
+  "supabase/migrations/202608130005_distribution_operations_foundation.sql": {
+    "mtime": 1786656020.0,
+    "seen": 1787773700.3140223,
+    "ast_hash": "b01b1ff020363f25a850188b1ad7893a",
+    "semantic_hash": "b01b1ff020363f25a850188b1ad7893a"
+  },
+  "supabase/migrations/202608130006_distribution_weekly_roster.sql": {
+    "mtime": 1786996770.0,
+    "seen": 1787773700.3140244,
+    "ast_hash": "e70b4c651bc2029e885c095abb189430",
+    "semantic_hash": "e70b4c651bc2029e885c095abb189430"
+  },
+  "supabase/migrations/202608130007_distribution_roster_driver_matrix.sql": {
+    "mtime": 1786998290.0,
+    "seen": 1787773700.3140259,
+    "ast_hash": "c6b0d79935c96d6c90c5db15ef48eedf",
+    "semantic_hash": "c6b0d79935c96d6c90c5db15ef48eedf"
+  },
+  "supabase/migrations/202608170001_distribution_actuals_history.sql": {
+    "mtime": 1787000762.0,
+    "seen": 1787773700.3140278,
+    "ast_hash": "c09c409f320c559652c4cb9daeb359c8",
+    "semantic_hash": "c09c409f320c559652c4cb9daeb359c8"
+  },
+  "supabase/migrations/202608180001_production_terminal_access.sql": {
+    "mtime": 1787089917.4844275,
+    "seen": 1787773700.3140292,
+    "ast_hash": "62bde1ea8940019ac94fee434b7cad49",
+    "semantic_hash": "62bde1ea8940019ac94fee434b7cad49"
+  },
+  "supabase/migrations/202608180002_admin_account_access_directory.sql": {
+    "mtime": 1787090377.456683,
+    "seen": 1787773700.314031,
+    "ast_hash": "08e29c7bef414f751f9c5556be8c29ef",
+    "semantic_hash": "08e29c7bef414f751f9c5556be8c29ef"
+  },
+  "supabase/migrations/202608240001_admin_account_lifecycle.sql": {
+    "mtime": 1787601477.7367575,
+    "seen": 1787773700.3140323,
+    "ast_hash": "ff4c4045d4db226571f81711057dc421",
+    "semantic_hash": "ff4c4045d4db226571f81711057dc421"
+  },
+  "supabase/migrations/202608240002_admin_account_permissions.sql": {
+    "mtime": 1787601479.0714436,
+    "seen": 1787773700.3140342,
+    "ast_hash": "f562c433fa3e5546828ad039a6faf46e",
+    "semantic_hash": "f562c433fa3e5546828ad039a6faf46e"
+  },
+  "supabase/migrations/202608240003_account_identity_separation.sql": {
+    "mtime": 1787602626.7049146,
+    "seen": 1787773700.3140361,
+    "ast_hash": "8d87146f065a85c3324591143aa430dc",
+    "semantic_hash": "8d87146f065a85c3324591143aa430dc"
+  },
+  "supabase/migrations/202608240004_account_directory_identity_separation.sql": {
+    "mtime": 1787603213.5401976,
+    "seen": 1787773700.314038,
+    "ast_hash": "b7a980a8c0f805dae5abc657dac5a096",
+    "semantic_hash": "b7a980a8c0f805dae5abc657dac5a096"
+  },
+  "supabase/migrations/202608240005_finish_terminal_session_access.sql": {
+    "mtime": 1787604917.1767023,
+    "seen": 1787773700.3140395,
+    "ast_hash": "2c2240415a187a4c264b622d4cdbd3a0",
+    "semantic_hash": "2c2240415a187a4c264b622d4cdbd3a0"
+  },
+  "supabase/migrations/202608240006_restore_shared_trolley_report_access.sql": {
+    "mtime": 1787604802.1339767,
+    "seen": 1787773700.3140414,
+    "ast_hash": "fcbfa4753b7406b810e02353cc328103",
+    "semantic_hash": "fcbfa4753b7406b810e02353cc328103"
+  },
+  "supabase/migrations/202608240007_restore_finish_actual_compatibility.sql": {
+    "mtime": 1787604918.0968914,
+    "seen": 1787773700.314043,
+    "ast_hash": "714cedb8d35d8d2a1c737ad4e5243d00",
+    "semantic_hash": "714cedb8d35d8d2a1c737ad4e5243d00"
+  },
+  "supabase/migrations/202608240008_direct_account_read_access.sql": {
+    "mtime": 1787605568.368286,
+    "seen": 1787773700.3140447,
+    "ast_hash": "f9b5f1369c2fea04b64a99eda8a2e42a",
+    "semantic_hash": "f9b5f1369c2fea04b64a99eda8a2e42a"
+  },
+  "supabase/seed/202607160001_reference_seed.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140466,
+    "ast_hash": "a7de535d6b915fd36c3beb7d96e0274f",
+    "semantic_hash": "a7de535d6b915fd36c3beb7d96e0274f"
+  },
+  "supabase/seed/202607300002_customer_reference_seed.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140485,
+    "ast_hash": "05a51e5e9eceedcf6a660d896c05b3f2",
+    "semantic_hash": "05a51e5e9eceedcf6a660d896c05b3f2"
+  },
+  "supabase/seed/202607300003_legacy_customer_staging_data.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140502,
+    "ast_hash": "79ce004d5a0467e3145eda192063882e",
+    "semantic_hash": "79ce004d5a0467e3145eda192063882e"
+  },
+  "supabase/seed/202608040001_physical_trolley_registry_import.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140519,
+    "ast_hash": "d90daa9beb8c5726a84e2ceebdd4d150",
+    "semantic_hash": "d90daa9beb8c5726a84e2ceebdd4d150"
+  },
+  "supabase/seed/202608040002_remove_temporary_trolley_location_demo.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140535,
+    "ast_hash": "83b1f34177eadeb16c761137e06c8e10",
+    "semantic_hash": "83b1f34177eadeb16c761137e06c8e10"
+  },
+  "supabase/seed/202608040002_temporary_trolley_location_demo_from_washitems.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140554,
+    "ast_hash": "0eb95524bceecef38bc47b8b7fe58bc2",
+    "semantic_hash": "0eb95524bceecef38bc47b8b7fe58bc2"
+  },
+  "supabase/seed/202608040004_legacy_staff_import.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314057,
+    "ast_hash": "b72da26fb3348a5e564d0651985cbd95",
+    "semantic_hash": "b72da26fb3348a5e564d0651985cbd95"
+  },
+  "supabase/tests/202607300002_customers_and_schedules_smoke_test.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314059,
+    "ast_hash": "71faeb2fe7c153a47eb658869d216a63",
+    "semantic_hash": "71faeb2fe7c153a47eb658869d216a63"
+  },
+  "supabase/tests/202607300003_legacy_customer_staging_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140607,
+    "ast_hash": "171fe33a15d07f8321d75236bb391c23",
+    "semantic_hash": "171fe33a15d07f8321d75236bb391c23"
+  },
+  "supabase/tests/202607300004_legacy_customer_review_decisions_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140626,
+    "ast_hash": "22633ec3783b511ba9a7f8b030da0e20",
+    "semantic_hash": "22633ec3783b511ba9a7f8b030da0e20"
+  },
+  "supabase/tests/202607300005_final_legacy_trolley_decisions_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140645,
+    "ast_hash": "67a20dbc0a640dad778b389b8de30bde",
+    "semantic_hash": "67a20dbc0a640dad778b389b8de30bde"
+  },
+  "supabase/tests/202607300006_legacy_customer_operational_import_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140664,
+    "ast_hash": "ae1ed0fe28be8e82472e88318c164f98",
+    "semantic_hash": "ae1ed0fe28be8e82472e88318c164f98"
+  },
+  "supabase/tests/202607300007_customer_read_api_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140686,
+    "ast_hash": "84c6362dc7a656a55ab207178a31c32c",
+    "semantic_hash": "84c6362dc7a656a55ab207178a31c32c"
+  },
+  "supabase/tests/202607300008_customer_master_management_api_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140702,
+    "ast_hash": "a5972f77ff0416437aecce2b5c365207",
+    "semantic_hash": "a5972f77ff0416437aecce2b5c365207"
+  },
+  "supabase/tests/202607310001_customer_route_visual_read_api_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140724,
+    "ast_hash": "f9053a9cc894356ddad5224555bb0c45",
+    "semantic_hash": "f9053a9cc894356ddad5224555bb0c45"
+  },
+  "supabase/tests/202607310002_customer_schedule_management_api_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140738,
+    "ast_hash": "d73c5438130a9bb88d0990a6e2555d43",
+    "semantic_hash": "d73c5438130a9bb88d0990a6e2555d43"
+  },
+  "supabase/tests/202608030001_customer_planner_production_order_management_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140755,
+    "ast_hash": "636e86ab83b26fd50bbd9d210ca05aa7",
+    "semantic_hash": "636e86ab83b26fd50bbd9d210ca05aa7"
+  },
+  "supabase/tests/202608030002_customer_schedule_history_management_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140771,
+    "ast_hash": "7f1241dbabc761e0059d1e8c1e9be3cb",
+    "semantic_hash": "7f1241dbabc761e0059d1e8c1e9be3cb"
+  },
+  "supabase/tests/202608030003_customer_schedule_history_readability_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140893,
+    "ast_hash": "941b1b2c603c4fbdda428d1961325807",
+    "semantic_hash": "941b1b2c603c4fbdda428d1961325807"
+  },
+  "supabase/tests/202608030004_distribution_daily_planning_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314091,
+    "ast_hash": "b1d435191c292c6310388fe79410298c",
+    "semantic_hash": "b1d435191c292c6310388fe79410298c"
+  },
+  "supabase/tests/202608030005_distribution_schedule_alignment_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140929,
+    "ast_hash": "9d033f3745435bddb2fc4429dd4aa222",
+    "semantic_hash": "9d033f3745435bddb2fc4429dd4aa222"
+  },
+  "supabase/tests/202608030006_physical_trolley_lifecycle_management_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140948,
+    "ast_hash": "573417c62672b6f12a634d355ed74349",
+    "semantic_hash": "573417c62672b6f12a634d355ed74349"
+  },
+  "supabase/tests/202608040001_physical_trolley_registry_import_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140967,
+    "ast_hash": "f2f55178671bb3fa4196ae62760c52df",
+    "semantic_hash": "f2f55178671bb3fa4196ae62760c52df"
+  },
+  "supabase/tests/202608040001_trolley_production_sorting_flow_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3140986,
+    "ast_hash": "732ec95beee2a612d07b450bcd3e4c70",
+    "semantic_hash": "732ec95beee2a612d07b450bcd3e4c70"
+  },
+  "supabase/tests/202608040002_temporary_trolley_location_demo_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314101,
+    "ast_hash": "eeb5dad39aa25353a6ac1ef7f70f1f36",
+    "semantic_hash": "eeb5dad39aa25353a6ac1ef7f70f1f36"
+  },
+  "supabase/tests/202608040002_trolley_distribution_handoff_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141031,
+    "ast_hash": "05fa29ab13d9b094e4db88231aabc311",
+    "semantic_hash": "05fa29ab13d9b094e4db88231aabc311"
+  },
+  "supabase/tests/202608040003_trolley_consultation_views_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141048,
+    "ast_hash": "ced3bcebc027d9a405a6d0c43ff97a6b",
+    "semantic_hash": "ced3bcebc027d9a405a6d0c43ff97a6b"
+  },
+  "supabase/tests/202608040004_legacy_staff_import_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141067,
+    "ast_hash": "d9669c23504de200be822fdf599e8376",
+    "semantic_hash": "d9669c23504de200be822fdf599e8376"
+  },
+  "supabase/tests/202608040004_staff_master_management_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141088,
+    "ast_hash": "b44e0af1274732eada8390e048b122c7",
+    "semantic_hash": "b44e0af1274732eada8390e048b122c7"
+  },
+  "supabase/tests/202608040005_staff_production_scope_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141105,
+    "ast_hash": "9d3adc77981781f6c89504064ac30a46",
+    "semantic_hash": "9d3adc77981781f6c89504064ac30a46"
+  },
+  "supabase/tests/202608040006_production_roster_management_validation_v4.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141122,
+    "ast_hash": "5b3ab9f279f5b0236d2794ba28c0e360",
+    "semantic_hash": "5b3ab9f279f5b0236d2794ba28c0e360"
+  },
+  "supabase/tests/202608050001_production_roster_display_section_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314114,
+    "ast_hash": "3aac0fed45582aace4a30ee09a257d63",
+    "semantic_hash": "3aac0fed45582aace4a30ee09a257d63"
+  },
+  "supabase/tests/202608050002_production_roster_shift_override_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141155,
+    "ast_hash": "a44350ab4b7950604e1bfdd9ba1b1ee0",
+    "semantic_hash": "a44350ab4b7950604e1bfdd9ba1b1ee0"
+  },
+  "supabase/tests/202608050003_production_roster_shift_override_safe_repair_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141174,
+    "ast_hash": "9e322dcd30aff7cb3bd6cde20ece1300",
+    "semantic_hash": "9e322dcd30aff7cb3bd6cde20ece1300"
+  },
+  "supabase/tests/202608050004_production_roster_staff_view_layout_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141193,
+    "ast_hash": "8b45886843e3dbdfe23193d0535a1af9",
+    "semantic_hash": "8b45886843e3dbdfe23193d0535a1af9"
+  },
+  "supabase/tests/202608050005_production_roster_acceptance_suite.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141208,
+    "ast_hash": "49918b57299634fd2b5d781760cadbba",
+    "semantic_hash": "49918b57299634fd2b5d781760cadbba"
+  },
+  "supabase/tests/202608070001_production_roster_staff_portal_and_leave_requests_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314174,
+    "ast_hash": "2221562284c4239ff554e842557bb1e0",
+    "semantic_hash": "2221562284c4239ff554e842557bb1e0"
+  },
+  "supabase/tests/202608070002_production_roster_leave_governance_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3141773,
+    "ast_hash": "27e476879770f5e9ebeabf155f33817a",
+    "semantic_hash": "27e476879770f5e9ebeabf155f33817a"
+  },
+  "supabase/tests/202608070003_production_roster_capacity_and_staff_history_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142412,
+    "ast_hash": "4f4c6e2ce1f7b56e71153793b11c7696",
+    "semantic_hash": "4f4c6e2ce1f7b56e71153793b11c7696"
+  },
+  "supabase/tests/202608080001_production_roster_print_trace_and_sunday_autopublish_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142486,
+    "ast_hash": "20c29677a14f7ff7ee6e104261f4dba3",
+    "semantic_hash": "20c29677a14f7ff7ee6e104261f4dba3"
+  },
+  "supabase/tests/202608080002_production_roster_staff_recent_requests_and_single_autopublish_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314251,
+    "ast_hash": "0fe885eb264d3fd68a1fd704eb4c643f",
+    "semantic_hash": "0fe885eb264d3fd68a1fd704eb4c643f"
+  },
+  "supabase/tests/202608080003_legacy_production_roster_and_leave_history_import_validation_v3.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314275,
+    "ast_hash": "6692116d359b3cc2db7f26fdd600106e",
+    "semantic_hash": "6692116d359b3cc2db7f26fdd600106e"
+  },
+  "supabase/tests/202608080004_production_roster_assignment_save_integrity_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.31428,
+    "ast_hash": "9229fc18e15a9a3a73fb3888ce7066d7",
+    "semantic_hash": "9229fc18e15a9a3a73fb3888ce7066d7"
+  },
+  "supabase/tests/202608080005_production_roster_table_day_override_and_joined_availability_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142822,
+    "ast_hash": "752987d03bcf2049b15b9adf44da7652",
+    "semantic_hash": "752987d03bcf2049b15b9adf44da7652"
+  },
+  "supabase/tests/202608080006_production_roster_shift_isolation_and_override_governance_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142848,
+    "ast_hash": "6d6d60778645352d5e505dbd9222dc85",
+    "semantic_hash": "6d6d60778645352d5e505dbd9222dc85"
+  },
+  "supabase/tests/202608080007_sorting_v2_intake_foundation_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142874,
+    "ast_hash": "407e57c319dbccd9875118076e9ff61e",
+    "semantic_hash": "407e57c319dbccd9875118076e9ff61e"
+  },
+  "supabase/tests/202608080008_sorting_v2_trolley_suggestion_contract_fix_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142898,
+    "ast_hash": "8cd186e5e78b0851dab9039433d8dbff",
+    "semantic_hash": "8cd186e5e78b0851dab9039433d8dbff"
+  },
+  "supabase/tests/202608080009_sorting_v2_washing_and_trace_foundation_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142917,
+    "ast_hash": "0504200f5eeac861170bad9bc0dfeffc",
+    "semantic_hash": "0504200f5eeac861170bad9bc0dfeffc"
+  },
+  "supabase/tests/202608080010_operational_work_sessions_and_sorting_staff_adjustments_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314294,
+    "ast_hash": "f3f9063f990007379968fa6ac8e1aa91",
+    "semantic_hash": "f3f9063f990007379968fa6ac8e1aa91"
+  },
+  "supabase/tests/202608080011_sorting_staff_work_profile_time_resolution_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142962,
+    "ast_hash": "0e9f585de5ce8be517d1551a59ccd4ba",
+    "semantic_hash": "0e9f585de5ce8be517d1551a59ccd4ba"
+  },
+  "supabase/tests/202608080012_sorting_manual_actual_staff_and_customer_route_board_validation_v3.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3142982,
+    "ast_hash": "11c89994cf68f82a6529955f1b6fb498",
+    "semantic_hash": "11c89994cf68f82a6529955f1b6fb498"
+  },
+  "supabase/tests/202608100001_sorting_schedule_trace_mop_assignment_and_visual_board_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143,
+    "ast_hash": "cd21e995504772c1e601794f1240d1ad",
+    "semantic_hash": "cd21e995504772c1e601794f1240d1ad"
+  },
+  "supabase/tests/202608100002_production_roster_mop_and_staff_exit_guard_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143022,
+    "ast_hash": "1313ab9ed2c8650674afd83998fbc1a7",
+    "semantic_hash": "1313ab9ed2c8650674afd83998fbc1a7"
+  },
+  "supabase/tests/202608100003_production_roster_mop_decision_and_sorting_selection_clarity_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314305,
+    "ast_hash": "3ee0325d8de9dbea61b1a6ab029b1d7b",
+    "semantic_hash": "3ee0325d8de9dbea61b1a6ab029b1d7b"
+  },
+  "supabase/tests/202608100004_sorting_wash_corrections_and_late_entry_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314308,
+    "ast_hash": "9be5290124734b374dcd58b13896189c",
+    "semantic_hash": "9be5290124734b374dcd58b13896189c"
+  },
+  "supabase/tests/202608100005_operational_business_date_and_sorting_wash_search_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143098,
+    "ast_hash": "7fdb29b8d4442349deb67a51904e93fe",
+    "semantic_hash": "7fdb29b8d4442349deb67a51904e93fe"
+  },
+  "supabase/tests/202608100006_sorting_staff_cards_time_and_work_mode_audit_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314312,
+    "ast_hash": "6d94e01bad00503f89efd9abb21ab2da",
+    "semantic_hash": "6d94e01bad00503f89efd9abb21ab2da"
+  },
+  "supabase/tests/202608100007_sorting_attendance_performance_and_auto_shift_validation_v2.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143137,
+    "ast_hash": "943b1a37679f909971b8030fe9f1a556",
+    "semantic_hash": "943b1a37679f909971b8030fe9f1a556"
+  },
+  "supabase/tests/202608100008_sorting_auto_absence_and_simple_time_editor_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143156,
+    "ast_hash": "ccd0a1dccc665444964ac26ba210c0f3",
+    "semantic_hash": "ccd0a1dccc665444964ac26ba210c0f3"
+  },
+  "supabase/tests/202608110001_production_flow_foundation_and_wash_trace_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143172,
+    "ast_hash": "b96ba338131018936720c8223b20c8c6",
+    "semantic_hash": "b96ba338131018936720c8223b20c8c6"
+  },
+  "supabase/tests/202608110002_production_flow_wash_weight_allocation_and_confirmation_guard_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143191,
+    "ast_hash": "5698753df56fd45e71058809d1ef6113",
+    "semantic_hash": "5698753df56fd45e71058809d1ef6113"
+  },
+  "supabase/tests/202608110003_production_flow_trace_typed_event_quantity_contract_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143208,
+    "ast_hash": "9f0c3341649316cd016a912b3a4fa8ef",
+    "semantic_hash": "9f0c3341649316cd016a912b3a4fa8ef"
+  },
+  "supabase/tests/202608110004_sorting_trolley_contents_intake_and_flow_queue_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143227,
+    "ast_hash": "7d06b65b7b542d8161bb778b76e17f9e",
+    "semantic_hash": "7d06b65b7b542d8161bb778b76e17f9e"
+  },
+  "supabase/tests/202608110005_sorting_trolley_kiosk_custody_trace_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143244,
+    "ast_hash": "af0200150b65cef36fcd411c002e02d8",
+    "semantic_hash": "af0200150b65cef36fcd411c002e02d8"
+  },
+  "supabase/tests/202608110006_sorting_trolley_contract_sizes_and_reception_status_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143265,
+    "ast_hash": "af1a1bba6e4217f0282ecdb21455ea9a",
+    "semantic_hash": "af1a1bba6e4217f0282ecdb21455ea9a"
+  },
+  "supabase/tests/202608110007_sorting_wash_requires_trolley_contents_scan_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143287,
+    "ast_hash": "8a45268cb1849748c343ee1c5faf87f0",
+    "semantic_hash": "8a45268cb1849748c343ee1c5faf87f0"
+  },
+  "supabase/tests/202608110008_sorting_auto_shift_handover_fix_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.314331,
+    "ast_hash": "1b5931a06444f4e684d8b514c7fd3597",
+    "semantic_hash": "1b5931a06444f4e684d8b514c7fd3597"
+  },
+  "supabase/tests/202608110009_sorting_staff_no_work_and_area_transfer_validation.sql": {
+    "mtime": 1786466860.0,
+    "seen": 1787773700.3143332,
+    "ast_hash": "219329875311d5118cdd636bdf9f3e0f",
+    "semantic_hash": "219329875311d5118cdd636bdf9f3e0f"
+  },
+  "supabase/tests/202608110010_sorting_mop_production_and_no_trolley_arrival_validation.sql": {
+    "mtime": 1786467116.0,
+    "seen": 1787773700.3143356,
+    "ast_hash": "7e29db1321647ab386d0f2347e682e83",
+    "semantic_hash": "7e29db1321647ab386d0f2347e682e83"
+  },
+  "supabase/tests/202608110010_sorting_mop_production_and_no_trolley_arrival_validation_v4.sql": {
+    "mtime": 1786467116.0,
+    "seen": 1787773700.3143373,
+    "ast_hash": "7e29db1321647ab386d0f2347e682e83",
+    "semantic_hash": "7e29db1321647ab386d0f2347e682e83"
+  },
+  "supabase/tests/202608110011_sorting_mop_ui_master_and_wash_reception_exception_validation.sql": {
+    "mtime": 1786470044.0,
+    "seen": 1787773700.3143396,
+    "ast_hash": "1215cda19cc91347444676d0d43fdedb",
+    "semantic_hash": "1215cda19cc91347444676d0d43fdedb"
+  },
+  "supabase/tests/202608110012_sorting_mop_type_master_management_validation.sql": {
+    "mtime": 1786471330.0,
+    "seen": 1787773700.3143413,
+    "ast_hash": "77924d582e7defa250f1b46e9483a976",
+    "semantic_hash": "77924d582e7defa250f1b46e9483a976"
+  },
+  "supabase/tests/202608110013_sorting_mop_trace_abs_and_ui_compaction_validation.sql": {
+    "mtime": 1786473950.0,
+    "seen": 1787773700.3143442,
+    "ast_hash": "f13f77191a045ccb3dc2e03374cb5abc",
+    "semantic_hash": "f13f77191a045ccb3dc2e03374cb5abc"
+  },
+  "supabase/tests/202608110014_sorting_mop_wide_layout_and_trace_route_visual_validation.sql": {
+    "mtime": 1786474670.0,
+    "seen": 1787773700.314346,
+    "ast_hash": "5b714a85503b8a37d3ed35921ae1814c",
+    "semantic_hash": "5b714a85503b8a37d3ed35921ae1814c"
+  },
+  "supabase/tests/202608110015_sorting_mop_production_correction_and_cancellation_validation.sql": {
+    "mtime": 1786476478.0,
+    "seen": 1787773700.3143477,
+    "ast_hash": "f0799a4c649b2c86cfbc8a20d156930d",
+    "semantic_hash": "f0799a4c649b2c86cfbc8a20d156930d"
+  },
+  "supabase/tests/202608110016_sorting_daily_tracker_v2_validation.sql": {
+    "mtime": 1786479758.0,
+    "seen": 1787773700.314351,
+    "ast_hash": "5b3466014ab97a851e64be3f42f1a6ab",
+    "semantic_hash": "5b3466014ab97a851e64be3f42f1a6ab"
+  },
+  "supabase/tests/202608120001_shared_production_tracker_and_trolley_route_clarity_validation.sql": {
+    "mtime": 1786526062.0,
+    "seen": 1787773700.3143528,
+    "ast_hash": "e2f91c12aefd943a870c7633aff9476b",
+    "semantic_hash": "e2f91c12aefd943a870c7633aff9476b"
+  },
+  "supabase/tests/202608120002_mop_late_reconciliation_deadlock_fix_validation.sql": {
+    "mtime": 1786531224.0,
+    "seen": 1787773700.3143542,
+    "ast_hash": "a690b69615a6b416c5e1576437115e87",
+    "semantic_hash": "a690b69615a6b416c5e1576437115e87"
+  },
+  "supabase/tests/202608120003_standalone_mop_workspace_scoped_access_validation.sql": {
+    "mtime": 1786534678.0,
+    "seen": 1787773700.3143563,
+    "ast_hash": "c844bb1e43430697b4c819d18b48b158",
+    "semantic_hash": "c844bb1e43430697b4c819d18b48b158"
+  },
+  "supabase/tests/202608120004_production_tracker_quantity_and_route_trolley_load_validation.sql": {
+    "mtime": 1786546780.0,
+    "seen": 1787773700.314358,
+    "ast_hash": "400586cf40e8b981deb07cc33d2b69b7",
+    "semantic_hash": "400586cf40e8b981deb07cc33d2b69b7"
+  },
+  "supabase/tests/202608120005_trolley_dimensions_and_tracker_vehicle_load_validation.sql": {
+    "mtime": 1786552102.0,
+    "seen": 1787773700.31436,
+    "ast_hash": "d0ad05851d4517e22a253470177c89f9",
+    "semantic_hash": "d0ad05851d4517e22a253470177c89f9"
+  },
+  "supabase/tests/202608120006_trolley_type_master_management_validation.sql": {
+    "mtime": 1786553512.0,
+    "seen": 1787773700.3143613,
+    "ast_hash": "29378826fb11ddefb5b8cca2774a605a",
+    "semantic_hash": "29378826fb11ddefb5b8cca2774a605a"
+  },
+  "supabase/tests/202608120007_operational_trolley_requirement_reports_and_history_only_exceptions_validation.sql": {
+    "mtime": 1786556810.0,
+    "seen": 1787773700.3143628,
+    "ast_hash": "f2ac7e472af697cdf594c97f0e647b8b",
+    "semantic_hash": "f2ac7e472af697cdf594c97f0e647b8b"
+  },
+  "supabase/tests/202608120008_finish_v2_production_foundation_validation.sql": {
+    "mtime": 1786563196.0,
+    "seen": 1787773700.314365,
+    "ast_hash": "8f248a9df1a522d5baa1dc26621e0cae",
+    "semantic_hash": "8f248a9df1a522d5baa1dc26621e0cae"
+  },
+  "supabase/tests/202608120009_finish_staff_roster_actual_context_validation.sql": {
+    "mtime": 1786565490.0,
+    "seen": 1787773700.3143673,
+    "ast_hash": "3e87b3fbaea04f2aefa787381987629c",
+    "semantic_hash": "3e87b3fbaea04f2aefa787381987629c"
+  },
+  "supabase/tests/202608120010_finish_auto_shift_and_trolley_scan_control_validation.sql": {
+    "mtime": 1786568162.0,
+    "seen": 1787773700.314369,
+    "ast_hash": "ee41ee3f67cb2b05cb6b92cc7b2ae17a",
+    "semantic_hash": "ee41ee3f67cb2b05cb6b92cc7b2ae17a"
+  },
+  "supabase/tests/202608130001_finish_processing_staff_attribution_and_route_saved_today_validation.sql": {
+    "mtime": 1786633690.0,
+    "seen": 1787773700.314371,
+    "ast_hash": "2b38c12ba508caaac293ac287fcd5e07",
+    "semantic_hash": "2b38c12ba508caaac293ac287fcd5e07"
+  },
+  "supabase/tests/202608130002_finish_processing_staff_roster_fallback_validation.sql": {
+    "mtime": 1786634758.0,
+    "seen": 1787773700.3143725,
+    "ast_hash": "77ed7e72a4eb3900e2aeaf16de4ca637",
+    "semantic_hash": "77ed7e72a4eb3900e2aeaf16de4ca637"
+  },
+  "supabase/tests/202608130003_finish_practical_edit_and_trolley_pending_validation.sql": {
+    "mtime": 1786637852.0,
+    "seen": 1787773700.3143744,
+    "ast_hash": "964e4d645d8c1d6310aa470ed00e6a9a",
+    "semantic_hash": "964e4d645d8c1d6310aa470ed00e6a9a"
+  },
+  "supabase/tests/202608130004_finish_results_dashboard_validation.sql": {
+    "mtime": 1786639386.0,
+    "seen": 1787773700.314376,
+    "ast_hash": "0b61a1844ec016b26e2fe762c84139f5",
+    "semantic_hash": "0b61a1844ec016b26e2fe762c84139f5"
+  },
+  "supabase/tests/202608130005_distribution_operations_foundation_validation.sql": {
+    "mtime": 1786656152.0,
+    "seen": 1787773700.314378,
+    "ast_hash": "9823bf29d8e98cd3cf31c909225d295d",
+    "semantic_hash": "9823bf29d8e98cd3cf31c909225d295d"
+  },
+  "supabase/tests/202608130006_distribution_weekly_roster_validation.sql": {
+    "mtime": 1786656168.0,
+    "seen": 1787773700.3143802,
+    "ast_hash": "dad4e8e9951bd503a71dba63430baf4f",
+    "semantic_hash": "dad4e8e9951bd503a71dba63430baf4f"
+  },
+  "supabase/tests/202608130007_distribution_roster_driver_matrix_validation.sql": {
+    "mtime": 1786657264.0,
+    "seen": 1787773700.3143833,
+    "ast_hash": "5740391ae7d249ff3f61572b7307e599",
+    "semantic_hash": "5740391ae7d249ff3f61572b7307e599"
+  },
+  "docs/testing/CLEANUP-SIM_FINISH-SNAPSHOT-116-V2.sql": {
+    "mtime": 1786636194.0,
+    "seen": 1787775168.4452477,
+    "ast_hash": "49625b3ff0f1df74e909bb55c3ca296c",
+    "semantic_hash": "49625b3ff0f1df74e909bb55c3ca296c"
+  },
+  "docs/testing/CLEANUP-SIM_FINISH-SNAPSHOT-117-V3.sql": {
+    "mtime": 1786638034.0,
+    "seen": 1787775168.4452507,
+    "ast_hash": "f1f84f197188f3377d8619ed735f85a6",
+    "semantic_hash": "f1f84f197188f3377d8619ed735f85a6"
+  }
+}
