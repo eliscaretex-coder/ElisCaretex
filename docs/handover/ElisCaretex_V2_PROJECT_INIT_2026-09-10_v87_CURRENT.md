@@ -5,6 +5,8 @@
 **Current source authority:** the working tree containing this file.
 **Supersedes:** `ElisCaretex_V2_PROJECT_INIT_2026-08-18_v86_DISTRIBUTION_CURRENT.md` and older INIT handovers.
 
+**Continuation update:** 2026-09-23. The owner now keeps the publishable Git repository in OneDrive and uses this Codex workspace as the editable AI working copy when needed. See section 2 before doing any work.
+
 ## 1. Read First
 
 This is a live operational platform, not a UI prototype. Read the current source before changing it and preserve the distinction between planned, actual, reported and corrected facts.
@@ -32,7 +34,20 @@ Code, database/schema names, filenames and UI text remain in English. Conversati
 Current working source:
 
 ```text
-C:/Users/paulob/Documents/Codex/2026-08-18/ana/work/laundry-platform-v2-extract/laundry-platform-v2
+C:/Users/paulob/Documents/Codex/2026-09-10/an/work/laundry-platform-v2-analysis/laundry-platform-v2
+```
+
+Owner's Git/GitHub working folder:
+
+```text
+C:/Users/paulob/OneDrive - ELIS/Documents/Paulo/laundry-platform-v2-foundation/laundry-platform-v2
+```
+
+GitHub repository:
+
+```text
+https://github.com/eliscaretex-coder/ElisCaretex.git
+branch: master
 ```
 
 Local application URL normally used by the owner:
@@ -53,6 +68,35 @@ supabase/migrations/
 ```
 
 The correction register is the active backlog and implementation record. Its current entries reach **P-041**.
+
+Current collaboration/deployment workflow:
+
+1. Codex may edit the Codex working copy listed above.
+2. The owner copies changed files into the OneDrive Git working folder.
+3. The owner commits and pushes from the OneDrive folder:
+
+```text
+git status
+git add -A
+git commit -m "Describe the change"
+git push origin master
+```
+
+4. GitHub Pages deploys automatically from `master` using:
+
+```text
+.github/workflows/pages.yml
+```
+
+GitHub Pages publishes only the `frontend` folder. The live Pages URL is expected to be:
+
+```text
+https://eliscaretex-coder.github.io/ElisCaretex/
+```
+
+Supabase Auth should allow that URL in Site URL / Redirect URLs for login and password recovery. Do not put private credentials into frontend files. `frontend/assets/js/config.js` intentionally contains only the Supabase project URL and publishable key.
+
+Security note from 2026-09-23: no `.env`, private key, service-role key or obvious private credential was found in the tracked source. The old `.reference-distribution` folder contained a Google Apps Script URL reference; if that endpoint is still active, disable/rotate it or remove the reference before making the repository broadly public.
 
 ## 3. Platform Architecture
 
