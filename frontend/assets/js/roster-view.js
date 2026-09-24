@@ -367,11 +367,11 @@ async function loadRoster() {
     if (!data.session) { window.location.replace("../index.html"); return; }
     ROSTER_VIEW.authenticated = true;
     ROSTER_VIEW.data = await portalRpc("get_my_account_roster_portal");
-    const administratorView = Boolean(ROSTER_VIEW.data?.administrator_view);
-    document.querySelector("h1").textContent = administratorView ? "Published Roster" : "My Roster";
-    nodes.search.closest(".rv-search-wrap").hidden = !administratorView;
-    nodes.leaveButton.hidden = administratorView;
-    if (administratorView) nodes.pubInfo.textContent = "Administrator view · all published Production staff";
+    const managementView = Boolean(ROSTER_VIEW.data?.management_view || ROSTER_VIEW.data?.administrator_view);
+    document.querySelector("h1").textContent = managementView ? "Published Roster" : "My Roster";
+    nodes.search.closest(".rv-search-wrap").hidden = !managementView;
+    nodes.leaveButton.hidden = managementView;
+    if (managementView) nodes.pubInfo.textContent = "Management view · all published Production staff";
   }
   const shifts = ROSTER_VIEW.data?.shifts || [];
   const first = shifts.find((shift) => String(shift.shift_code).toUpperCase() === "MORNING") || shifts[0];
