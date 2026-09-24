@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const state = {
     reference: null, data: null, staff: [], staffPool: [], entries: new Map(), layouts: new Map(), leaveLocks: new Map(), leavePending: new Map(), leaveDashboard: null, leaveScope: "ACTION", leaveSettingsValue: null,
+    accessProfile: null, canEditRoster: false, canApproveLeave: false, canManageRoster: false,
     operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, dirty: false,
     editingKey: "", quickKey: "", staffPickerSelectedId: "", historyVersionId: null, loading: false,
     loadedWeekStart: "", loadedShiftCode: "", suspiciousShiftDraft: null, shiftIntegrity: null
@@ -102,6 +103,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { data, error } = await client.rpc(name, args);
     if (error) throw error;
     return data;
+  }
+
+  function canAccountAction(moduleCode,action) {
+    const grant=(state.accessProfile?.permissions||[]).find((item)=>item.module_code===moduleCode);
+    if (!grant) return false;
+    if (action==="VIEW") return grant.can_view||grant.can_create||grant.can_edit||grant.can_approve||grant.can_manage;
+    if (action==="CREATE") return grant.can_create||grant.can_manage;
+    if (action==="EDIT") return grant.can_edit||grant.can_manage;
+    if (action==="APPROVE") return grant.can_approve||grant.can_manage;
+    return action==="MANAGE"&&grant.can_manage;
   }
 
   function dateIso(date) {
@@ -1291,6 +1302,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         rpc("get_production_roster_operational_settings", { p_from_date: weekStart, p_to_date: addDays(weekStart, 6) })
       ]);
       state.data = data || {};
+      if ((state.accessProfile?.permissions||[]).length) state.data.can_manage=state.canEditRoster;
       state.operationalSettings = operationalSettings || { targets: [], work_profiles: [], bank_holidays: [] };
       const [approvedLeave, pendingLeave] = (!state.historyVersionId && state.data.can_manage)
         ? await Promise.all([
@@ -1916,7 +1928,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       : `<small>Submitted ${escapeHtml(formatDateTime(request.submitted_at))}</small>`;
 
     let actions = "";
-    if (status === "PENDING") {
+    if (status === "PENDING" && state.canApproveLeave) {
       if (gmRequired) {
         if (gmState === "AWAITING_GM") {
           actions = `<button class="roster-button" type="button" data-leave-history-toggle="${escapeHtml(request.leave_request_id)}">History</button>`;
@@ -2237,7 +2249,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const { data: sessionData } = await client.auth.getSession();
       if (!sessionData.session) { window.location.replace("../index.html"); return; }
-      state.reference = await rpc("get_production_roster_reference_data");
+      const [reference,accessProfile]=await Promise.all([rpc("get_production_roster_reference_data"),rpc("get_current_account_access")]);
+      state.reference = reference;
+      state.accessProfile=accessProfile||{};
+      state.canEditRoster=canAccountAction("PRODUCTION_ROSTER","EDIT");
+      state.canApproveLeave=canAccountAction("PRODUCTION_ROSTER","APPROVE");
+      state.canManageRoster=canAccountAction("PRODUCTION_ROSTER","MANAGE");
+      const leaveSettingsTab=elements.settingsTabs.querySelector('[data-settings-tab="LEAVE"]');
+      if (leaveSettingsTab) leaveSettingsTab.classList.toggle("hidden",!state.canManageRoster);
+      elements.leaveSettingsSave.classList.toggle("hidden",!state.canManageRoster);
       elements.shift.innerHTML = (state.reference.shifts || []).map((shift) => `<option value="${escapeHtml(shift.shift_code)}">${escapeHtml(shift.shift_name)}</option>`).join("");
       elements.week.value = isoWeekValue(currentMonday());
       await loadRoster({ force: true });
@@ -2369,7 +2389,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.leaveHistorySearchTimer = setTimeout(() => { if (state.leaveScope === "HISTORY") openLeaveRequests("HISTORY"); }, 280);
   });
   elements.settingsTabs.addEventListener("click", (event) => { const button = event.target.closest("[data-settings-tab]"); if (button) setSettingsTab(button.dataset.settingsTab); });
-  elements.leaveSettingsSave.addEventListener("click", saveLeaveSettings);
+  elements.leaveSettingsSave.addEventListener("click", () => { if (state.canManageRoster) saveLeaveSettings(); });
   elements.bankHolidayAdd.addEventListener("click", addBankHoliday);
   elements.copyLink.addEventListener("click", async () => { await navigator.clipboard.writeText(elements.linkInput.value); elements.linkMessage.textContent = "Link copied."; });
   elements.quickClose.addEventListener("click", closeQuickStatusMenu);
@@ -2461,9 +2481,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const removeBankHolidayButton = event.target.closest("[data-remove-bank-holiday]");
     if (removeBankHolidayButton) { removeBankHoliday(removeBankHolidayButton.dataset.removeBankHoliday); return; }
     const leaveDecision = event.target.closest("[data-leave-decision]");
-    if (leaveDecision) { decideLeaveRequest(leaveDecision.dataset.leaveRequestId, leaveDecision.dataset.leaveDecision); return; }
+    if (leaveDecision && state.canApproveLeave) { decideLeaveRequest(leaveDecision.dataset.leaveRequestId, leaveDecision.dataset.leaveDecision); return; }
     const leaveSendGm = event.target.closest("[data-leave-send-gm]");
-    if (leaveSendGm) { sendLeaveRequestToGeneralManager(leaveSendGm.dataset.leaveSendGm); return; }
+    if (leaveSendGm && state.canApproveLeave) { sendLeaveRequestToGeneralManager(leaveSendGm.dataset.leaveSendGm); return; }
     const leaveHistory = event.target.closest("[data-leave-history-toggle]");
     if (leaveHistory) { toggleLeaveHistory(leaveHistory.dataset.leaveHistoryToggle); return; }
     const versionButton = event.target.closest("[data-open-roster-version]"); if (versionButton) { closeHistory(); loadRoster({ force: true, versionId: versionButton.dataset.openRosterVersion }); }
