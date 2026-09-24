@@ -54,6 +54,48 @@ async function isAdministrator(client: ReturnType<typeof createClient>, authUser
   return !assignmentError && Boolean(role);
 }
 
+async function accountCapabilities(client: ReturnType<typeof createClient>,authUserId: string) {
+  if (await isAdministrator(client,authUserId)) return { canCreate:true,canEdit:true,canManage:true,accessScope:"ALL" };
+  const today = new Date().toISOString().slice(0,10);
+  const { data,error } = await client.from("account_permission_grants")
+    .select("can_create,can_edit,can_manage,access_scope")
+    .eq("auth_user_id",authUserId).eq("module_code","ACCOUNTS_ACCESS").eq("active",true)
+    .lte("effective_from",today).or(`effective_until.is.null,effective_until.gte.${today}`).maybeSingle();
+  if (error) throw error;
+  return { canCreate:Boolean(data?.can_create || data?.can_manage),canEdit:Boolean(data?.can_edit || data?.can_manage),canManage:Boolean(data?.can_manage),accessScope:String(data?.access_scope || "OWN") };
+}
+
+async function assertJobTitleScope(client: ReturnType<typeof createClient>,jobTitleCode: string,accessScope: string) {
+  const { data,error } = await client.from("account_job_titles").select("department_scope").eq("job_title_code",jobTitleCode).eq("active",true).maybeSingle();
+  if (error || !data) throw new Error("The selected job title is not available.");
+  if (accessScope === "ALL") return;
+  if (accessScope === "PRODUCTION" && data.department_scope === "PRODUCTION") return;
+  if (accessScope === "DISTRIBUTION" && data.department_scope === "DISTRIBUTION") return;
+  throw new Error("The selected job title is outside this account's permitted scope.");
+}
+
+async function assertAccountScope(client: ReturnType<typeof createClient>,accountId: string,callerId: string,accessScope: string) {
+  if (accessScope === "ALL" || accountId === callerId) return;
+  const { data,error } = await client.from("account_access_profiles").select("account_type,job_title_code").eq("auth_user_id",accountId).maybeSingle();
+  if (error || !data) throw new Error("The selected account is outside this account's permitted scope.");
+  if (data.account_type === "TERMINAL" || !data.job_title_code) throw new Error("All scope is required to manage this account.");
+  await assertJobTitleScope(client,String(data.job_title_code),accessScope);
+}
+
+async function existingAccountConfiguration(client: ReturnType<typeof createClient>,accountId: string) {
+  const [{ data:profile,error:profileError },{ data:grants,error:grantError },{ data:roleRows,error:roleError }] = await Promise.all([
+    client.from("account_access_profiles").select("account_type,job_title_code").eq("auth_user_id",accountId).maybeSingle(),
+    client.from("account_permission_grants").select("module_code,access_scope,can_view,can_create,can_edit,can_approve,can_manage").eq("auth_user_id",accountId).eq("active",true),
+    client.from("account_roles").select("roles!inner(role_code)").eq("auth_user_id",accountId).eq("active",true)
+  ]);
+  if (profileError || grantError || roleError) throw profileError || grantError || roleError;
+  return {
+    profile,
+    permissions:(grants || []) as ReturnType<typeof permissionGrants>,
+    roles:(roleRows || []).map((item) => String((item.roles as unknown as { role_code:string }).role_code))
+  };
+}
+
 async function assertLinkableStaff(client: ReturnType<typeof createClient>, staffId: string, accountId: string) {
   if (!staffId) return;
   const { data, error } = await client
@@ -156,9 +198,12 @@ Deno.serve(async (req) => {
   if (identityError || !identity.user) return respond({ ok: false, error: "Authentication is required." }, 401);
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  if (!await isAdministrator(admin, identity.user.id)) return respond({ ok: false, error: "Only administrators can manage application accounts." }, 403);
-
   const action = value(body, "action");
+  let capabilities;
+  try { capabilities = await accountCapabilities(admin,identity.user.id); }
+  catch (error) { return respond({ ok:false,error:message(error) },403); }
+  const permitted = action === "create" ? capabilities.canCreate : action === "update" ? capabilities.canEdit : capabilities.canManage;
+  if (!permitted) return respond({ ok:false,error:"This account does not have permission for this account action." },403);
   const accountId = value(body, "auth_user_id");
   const email = value(body, "email").toLowerCase();
   const password = value(body, "password");
@@ -175,10 +220,26 @@ Deno.serve(async (req) => {
   const loginIdentifier = value(body,"login_identifier").toLowerCase().replace(/[^a-z0-9._-]+/g,"-").replace(/^-|-$/g,"");
 
   try {
+    if (action !== "create") {
+      if (!accountId) throw new Error("Account identifier is required.");
+      await assertAccountScope(admin,accountId,identity.user.id,capabilities.accessScope);
+    }
+    if (accountType === "TERMINAL" && ["create","update"].includes(action) && (!capabilities.canManage || capabilities.accessScope !== "ALL")) throw new Error("Manage permission with All scope is required for terminal accounts.");
+    if (accountType === "USER" && ["create","update"].includes(action)) await assertJobTitleScope(admin,jobTitleCode,capabilities.accessScope);
+    let preserved: Awaited<ReturnType<typeof existingAccountConfiguration>> | null = null;
+    if (action === "update" && !capabilities.canManage) {
+      if (!accountId) throw new Error("Account identifier is required.");
+      if (password) throw new Error("Manage permission is required to replace an account password.");
+      preserved = await existingAccountConfiguration(admin,accountId);
+      if (!preserved.profile) throw new Error("The account access profile was not found.");
+      if (preserved.profile.account_type !== accountType || (accountType === "USER" && preserved.profile.job_title_code !== jobTitleCode)) throw new Error("Manage permission is required to change account type or job title.");
+      selectedPermissions = preserved.permissions;
+      if (accountType === "TERMINAL") selectedRoles = preserved.roles;
+    }
     if (accountType === "USER" && ["create","update"].includes(action)) {
-      const resolved = await resolveJobAccess(admin, jobTitleCode, selectedPermissions);
+      const resolved = await resolveJobAccess(admin, jobTitleCode, capabilities.canManage ? selectedPermissions : []);
       selectedRoles = resolved.roleCodes;
-      selectedPermissions = resolved.permissions;
+      selectedPermissions = preserved ? preserved.permissions : resolved.permissions;
     }
     if (action === "create") {
       if (!displayName || password.length < 12 || (accountType === "USER" && (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@")) : !loginIdentifier))) || (accountType === "TERMINAL" && (!deviceCode || !deviceName || !stationId))) throw new Error("Complete the account details and an initial password with at least 12 characters.");

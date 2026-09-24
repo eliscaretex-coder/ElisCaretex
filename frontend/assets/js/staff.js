@@ -117,8 +117,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const state = {
     reference: null,
+    accessProfile: null,
     view: new URLSearchParams(location.search).get("view") === "accounts" ? "accounts" : "directory",
     canViewAccounts: false,
+    canCreateAccounts: false,
+    canEditAccounts: false,
+    canManageAccounts: false,
+    canCreateStaff: false,
+    canEditStaff: false,
+    canManageStaff: false,
     statusFilter: "ACTIVE",
     shiftFilter: "ALL",
     search: "",
@@ -256,13 +263,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function rowActions(item) {
-    if (!state.reference?.can_edit_staff) return '<span class="staff-subtext">Read only</span>';
-    const lifecycle = item.active
+    if (!state.canEditStaff && !state.canManageStaff) return '<span class="staff-subtext">Read only</span>';
+    const lifecycle = !state.canManageStaff ? "" : item.active
       ? `<button class="staff-row-button danger" type="button" data-staff-deactivate="${escapeHtml(item.staff_id)}" data-row-version="${Number(item.row_version)}" data-staff-name="${escapeHtml(item.display_name)}">Deactivate</button>`
       : `<button class="staff-row-button" type="button" data-staff-reactivate="${escapeHtml(item.staff_id)}" data-row-version="${Number(item.row_version)}" data-staff-name="${escapeHtml(item.display_name)}">Reactivate</button>`;
     return `
       <div class="staff-row-actions">
-        <button class="staff-row-button" type="button" data-staff-edit="${escapeHtml(item.staff_id)}">Edit</button>
+        ${state.canEditStaff ? `<button class="staff-row-button" type="button" data-staff-edit="${escapeHtml(item.staff_id)}">Edit</button>` : ""}
         ${lifecycle}
       </div>
     `;
@@ -370,7 +377,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             </select>
             <button class="staff-secondary-button" type="submit">Apply</button>
             <button id="staffDirectoryReload" class="staff-secondary-button" type="button">Reload</button>
-            ${state.reference?.can_edit_staff ? '<button id="staffAddButton" class="staff-primary-button" type="button">Add Staff</button>' : ""}
+            ${state.canCreateStaff ? '<button id="staffAddButton" class="staff-primary-button" type="button">Add Staff</button>' : ""}
           </form>
         </header>
 
@@ -415,13 +422,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lifecycle = account.is_active
       ? `<button class="staff-row-button danger" type="button" data-account-disable="${escapeHtml(account.auth_user_id)}">Disable</button>`
       : `<button class="staff-row-button" type="button" data-account-enable="${escapeHtml(account.auth_user_id)}">Enable</button>`;
+    if (!state.canEditAccounts && !state.canManageAccounts) return '<span class="staff-subtext">Read only</span>';
     return `<div class="staff-row-actions account-row-actions">
-      <button class="staff-row-button account-edit-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>
-      <details class="account-actions-menu"><summary>More</summary><div>
+      ${state.canEditAccounts ? `<button class="staff-row-button account-edit-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>` : ""}
+      ${state.canManageAccounts ? `<details class="account-actions-menu"><summary>More</summary><div>
         ${terminal ? `<button class="staff-row-button" type="button" data-account-reset-password="${escapeHtml(account.auth_user_id)}">Reset password</button>` : ""}
         ${lifecycle}
         ${terminal ? "" : `<button class="staff-row-button danger" type="button" data-account-delete="${escapeHtml(account.auth_user_id)}" data-account-email="${escapeHtml(account.email || "this account")}">Delete</button>`}
-      </div></details>
+      </div></details>` : ""}
     </div>`;
   }
 
@@ -434,7 +442,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function renderAccountRoleOptions(selectedRoles = []) {
     const selected = new Set(selectedRoles);
-    const disabled = elements.accountType.value !== "TERMINAL";
+    const disabled = elements.accountType.value !== "TERMINAL" || !state.canManageAccounts;
     elements.accountRoleOptions.innerHTML = state.accountRoles.length
       ? state.accountRoles.map((role) => `<label class="staff-cover-option">
           <input type="checkbox" name="accountRole" value="${escapeHtml(role.role_code)}"${selected.has(role.role_code) ? " checked" : ""}${disabled ? " disabled" : ""}>
@@ -447,15 +455,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     return [...elements.accountRoleOptions.querySelectorAll('input[name="accountRole"]:checked')].map((input) => input.value);
   }
 
+  function canAccountAction(moduleCode,action) {
+    const grant = (state.accessProfile?.permissions || []).find((item) => item.module_code === moduleCode);
+    if (!grant) return false;
+    if (action === "VIEW") return grant.can_view || grant.can_create || grant.can_edit || grant.can_approve || grant.can_manage;
+    if (action === "CREATE") return grant.can_create || grant.can_manage;
+    if (action === "EDIT") return grant.can_edit || grant.can_manage;
+    if (action === "APPROVE") return grant.can_approve || grant.can_manage;
+    return action === "MANAGE" && grant.can_manage;
+  }
+
+  function accountAccessScope() {
+    return (state.accessProfile?.permissions || []).find((item) => item.module_code === "ACCOUNTS_ACCESS")?.access_scope || "OWN";
+  }
+
+  function availableAccountJobTitles() {
+    const scope = accountAccessScope();
+    if (scope === "ALL") return state.accountJobTitles;
+    return state.accountJobTitles.filter((item) => item.department_scope === scope);
+  }
+
   function renderAccountPermissionOptions(grants = []) {
     const byModule = new Map(grants.map((grant) => [grant.module_code, grant]));
+    const disabled = !state.canManageAccounts;
     const labels = { can_view:"View",can_create:"Create",can_edit:"Edit",can_approve:"Approve",can_manage:"Manage" };
     elements.accountPermissionOptions.innerHTML = state.accountModules.map((module) => {
       const grant = byModule.get(module.module_code) || {};
       return `<div class="staff-permission-row" data-permission-module="${escapeHtml(module.module_code)}">
         <strong>${escapeHtml(module.module_name)}</strong>
-        ${Object.entries(labels).map(([key,label]) => `<label class="staff-permission-action"><input type="checkbox" data-permission-action="${key}"${grant[key] ? " checked" : ""}><span>${label}</span></label>`).join("")}
-        <select data-permission-scope aria-label="${escapeHtml(module.module_name)} scope">
+        ${Object.entries(labels).map(([key,label]) => `<label class="staff-permission-action"><input type="checkbox" data-permission-action="${key}"${grant[key] ? " checked" : ""}${disabled ? " disabled" : ""}><span>${label}</span></label>`).join("")}
+        <select data-permission-scope aria-label="${escapeHtml(module.module_name)} scope"${disabled ? " disabled" : ""}>
           ${[["OWN","Own"],["TEAM","Team"],["PRODUCTION","Production"],["DISTRIBUTION","Distribution"],["ALL","All"]].map(([value,label]) => option(value,label,grant.access_scope || "OWN")).join("")}
         </select>
       </div>`;
@@ -494,7 +523,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountType.value = "USER";
     elements.accountType.disabled = false;
     elements.accountName.value = "";
-    elements.accountJobTitle.innerHTML = option("","Select job title") + state.accountJobTitles.map((item) => option(item.job_title_code,item.job_title_name)).join("");
+    elements.accountJobTitle.innerHTML = option("","Select job title") + availableAccountJobTitles().map((item) => option(item.job_title_code,item.job_title_name)).join("");
+    elements.accountJobTitle.disabled = false;
+    const terminalOption = elements.accountType.querySelector('option[value="TERMINAL"]');
+    if (terminalOption) terminalOption.disabled = !state.canManageAccounts || accountAccessScope() !== "ALL";
     elements.accountLoginMethod.value = "EMAIL";
     elements.accountPassword.required = true;
     elements.accountPassword.placeholder = "Minimum 12 characters";
@@ -508,7 +540,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function openAccountEditor(accountId = "") {
-    if (!state.canViewAccounts) return;
+    if ((!accountId && !state.canCreateAccounts) || (accountId && !state.canEditAccounts)) return;
     resetAccountEditor();
     const account = state.accounts.find((item) => item.auth_user_id === accountId);
     if (accountId && !account) return;
@@ -529,6 +561,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountType.disabled = true;
     elements.accountName.value = account.display_name || account.terminal?.device_name || "";
     elements.accountJobTitle.value = account.job_title_code || "";
+    elements.accountJobTitle.disabled = !state.canManageAccounts;
     elements.accountLoginMethod.value = account.login_method === "USERNAME" ? "USERNAME" : "EMAIL";
     elements.accountUsername.value = account.login_identifier || "";
     elements.accountEmail.value = account.email || "";
@@ -553,7 +586,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountStaff.closest(".staff-field").classList.toggle("hidden", terminal);
     elements.accountJobTitleField.classList.toggle("hidden", terminal);
     elements.accountLoginMethodField.classList.toggle("hidden", terminal);
-    elements.accountPasswordField.classList.toggle("hidden", terminal && Boolean(elements.accountId.value));
+    elements.accountPasswordField.classList.toggle("hidden", Boolean(elements.accountId.value) && (terminal || !state.canManageAccounts));
     applyLoginMethod();
     elements.accountName.required = !terminal;
     elements.accountTerminalCode.required = terminal;
@@ -591,7 +624,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function openTerminalPasswordReset(accountId) {
-    if (!state.canViewAccounts) return;
+    if (!state.canManageAccounts) return;
     const account = state.accounts.find((item) => item.auth_user_id === accountId);
     if (!account?.terminal?.device_code) return;
     resetTerminalPasswordForm();
@@ -685,7 +718,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <input id="accountAccessSearch" type="search" placeholder="Search email, staff or terminal" value="${escapeHtml(state.accountSearch)}">
             <button class="staff-secondary-button" type="submit">Apply</button>
             <button id="accountAccessReload" class="staff-secondary-button" type="button">Reload</button>
-            <button id="accountAccessAdd" class="staff-primary-button" type="button">Add account</button>
+            ${state.canCreateAccounts ? '<button id="accountAccessAdd" class="staff-primary-button" type="button">Add account</button>' : ""}
           </form>
         </header>
         <div class="account-guidance">Job title supplies the default access. Open <strong>Edit</strong> only when an account needs an exception.</div>
@@ -751,6 +784,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function canTransferToDriver() {
+    if (!state.canManageStaff) return false;
     const roles = state.reference?.operational_roles || [];
     const areas = state.reference?.areas || [];
     return roles.some((role) => role.role_code === "DRIVER" && role.allow_as_primary)
@@ -796,7 +830,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function openEditor(staffId = "") {
-    if (!state.reference?.can_edit_staff) return;
+    if ((!staffId && !state.canCreateStaff) || (staffId && !state.canEditStaff)) return;
     resetEditor();
     elements.editorModal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
@@ -1003,7 +1037,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function openStatusModal(action, staffId, rowVersion, staffName) {
-    if (!state.reference?.can_deactivate_staff) return;
+    if (!state.canManageStaff) return;
     const isDeactivate = action === "DEACTIVATE";
     elements.statusForm.reset();
     elements.statusId.value = staffId;
@@ -1144,7 +1178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const editButton = event.target.closest("[data-staff-edit], [data-staff-open]");
-    if (editButton && state.reference?.can_edit_staff) {
+    if (editButton && state.canEditStaff) {
       return openEditor(editButton.dataset.staffEdit || editButton.dataset.staffOpen);
     }
 
@@ -1225,8 +1259,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    state.reference = await rpc("get_staff_master_reference_data");
-    state.canViewAccounts = await rpc("can_view_admin_account_access");
+    const [reference,accessProfile] = await Promise.all([rpc("get_staff_master_reference_data"),rpc("get_current_account_access")]);
+    state.reference = reference;
+    state.accessProfile = accessProfile || {};
+    const hasExplicitPermissions = Array.isArray(state.accessProfile.permissions) && state.accessProfile.permissions.length > 0;
+    state.canViewAccounts = canAccountAction("ACCOUNTS_ACCESS","VIEW");
+    state.canCreateAccounts = canAccountAction("ACCOUNTS_ACCESS","CREATE");
+    state.canEditAccounts = canAccountAction("ACCOUNTS_ACCESS","EDIT");
+    state.canManageAccounts = canAccountAction("ACCOUNTS_ACCESS","MANAGE");
+    state.canCreateStaff = hasExplicitPermissions ? canAccountAction("STAFF_MASTER","CREATE") : Boolean(reference?.can_edit_staff);
+    state.canEditStaff = hasExplicitPermissions ? canAccountAction("STAFF_MASTER","EDIT") : Boolean(reference?.can_edit_staff);
+    state.canManageStaff = hasExplicitPermissions ? canAccountAction("STAFF_MASTER","MANAGE") : Boolean(reference?.can_deactivate_staff);
     if (state.view === "accounts" && !state.canViewAccounts) {
       state.view = "directory";
       const url = new URL(location.href);
