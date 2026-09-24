@@ -84,6 +84,13 @@
       : "operational";
   }
 
+  function resolveAccountShell(profile = {},roleCodes = []) {
+    if (profile.account_type === "TERMINAL") return "operational";
+    const administrativeTitles = new Set(["ADMINISTRATOR","IT_MANAGER","GENERAL_MANAGER","PRODUCTION_MANAGER","LOGISTICS_MANAGER","PRODUCTION_SUPERVISOR","AUDITOR","CUSTOMER_SERVICE"]);
+    if (administrativeTitles.has(String(profile.job_title_code || "").toUpperCase())) return "administrative";
+    return resolveShell(roleCodes);
+  }
+
   function primaryRole(roleCodes) {
     const normalized = uniqueRoleCodes(roleCodes);
 
@@ -123,6 +130,19 @@
     DISTRIBUTION: "operations.distribution",
     PRODUCTION_TRACKER: "operations.production-tracker",
     TROLLEYS: "operations.trolleys"
+  });
+
+  const MODULE_NAVIGATION_PERMISSIONS = Object.freeze({
+    CUSTOMERS: [NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE],
+    PRODUCTION_ROSTER: [NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER],
+    SORTING: [NAVIGATION_PERMISSIONS.SORTING],
+    FINISH: [NAVIGATION_PERMISSIONS.FINISH,NAVIGATION_PERMISSIONS.FINISH_RESULTS],
+    MOP: [NAVIGATION_PERMISSIONS.MOP_PRODUCTION],
+    DISTRIBUTION: [NAVIGATION_PERMISSIONS.DISTRIBUTION],
+    PRODUCTION_TRACKER: [NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER],
+    TROLLEYS: [NAVIGATION_PERMISSIONS.TROLLEYS],
+    STAFF_MASTER: [NAVIGATION_PERMISSIONS.STAFF_MASTER],
+    ACCOUNTS_ACCESS: ["administration.accounts-access"]
   });
 
   const NAVIGATION_MODULES = Object.freeze([
@@ -226,7 +246,7 @@
       permission: NAVIGATION_PERMISSIONS.STAFF_MASTER,
       children: [
         { id:"staff-master-directory", label:"Staff directory", href:"./pages/staff.html" },
-        { id:"staff-master-accounts", label:"Accounts & access", href:"./pages/staff.html?view=accounts" }
+        { id:"staff-master-accounts", label:"Accounts & access", href:"./pages/staff.html?view=accounts", permission:"administration.accounts-access" }
       ]
     }
   ]);
@@ -286,9 +306,11 @@
 
   function navigationAccess(roleCodes, overrides = {}) {
     const granted = new Set();
-    uniqueRoleCodes(roleCodes).forEach((roleCode) => {
-      (ROLE_NAVIGATION_PERMISSIONS[roleCode] || []).forEach((permission) => granted.add(permission));
-    });
+    if (!overrides.replaceRoles) {
+      uniqueRoleCodes(roleCodes).forEach((roleCode) => {
+        (ROLE_NAVIGATION_PERMISSIONS[roleCode] || []).forEach((permission) => granted.add(permission));
+      });
+    }
     (overrides.grant || []).forEach((permission) => granted.add(permission));
     const denied = new Set(overrides.deny || []);
 
@@ -299,6 +321,19 @@
       granted: Object.freeze([...granted]),
       denied: Object.freeze([...denied])
     });
+  }
+
+  function permissionOverrides(profile = {}) {
+    const grants = [];
+    (profile.permissions || []).forEach((permission) => {
+      const canEnter = permission.can_view || permission.can_create || permission.can_edit || permission.can_approve || permission.can_manage;
+      if (!canEnter) return;
+      (MODULE_NAVIGATION_PERMISSIONS[String(permission.module_code || "").toUpperCase()] || []).forEach((item) => grants.push(item));
+    });
+    return {
+      grant:[...new Set(grants)],
+      replaceRoles:profile.account_type === "USER" && Array.isArray(profile.permissions) && profile.permissions.length > 0
+    };
   }
 
   function operationalModules(roleCodes, overrides) {
@@ -320,11 +355,12 @@
           children: sortingAccess ? module.children : module.children.filter((child) => child.id === "sorting-mop"),
           status: "available"
         };
-      });
+      })
+      .map((module) => ({ ...module,children:Array.isArray(module.children) ? module.children.filter((child) => !child.permission || access.can(child.permission)) : module.children }));
   }
 
-  function primaryOperationalModule(roleCodes) {
-    const modules = operationalModules(roleCodes);
+  function primaryOperationalModule(roleCodes,overrides) {
+    const modules = operationalModules(roleCodes,overrides);
     const roleCode = primaryRole(roleCodes);
     const preferredByRole = {
       MOP_OPERATOR: "sorting",
@@ -347,11 +383,14 @@
     NAVIGATION_PERMISSIONS,
     NAVIGATION_MODULES,
     ROLE_NAVIGATION_PERMISSIONS,
+    MODULE_NAVIGATION_PERMISSIONS,
     resolveShell,
+    resolveAccountShell,
     operationalContext,
     operationalModules,
     primaryOperationalModule,
     navigationAccess,
+    permissionOverrides,
     uniqueRoleCodes
   });
 })();

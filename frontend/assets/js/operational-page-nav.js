@@ -169,6 +169,23 @@
       return "";
     }
 
+    function currentRequiredPermission() {
+      const page = location.pathname.split("/").pop();
+      const permissions = policy.NAVIGATION_PERMISSIONS;
+      if (page === "customers.html") return permissions.CUSTOMER_WORKSPACE;
+      if (page === "roster.html") return permissions.PRODUCTION_ROSTER;
+      if (page === "sorting.html") return permissions.SORTING;
+      if (page === "mop-production.html") return permissions.MOP_PRODUCTION;
+      if (page === "finish-production.html") return permissions.FINISH;
+      if (page === "finish-results.html") return permissions.FINISH_RESULTS;
+      if (page === "production-tracker.html") return permissions.PRODUCTION_TRACKER;
+      if (page === "distribution.html") return permissions.DISTRIBUTION;
+      if (page === "trolleys.html") return permissions.TROLLEYS;
+      if (page === "staff.html" && new URLSearchParams(location.search).get("view") === "accounts") return "administration.accounts-access";
+      if (page === "staff.html") return permissions.STAFF_MASTER;
+      return "";
+    }
+
     function currentSubmoduleId(activeId) {
       const query = new URLSearchParams(location.search);
       if (activeId === "sorting") {
@@ -282,7 +299,9 @@
       try {
         window.sessionStorage.setItem(navigationProfileCacheKey, JSON.stringify({
           displayName: profile.display_name || "Signed in",
-          roleCodes
+          roleCodes,
+          accountType:profile.account_type || "",
+          permissions:Array.isArray(profile.permissions) ? profile.permissions : []
         }));
       } catch (_) {
         // The live profile below remains the source of truth.
@@ -296,7 +315,8 @@
         const currentId = currentModuleId();
         const query = new URLSearchParams(location.search);
         const finishWorkspace = currentId === "finish" || currentId === "finish-results" || query.get("workspace") === "finish";
-        renderNavigation(policy.operationalModules(cached.roleCodes), currentId, finishWorkspace);
+        const cachedProfile = { account_type:cached.accountType,permissions:cached.permissions || [] };
+        renderNavigation(policy.operationalModules(cached.roleCodes,policy.permissionOverrides(cachedProfile)), currentId, finishWorkspace);
         avatar.textContent = initials(cached.displayName);
         userName.textContent = cached.displayName;
         userRole.textContent = policy.operationalContext(cached.roleCodes).roleName;
@@ -333,10 +353,17 @@
       if (!profile) return;
 
       const roleCodes = policy.uniqueRoleCodes(profile.role_codes || []);
+      const permissionOverrides = policy.permissionOverrides(profile);
+      const access = policy.navigationAccess(roleCodes,permissionOverrides);
+      const requiredPermission = currentRequiredPermission();
+      if (requiredPermission && !access.can(requiredPermission)) {
+        window.location.replace("../index.html?access=denied");
+        return;
+      }
       const currentId = currentModuleId();
       const query = new URLSearchParams(location.search);
       const finishWorkspace = currentId === "finish" || currentId === "finish-results" || query.get("workspace") === "finish";
-      const modules = policy.operationalModules(roleCodes);
+      const modules = policy.operationalModules(roleCodes,permissionOverrides);
       renderNavigation(modules, currentId, finishWorkspace);
       cacheNavigationProfile(profile, roleCodes);
       avatar.textContent = initials(profile.display_name);

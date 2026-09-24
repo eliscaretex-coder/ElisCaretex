@@ -100,7 +100,7 @@ async function resolveJobAccess(client: ReturnType<typeof createClient>, jobTitl
   if (mappingError) throw mappingError;
   const roleCodes = (mappings || []).map((item) => String((item.roles as unknown as { role_code: string }).role_code));
 
-  if (submittedPermissions.length) return { roleCodes, permissions: submittedPermissions };
+  if (submittedPermissions.length && jobTitleCode !== "ADMINISTRATOR") return { roleCodes, permissions: submittedPermissions };
   const { data: templates, error: templateError } = await client.from("job_title_permission_templates").select("module_code,access_scope,can_view,can_create,can_edit,can_approve,can_manage").eq("job_title_code", jobTitleCode);
   if (templateError) throw templateError;
   return { roleCodes, permissions: (templates || []) as ReturnType<typeof permissionGrants> };

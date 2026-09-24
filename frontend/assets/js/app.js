@@ -302,8 +302,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     operationalShell.classList.toggle("sidebar-expanded", sidebarExpanded);
     operationalSidebarToggle.setAttribute("aria-expanded", String(sidebarExpanded));
     const context = shellPolicy.operationalContext(roleCodes);
-    const modules = shellPolicy.operationalModules(roleCodes);
-    const primaryModule = shellPolicy.primaryOperationalModule(roleCodes);
+    const permissionOverrides = shellPolicy.permissionOverrides(profile);
+    const modules = shellPolicy.operationalModules(roleCodes,permissionOverrides);
+    const primaryModule = shellPolicy.primaryOperationalModule(roleCodes,permissionOverrides);
     const visibleModules = modules.filter((module) => module.id !== "home");
 
     operationalAreaCode.textContent = context.areaCode;
@@ -340,67 +341,68 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderAdministrativeShell(profile, user) {
     const roles = activeRoles(profile);
     const roleCodes = new Set(roles.map((role) => role.role_code));
+    const access = shellPolicy.navigationAccess([...roleCodes],shellPolicy.permissionOverrides(profile));
 
     if (adminCustomersModule) {
       adminCustomersModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER", "PLANNER", "AUDITOR"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE)
       );
     }
 
     if (adminTrolleysModule) {
       adminTrolleysModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER", "AUDITOR"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.TROLLEYS)
       );
     }
 
     if (adminSortingModule) {
       adminSortingModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.SORTING)
       );
     }
 
     if (adminProductionTrackerModule) {
       adminProductionTrackerModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER", "AUDITOR"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER)
       );
     }
 
     if (adminDistributionModule) {
       adminDistributionModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER", "SUPERVISOR", "DISTRIBUTION_OPERATOR", "AUDITOR"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.DISTRIBUTION)
       );
     }
 
     if (adminMopModule) {
       adminMopModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.MOP_PRODUCTION)
       );
     }
 
     if (adminFinishModule) {
       adminFinishModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.FINISH)
       );
     }
 
     if (adminStaffModule) {
       adminStaffModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER", "ROSTER_MANAGER", "AUDITOR"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.STAFF_MASTER)
       );
     }
 
     if (adminRosterModule) {
       adminRosterModule.classList.toggle(
         "hidden",
-        !["ADMIN", "MANAGER", "ROSTER_MANAGER", "AUDITOR"].some((roleCode) => roleCodes.has(roleCode))
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER)
       );
     }
 
@@ -432,11 +434,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const roleCodes = activeRoleCodes(profile);
 
-    if (roleCodes.length === 0) {
+    if (roleCodes.length === 0 && !(profile.permissions || []).length) {
       throw new Error("This account has no active access permission.");
     }
 
-    const shell = shellPolicy.resolveShell(roleCodes);
+    const shell = shellPolicy.resolveAccountShell(profile,roleCodes);
 
     if (shell === "administrative") {
       renderAdministrativeShell(profile, user);
