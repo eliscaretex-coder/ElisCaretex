@@ -129,6 +129,23 @@
           <div class="staff-form-actions">
             <button id="staffTransferDriver" class="staff-secondary-button hidden" type="button">Transfer to Driver</button>
           </div>
+          <div id="staffDriverTransferFields" class="staff-driver-transfer hidden">
+            <div class="staff-form-section-heading">
+              <h3>Driver record</h3>
+              <p>Complete the Distribution details before transferring this person out of Production.</p>
+            </div>
+            <div class="staff-form-grid two-columns">
+              <label class="staff-field wide"><span>Existing Driver record</span><select id="staffDriverExisting"><option value="">Create a new Driver record</option></select><small>Select an existing unlinked record to prevent duplicates.</small></label>
+              <label class="staff-field"><span>Driver code *</span><input id="staffDriverCode" type="text" maxlength="40" autocomplete="off"></label>
+              <label class="staff-field"><span>Phone *</span><input id="staffDriverPhone" type="tel" maxlength="60" autocomplete="off"></label>
+              <label class="staff-field"><span>Email</span><input id="staffDriverEmail" type="email" maxlength="200" autocomplete="off"></label>
+              <label class="staff-field"><span>Licence number *</span><input id="staffDriverLicence" type="text" maxlength="100" autocomplete="off"></label>
+              <label class="staff-field"><span>Licence categories *</span><input id="staffDriverCategories" type="text" maxlength="100" placeholder="C, CE"></label>
+              <label class="staff-field"><span>Licence expiry *</span><input id="staffDriverLicenceExpiry" type="date"></label>
+              <label class="staff-field"><span>CPC expiry *</span><input id="staffDriverCpcExpiry" type="date"></label>
+              <label class="staff-field wide"><span>Driver notes</span><textarea id="staffDriverNotes" rows="2" maxlength="1500"></textarea></label>
+            </div>
+          </div>
         </section>
 
         <section class="staff-form-section">

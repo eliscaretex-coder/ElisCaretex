@@ -23,6 +23,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     joinedOn: document.getElementById("staffJoinedOn"),
     primaryRole: document.getElementById("staffPrimaryRole"),
     transferDriver: document.getElementById("staffTransferDriver"),
+    driverTransferFields: document.getElementById("staffDriverTransferFields"),
+    driverExisting: document.getElementById("staffDriverExisting"),
+    driverCode: document.getElementById("staffDriverCode"),
+    driverPhone: document.getElementById("staffDriverPhone"),
+    driverEmail: document.getElementById("staffDriverEmail"),
+    driverLicence: document.getElementById("staffDriverLicence"),
+    driverCategories: document.getElementById("staffDriverCategories"),
+    driverLicenceExpiry: document.getElementById("staffDriverLicenceExpiry"),
+    driverCpcExpiry: document.getElementById("staffDriverCpcExpiry"),
+    driverNotes: document.getElementById("staffDriverNotes"),
     defaultArea: document.getElementById("staffDefaultArea"),
     defaultStation: document.getElementById("staffDefaultStation"),
     coverOptions: document.getElementById("staffCoverOptions"),
@@ -104,6 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     shiftFilter: "ALL",
     search: "",
     accountSearch: "",
+    driverTransferOptions: [],
     accounts: [],
     accountRoles: [],
     directoryStaff: [],
@@ -670,6 +681,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.importReviewRequired.checked = false;
     elements.importReviewNotes.value = "";
     elements.transferDriver.classList.add("hidden");
+    elements.driverTransferFields.classList.add("hidden");
+    elements.driverExisting.innerHTML = '<option value="">Create a new Driver record</option>';
+    state.driverTransferOptions = [];
     state.editorPrimaryRoleCode = "";
     setMessage(elements.editorMessage);
   }
@@ -681,19 +695,42 @@ document.addEventListener("DOMContentLoaded", async () => {
       && areas.some((area) => area.area_code === "DISTRIBUTION");
   }
 
-  function prepareDriverTransfer() {
+  function fillDriverTransferFields(driver = {}) {
+    elements.driverCode.value = driver.driver_code || elements.employeeCode.value.replace(/^LEG-/i, "DRV-") || "";
+    elements.driverPhone.value = driver.phone || "";
+    elements.driverEmail.value = driver.email || "";
+    elements.driverLicence.value = driver.licence_number || "";
+    elements.driverCategories.value = Array.isArray(driver.licence_categories) ? driver.licence_categories.join(", ") : "";
+    elements.driverLicenceExpiry.value = driver.licence_expires_on || "";
+    elements.driverCpcExpiry.value = driver.cpc_expires_on || "";
+    elements.driverNotes.value = driver.notes || "";
+  }
+
+  async function prepareDriverTransfer() {
     if (!canTransferToDriver()) {
       setMessage(elements.editorMessage, "Driver role or Distribution area is not configured yet.", "error");
       return;
     }
-    elements.primaryRole.value = "DRIVER";
-    elements.defaultArea.value = "DISTRIBUTION";
-    populateStationOptions("");
-    elements.defaultStation.value = "";
-    elements.changeReason.value = `Transfer ${elements.displayName.value || "staff member"} to Driver / Distribution.`;
-    elements.transferDriver.classList.add("hidden");
-    setMessage(elements.editorMessage, "Driver and Distribution selected. Review the details and save the changes.", "success");
-    elements.changeReason.focus();
+    try {
+      setMessage(elements.editorMessage, "Loading available Driver records...");
+      const data = await rpc("get_staff_driver_transfer_options");
+      state.driverTransferOptions = Array.isArray(data?.drivers) ? data.drivers : [];
+      elements.driverExisting.innerHTML = '<option value="">Create a new Driver record</option>' + state.driverTransferOptions.map((driver) => option(driver.driver_id, `${driver.display_name} · ${driver.driver_code}`)).join("");
+      fillDriverTransferFields();
+      elements.primaryRole.value = "DRIVER";
+      elements.defaultArea.value = "DISTRIBUTION";
+      populateStationOptions("");
+      elements.defaultStation.value = "";
+      elements.rosterEligible.checked = false;
+      elements.changeReason.value = `Transfer ${elements.displayName.value || "staff member"} to Driver / Distribution.`;
+      elements.driverTransferFields.classList.remove("hidden");
+      elements.transferDriver.classList.add("hidden");
+      elements.editorSave.textContent = "Complete Driver transfer";
+      setMessage(elements.editorMessage, "Complete the Driver record. Saving will remove this person from Production Staff Master.", "success");
+      elements.driverExisting.focus();
+    } catch (error) {
+      setMessage(elements.editorMessage, friendlyError(error), "error");
+    }
   }
 
   async function openEditor(staffId = "") {
@@ -732,7 +769,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       elements.importReviewRequired.checked = Boolean(record.import_review_required);
       elements.importReviewNotes.value = record.import_review_notes || "";
       populateEditorReference(record);
-      elements.transferDriver.classList.toggle("hidden", !record.active || record.primary_role_code === "DRIVER" || !canTransferToDriver());
+      elements.transferDriver.textContent = record.primary_role_code === "DRIVER" ? "Complete Driver transfer" : "Transfer to Driver";
+      elements.transferDriver.classList.toggle("hidden", !record.active || !record.production_staff || !canTransferToDriver());
       setMessage(elements.editorMessage);
       elements.displayName.focus();
     } catch (error) {
@@ -825,6 +863,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         p_change_reason: reason,
         p_source_application: "STAFF_MASTER_UI"
       };
+
+      if (staffId && !elements.driverTransferFields.classList.contains("hidden")) {
+        const categories = elements.driverCategories.value.split(",").map((value) => value.trim().toUpperCase()).filter(Boolean);
+        if (!elements.driverCode.value.trim() || !elements.driverPhone.value.trim() || !elements.driverLicence.value.trim()
+            || !categories.length || !elements.driverLicenceExpiry.value || !elements.driverCpcExpiry.value) {
+          setMessage(elements.editorMessage, "Complete the Driver code, phone, licence, category, licence expiry and CPC expiry.", "error");
+          return;
+        }
+        const result = await rpc("transfer_staff_to_distribution_driver", {
+          p_staff_id: staffId,
+          p_expected_row_version: Number(elements.editorRowVersion.value),
+          p_existing_driver_id: elements.driverExisting.value || null,
+          p_driver_code: elements.driverCode.value.trim(),
+          p_phone: elements.driverPhone.value.trim(),
+          p_email: elements.driverEmail.value.trim() || null,
+          p_licence_number: elements.driverLicence.value.trim(),
+          p_licence_categories: categories,
+          p_licence_expires_on: elements.driverLicenceExpiry.value,
+          p_cpc_expires_on: elements.driverCpcExpiry.value,
+          p_notes: elements.driverNotes.value.trim() || null,
+          p_change_reason: reason,
+          p_source_application: "STAFF_MASTER_UI"
+        });
+        closeEditor(true);
+        setMessage(elements.pageMessage, `Driver ${result?.driver_code || ""} created and removed from Production Staff Master.`, "success");
+        await loadDirectory();
+        return;
+      }
 
       let applyCurrentRosterRole = false;
       if (staffId) {
@@ -1044,6 +1110,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.defaultArea.addEventListener("change", () => populateStationOptions(""));
   elements.editorForm.addEventListener("submit", saveEditor);
   elements.transferDriver.addEventListener("click", prepareDriverTransfer);
+  elements.driverExisting.addEventListener("change", () => {
+    const driver = state.driverTransferOptions.find((item) => item.driver_id === elements.driverExisting.value);
+    fillDriverTransferFields(driver || {});
+  });
   elements.editorBackdrop.addEventListener("click", closeEditor);
   elements.editorClose.addEventListener("click", closeEditor);
   elements.editorCancel.addEventListener("click", closeEditor);

@@ -21,3 +21,10 @@
 .module-card-active small {
   color: #0f766e;
 }
+.auth-privacy-note {
+  margin: 14px 0 0;
+  color: #5b6b7d;
+  font-size: .78rem;
+  line-height: 1.45;
+  text-align: center;
+}

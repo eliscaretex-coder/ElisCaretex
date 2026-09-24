@@ -156,3 +156,13 @@ body.staff-page {
   .staff-modal { padding: 6px; }
   .staff-modal-card { max-height: 98vh; border-radius: 12px; }
 }
+.staff-driver-transfer{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #a9cfd0;
+  border-left:4px solid #0b8b8c;
+  border-radius:10px;
+  background:#f3fbfb;
+}
+.staff-driver-transfer .staff-form-section-heading{margin-bottom:12px}
+.staff-driver-transfer .staff-form-section-heading h3{color:#087678}
