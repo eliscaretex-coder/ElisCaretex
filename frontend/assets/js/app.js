@@ -414,6 +414,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
 
+    const adminNotificationsModule = document.getElementById("adminNotificationsModule");
+    if (adminNotificationsModule) adminNotificationsModule.classList.toggle("hidden",!access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS));
+
     adminProfileName.textContent = profile.display_name;
     adminProfileEmail.textContent = user.email || "";
     adminEmployeeCode.textContent = profile.employee_code || "Not provided";
