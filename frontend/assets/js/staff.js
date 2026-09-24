@@ -86,6 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     accountPassword: document.getElementById("accountEditorPassword"),
     accountStaff: document.getElementById("accountEditorStaff"),
     accountRoleOptions: document.getElementById("accountEditorRoleOptions"),
+    accountPermissionOptions: document.getElementById("accountEditorPermissionOptions"),
     accountTerminalFields: document.getElementById("accountTerminalFields"),
     accountTerminalCode: document.getElementById("accountTerminalCode"),
     accountTerminalName: document.getElementById("accountTerminalName"),
@@ -117,6 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     driverTransferOptions: [],
     accounts: [],
     accountRoles: [],
+    accountModules: [],
     directoryStaff: [],
     busy: false,
     editorPrimaryRoleCode: "",
@@ -303,6 +305,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const data = await rpc("get_admin_account_access_directory", { p_search:state.accountSearch || null });
       state.accounts = Array.isArray(data?.accounts) ? data.accounts : [];
       state.accountRoles = Array.isArray(data?.available_roles) ? data.available_roles : [];
+      state.accountModules = Array.isArray(data?.available_modules) ? data.available_modules : [];
       renderAccounts(data || {});
     } catch (error) {
       console.error("Failed to load accounts and access:", error);
@@ -390,8 +393,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       : '<span class="staff-subtext">No role assigned</span>';
   }
 
-  function accountModuleChips(roles) {
-    const modules = accountModules(roles);
+  function accountModuleChips(roles, permissions = []) {
+    const explicit = permissions.map((grant) => {
+      const module = state.accountModules.find((item) => item.module_code === grant.module_code);
+      const actions = [["can_view","V"],["can_create","C"],["can_edit","E"],["can_approve","A"],["can_manage","M"]].filter(([key]) => grant[key]).map(([,label]) => label).join("");
+      return `${module?.module_name || grant.module_code} · ${actions} · ${grant.access_scope}`;
+    });
+    const modules = explicit.length ? explicit : accountModules(roles);
     return modules.length
       ? `<div class="staff-cover-list">${modules.map((module) => `<span class="staff-training-chip yes">${escapeHtml(module)}</span>`).join("")}</div>`
       : '<span class="staff-subtext">No workspace module</span>';
@@ -436,6 +444,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     return [...elements.accountRoleOptions.querySelectorAll('input[name="accountRole"]:checked')].map((input) => input.value);
   }
 
+  function renderAccountPermissionOptions(grants = []) {
+    const byModule = new Map(grants.map((grant) => [grant.module_code, grant]));
+    const labels = { can_view:"View",can_create:"Create",can_edit:"Edit",can_approve:"Approve",can_manage:"Manage" };
+    elements.accountPermissionOptions.innerHTML = state.accountModules.map((module) => {
+      const grant = byModule.get(module.module_code) || {};
+      return `<div class="staff-permission-row" data-permission-module="${escapeHtml(module.module_code)}">
+        <strong>${escapeHtml(module.module_name)}</strong>
+        ${Object.entries(labels).map(([key,label]) => `<label class="staff-permission-action"><input type="checkbox" data-permission-action="${key}"${grant[key] ? " checked" : ""}><span>${label}</span></label>`).join("")}
+        <select data-permission-scope aria-label="${escapeHtml(module.module_name)} scope">
+          ${[["OWN","Own"],["TEAM","Team"],["PRODUCTION","Production"],["DISTRIBUTION","Distribution"],["ALL","All"]].map(([value,label]) => option(value,label,grant.access_scope || "OWN")).join("")}
+        </select>
+      </div>`;
+    }).join("") || '<span class="staff-subtext">Permission modules will be available after the database migration is applied.</span>';
+  }
+
+  function selectedAccountPermissions() {
+    return [...elements.accountPermissionOptions.querySelectorAll("[data-permission-module]")].map((row) => {
+      const result = { module_code:row.dataset.permissionModule, access_scope:row.querySelector("[data-permission-scope]").value };
+      row.querySelectorAll("[data-permission-action]").forEach((input) => { result[input.dataset.permissionAction] = input.checked; });
+      return result;
+    }).filter((grant) => grant.can_view || grant.can_create || grant.can_edit || grant.can_approve || grant.can_manage);
+  }
+
   function resetAccountEditor() {
     elements.accountForm.reset();
     elements.accountId.value = "";
@@ -448,6 +479,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountTerminalStation.innerHTML = option("", "Select station") + (state.reference?.stations || []).map((station) => option(station.station_id, station.station_name)).join("");
     applyAccountType();
     renderAccountRoleOptions([]);
+    renderAccountPermissionOptions([]);
     setMessage(elements.accountMessage);
   }
 
@@ -481,6 +513,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountTerminalStation.value = "";
     applyAccountType();
     renderAccountRoleOptions(account.role_codes || []);
+    renderAccountPermissionOptions(account.permissions || []);
     elements.accountEmail.focus();
   }
 
@@ -591,7 +624,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountSave.disabled = true;
     setMessage(elements.accountMessage, accountId ? "Saving account..." : "Creating account...");
     try {
-      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), email: email || undefined, password: password || undefined, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
+      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), email: email || undefined, password: password || undefined, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
       closeAccountEditor(true);
       setMessage(elements.pageMessage, result.technical_email ? `Production computer created. Technical sign-in: ${result.technical_email}` : accountId ? "Account updated." : "Account created.", "success");
       await loadAccounts();
@@ -632,7 +665,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <td>${account.staff_id ? `<strong>${escapeHtml(account.display_name || "Unnamed staff")}</strong><span class="staff-subtext">${escapeHtml(account.employee_code || "No employee code")}</span>` : '<span class="staff-subtext">Not linked to Staff Master</span>'}</td>
               <td>${terminalAccessText(account.terminal)}</td>
               <td>${accountRoleChips(account.role_codes)}</td>
-              <td>${accountModuleChips(account.role_codes)}</td>
+              <td>${accountModuleChips(account.role_codes, account.permissions)}</td>
               <td><span class="staff-subtext">Created: ${escapeHtml(formatDateTime(account.created_at))}</span><br>${escapeHtml(formatDateTime(account.last_sign_in_at))}</td>
               <td>${accountActions(account)}</td>
             </tr>`).join("")}</tbody></table>` : '<div class="staff-empty">No accounts match this search.</div>'}

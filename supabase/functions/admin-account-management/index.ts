@@ -79,6 +79,34 @@ function roleCodes(body: Record<string, unknown>) {
     : [])];
 }
 
+function permissionGrants(body: Record<string, unknown>) {
+  if (!Array.isArray(body.permissions)) return [];
+  return body.permissions.map((item) => {
+    const grant = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    return {
+      module_code: String(grant.module_code || "").trim().toUpperCase(),
+      access_scope: String(grant.access_scope || "OWN").trim().toUpperCase(),
+      can_view: Boolean(grant.can_view), can_create: Boolean(grant.can_create), can_edit: Boolean(grant.can_edit),
+      can_approve: Boolean(grant.can_approve), can_manage: Boolean(grant.can_manage),
+    };
+  }).filter((grant) => grant.module_code && (grant.can_view || grant.can_create || grant.can_edit || grant.can_approve || grant.can_manage));
+}
+
+async function setAccountPermissions(client: ReturnType<typeof createClient>, accountId: string, grants: ReturnType<typeof permissionGrants>, actorId: string) {
+  const scopes = new Set(["OWN","TEAM","PRODUCTION","DISTRIBUTION","ALL"]);
+  if (grants.some((grant) => !scopes.has(grant.access_scope))) throw new Error("One or more permission scopes are invalid.");
+  if (grants.length) {
+    const moduleCodes = [...new Set(grants.map((grant) => grant.module_code))];
+    const { data, error } = await client.from("application_modules").select("module_code").eq("active", true).in("module_code", moduleCodes);
+    if (error || (data || []).length !== moduleCodes.length) throw new Error("One or more permission modules are invalid.");
+  }
+  const { error: clearError } = await client.from("account_permission_grants").delete().eq("auth_user_id", accountId);
+  if (clearError) throw clearError;
+  if (!grants.length) return;
+  const { error } = await client.from("account_permission_grants").insert(grants.map((grant) => ({ ...grant, auth_user_id:accountId, granted_by_auth_user_id:actorId })));
+  if (error) throw error;
+}
+
 async function setAccountRoles(client: ReturnType<typeof createClient>, accountId: string, codes: string[], accountType: string, displayName: string) {
   const { error: profileError } = await client.from("account_access_profiles").upsert({ auth_user_id: accountId, account_type: accountType, display_name: displayName || null }, { onConflict: "auth_user_id" });
   if (profileError) throw profileError;
@@ -127,6 +155,7 @@ Deno.serve(async (req) => {
   const deviceName = value(body, "device_name");
   const stationId = value(body, "station_id");
   const selectedRoles = roleCodes(body);
+  const selectedPermissions = permissionGrants(body);
 
   try {
     if (action === "create") {
@@ -137,6 +166,7 @@ Deno.serve(async (req) => {
       await assertLinkableStaff(admin, staffId, data.user.id);
       await setStaffLink(admin, data.user.id, staffId);
       await setAccountRoles(admin, data.user.id, selectedRoles, accountType, displayName);
+      await setAccountPermissions(admin, data.user.id, selectedPermissions, identity.user.id);
       if (accountType === "TERMINAL") {
         const { error: deviceError } = await admin.from("production_station_devices").insert({ station_id: stationId, device_code: deviceCode, device_name: deviceName, device_auth_user_id: data.user.id, created_by_auth_user_id: identity.user.id });
         if (deviceError) throw deviceError;
@@ -174,6 +204,7 @@ Deno.serve(async (req) => {
       await assertLinkableStaff(admin, staffId, accountId);
       await setStaffLink(admin, accountId, staffId);
       await setAccountRoles(admin, accountId, selectedRoles, accountType, displayName);
+      await setAccountPermissions(admin, accountId, selectedPermissions, identity.user.id);
       return respond({ ok: true });
     }
 
