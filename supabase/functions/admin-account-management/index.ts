@@ -142,10 +142,31 @@ async function resolveJobAccess(client: ReturnType<typeof createClient>, jobTitl
   if (mappingError) throw mappingError;
   const roleCodes = (mappings || []).map((item) => String((item.roles as unknown as { role_code: string }).role_code));
 
-  if (submittedPermissions.length && jobTitleCode !== "ADMINISTRATOR") return { roleCodes, permissions: submittedPermissions };
   const { data: templates, error: templateError } = await client.from("job_title_permission_templates").select("module_code,access_scope,can_view,can_create,can_edit,can_approve,can_manage").eq("job_title_code", jobTitleCode);
   if (templateError) throw templateError;
-  return { roleCodes, permissions: (templates || []) as ReturnType<typeof permissionGrants> };
+  const jobTemplates = (templates || []) as ReturnType<typeof permissionGrants>;
+  if (!submittedPermissions.length || jobTitleCode === "ADMINISTRATOR") return { roleCodes, permissions:jobTemplates };
+
+  const submittedByModule = new Map(submittedPermissions.map((grant) => [grant.module_code,grant]));
+  const permissions = jobTemplates.map((template) => {
+    const requested = submittedByModule.get(template.module_code);
+    if (!requested) return null;
+    const allowedScopes: Record<string,string[]> = {
+      OWN:["OWN"], TEAM:["OWN","TEAM"], PRODUCTION:["OWN","TEAM","PRODUCTION"],
+      DISTRIBUTION:["OWN","TEAM","DISTRIBUTION"], ALL:["OWN","TEAM","PRODUCTION","DISTRIBUTION","ALL"]
+    };
+    if (!(allowedScopes[template.access_scope] || []).includes(requested.access_scope)) throw new Error(`The scope selected for ${template.module_code} is not valid for this job title.`);
+    const grant = {
+      module_code:template.module_code, access_scope:requested.access_scope,
+      can_view:template.can_view && requested.can_view,
+      can_create:template.can_create && requested.can_create,
+      can_edit:template.can_edit && requested.can_edit,
+      can_approve:template.can_approve && requested.can_approve,
+      can_manage:template.can_manage && requested.can_manage,
+    };
+    return grant.can_view || grant.can_create || grant.can_edit || grant.can_approve || grant.can_manage ? grant : null;
+  }).filter(Boolean) as ReturnType<typeof permissionGrants>;
+  return { roleCodes,permissions };
 }
 
 async function setAccountPermissions(client: ReturnType<typeof createClient>, accountId: string, grants: ReturnType<typeof permissionGrants>, actorId: string) {

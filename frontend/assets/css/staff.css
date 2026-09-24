@@ -137,11 +137,12 @@ body.staff-page {
 .staff-permission-details summary span{display:grid;gap:2px}
 .staff-permission-details summary small{color:var(--staff-muted);font-weight:400}
 .staff-permission-matrix{display:grid;gap:8px;margin-top:12px}
-.staff-permission-row{display:grid;grid-template-columns:minmax(150px,1.5fr) repeat(5,minmax(54px,.55fr)) minmax(118px,.8fr);align-items:center;gap:6px;padding:9px 10px;border:1px solid var(--staff-line);border-radius:10px;background:#f8fafc}
-.staff-permission-row>strong{font-size:12px}
+.staff-permission-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border:1px solid var(--staff-line);border-radius:10px;background:#f8fafc}
+.staff-permission-row>strong{font-size:12px;min-width:180px;margin-right:auto}
 .staff-permission-action{display:grid;justify-items:center;gap:2px;font-size:10px;color:var(--staff-muted)}
 .staff-permission-action input{width:16px;height:16px;accent-color:var(--staff-brand)}
-.staff-permission-row select{min-width:0;padding:7px;font-size:11px}
+.staff-permission-row select{min-width:118px;padding:7px;font-size:11px}
+.staff-permission-empty{padding:18px;border:1px dashed var(--staff-line);border-radius:10px;color:var(--staff-muted);text-align:center;background:#f8fafc}
 .staff-training-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .staff-check-card.fire { background: #fff7f6; }
 .staff-check-card.first-aid { background: #f5fff8; }
@@ -183,8 +184,9 @@ body.staff-page {
   .staff-toolbar { display: grid; grid-template-columns: 1fr 1fr; }
   .staff-toolbar input[type="search"] { grid-column: 1 / -1; min-width: 0; width: 100%; }
   .staff-form-grid.two-columns, .staff-form-grid.three-columns, .staff-cover-grid, .staff-training-grid { grid-template-columns: 1fr; }
-  .staff-permission-row{grid-template-columns:1fr repeat(5,38px)}
-  .staff-permission-row select{grid-column:1/-1}
+  .staff-permission-row{flex-wrap:wrap}
+  .staff-permission-row>strong{min-width:100%;margin-right:0}
+  .staff-permission-row select{margin-left:auto}
   .staff-modal { padding: 6px; }
   .staff-modal-card { max-height: 98vh; border-radius: 12px; }
 }

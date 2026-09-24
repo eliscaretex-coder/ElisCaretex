@@ -477,18 +477,30 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function renderAccountPermissionOptions(grants = []) {
     const byModule = new Map(grants.map((grant) => [grant.module_code, grant]));
+    const job = selectedJobTitle();
+    const templates = job?.permissions || [];
     const disabled = !state.canManageAccounts;
     const labels = { can_view:"View",can_create:"Create",can_edit:"Edit",can_approve:"Approve",can_manage:"Manage" };
-    elements.accountPermissionOptions.innerHTML = state.accountModules.map((module) => {
+    elements.accountPermissionOptions.innerHTML = templates.map((template) => {
+      const module = state.accountModules.find((item) => item.module_code === template.module_code) || { module_code:template.module_code,module_name:template.module_code.replaceAll("_"," ") };
       const grant = byModule.get(module.module_code) || {};
       return `<div class="staff-permission-row" data-permission-module="${escapeHtml(module.module_code)}">
         <strong>${escapeHtml(module.module_name)}</strong>
-        ${Object.entries(labels).map(([key,label]) => `<label class="staff-permission-action"><input type="checkbox" data-permission-action="${key}"${grant[key] ? " checked" : ""}${disabled ? " disabled" : ""}><span>${label}</span></label>`).join("")}
+        ${Object.entries(labels).filter(([key]) => template[key]).map(([key,label]) => `<label class="staff-permission-action"><input type="checkbox" data-permission-action="${key}"${grant[key] ? " checked" : ""}${disabled ? " disabled" : ""}><span>${label}</span></label>`).join("")}
         <select data-permission-scope aria-label="${escapeHtml(module.module_name)} scope"${disabled ? " disabled" : ""}>
-          ${[["OWN","Own"],["TEAM","Team"],["PRODUCTION","Production"],["DISTRIBUTION","Distribution"],["ALL","All"]].map(([value,label]) => option(value,label,grant.access_scope || "OWN")).join("")}
+          ${permissionScopeOptions(template.access_scope).map(([value,label]) => option(value,label,grant.access_scope || template.access_scope)).join("")}
         </select>
       </div>`;
-    }).join("") || '<span class="staff-subtext">Permission modules will be available after the database migration is applied.</span>';
+    }).join("") || '<div class="staff-permission-empty">Select a job title to see its relevant permissions.</div>';
+  }
+
+  function permissionScopeOptions(maximumScope) {
+    const options = [["OWN","Own"]];
+    if (["TEAM","PRODUCTION","DISTRIBUTION","ALL"].includes(maximumScope)) options.push(["TEAM","Team"]);
+    if (["PRODUCTION","ALL"].includes(maximumScope)) options.push(["PRODUCTION","Production"]);
+    if (["DISTRIBUTION","ALL"].includes(maximumScope)) options.push(["DISTRIBUTION","Distribution"]);
+    if (maximumScope === "ALL") options.push(["ALL","All"]);
+    return options;
   }
 
   function selectedAccountPermissions() {
