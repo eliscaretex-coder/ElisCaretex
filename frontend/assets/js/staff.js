@@ -82,7 +82,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     accountId: document.getElementById("accountEditorId"),
     accountType: document.getElementById("accountEditorType"),
     accountName: document.getElementById("accountEditorName"),
+    accountJobTitle: document.getElementById("accountEditorJobTitle"),
+    accountJobTitleField: document.getElementById("accountJobTitleField"),
+    accountLoginMethod: document.getElementById("accountEditorLoginMethod"),
+    accountLoginMethodField: document.getElementById("accountLoginMethodField"),
+    accountEmailField: document.getElementById("accountEmailField"),
     accountEmail: document.getElementById("accountEditorEmail"),
+    accountUsernameField: document.getElementById("accountUsernameField"),
+    accountUsername: document.getElementById("accountEditorUsername"),
     accountPassword: document.getElementById("accountEditorPassword"),
     accountStaff: document.getElementById("accountEditorStaff"),
     accountRoleOptions: document.getElementById("accountEditorRoleOptions"),
@@ -119,6 +126,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     accounts: [],
     accountRoles: [],
     accountModules: [],
+    accountJobTitles: [],
     directoryStaff: [],
     busy: false,
     editorPrimaryRoleCode: "",
@@ -302,10 +310,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadAccounts() {
     renderLoading("Loading accounts and access...");
     try {
-      const data = await rpc("get_admin_account_access_directory", { p_search:state.accountSearch || null });
+      const [data, jobAccess] = await Promise.all([rpc("get_admin_account_access_directory", { p_search:state.accountSearch || null }), rpc("get_admin_account_job_access")]);
+      const profileMap = new Map((jobAccess?.profiles || []).map((profile) => [profile.auth_user_id,profile]));
+      (data?.accounts || []).forEach((account) => Object.assign(account,profileMap.get(account.auth_user_id) || {}));
       state.accounts = Array.isArray(data?.accounts) ? data.accounts : [];
       state.accountRoles = Array.isArray(data?.available_roles) ? data.available_roles : [];
       state.accountModules = Array.isArray(data?.available_modules) ? data.available_modules : [];
+      state.accountJobTitles = Array.isArray(jobAccess?.job_titles) ? jobAccess.job_titles : [];
       renderAccounts(data || {});
     } catch (error) {
       console.error("Failed to load accounts and access:", error);
@@ -431,7 +442,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function renderAccountRoleOptions(selectedRoles = []) {
     const selected = new Set(selectedRoles);
-    const disabled = false;
+    const disabled = elements.accountType.value !== "TERMINAL";
     elements.accountRoleOptions.innerHTML = state.accountRoles.length
       ? state.accountRoles.map((role) => `<label class="staff-cover-option">
           <input type="checkbox" name="accountRole" value="${escapeHtml(role.role_code)}"${selected.has(role.role_code) ? " checked" : ""}${disabled ? " disabled" : ""}>
@@ -467,12 +478,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).filter((grant) => grant.can_view || grant.can_create || grant.can_edit || grant.can_approve || grant.can_manage);
   }
 
+  function selectedJobTitle() { return state.accountJobTitles.find((item) => item.job_title_code === elements.accountJobTitle.value); }
+
+  function applyJobTitleTemplate(force = false) {
+    const job = selectedJobTitle();
+    if (!job) return;
+    if (force || !selectedAccountPermissions().length) renderAccountPermissionOptions(job.permissions || []);
+    renderAccountRoleOptions(job.legacy_roles || []);
+  }
+
+  function applyLoginMethod() {
+    const terminal = elements.accountType.value === "TERMINAL";
+    const username = !terminal && elements.accountLoginMethod.value === "USERNAME";
+    elements.accountEmailField.classList.toggle("hidden", terminal || username);
+    elements.accountUsernameField.classList.toggle("hidden", terminal || !username);
+    elements.accountEmail.required = !terminal && !username;
+    elements.accountUsername.required = username;
+  }
+
   function resetAccountEditor() {
     elements.accountForm.reset();
     elements.accountId.value = "";
     elements.accountType.value = "USER";
     elements.accountType.disabled = false;
     elements.accountName.value = "";
+    elements.accountJobTitle.innerHTML = option("","Select job title") + state.accountJobTitles.map((item) => option(item.job_title_code,item.job_title_name)).join("");
+    elements.accountLoginMethod.value = "EMAIL";
     elements.accountPassword.required = true;
     elements.accountPassword.placeholder = "Minimum 12 characters";
     elements.accountStaff.innerHTML = accountStaffOptions();
@@ -480,6 +511,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyAccountType();
     renderAccountRoleOptions([]);
     renderAccountPermissionOptions([]);
+    applyLoginMethod();
     setMessage(elements.accountMessage);
   }
 
@@ -494,7 +526,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       elements.accountTitle.textContent = "Add account";
       elements.accountSubtitle.textContent = "Create a sign-in and optionally link it to an active Staff Master record.";
       elements.accountSave.textContent = "Create account";
-      elements.accountEmail.focus();
+      elements.accountName.focus();
       return;
     }
     elements.accountTitle.textContent = "Edit account";
@@ -504,6 +536,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountType.value = account.terminal?.device_code ? "TERMINAL" : "USER";
     elements.accountType.disabled = Boolean(account.terminal?.device_code);
     elements.accountName.value = account.display_name || account.terminal?.device_name || "";
+    elements.accountJobTitle.value = account.job_title_code || "";
+    elements.accountLoginMethod.value = account.login_method === "USERNAME" ? "USERNAME" : "EMAIL";
+    elements.accountUsername.value = account.login_identifier || "";
     elements.accountEmail.value = account.email || "";
     elements.accountPassword.required = false;
     elements.accountPassword.placeholder = "Leave empty to keep the current password";
@@ -514,7 +549,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyAccountType();
     renderAccountRoleOptions(account.role_codes || []);
     renderAccountPermissionOptions(account.permissions || []);
-    elements.accountEmail.focus();
+    applyLoginMethod();
+    (account.login_method === "USERNAME" ? elements.accountUsername : elements.accountName).focus();
   }
 
   function applyAccountType() {
@@ -523,7 +559,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountName.closest(".staff-field").classList.toggle("hidden", terminal);
     elements.accountEmail.closest(".staff-field").classList.toggle("hidden", terminal);
     elements.accountStaff.closest(".staff-field").classList.toggle("hidden", terminal);
-    elements.accountEmail.required = !terminal;
+    elements.accountJobTitleField.classList.toggle("hidden", terminal);
+    elements.accountLoginMethodField.classList.toggle("hidden", terminal);
+    applyLoginMethod();
     elements.accountName.required = !terminal;
     elements.accountTerminalCode.required = terminal;
     elements.accountTerminalName.required = terminal;
@@ -614,9 +652,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountId = elements.accountId.value;
     const terminal = elements.accountType.value === "TERMINAL";
     const email = elements.accountEmail.value.trim();
+    const username = elements.accountUsername.value.trim();
     const password = elements.accountPassword.value;
     const roleCodes = selectedAccountRoles();
-    if ((!terminal && (!email || !elements.accountName.value.trim())) || (!accountId && password.length < 12) || (terminal && (!elements.accountTerminalCode.value.trim() || !elements.accountTerminalName.value.trim() || !elements.accountTerminalStation.value))) {
+    if ((!terminal && (!elements.accountName.value.trim() || !elements.accountJobTitle.value || (elements.accountLoginMethod.value === "EMAIL" ? !email : !username))) || (!accountId && password.length < 12) || (terminal && (!elements.accountTerminalCode.value.trim() || !elements.accountTerminalName.value.trim() || !elements.accountTerminalStation.value))) {
       setMessage(elements.accountMessage, "Complete the account details and use an initial password with at least 12 characters.", "error");
       return;
     }
@@ -624,7 +663,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountSave.disabled = true;
     setMessage(elements.accountMessage, accountId ? "Saving account..." : "Creating account...");
     try {
-      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), email: email || undefined, password: password || undefined, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
+      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), job_title_code:terminal ? undefined : elements.accountJobTitle.value, login_method:terminal ? "TERMINAL" : elements.accountLoginMethod.value, login_identifier:username || undefined, email: email || undefined, password: password || undefined, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
       closeAccountEditor(true);
       setMessage(elements.pageMessage, result.technical_email ? `Production computer created. Technical sign-in: ${result.technical_email}` : accountId ? "Account updated." : "Account created.", "success");
       await loadAccounts();
@@ -647,10 +686,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${kpi(summary.terminal_accounts, "Production terminals")}
         ${kpi(summary.unlinked_accounts, "Unlinked accounts", summary.unlinked_accounts ? "warning" : "")}
       </section>
-      <div class="staff-info-callout">Access shown here is derived from the roles currently assigned to each account. The terminal accounts are fixed computers; their production staff attribution continues to come from Roster and Actual.</div>
+      <div class="staff-info-callout">Personal access is based on job title and can be adjusted when needed. Terminal accounts remain attached to fixed production computers; staff attribution continues to come from Roster and Actual.</div>
       <section class="staff-card">
         <header class="staff-card-header">
-          <div><p class="staff-section-eyebrow">Administration</p><h2>Accounts &amp; access</h2><p>Create, maintain and deactivate application accounts. Roles and modules derive from the linked Staff Master record.</p></div>
+          <div><p class="staff-section-eyebrow">Administration</p><h2>Accounts &amp; access</h2><p>Create, maintain and deactivate personal or terminal accounts.</p></div>
           <form id="accountAccessFilters" class="staff-toolbar">
             <input id="accountAccessSearch" type="search" placeholder="Search email, staff or terminal" value="${escapeHtml(state.accountSearch)}">
             <button class="staff-secondary-button" type="submit">Apply</button>
@@ -659,12 +698,12 @@ document.addEventListener("DOMContentLoaded", async () => {
           </form>
         </header>
         <div class="staff-table-wrap">
-          ${accounts.length ? `<table class="staff-table staff-access-table"><thead><tr><th>Account</th><th>Linked staff</th><th>Account type</th><th>Roles</th><th>Visible modules</th><th>Last sign-in</th><th>Actions</th></tr></thead><tbody>${accounts.map((account) => `
+          ${accounts.length ? `<table class="staff-table staff-access-table"><thead><tr><th>Account</th><th>Linked staff</th><th>Account type</th><th>Job title / access</th><th>Visible modules</th><th>Last sign-in</th><th>Actions</th></tr></thead><tbody>${accounts.map((account) => `
             <tr>
-              <td><strong>${escapeHtml(account.email || "No email")}</strong><span class="staff-status ${account.is_active ? "active" : "inactive"}">${account.is_active ? "Active" : "Disabled"}</span><span class="staff-code">${escapeHtml(account.auth_user_id)}</span></td>
+              <td><strong>${escapeHtml(account.login_method === "USERNAME" ? account.login_identifier : account.email || "No email")}</strong><span class="staff-status ${account.is_active ? "active" : "inactive"}">${account.is_active ? "Active" : "Disabled"}</span><span class="staff-code">${escapeHtml(account.auth_user_id)}</span></td>
               <td>${account.staff_id ? `<strong>${escapeHtml(account.display_name || "Unnamed staff")}</strong><span class="staff-subtext">${escapeHtml(account.employee_code || "No employee code")}</span>` : '<span class="staff-subtext">Not linked to Staff Master</span>'}</td>
               <td>${terminalAccessText(account.terminal)}</td>
-              <td>${accountRoleChips(account.role_codes)}</td>
+              <td>${account.terminal?.device_code ? accountRoleChips(account.role_codes) : `<strong>${escapeHtml(state.accountJobTitles.find((item) => item.job_title_code === account.job_title_code)?.job_title_name || "Not assigned")}</strong>`}</td>
               <td>${accountModuleChips(account.role_codes, account.permissions)}</td>
               <td><span class="staff-subtext">Created: ${escapeHtml(formatDateTime(account.created_at))}</span><br>${escapeHtml(formatDateTime(account.last_sign_in_at))}</td>
               <td>${accountActions(account)}</td>
@@ -1160,6 +1199,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.statusClose.addEventListener("click", closeStatusModal);
   elements.statusCancel.addEventListener("click", closeStatusModal);
   elements.accountForm.addEventListener("submit", saveAccountEditor);
+  elements.accountJobTitle.addEventListener("change", () => applyJobTitleTemplate(true));
+  elements.accountLoginMethod.addEventListener("change", applyLoginMethod);
   elements.accountBackdrop.addEventListener("click", closeAccountEditor);
   elements.accountClose.addEventListener("click", closeAccountEditor);
   elements.accountCancel.addEventListener("click", closeAccountEditor);

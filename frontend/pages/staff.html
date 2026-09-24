@@ -298,9 +298,22 @@
           <span>Account name *</span>
           <input id="accountEditorName" type="text" maxlength="160" required autocomplete="off">
         </label>
-        <label class="staff-field">
+        <label id="accountJobTitleField" class="staff-field">
+          <span>Job title *</span>
+          <select id="accountEditorJobTitle"></select>
+        </label>
+        <label id="accountLoginMethodField" class="staff-field">
+          <span>Sign-in method *</span>
+          <select id="accountEditorLoginMethod"><option value="EMAIL">Personal email</option><option value="USERNAME">Employee username</option></select>
+        </label>
+        <label id="accountEmailField" class="staff-field">
           <span>Email *</span>
           <input id="accountEditorEmail" type="email" maxlength="320" required autocomplete="email">
+        </label>
+        <label id="accountUsernameField" class="staff-field hidden">
+          <span>Employee username *</span>
+          <input id="accountEditorUsername" type="text" maxlength="80" autocomplete="username" placeholder="Example: employee code">
+          <small>No email is required. Password recovery must be completed by an authorised manager.</small>
         </label>
         <label class="staff-field">
           <span>Initial or replacement password *</span>
@@ -318,16 +331,16 @@
             <label class="staff-field wide"><span>Registered station *</span><select id="accountTerminalStation"></select></label>
           </div>
         </section>
-        <section class="staff-form-section">
+        <details id="accountCompatibilityAccess" class="staff-form-section staff-permission-details">
+          <summary><span><strong>Technical compatibility access</strong><small>Automatically selected from the job title.</small></span></summary>
           <div class="staff-form-section-heading">
-            <h3>Access permissions</h3>
-            <p>Select the areas this account can access. Permissions belong to this account, not to Staff Master.</p>
+            <p>These internal roles keep existing modules working during the permission migration.</p>
           </div>
           <div id="accountEditorRoleOptions" class="staff-cover-grid"></div>
-        </section>
+        </details>
         <details class="staff-form-section staff-permission-details">
           <summary><span><strong>Detailed permissions</strong><small>Optional exceptions by area, action and scope.</small></span></summary>
-          <p class="staff-subtext">Leave this empty to use only the selected role. Add exceptions when a person's responsibilities change.</p>
+          <p class="staff-subtext">The selected job title supplies a simple default. Adjust only the exceptions needed for this person.</p>
           <div id="accountEditorPermissionOptions" class="staff-permission-matrix"></div>
         </details>
         <p id="accountEditorMessage" class="staff-inline-message" aria-live="polite"></p>

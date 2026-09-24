@@ -92,6 +92,20 @@ function permissionGrants(body: Record<string, unknown>) {
   }).filter((grant) => grant.module_code && (grant.can_view || grant.can_create || grant.can_edit || grant.can_approve || grant.can_manage));
 }
 
+async function resolveJobAccess(client: ReturnType<typeof createClient>, jobTitleCode: string, submittedPermissions: ReturnType<typeof permissionGrants>) {
+  const { data: jobTitle, error: titleError } = await client.from("account_job_titles").select("job_title_code").eq("job_title_code", jobTitleCode).eq("active", true).maybeSingle();
+  if (titleError || !jobTitle) throw new Error("The selected job title is not available.");
+
+  const { data: mappings, error: mappingError } = await client.from("job_title_legacy_roles").select("roles!inner(role_code)").eq("job_title_code", jobTitleCode);
+  if (mappingError) throw mappingError;
+  const roleCodes = (mappings || []).map((item) => String((item.roles as unknown as { role_code: string }).role_code));
+
+  if (submittedPermissions.length) return { roleCodes, permissions: submittedPermissions };
+  const { data: templates, error: templateError } = await client.from("job_title_permission_templates").select("module_code,access_scope,can_view,can_create,can_edit,can_approve,can_manage").eq("job_title_code", jobTitleCode);
+  if (templateError) throw templateError;
+  return { roleCodes, permissions: (templates || []) as ReturnType<typeof permissionGrants> };
+}
+
 async function setAccountPermissions(client: ReturnType<typeof createClient>, accountId: string, grants: ReturnType<typeof permissionGrants>, actorId: string) {
   const scopes = new Set(["OWN","TEAM","PRODUCTION","DISTRIBUTION","ALL"]);
   if (grants.some((grant) => !scopes.has(grant.access_scope))) throw new Error("One or more permission scopes are invalid.");
@@ -107,8 +121,8 @@ async function setAccountPermissions(client: ReturnType<typeof createClient>, ac
   if (error) throw error;
 }
 
-async function setAccountRoles(client: ReturnType<typeof createClient>, accountId: string, codes: string[], accountType: string, displayName: string) {
-  const { error: profileError } = await client.from("account_access_profiles").upsert({ auth_user_id: accountId, account_type: accountType, display_name: displayName || null }, { onConflict: "auth_user_id" });
+async function setAccountRoles(client: ReturnType<typeof createClient>, accountId: string, codes: string[], accountType: string, displayName: string, jobTitleCode: string, loginMethod: string, loginIdentifier: string) {
+  const { error: profileError } = await client.from("account_access_profiles").upsert({ auth_user_id: accountId, account_type: accountType, display_name: displayName || null, job_title_code:jobTitleCode || null, login_method:loginMethod, login_identifier:loginIdentifier || null }, { onConflict: "auth_user_id" });
   if (profileError) throw profileError;
   let roles: Array<{ role_id: string; role_code: string }> = [];
   if (codes.length) {
@@ -154,18 +168,26 @@ Deno.serve(async (req) => {
   const deviceCode = value(body, "device_code");
   const deviceName = value(body, "device_name");
   const stationId = value(body, "station_id");
-  const selectedRoles = roleCodes(body);
-  const selectedPermissions = permissionGrants(body);
+  let selectedRoles = roleCodes(body);
+  let selectedPermissions = permissionGrants(body);
+  const jobTitleCode = value(body,"job_title_code").toUpperCase();
+  const loginMethod = accountType === "TERMINAL" ? "TERMINAL" : value(body,"login_method") === "USERNAME" ? "USERNAME" : "EMAIL";
+  const loginIdentifier = value(body,"login_identifier").toLowerCase().replace(/[^a-z0-9._-]+/g,"-").replace(/^-|-$/g,"");
 
   try {
+    if (accountType === "USER" && ["create","update"].includes(action)) {
+      const resolved = await resolveJobAccess(admin, jobTitleCode, selectedPermissions);
+      selectedRoles = resolved.roleCodes;
+      selectedPermissions = resolved.permissions;
+    }
     if (action === "create") {
-      if (!displayName || password.length < 12 || (accountType === "USER" && (!email || !email.includes("@"))) || (accountType === "TERMINAL" && (!deviceCode || !deviceName || !stationId))) throw new Error("Complete the account details and an initial password with at least 12 characters.");
-      const technicalEmail = accountType === "TERMINAL" ? `${deviceCode.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}@terminal.eliscaretex.local` : email;
+      if (!displayName || password.length < 12 || (accountType === "USER" && (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@")) : !loginIdentifier))) || (accountType === "TERMINAL" && (!deviceCode || !deviceName || !stationId))) throw new Error("Complete the account details and an initial password with at least 12 characters.");
+      const technicalEmail = accountType === "TERMINAL" ? `${deviceCode.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}@terminal.eliscaretex.local` : loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email;
       const { data, error } = await admin.auth.admin.createUser({ email: technicalEmail, password, email_confirm: true });
       if (error || !data.user) throw error || new Error("The account could not be created.");
       await assertLinkableStaff(admin, staffId, data.user.id);
       await setStaffLink(admin, data.user.id, staffId);
-      await setAccountRoles(admin, data.user.id, selectedRoles, accountType, displayName);
+      await setAccountRoles(admin, data.user.id, selectedRoles, accountType, displayName, jobTitleCode, loginMethod, loginIdentifier);
       await setAccountPermissions(admin, data.user.id, selectedPermissions, identity.user.id);
       if (accountType === "TERMINAL") {
         const { error: deviceError } = await admin.from("production_station_devices").insert({ station_id: stationId, device_code: deviceCode, device_name: deviceName, device_auth_user_id: data.user.id, created_by_auth_user_id: identity.user.id });
@@ -176,7 +198,7 @@ Deno.serve(async (req) => {
 
     if (!accountId) throw new Error("Account identifier is required.");
     if (accountId === identity.user.id && ["disable", "delete"].includes(action)) throw new Error("You cannot disable or delete your own signed-in account.");
-    if (accountId === identity.user.id && action === "update" && !selectedRoles.includes("ADMIN")) throw new Error("You cannot remove your own Administrator permission.");
+    if (accountId === identity.user.id && action === "update" && jobTitleCode !== "ADMINISTRATOR") throw new Error("You cannot remove your own Administrator job title.");
 
     const { data: terminal, error: terminalError } = await admin
       .from("production_station_devices")
@@ -195,15 +217,15 @@ Deno.serve(async (req) => {
 
     if (action === "update") {
       if (terminal) throw new Error("Production computer configuration is protected. Use the terminal password reset action to change its sign-in password.");
-      if (!email || !email.includes("@")) throw new Error("A valid email is required.");
+      if (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@")) : !loginIdentifier)) throw new Error("Complete the job title and sign-in method.");
       if (password && password.length < 12) throw new Error("Replacement passwords must have at least 12 characters.");
-      const changes: Record<string, string> = { email };
+      const changes: Record<string, string> = { email:loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email };
       if (password) changes.password = password;
       const { error } = await admin.auth.admin.updateUserById(accountId, changes);
       if (error) throw error;
       await assertLinkableStaff(admin, staffId, accountId);
       await setStaffLink(admin, accountId, staffId);
-      await setAccountRoles(admin, accountId, selectedRoles, accountType, displayName);
+      await setAccountRoles(admin, accountId, selectedRoles, accountType, displayName, jobTitleCode, loginMethod, loginIdentifier);
       await setAccountPermissions(admin, accountId, selectedPermissions, identity.user.id);
       return respond({ ok: true });
     }

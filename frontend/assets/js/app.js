@@ -527,12 +527,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const loginIdentifier = emailInput.value.trim();
     const password = passwordInput.value;
-    const email = loginIdentifier.includes("@")
-      ? loginIdentifier
-      : `${loginIdentifier.toLowerCase()}@workstation.eliscaretex.local`;
+    const loginCandidates = loginIdentifier.includes("@") ? [loginIdentifier] : [
+      `${loginIdentifier.toLowerCase()}@staff.eliscaretex.local`,
+      `${loginIdentifier.toLowerCase()}@workstation.eliscaretex.local`,
+      `${loginIdentifier.toLowerCase()}@terminal.eliscaretex.local`
+    ];
 
     if (!loginIdentifier || !password) {
-      setMessage(loginMessage, "Enter your email/workstation user and password.", "error");
+      setMessage(loginMessage, "Enter your email, employee username or workstation user and password.", "error");
       return;
     }
 
@@ -541,14 +543,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(loginMessage, "");
 
     try {
-      const { data, error } = await client.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        throw error;
+      let data = null;
+      let lastError = null;
+      for (const email of loginCandidates) {
+        const attempt = await client.auth.signInWithPassword({ email, password });
+        if (!attempt.error) { data = attempt.data; lastError = null; break; }
+        lastError = attempt.error;
       }
+      if (lastError) throw lastError;
 
       if (!data.user) {
         throw new Error("Supabase did not return the authenticated user.");
