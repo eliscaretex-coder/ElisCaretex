@@ -399,27 +399,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
-  function accountRoleChips(roles) {
-    return roles?.length
-      ? `<div class="staff-cover-list">${roles.map((role) => `<span class="staff-cover-chip">${escapeHtml(role)}</span>`).join("")}</div>`
-      : '<span class="staff-subtext">No role assigned</span>';
-  }
-
-  function accountModuleChips(roles, permissions = []) {
+  function accountModuleSummary(roles, permissions = []) {
     const explicit = permissions.map((grant) => {
       const module = state.accountModules.find((item) => item.module_code === grant.module_code);
-      const actions = [["can_view","V"],["can_create","C"],["can_edit","E"],["can_approve","A"],["can_manage","M"]].filter(([key]) => grant[key]).map(([,label]) => label).join("");
-      return `${module?.module_name || grant.module_code} · ${actions} · ${grant.access_scope}`;
+      return module?.module_name || grant.module_code;
     });
     const modules = explicit.length ? explicit : accountModules(roles);
-    return modules.length
-      ? `<div class="staff-cover-list">${modules.map((module) => `<span class="staff-training-chip yes">${escapeHtml(module)}</span>`).join("")}</div>`
-      : '<span class="staff-subtext">No workspace module</span>';
-  }
-
-  function terminalAccessText(terminal) {
-    if (!terminal?.device_code) return '<span class="staff-subtext">Personal / standard account</span>';
-    return `<strong>${escapeHtml(terminal.device_code)}</strong><span class="staff-subtext">${escapeHtml(terminal.station_name)} · ${escapeHtml(terminal.area_code)}</span>`;
+    if (!modules.length) return '<span class="staff-subtext">No modules assigned</span>';
+    const visible = modules.slice(0,3);
+    return `<div class="account-module-summary">${visible.map((module) => `<span>${escapeHtml(module)}</span>`).join("")}${modules.length > visible.length ? `<span class="account-module-more">+${modules.length-visible.length}</span>` : ""}</div>`;
   }
 
   function accountActions(account) {
@@ -427,11 +415,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lifecycle = account.is_active
       ? `<button class="staff-row-button danger" type="button" data-account-disable="${escapeHtml(account.auth_user_id)}">Disable</button>`
       : `<button class="staff-row-button" type="button" data-account-enable="${escapeHtml(account.auth_user_id)}">Enable</button>`;
-    return `<div class="staff-row-actions">
-      <button class="staff-row-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>
-      ${terminal ? `<button class="staff-row-button" type="button" data-account-reset-password="${escapeHtml(account.auth_user_id)}">Reset password</button>` : ""}
-      ${lifecycle}
-      ${terminal ? '<span class="staff-subtext">Terminal account</span>' : `<button class="staff-row-button danger" type="button" data-account-delete="${escapeHtml(account.auth_user_id)}" data-account-email="${escapeHtml(account.email || "this account")}">Delete</button>`}
+    return `<div class="staff-row-actions account-row-actions">
+      <button class="staff-row-button account-edit-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>
+      <details class="account-actions-menu"><summary>More</summary><div>
+        ${terminal ? `<button class="staff-row-button" type="button" data-account-reset-password="${escapeHtml(account.auth_user_id)}">Reset password</button>` : ""}
+        ${lifecycle}
+        ${terminal ? "" : `<button class="staff-row-button danger" type="button" data-account-delete="${escapeHtml(account.auth_user_id)}" data-account-email="${escapeHtml(account.email || "this account")}">Delete</button>`}
+      </div></details>
     </div>`;
   }
 
@@ -683,16 +673,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accounts = Array.isArray(data.accounts) ? data.accounts : [];
     elements.main.innerHTML = `
       ${workspaceTabs()}
-      <section class="staff-kpi-grid staff-access-kpi-grid">
-        ${kpi(summary.total_accounts, "Accounts")}
-        ${kpi(summary.linked_staff, "Linked to staff")}
-        ${kpi(summary.terminal_accounts, "Production terminals")}
-        ${kpi(summary.unlinked_accounts, "Unlinked accounts", summary.unlinked_accounts ? "warning" : "")}
-      </section>
-      <div class="staff-info-callout">Personal access is based on job title and can be adjusted when needed. Terminal accounts remain attached to fixed production computers; staff attribution continues to come from Roster and Actual.</div>
       <section class="staff-card">
         <header class="staff-card-header">
-          <div><p class="staff-section-eyebrow">Administration</p><h2>Accounts &amp; access</h2><p>Create, maintain and deactivate personal or terminal accounts.</p></div>
+          <div><p class="staff-section-eyebrow">Administration</p><h2>Accounts &amp; access</h2><p>Manage personal sign-ins and production computers.</p></div>
+          <div class="account-overview" aria-label="Account summary">
+            <span><strong>${escapeHtml(summary.total_accounts || 0)}</strong> total</span>
+            <span><strong>${escapeHtml(summary.linked_staff || 0)}</strong> linked staff</span>
+            <span><strong>${escapeHtml(summary.terminal_accounts || 0)}</strong> terminals</span>
+          </div>
           <form id="accountAccessFilters" class="staff-toolbar">
             <input id="accountAccessSearch" type="search" placeholder="Search email, staff or terminal" value="${escapeHtml(state.accountSearch)}">
             <button class="staff-secondary-button" type="submit">Apply</button>
@@ -700,15 +688,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             <button id="accountAccessAdd" class="staff-primary-button" type="button">Add account</button>
           </form>
         </header>
+        <div class="account-guidance">Job title supplies the default access. Open <strong>Edit</strong> only when an account needs an exception.</div>
         <div class="staff-table-wrap">
-          ${accounts.length ? `<table class="staff-table staff-access-table"><thead><tr><th>Account</th><th>Linked staff</th><th>Account type</th><th>Job title / access</th><th>Visible modules</th><th>Last sign-in</th><th>Actions</th></tr></thead><tbody>${accounts.map((account) => `
+          ${accounts.length ? `<table class="staff-table staff-access-table account-directory-table"><thead><tr><th>Account</th><th>Assignment</th><th>Access</th><th>Last activity</th><th>Actions</th></tr></thead><tbody>${accounts.map((account) => `
             <tr>
-              <td><strong>${escapeHtml(account.login_method === "USERNAME" ? account.login_identifier : account.email || "No email")}</strong><span class="staff-status ${account.is_active ? "active" : "inactive"}">${account.is_active ? "Active" : "Disabled"}</span><span class="staff-code">${escapeHtml(account.auth_user_id)}</span></td>
-              <td>${account.staff_id ? `<strong>${escapeHtml(account.display_name || "Unnamed staff")}</strong><span class="staff-subtext">${escapeHtml(account.employee_code || "No employee code")}</span>` : '<span class="staff-subtext">Not linked to Staff Master</span>'}</td>
-              <td>${terminalAccessText(account.terminal)}</td>
-              <td>${account.terminal?.device_code ? accountRoleChips(account.role_codes) : `<strong>${escapeHtml(state.accountJobTitles.find((item) => item.job_title_code === account.job_title_code)?.job_title_name || "Not assigned")}</strong>`}</td>
-              <td>${accountModuleChips(account.role_codes, account.permissions)}</td>
-              <td><span class="staff-subtext">Created: ${escapeHtml(formatDateTime(account.created_at))}</span><br>${escapeHtml(formatDateTime(account.last_sign_in_at))}</td>
+              <td><div class="account-identity"><div><strong>${escapeHtml(account.login_method === "USERNAME" ? account.login_identifier : account.email || "No email")}</strong><span class="staff-status ${account.is_active ? "active" : "inactive"}">${account.is_active ? "Active" : "Disabled"}</span></div><span class="staff-subtext">${account.terminal?.device_code ? "Production terminal" : "Personal account"}</span></div></td>
+              <td>${account.terminal?.device_code ? `<strong>${escapeHtml(account.terminal.device_code)}</strong><span class="staff-subtext">${escapeHtml(account.terminal.station_name || "No station")}</span>` : account.staff_id ? `<strong>${escapeHtml(account.display_name || "Unnamed staff")}</strong><span class="staff-subtext">${escapeHtml(account.employee_code || "No employee code")}</span>` : '<strong>Not linked</strong><span class="staff-subtext">No Staff Master record</span>'}</td>
+              <td><div class="account-access-summary"><strong>${account.terminal?.device_code ? escapeHtml((account.role_codes || []).map((role) => role.replaceAll("_"," ")).join(", ") || "Terminal access") : escapeHtml(state.accountJobTitles.find((item) => item.job_title_code === account.job_title_code)?.job_title_name || "Not assigned")}</strong>${accountModuleSummary(account.role_codes,account.permissions)}</div></td>
+              <td><strong>${escapeHtml(formatDateTime(account.last_sign_in_at))}</strong><span class="staff-subtext">Created ${escapeHtml(formatDateTime(account.created_at))}</span></td>
               <td>${accountActions(account)}</td>
             </tr>`).join("")}</tbody></table>` : '<div class="staff-empty">No accounts match this search.</div>'}
         </div>

@@ -149,11 +149,31 @@ body.staff-page {
 .staff-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--staff-line); background: #fbfcfe; }
 .staff-role-change-summary{display:grid;gap:10px;padding:18px 20px;color:#334155;font-size:.86rem;line-height:1.45}.staff-role-change-summary p{margin:0}.staff-role-change-summary strong{color:#0f172a}.staff-role-change-summary .staff-role-change-note{padding:10px 11px;border:1px solid #dbe4ea;border-radius:8px;background:#f8fafc;color:#475569;font-size:.8rem}.staff-role-change-summary .staff-role-change-warning{border-color:#fde68a;background:#fffbeb;color:#92400e}.staff-role-change-actions{flex-wrap:wrap}.staff-role-change-actions .staff-secondary-button:first-child{margin-right:auto}
 
+/* Compact account administration directory. */
+.account-overview{display:flex;align-items:center;gap:8px;margin-left:auto}
+.account-overview span{display:inline-flex;align-items:baseline;gap:5px;padding:7px 10px;border:1px solid #d7e3ec;border-radius:999px;background:#f8fbfd;color:#526579;font-size:11px;white-space:nowrap}
+.account-overview strong{color:#007f83;font-size:14px}
+.account-guidance{padding:9px 14px;border-bottom:1px solid var(--staff-line);background:#f7fbfc;color:#526579;font-size:12px}
+.account-directory-table{min-width:980px;table-layout:fixed}
+.account-directory-table th:nth-child(1){width:24%}.account-directory-table th:nth-child(2){width:17%}.account-directory-table th:nth-child(3){width:36%}.account-directory-table th:nth-child(4){width:14%}.account-directory-table th:nth-child(5){width:9%;text-align:right}
+.account-directory-table td{padding:14px 12px;vertical-align:middle!important}
+.account-identity>div{display:flex;align-items:center;flex-wrap:wrap;gap:7px}.account-identity>div>strong{overflow:hidden;text-overflow:ellipsis}
+.account-access-summary{display:grid;gap:7px}
+.account-module-summary{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.account-module-summary span{padding:3px 7px;border-radius:999px;background:#edf8f4;color:#08785e;font-size:10px;font-weight:700}
+.account-module-summary .account-module-more{background:#edf2f7;color:#526579}
+.account-row-actions{flex-wrap:nowrap;align-items:center}.account-edit-button{border-color:#9ed7d7;color:#007f83}
+.account-actions-menu{position:relative}.account-actions-menu>summary{cursor:pointer;list-style:none;padding:7px 9px;border:1px solid var(--staff-line);border-radius:8px;background:#fff;font-size:11px;font-weight:700}.account-actions-menu>summary::-webkit-details-marker{display:none}
+.account-actions-menu>div{position:absolute;z-index:5;right:0;top:calc(100% + 5px);display:grid;gap:5px;min-width:132px;padding:7px;border:1px solid var(--staff-line);border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(15,23,42,.16)}
+.account-directory-table tbody tr:last-child .account-actions-menu>div{top:auto;bottom:calc(100% + 5px)}
+.account-actions-menu>div .staff-row-button{width:100%;text-align:left}
+
 @media (max-width: 980px) {
   .staff-kpi-grid { grid-template-columns: repeat(3, 1fr); }
   .staff-card-header { align-items: stretch; flex-direction: column; }
   .staff-toolbar { justify-content: flex-start; }
   .staff-form-grid.three-columns { grid-template-columns: 1fr 1fr; }
+  .account-overview{margin-left:0;flex-wrap:wrap}
 }
 
 @media (max-width: 680px) {
