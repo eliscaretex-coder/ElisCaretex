@@ -17,8 +17,8 @@
   <!-- File order is important -->
   <script src="./assets/js/config.js" defer></script>
   <script src="./assets/js/supabase-client.js" defer></script>
-  <script src="./assets/js/app-shell-policy.js" defer></script>
-  <script src="./assets/js/app.js" defer></script>
+  <script src="./assets/js/app-shell-policy.js?v=20260924-2" defer></script>
+  <script src="./assets/js/app.js?v=20260924-2" defer></script>
 </head>
 
 <body>
@@ -118,6 +118,12 @@
         <p id="adminAppMessage" class="message" aria-live="polite"></p>
 
         <section class="module-grid" aria-label="System modules">
+          <a id="adminMyRosterModule" class="module-card module-card-active" href="./pages/roster-view.html">
+            <strong>My Roster</strong>
+            <span>My published schedule and leave requests</span>
+            <small>Open module</small>
+          </a>
+
           <a id="adminCustomersModule" class="module-card module-card-active" href="./pages/customers.html">
             <strong>Customers</strong>
             <span>Customer records and production schedules</span>

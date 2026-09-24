@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const adminFinishModule = document.getElementById("adminFinishModule");
   const adminStaffModule = document.getElementById("adminStaffModule");
   const adminRosterModule = document.getElementById("adminRosterModule");
+  const adminMyRosterModule = document.getElementById("adminMyRosterModule");
 
   const operationalSidebarToggle = document.getElementById("operationalSidebarToggle");
   const operationalNav = document.getElementById("operationalNav");
@@ -403,6 +404,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       adminRosterModule.classList.toggle(
         "hidden",
         !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER)
+      );
+    }
+
+    if (adminMyRosterModule) {
+      adminMyRosterModule.classList.toggle(
+        "hidden",
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.MY_ROSTER)
       );
     }
 

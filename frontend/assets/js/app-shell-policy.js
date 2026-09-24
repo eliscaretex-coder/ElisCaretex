@@ -121,6 +121,7 @@
   // defines the workspace entry points that should be visible to each role.
   const NAVIGATION_PERMISSIONS = Object.freeze({
     CUSTOMER_WORKSPACE: "customer.workspace",
+    MY_ROSTER: "self.my-roster",
     STAFF_MASTER: "staff.master",
     PRODUCTION_ROSTER: "production.roster",
     SORTING: "operations.sorting",
@@ -133,6 +134,7 @@
   });
 
   const MODULE_NAVIGATION_PERMISSIONS = Object.freeze({
+    MY_ROSTER: [NAVIGATION_PERMISSIONS.MY_ROSTER],
     CUSTOMERS: [NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE],
     PRODUCTION_ROSTER: [NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER],
     SORTING: [NAVIGATION_PERMISSIONS.SORTING],
@@ -149,6 +151,11 @@
     {
       id: "home", label: "Home", description: "Operational start page",
       href: "./index.html", icon: "home", group: "Home"
+    },
+    {
+      id: "my-roster", label: "My Roster", description: "My published schedule and leave requests",
+      href: "./pages/roster-view.html", icon: "schedule", group: "Self service",
+      permission: NAVIGATION_PERMISSIONS.MY_ROSTER
     },
     {
       id: "customer-workspace", label: "Customer Workspace",

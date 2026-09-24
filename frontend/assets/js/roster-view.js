@@ -2,6 +2,7 @@
 
 const ROSTER_VIEW = {
   token: "",
+  authenticated: false,
   data: null,
   shiftCode: "MORNING",
   shiftData: null,
@@ -358,9 +359,17 @@ async function portalRpc(name, args = {}) {
 
 async function loadRoster() {
   const token = new URLSearchParams(window.location.search).get("t") || "";
-  if (!token) throw new Error("The RosterView link is missing.");
-  ROSTER_VIEW.token = token;
-  ROSTER_VIEW.data = await portalRpc("get_published_production_roster_portal", { p_token: token });
+  if (token) {
+    ROSTER_VIEW.token = token;
+    ROSTER_VIEW.data = await portalRpc("get_published_production_roster_portal", { p_token: token });
+  } else {
+    const { data } = await window.elisSupabase.auth.getSession();
+    if (!data.session) { window.location.replace("../index.html"); return; }
+    ROSTER_VIEW.authenticated = true;
+    ROSTER_VIEW.data = await portalRpc("get_my_account_roster_portal");
+    document.querySelector("h1").textContent = "My Roster";
+    nodes.search.closest(".rv-search-wrap").hidden = true;
+  }
   const shifts = ROSTER_VIEW.data?.shifts || [];
   const first = shifts.find((shift) => String(shift.shift_code).toUpperCase() === "MORNING") || shifts[0];
   if (!first) throw new Error("No Production Roster shifts are available.");
@@ -369,6 +378,9 @@ async function loadRoster() {
 
 function portalStaffOptions() {
   const people = new Map();
+  if (ROSTER_VIEW.authenticated && ROSTER_VIEW.data?.staff?.staff_id) {
+    people.set(ROSTER_VIEW.data.staff.staff_id, ROSTER_VIEW.data.staff.display_name || "Staff member");
+  }
   (ROSTER_VIEW.data?.shifts || []).forEach((shift) => (shift.weeks || []).forEach((week) => (week.entries || []).forEach((entry) => {
     if (entry.staff_id && !people.has(entry.staff_id)) people.set(entry.staff_id, entry.display_name || "Staff member");
   })));
@@ -412,7 +424,9 @@ async function loadMyLeaveRequests() {
   const staffId = nodes.leaveStaff.value;
   if (!staffId) { nodes.myLeaveRequests.innerHTML = ""; return; }
   try {
-    const list = await portalRpc("get_my_production_roster_leave_requests", { p_token: ROSTER_VIEW.token, p_staff_id: staffId });
+    const list = ROSTER_VIEW.authenticated
+      ? await portalRpc("get_my_account_leave_requests")
+      : await portalRpc("get_my_production_roster_leave_requests", { p_token: ROSTER_VIEW.token, p_staff_id: staffId });
     if (!Array.isArray(list) || !list.length) { nodes.myLeaveRequests.innerHTML = ""; return; }
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -437,6 +451,11 @@ async function loadMyLeaveRequests() {
 async function openLeaveForm() {
   const people = portalStaffOptions();
   nodes.leaveStaff.innerHTML = '<option value="">Select your name…</option>' + people.map((person) => `<option value="${escapeHtml(person.staffId)}">${escapeHtml(person.name)}</option>`).join("");
+  if (ROSTER_VIEW.authenticated && people.length === 1) {
+    nodes.leaveStaff.value = people[0].staffId;
+    nodes.leaveStaff.disabled = true;
+    await loadMyLeaveRequests();
+  } else nodes.leaveStaff.disabled = false;
   nodes.leaveType.value = "DAY_OFF";
   nodes.leaveStart.value = "";
   nodes.leaveEnd.value = "";
@@ -472,9 +491,8 @@ async function submitLeaveRequest() {
   nodes.leaveSubmit.disabled = true;
   setLeaveMessage("Submitting request…");
   try {
-    const result = await portalRpc("submit_production_roster_leave_request", {
-      p_token: ROSTER_VIEW.token,
-      p_staff_id: staffId,
+    const result = await portalRpc(ROSTER_VIEW.authenticated ? "submit_my_account_leave_request" : "submit_production_roster_leave_request", {
+      ...(ROSTER_VIEW.authenticated ? {} : { p_token: ROSTER_VIEW.token, p_staff_id: staffId }),
       p_request_type: requestType,
       p_start_date: start,
       p_end_date: end || null,
