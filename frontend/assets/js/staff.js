@@ -90,6 +90,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     accountEmail: document.getElementById("accountEditorEmail"),
     accountUsernameField: document.getElementById("accountUsernameField"),
     accountUsername: document.getElementById("accountEditorUsername"),
+    accountPasswordField: document.getElementById("accountPasswordField"),
     accountPassword: document.getElementById("accountEditorPassword"),
     accountStaff: document.getElementById("accountEditorStaff"),
     accountRoleOptions: document.getElementById("accountEditorRoleOptions"),
@@ -427,7 +428,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? `<button class="staff-row-button danger" type="button" data-account-disable="${escapeHtml(account.auth_user_id)}">Disable</button>`
       : `<button class="staff-row-button" type="button" data-account-enable="${escapeHtml(account.auth_user_id)}">Enable</button>`;
     return `<div class="staff-row-actions">
-      ${terminal ? `<button class="staff-row-button" type="button" data-account-reset-password="${escapeHtml(account.auth_user_id)}">Reset password</button>` : `<button class="staff-row-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>`}
+      <button class="staff-row-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>
+      ${terminal ? `<button class="staff-row-button" type="button" data-account-reset-password="${escapeHtml(account.auth_user_id)}">Reset password</button>` : ""}
       ${lifecycle}
       ${terminal ? '<span class="staff-subtext">Terminal account</span>' : `<button class="staff-row-button danger" type="button" data-account-delete="${escapeHtml(account.auth_user_id)}" data-account-email="${escapeHtml(account.email || "this account")}">Delete</button>`}
     </div>`;
@@ -534,7 +536,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountSave.textContent = "Save account";
     elements.accountId.value = account.auth_user_id;
     elements.accountType.value = account.terminal?.device_code ? "TERMINAL" : "USER";
-    elements.accountType.disabled = Boolean(account.terminal?.device_code);
+    elements.accountType.disabled = true;
     elements.accountName.value = account.display_name || account.terminal?.device_name || "";
     elements.accountJobTitle.value = account.job_title_code || "";
     elements.accountLoginMethod.value = account.login_method === "USERNAME" ? "USERNAME" : "EMAIL";
@@ -545,7 +547,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountStaff.innerHTML = accountStaffOptions(account.staff_id || "");
     elements.accountTerminalCode.value = account.terminal?.device_code || "";
     elements.accountTerminalName.value = account.terminal?.device_name || "";
-    elements.accountTerminalStation.value = "";
+    elements.accountTerminalStation.value = account.terminal?.station_id || (state.reference?.stations || []).find((station) => station.station_code === account.terminal?.station_code)?.station_id || "";
     applyAccountType();
     renderAccountRoleOptions(account.role_codes || []);
     renderAccountPermissionOptions(account.permissions || []);
@@ -561,6 +563,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountStaff.closest(".staff-field").classList.toggle("hidden", terminal);
     elements.accountJobTitleField.classList.toggle("hidden", terminal);
     elements.accountLoginMethodField.classList.toggle("hidden", terminal);
+    elements.accountPasswordField.classList.toggle("hidden", terminal && Boolean(elements.accountId.value));
     applyLoginMethod();
     elements.accountName.required = !terminal;
     elements.accountTerminalCode.required = terminal;

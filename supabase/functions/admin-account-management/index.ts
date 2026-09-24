@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
 
     const { data: terminal, error: terminalError } = await admin
       .from("production_station_devices")
-      .select("station_device_id")
+      .select("station_device_id,device_code")
       .eq("device_auth_user_id", accountId)
       .maybeSingle();
     if (terminalError) throw terminalError;
@@ -216,7 +216,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update") {
-      if (terminal) throw new Error("Production computer configuration is protected. Use the terminal password reset action to change its sign-in password.");
+      if (terminal) {
+        if (!deviceName || !stationId || !deviceCode || deviceCode !== terminal.device_code) throw new Error("Complete the terminal name and registered station. The terminal code cannot be changed.");
+        const { error: deviceError } = await admin.from("production_station_devices").update({ device_name:deviceName,station_id:stationId }).eq("station_device_id",terminal.station_device_id);
+        if (deviceError) throw deviceError;
+        await setAccountRoles(admin,accountId,selectedRoles,"TERMINAL",deviceName,"","TERMINAL",deviceCode);
+        await setAccountPermissions(admin,accountId,selectedPermissions,identity.user.id);
+        return respond({ ok:true });
+      }
       if (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@")) : !loginIdentifier)) throw new Error("Complete the job title and sign-in method.");
       if (password && password.length < 12) throw new Error("Replacement passwords must have at least 12 characters.");
       const changes: Record<string, string> = { email:loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email };
