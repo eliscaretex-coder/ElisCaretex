@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     linkInput: $("rosterLinkInput"), copyLink: $("rosterCopyLinkButton"), linkMessage: $("rosterLinkMessage"),
     leaveRequestsModal: $("rosterLeaveRequestsModal"), leaveRequestsList: $("rosterLeaveRequestsList"), leaveRequestsMessage: $("rosterLeaveRequestsMessage"),
     leaveSummary: $("rosterLeaveSummary"), leaveTabs: $("rosterLeaveTabs"), leaveHistorySearch: $("rosterLeaveHistorySearch"), leaveHistorySearchInput: $("rosterLeaveHistorySearchInput"),
+    leaveCalendar: $("rosterLeaveCalendar"), leaveCalendarMonth: $("rosterLeaveCalendarMonth"), leaveCalendarShift: $("rosterLeaveCalendarShift"), leaveCalendarPrevious: $("rosterLeaveCalendarPrevious"), leaveCalendarNext: $("rosterLeaveCalendarNext"), leaveCalendarSummary: $("rosterLeaveCalendarSummary"), leaveCalendarGrid: $("rosterLeaveCalendarGrid"),
     settingsButton: $("rosterSettingsButton"), settingsModal: $("rosterSettingsModal"), settingsTabs: $("rosterSettingsTabs"), settingsTargets: $("rosterSettingsTargets"), settingsHours: $("rosterSettingsHours"), settingsLeave: $("rosterSettingsLeave"),
     targetSettingsList: $("rosterTargetSettingsList"), workingHoursSettings: $("rosterWorkingHoursSettings"), bankHolidayDate: $("rosterBankHolidayDate"), bankHolidayLabel: $("rosterBankHolidayLabel"), bankHolidayAdd: $("rosterBankHolidayAdd"), bankHolidayList: $("rosterBankHolidayList"), settingsMessage: $("rosterSettingsMessage"),
     leaveGmEmail: $("rosterLeaveGmEmail"), leaveGmThreshold: $("rosterLeaveGmThreshold"), leaveSettingsSave: $("rosterLeaveSettingsSave"),
@@ -77,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const state = {
     reference: null, data: null, staff: [], staffPool: [], entries: new Map(), layouts: new Map(), leaveLocks: new Map(), leavePending: new Map(), leaveDashboard: null, leaveScope: "ACTION", leaveSettingsValue: null,
-    accessProfile: null, canEditRoster: false, canApproveLeave: false, canManageRoster: false,
+    accessProfile: null, canEditRoster: false, canApproveLeave: false, canManageRoster: false, leaveCalendarData: null,
     operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, dirty: false,
     editingKey: "", quickKey: "", staffPickerSelectedId: "", historyVersionId: null, loading: false,
     loadedWeekStart: "", loadedShiftCode: "", suspiciousShiftDraft: null, shiftIntegrity: null
@@ -1999,10 +2000,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  function leaveCalendarMonthValue(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  }
+
+  function shiftLeaveCalendarMonth(offset) {
+    const current = elements.leaveCalendarMonth.value || leaveCalendarMonthValue();
+    const [year, month] = current.split("-").map(Number);
+    elements.leaveCalendarMonth.value = leaveCalendarMonthValue(new Date(year, month - 1 + offset, 1));
+    loadLeaveCapacityCalendar();
+  }
+
+  function leaveNamesHtml(items, status) {
+    const filtered = (Array.isArray(items) ? items : []).filter((item) => item.status === status);
+    if (!filtered.length) return "";
+    const label = status === "APPROVED" ? "Away" : "Requested";
+    return `<div class="roster-calendar-leave ${status.toLowerCase()}"><b>${filtered.length} ${label}</b><span>${filtered.slice(0, 3).map((item) => escapeHtml(item.display_name)).join(", ")}${filtered.length > 3 ? ` +${filtered.length - 3}` : ""}</span></div>`;
+  }
+
+  function renderLeaveCapacityCalendar(result) {
+    state.leaveCalendarData = result || {};
+    const days = Array.isArray(result?.days) ? result.days : [];
+    const summary = result?.summary || {};
+    const month = elements.leaveCalendarMonth.value;
+    const exactCoverage = Number(summary.exact_kg_coverage_percent || 0);
+    elements.leaveCalendarSummary.innerHTML = `
+      <div><strong>${Number(summary.approved_staff_days || 0)}</strong><span>Approved staff-days</span></div>
+      <div><strong>${Number(summary.pending_staff_days || 0)}</strong><span>Pending staff-days</span></div>
+      <div><strong>${Number(summary.estimated_kg || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</strong><span>Scheduled estimate</span></div>
+      <div class="${exactCoverage < 80 ? "warning" : ""}"><strong>${exactCoverage.toFixed(0)}%</strong><span>Exact KG coverage</span></div>`;
+    const headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => `<div class="roster-calendar-weekday">${label}</div>`).join("");
+    const cells = days.map((day) => {
+      const inMonth = String(day.work_date || "").startsWith(month);
+      const demand = Number(day.estimated_kg || 0);
+      const customers = Number(day.customer_count || 0);
+      const approved = Number(day.approved_count || 0);
+      const available = Math.max(0, Number(day.eligible_staff || 0) - approved);
+      const coverage = Number(day.exact_kg_coverage_percent || 0);
+      const pressure = demand > 0 && available > 0 ? Math.round(demand / available) : 0;
+      return `<article class="roster-calendar-day${inMonth ? "" : " outside"}${approved ? " has-approved" : ""}" title="${escapeHtml(`${customers} scheduled customers · ${available} staff after approved leave`)}">
+        <header><strong>${Number(String(day.work_date).slice(-2))}</strong><span>${available}/${Number(day.eligible_staff || 0)} staff</span></header>
+        <div class="roster-calendar-demand"><b>${demand ? `${Math.round(demand).toLocaleString()} kg` : "KG missing"}</b><span>${customers} customers · ${coverage.toFixed(0)}% exact${pressure ? ` · ${pressure} kg/staff` : ""}</span></div>
+        ${leaveNamesHtml(day.leave, "APPROVED")}${leaveNamesHtml(day.leave, "PENDING")}
+      </article>`;
+    }).join("");
+    elements.leaveCalendarGrid.innerHTML = headers + cells;
+  }
+
+  async function loadLeaveCapacityCalendar() {
+    if (!elements.leaveCalendarMonth.value) elements.leaveCalendarMonth.value = leaveCalendarMonthValue();
+    elements.leaveCalendarGrid.innerHTML = '<div class="roster-loading"><span></span><p>Building capacity calendar…</p></div>';
+    try {
+      const result = await rpc("get_production_roster_capacity_calendar", {
+        p_month: `${elements.leaveCalendarMonth.value}-01`,
+        p_shift_code: elements.leaveCalendarShift.value || null
+      });
+      renderLeaveCapacityCalendar(result);
+    } catch (error) {
+      elements.leaveCalendarGrid.innerHTML = `<div class="roster-empty">${escapeHtml(friendlyError(error))}</div>`;
+    }
+  }
+
   async function openLeaveRequests(scope = state.leaveScope || "ACTION", message = "") {
     elements.leaveRequestsModal.classList.remove("hidden");
     setLeaveScopeActive(scope);
     elements.leaveRequestsMessage.textContent = message;
+    const calendarMode = scope === "CALENDAR";
+    elements.leaveCalendar.classList.toggle("hidden", !calendarMode);
+    elements.leaveSummary.classList.toggle("hidden", calendarMode);
+    elements.leaveRequestsList.classList.toggle("hidden", calendarMode);
+    elements.leaveRequestsMessage.classList.toggle("hidden", calendarMode);
+    if (calendarMode) {
+      elements.leaveHistorySearch.classList.add("hidden");
+      if (!elements.leaveCalendarMonth.value) {
+        elements.leaveCalendarMonth.value = leaveCalendarMonthValue();
+        elements.leaveCalendarShift.value = elements.shift.value || "";
+      }
+      await loadLeaveCapacityCalendar();
+      return;
+    }
     const historyMode = scope === "HISTORY";
     elements.leaveHistorySearch?.classList.toggle("hidden", !historyMode);
     if (historyMode && elements.leaveHistorySearchInput?.value.trim()) {
@@ -2266,7 +2344,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const launch = new URLSearchParams(window.location.search);
       if (launch.get("panel") === "leave" && state.data?.can_manage) {
         const requestedScope = String(launch.get("scope") || "ACTION").toUpperCase();
-        const allowedScopes = new Set(["ACTION", "UPCOMING", "AWAITING_GM", "HISTORY"]);
+        const allowedScopes = new Set(["ACTION", "UPCOMING", "AWAITING_GM", "CALENDAR", "HISTORY"]);
         await openLeaveRequests(allowedScopes.has(requestedScope) ? requestedScope : "ACTION", "Opened from your notifications.");
         launch.delete("panel");
         launch.delete("scope");
@@ -2394,6 +2472,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.settingsButton.addEventListener("click", () => openSettings("TARGETS"));
   elements.leavePlanningReview.addEventListener("click", () => openLeaveRequests("ACTION", "These unresolved requests overlap the roster week currently on screen."));
   elements.leaveTabs.addEventListener("click", (event) => { const button = event.target.closest("[data-leave-scope]"); if (button) openLeaveRequests(button.dataset.leaveScope); });
+  elements.leaveCalendarMonth.addEventListener("change", loadLeaveCapacityCalendar);
+  elements.leaveCalendarShift.addEventListener("change", loadLeaveCapacityCalendar);
+  elements.leaveCalendarPrevious.addEventListener("click", () => shiftLeaveCalendarMonth(-1));
+  elements.leaveCalendarNext.addEventListener("click", () => shiftLeaveCalendarMonth(1));
   elements.leaveHistorySearchInput.addEventListener("input", () => {
     clearTimeout(state.leaveHistorySearchTimer);
     state.leaveHistorySearchTimer = setTimeout(() => { if (state.leaveScope === "HISTORY") openLeaveRequests("HISTORY"); }, 280);

@@ -6,14 +6,14 @@
   <title>Production Roster | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/roster.css">
+  <link rel="stylesheet" href="../assets/css/roster.css?v=20260925-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20260925-1" defer></script>
-  <script src="../assets/js/roster.js?v=20260925-1" defer></script>
+  <script src="../assets/js/roster.js?v=20260925-2" defer></script>
 </head>
 <body class="roster-page">
   <div class="roster-page-shell" data-operational-shell-root>
@@ -199,8 +199,20 @@
           <button type="button" data-leave-scope="ACTION" class="active">Action needed</button>
           <button type="button" data-leave-scope="UPCOMING">Upcoming</button>
           <button type="button" data-leave-scope="AWAITING_GM">Awaiting GM</button>
+          <button type="button" data-leave-scope="CALENDAR">Capacity calendar</button>
           <button type="button" data-leave-scope="HISTORY">History</button>
         </nav>
+        <section id="rosterLeaveCalendar" class="roster-leave-calendar hidden">
+          <div class="roster-leave-calendar-controls">
+            <button id="rosterLeaveCalendarPrevious" class="roster-button" type="button" aria-label="Previous month">&#8592;</button>
+            <label class="roster-field"><span>Month</span><input id="rosterLeaveCalendarMonth" type="month"></label>
+            <label class="roster-field"><span>Shift</span><select id="rosterLeaveCalendarShift"><option value="">All production</option><option value="MORNING">Morning</option><option value="EVENING">Evening</option></select></label>
+            <button id="rosterLeaveCalendarNext" class="roster-button" type="button" aria-label="Next month">&#8594;</button>
+          </div>
+          <div id="rosterLeaveCalendarSummary" class="roster-leave-calendar-summary"></div>
+          <div id="rosterLeaveCalendarGrid" class="roster-leave-calendar-grid"></div>
+          <p class="roster-leave-calendar-note">KG is based on published customer schedules. Where product KG is missing, the customer estimate is used and coverage is shown clearly.</p>
+        </section>
         <section id="rosterLeaveHistorySearch" class="roster-leave-staff-history hidden">
           <label class="roster-field"><span>Staff history</span><input id="rosterLeaveHistorySearchInput" type="search" autocomplete="off" placeholder="Search staff name…"></label>
           <p>Search a staff member to see their complete request history, including current Pending requests and past decisions.</p>
