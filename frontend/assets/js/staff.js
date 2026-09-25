@@ -18,6 +18,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     editorRowVersion: document.getElementById("staffEditorRowVersion"),
     displayName: document.getElementById("staffDisplayName"),
     employeeCode: document.getElementById("staffEmployeeCode"),
+    systemAccessSection: document.getElementById("staffSystemAccessSection"),
+    accountJobTitleForStaff: document.getElementById("staffAccountJobTitle"),
+    accountEmailForStaff: document.getElementById("staffAccountEmail"),
     defaultShift: document.getElementById("staffDefaultShift"),
     rosterEligible: document.getElementById("staffRosterEligible"),
     joinedOn: document.getElementById("staffJoinedOn"),
@@ -867,11 +870,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         elements.editorSubtitle.textContent = "Create a governed operational staff record.";
         elements.editorSave.textContent = "Add Staff";
         populateEditorReference({});
+        elements.systemAccessSection.classList.toggle("hidden",!state.canCreateAccounts);
+        elements.accountJobTitleForStaff.innerHTML=option("","Select job title")+availableAccountJobTitles().map((item)=>option(item.job_title_code,item.job_title_name)).join("");
+        elements.accountJobTitleForStaff.value=jobTitleForOperationalRole(elements.primaryRole.value);
         elements.displayName.focus();
         return;
       }
 
       elements.editorTitle.textContent = "Edit Staff";
+      elements.systemAccessSection.classList.add("hidden");
       elements.editorSubtitle.textContent = "Update the staff member without changing historical roster records.";
       elements.editorSave.textContent = "Save Changes";
       setMessage(elements.editorMessage, "Loading staff record...");
@@ -910,6 +917,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function selectedCoverRoles() {
     return [...elements.coverOptions.querySelectorAll('input[name="staffCoverRole"]:checked')].map((input) => input.value);
+  }
+
+  function jobTitleForOperationalRole(roleCode) {
+    return ({SUPERVISOR:"PRODUCTION_SUPERVISOR",LABEL:"LABEL_OPERATIVE",TEAM_LEADER:"TEAM_LEADER",CLEANER:"CLEANER",SUPPORT_ROLE:"MAINTENANCE"})[roleCode] || "GENERAL_OPERATIVE";
   }
 
   function closeRosterRoleChoice(choice = null) {
@@ -970,7 +981,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const common = {
         p_display_name: displayName,
-        p_employee_code: elements.employeeCode.value.trim() || null,
         p_default_shift_code: elements.defaultShift.value || null,
         p_primary_role_code: elements.primaryRole.value,
         p_default_area_code: elements.defaultArea.value || null,
@@ -1039,6 +1049,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           p_staff_id: staffId,
           p_expected_row_version: Number(elements.editorRowVersion.value),
           ...common,
+          p_employee_code: elements.employeeCode.value,
           p_import_review_required: elements.importReviewRequired.checked,
           p_import_review_notes: elements.importReviewNotes.value.trim() || null,
           p_apply_current_roster_role: applyCurrentRosterRole
@@ -1047,11 +1058,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         const snapshotCount = Number(result?.current_roster_staff_snapshots_updated || 0);
         if (applyCurrentRosterRole) setMessage(elements.pageMessage, `Staff record updated. ${updatedCount} base assignment${updatedCount === 1 ? "" : "s"} and ${snapshotCount} editable roster row${snapshotCount === 1 ? "" : "s"} refreshed.`, "success");
       } else {
-        await rpc("create_staff_master", common);
+        if (state.canCreateAccounts && !elements.accountJobTitleForStaff.value) {
+          setMessage(elements.editorMessage,"Select the account job title.","error");
+          return;
+        }
+        const created=await rpc("create_staff_master_auto_code",common);
+        const email=elements.accountEmailForStaff.value.trim();
+        if (email) {
+          try {
+            await accountAdmin("create",{account_type:"USER",display_name:displayName,job_title_code:elements.accountJobTitleForStaff.value,login_method:"EMAIL",email,staff_id:created.staff_id,permissions:[],role_codes:[],redirect_to:new URL("../pages/update-password.html",window.location.href).href});
+            setMessage(elements.pageMessage,`Staff ${created.employee_code} created and invitation sent.`,"success");
+          } catch(accountError) {
+            closeEditor(true); await loadDirectory();
+            setMessage(elements.pageMessage,`Staff ${created.employee_code} was created, but access setup failed: ${friendlyError(accountError)}`,"error");
+            return;
+          }
+        } else setMessage(elements.pageMessage,`Staff ${created.employee_code} created. System access is pending email setup.`,"success");
       }
 
       closeEditor(true);
-      if (!applyCurrentRosterRole) setMessage(elements.pageMessage, staffId ? "Staff record updated." : "Staff member added.", "success");
+      if (!applyCurrentRosterRole && staffId) setMessage(elements.pageMessage,"Staff record updated.","success");
       await loadDirectory();
     } catch (error) {
       console.error("Failed to save staff record:", error);
@@ -1241,6 +1267,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   elements.defaultArea.addEventListener("change", () => populateStationOptions(""));
+  elements.primaryRole.addEventListener("change",()=>{
+    if (!elements.editorId.value && elements.accountJobTitleForStaff.options.length>1) elements.accountJobTitleForStaff.value=jobTitleForOperationalRole(elements.primaryRole.value);
+  });
   elements.editorForm.addEventListener("submit", saveEditor);
   elements.transferDriver.addEventListener("click", prepareDriverTransfer);
   elements.driverExisting.addEventListener("change", () => {
@@ -1307,6 +1336,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.canCreateStaff = hasExplicitPermissions ? canAccountAction("STAFF_MASTER","CREATE") : Boolean(reference?.can_edit_staff);
     state.canEditStaff = hasExplicitPermissions ? canAccountAction("STAFF_MASTER","EDIT") : Boolean(reference?.can_edit_staff);
     state.canManageStaff = hasExplicitPermissions ? canAccountAction("STAFF_MASTER","MANAGE") : Boolean(reference?.can_deactivate_staff);
+    if (state.canCreateAccounts) {
+      try {
+        const jobAccess=await rpc("get_admin_account_job_access");
+        state.accountJobTitles=Array.isArray(jobAccess?.job_titles)?jobAccess.job_titles:[];
+      } catch { state.accountJobTitles=[]; }
+    }
     if (state.view === "accounts" && !state.canViewAccounts) {
       state.view = "directory";
       const url = new URL(location.href);
