@@ -10,6 +10,8 @@
     box-shadow 160ms ease;
 }
 
+.notification-home-card{position:relative}.notification-home-badge{position:absolute;right:14px;top:12px;min-width:25px;height:25px;padding:0 7px;border-radius:20px;background:#d92d20;color:#fff;font-size:12px;line-height:25px;text-align:center;box-shadow:0 3px 8px rgba(160,30,24,.28)}.notification-home-card.has-attention{border-color:#e67368;background:#fff8f7}.notification-home-card.has-attention small{color:#b42318}
+
 .module-card-active:hover,
 .module-card-active:focus-visible {
   transform: translateY(-2px);

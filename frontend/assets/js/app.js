@@ -424,6 +424,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(adminAppMessage, "Sign-in confirmed.", "success");
   }
 
+  async function renderNotificationAttention() {
+    try {
+      const { data, error } = await client.rpc("get_my_notification_summary");
+      if (error) throw error;
+      const count = Number(data?.attention_count || 0);
+      const adminCard = document.getElementById("adminNotificationsModule");
+      const adminBadge = document.getElementById("adminNotificationBadge");
+      const adminSummary = document.getElementById("adminNotificationSummary");
+      if (adminCard && adminBadge) {
+        adminBadge.textContent = count > 99 ? "99+" : String(count);
+        adminBadge.classList.toggle("hidden", count === 0);
+        adminCard.classList.toggle("has-attention", count > 0);
+        if (adminSummary && count > 0) adminSummary.textContent = `${count} notification${count === 1 ? "" : "s"} need your attention`;
+      }
+      document.querySelectorAll('a[href$="notifications.html"]').forEach((link) => {
+        if (link.id === "adminNotificationsModule") return;
+        link.classList.toggle("has-notification-attention", count > 0);
+        let badge = link.querySelector(".shell-notification-badge");
+        if (!badge && count > 0) {
+          badge = document.createElement("b");
+          badge.className = "shell-notification-badge";
+          link.appendChild(badge);
+        }
+        if (badge) {
+          badge.textContent = count > 99 ? "99+" : String(count);
+          badge.classList.toggle("hidden", count === 0);
+        }
+      });
+    } catch (error) {
+      console.warn("Notification summary could not be loaded:", error);
+    }
+  }
+
   async function loadAuthenticatedProfile(user) {
     setMessage(adminAppMessage, "Loading account access...");
     setMessage(operationalAppMessage, "Loading account access...");
@@ -463,6 +496,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderOperationalShell(profile, roleCodes);
       showOperationalShell();
     }
+    await renderNotificationAttention();
   }
 
   async function signOut(button) {
