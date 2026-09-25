@@ -168,6 +168,7 @@ body.staff-page {
 .account-actions-menu>div{position:absolute;z-index:5;right:0;top:calc(100% + 5px);display:grid;gap:5px;min-width:132px;padding:7px;border:1px solid var(--staff-line);border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(15,23,42,.16)}
 .account-directory-table tbody tr:last-child .account-actions-menu>div{top:auto;bottom:calc(100% + 5px)}
 .account-actions-menu>div .staff-row-button{width:100%;text-align:left}
+.staff-status.pending{background:#fff4d6;color:#9a5b00;border-color:#f2d28b}
 
 @media (max-width: 980px) {
   .staff-kpi-grid { grid-template-columns: repeat(3, 1fr); }

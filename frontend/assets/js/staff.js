@@ -182,6 +182,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function friendlyError(error) {
     const message = String(error?.message || "The operation could not be completed.");
+    if (message.toLowerCase().includes("email rate limit exceeded")) {
+      return "The Supabase email limit was reached. The staff record is safe; wait a few minutes, then send the setup invitation again from Accounts & access.";
+    }
     const known = [
       "Staff name is required.",
       "Employee code already exists.",
@@ -276,6 +279,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       : `<button class="staff-row-button" type="button" data-staff-reactivate="${escapeHtml(item.staff_id)}" data-row-version="${Number(item.row_version)}" data-staff-name="${escapeHtml(item.display_name)}">Reactivate</button>`;
     return `
       <div class="staff-row-actions">
+        ${state.canCreateAccounts && !item.accessAccount ? `<button class="staff-row-button account-edit-button" type="button" data-staff-setup-access="${escapeHtml(item.staff_id)}">Set up access</button>` : ""}
+        ${state.canManageAccounts && item.accessAccount && !item.accessAccount.last_sign_in_at && item.accessAccount.login_method !== "USERNAME" ? `<button class="staff-row-button" type="button" data-account-send-setup="${escapeHtml(item.accessAccount.auth_user_id)}">Resend invite</button>` : ""}
         ${state.canEditStaff ? `<button class="staff-row-button" type="button" data-staff-edit="${escapeHtml(item.staff_id)}">Edit</button>` : ""}
         ${lifecycle}
       </div>
@@ -283,6 +288,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function staffRow(item) {
+    const access = item.accessAccount;
+    const accessLabel = !access ? "Access pending" : access.last_sign_in_at ? "Access active" : "Invitation pending";
+    const accessTone = !access || !access.last_sign_in_at ? "pending" : "active";
     return `
       <tr>
         <td>
@@ -293,6 +301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <td>${assignmentText(item)}</td>
         <td>${coverChips(item.cover_roles)}</td>
         <td><span class="staff-roster-status ${item.roster_eligible ? "yes" : "no"}">${item.roster_eligible ? "Yes" : "No"}</span></td>
+        ${state.canViewAccounts ? `<td><span class="staff-status ${accessTone}">${accessLabel}</span>${access?.email ? `<span class="staff-subtext">${escapeHtml(access.email)}</span>` : '<span class="staff-subtext">No account linked</span>'}</td>` : ""}
         <td>${trainingChips(item)}</td>
         <td>
           <strong>Joined:</strong> ${formatDate(item.joined_on)}<br>
@@ -308,12 +317,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLoading("Loading staff directory...");
 
     try {
-      const data = await rpc("get_staff_directory", {
-        p_status: state.statusFilter,
-        p_shift_code: state.shiftFilter === "ALL" ? null : state.shiftFilter,
-        p_search: state.search || null
-      });
+      const [data,accountData] = await Promise.all([
+        rpc("get_staff_directory", {
+          p_status: state.statusFilter,
+          p_shift_code: state.shiftFilter === "ALL" ? null : state.shiftFilter,
+          p_search: state.search || null
+        }),
+        state.canViewAccounts ? rpc("get_admin_account_access_directory", { p_search:null }) : Promise.resolve(null)
+      ]);
+      if (accountData) {
+        state.accounts = Array.isArray(accountData.accounts) ? accountData.accounts : [];
+        state.accountRoles = Array.isArray(accountData.available_roles) ? accountData.available_roles : [];
+        state.accountModules = Array.isArray(accountData.available_modules) ? accountData.available_modules : [];
+      }
       state.directoryStaff = Array.isArray(data?.staff) ? data.staff : [];
+      const accountsByStaff = new Map(state.accounts.filter((account) => account.staff_id).map((account) => [account.staff_id,account]));
+      state.directoryStaff.forEach((item) => { item.accessAccount = accountsByStaff.get(item.staff_id) || null; });
+      data.staff = state.directoryStaff;
       renderDirectory(data || {});
     } catch (error) {
       console.error("Failed to load Staff Master:", error);
@@ -404,6 +424,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   <th>Primary assignment</th>
                   <th>COVER capability</th>
                   <th>Roster</th>
+                  ${state.canViewAccounts ? "<th>System access</th>" : ""}
                   <th>Training</th>
                   <th>Dates</th>
                   <th>Review</th>
@@ -630,7 +651,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function accountAdmin(action, payload = {}) {
     const { data, error } = await client.functions.invoke("admin-account-management", { body:{ action, ...payload } });
-    if (error) throw error;
+    if (error) {
+      let details = null;
+      try {
+        details = await error.context?.json();
+      } catch { /* The response body may already have been consumed. */ }
+      if (details?.error) throw new Error(details.error);
+      throw error;
+    }
     if (!data?.ok) throw new Error(data?.error || "The account operation could not be completed.");
     return data;
   }
@@ -758,10 +786,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="staff-table-wrap">
           ${accounts.length ? `<table class="staff-table staff-access-table account-directory-table"><thead><tr><th>Account</th><th>Assignment</th><th>Access</th><th>Last activity</th><th>Actions</th></tr></thead><tbody>${accounts.map((account) => `
             <tr>
-              <td><div class="account-identity"><div><strong>${escapeHtml(account.login_method === "USERNAME" ? account.login_identifier : account.email || "No email")}</strong><span class="staff-status ${account.is_active ? "active" : "inactive"}">${account.is_active ? "Active" : "Disabled"}</span></div><span class="staff-subtext">${account.terminal?.device_code ? "Production terminal" : "Personal account"}</span></div></td>
+              <td><div class="account-identity"><div><strong>${escapeHtml(account.login_method === "USERNAME" ? account.login_identifier : account.email || "No email")}</strong><span class="staff-status ${!account.is_active ? "inactive" : !account.last_sign_in_at && !account.terminal?.device_code ? "pending" : "active"}">${!account.is_active ? "Disabled" : !account.last_sign_in_at && !account.terminal?.device_code ? "Invitation pending" : "Active"}</span></div><span class="staff-subtext">${account.terminal?.device_code ? "Production terminal" : "Personal account"}</span></div></td>
               <td>${account.terminal?.device_code ? `<strong>${escapeHtml(account.terminal.device_code)}</strong><span class="staff-subtext">${escapeHtml(account.terminal.station_name || "No station")}</span>` : account.staff_id ? `<strong>${escapeHtml(account.display_name || "Unnamed staff")}</strong><span class="staff-subtext">${escapeHtml(account.employee_code || "No employee code")}</span>` : '<strong>Not linked</strong><span class="staff-subtext">No Staff Master record</span>'}</td>
               <td><div class="account-access-summary"><strong>${account.terminal?.device_code ? escapeHtml((account.role_codes || []).map((role) => role.replaceAll("_"," ")).join(", ") || "Terminal access") : escapeHtml(state.accountJobTitles.find((item) => item.job_title_code === account.job_title_code)?.job_title_name || "Not assigned")}</strong>${accountModuleSummary(account.role_codes,account.permissions)}</div></td>
-              <td><strong>${escapeHtml(formatDateTime(account.last_sign_in_at))}</strong><span class="staff-subtext">Created ${escapeHtml(formatDateTime(account.created_at))}</span></td>
+              <td><strong>${account.last_sign_in_at ? escapeHtml(formatDateTime(account.last_sign_in_at)) : "Never signed in"}</strong><span class="staff-subtext">Created ${escapeHtml(formatDateTime(account.created_at))}</span></td>
               <td>${accountActions(account)}</td>
             </tr>`).join("")}</tbody></table>` : '<div class="staff-empty">No accounts match this search.</div>'}
         </div>
@@ -1217,6 +1245,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         setMessage(elements.pageMessage, "A secure password setup link was sent by email.", "success");
       } catch (error) { setMessage(elements.pageMessage, friendlyError(error), "error"); }
       finally { sendSetupButton.disabled = false; }
+      return;
+    }
+
+    const setupAccessButton = event.target.closest("[data-staff-setup-access]");
+    if (setupAccessButton) {
+      const staff = state.directoryStaff.find((item) => item.staff_id === setupAccessButton.dataset.staffSetupAccess);
+      if (!staff) return;
+      openAccountEditor();
+      elements.accountName.value = staff.display_name || "";
+      elements.accountStaff.value = staff.staff_id;
+      elements.accountJobTitle.value = jobTitleForOperationalRole(staff.primary_role_code);
+      applyJobTitleTemplate(true);
+      elements.accountEmail.focus();
       return;
     }
 
