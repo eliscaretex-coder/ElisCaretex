@@ -2263,6 +2263,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadRoster({ force: true });
       await refreshLeaveRequestBadge();
       try { state.leaveRevision = await rpc("get_production_roster_leave_revision"); } catch (_) { state.leaveRevision = ""; }
+      const launch = new URLSearchParams(window.location.search);
+      if (launch.get("panel") === "leave" && state.data?.can_manage) {
+        const requestedScope = String(launch.get("scope") || "ACTION").toUpperCase();
+        const allowedScopes = new Set(["ACTION", "UPCOMING", "AWAITING_GM", "HISTORY"]);
+        await openLeaveRequests(allowedScopes.has(requestedScope) ? requestedScope : "ACTION", "Opened from your notifications.");
+        launch.delete("panel");
+        launch.delete("scope");
+        const cleanUrl = `${window.location.pathname}${launch.toString() ? `?${launch}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", cleanUrl);
+      }
     } catch (error) { elements.grid.innerHTML = `<div class="roster-empty">${escapeHtml(friendlyError(error))}</div>`; setMessage(friendlyError(error), "error"); }
   }
 
