@@ -351,6 +351,11 @@
       const { data: profile, error } = await client.rpc("get_current_account_access");
       if (error) throw error;
       if (!profile) return;
+      if (profile.account_enabled === false) {
+        await client.auth.signOut();
+        window.location.replace("../index.html?access=inactive");
+        return;
+      }
 
       const roleCodes = policy.uniqueRoleCodes(profile.role_codes || []);
       const permissionOverrides = policy.permissionOverrides(profile);

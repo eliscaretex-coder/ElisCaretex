@@ -443,6 +443,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
 
+    if (profile.account_enabled === false) {
+      await client.auth.signOut();
+      throw new Error("This staff account is no longer active. Contact your manager if you believe this is incorrect.");
+    }
+
     const roleCodes = activeRoleCodes(profile);
 
     if (roleCodes.length === 0 && !(profile.permissions || []).length) {

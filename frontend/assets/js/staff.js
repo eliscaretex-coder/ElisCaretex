@@ -1183,7 +1183,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       closeStatusModal(true);
-      setMessage(elements.pageMessage, action === "DEACTIVATE" ? "Staff member deactivated." : "Staff member reactivated.", "success");
+      const scheduled = action === "DEACTIVATE" && elements.deactivatedOn.value > localDateValue();
+      setMessage(elements.pageMessage, action === "DEACTIVATE" ? scheduled ? `Staff exit scheduled. Access remains available through ${formatDate(elements.deactivatedOn.value)}.` : "Staff member deactivated and system access removed." : "Staff member reactivated.", "success");
       await loadDirectory();
     } catch (error) {
       console.error("Failed to change staff status:", error);
