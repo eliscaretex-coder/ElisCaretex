@@ -14,5 +14,6 @@
 
 window.ELIS_CONFIG = {
   SUPABASE_URL: "https://fcimmysqifzxoanmpylh.supabase.co",
-  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_hiXA9i0FaZZ1-rB6hGIM9w_yuHhjUx-"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_hiXA9i0FaZZ1-rB6hGIM9w_yuHhjUx-",
+  PUBLIC_APP_URL: "https://eliscaretex-coder.github.io/ElisCaretex/"
 };

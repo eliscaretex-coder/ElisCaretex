@@ -239,9 +239,9 @@ Deno.serve(async (req) => {
   const jobTitleCode = value(body,"job_title_code").toUpperCase();
   const loginMethod = accountType === "TERMINAL" ? "TERMINAL" : value(body,"login_method") === "USERNAME" ? "USERNAME" : "EMAIL";
   const loginIdentifier = value(body,"login_identifier").toLowerCase().replace(/[^a-z0-9._-]+/g,"-").replace(/^-|-$/g,"");
-  const redirectTo = value(body,"redirect_to");
+  const canonicalPasswordSetupUrl = "https://eliscaretex-coder.github.io/ElisCaretex/pages/update-password.html";
   const operationalJobTitles = new Set(["GENERAL_OPERATIVE","TEAM_LEADER","LABEL_OPERATIVE","CLEANER","MAINTENANCE","PRODUCTION_SUPERVISOR","PRODUCTION_MANAGER"]);
-  const validRedirect = (() => { try { const url=new URL(redirectTo); return ["eliscaretex-coder.github.io","localhost","127.0.0.1"].includes(url.hostname) ? url.href : ""; } catch { return ""; } })();
+  const validRedirect = canonicalPasswordSetupUrl;
 
   try {
     if (action !== "create") {

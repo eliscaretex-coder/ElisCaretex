@@ -2,6 +2,10 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
   const client = window.elisSupabase;
+  const passwordSetupUrl = new URL(
+    "pages/update-password.html",
+    window.ELIS_CONFIG?.PUBLIC_APP_URL || window.location.origin
+  ).href;
 
   const elements = {
     signOut: document.getElementById("staffSignOutButton"),
@@ -718,7 +722,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountSave.disabled = true;
     setMessage(elements.accountMessage, accountId ? "Saving account..." : "Creating account...");
     try {
-      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), job_title_code:terminal ? undefined : elements.accountJobTitle.value, login_method:terminal ? "TERMINAL" : elements.accountLoginMethod.value, login_identifier:username || undefined, email: email || undefined, password: emailInvitation ? undefined : password || undefined, redirect_to:new URL("../pages/update-password.html",window.location.href).href, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
+      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), job_title_code:terminal ? undefined : elements.accountJobTitle.value, login_method:terminal ? "TERMINAL" : elements.accountLoginMethod.value, login_identifier:username || undefined, email: email || undefined, password: emailInvitation ? undefined : password || undefined, redirect_to:passwordSetupUrl, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
       closeAccountEditor(true);
       setMessage(elements.pageMessage, result.technical_email ? `Production computer created. Technical sign-in: ${result.technical_email}` : result.invitation_sent ? "Account created. A secure password setup invitation was sent by email." : accountId ? "Account updated." : "Account created.", "success");
       await loadAccounts();
@@ -1066,7 +1070,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const email=elements.accountEmailForStaff.value.trim();
         if (email) {
           try {
-            await accountAdmin("create",{account_type:"USER",display_name:displayName,job_title_code:elements.accountJobTitleForStaff.value,login_method:"EMAIL",email,staff_id:created.staff_id,permissions:[],role_codes:[],redirect_to:new URL("../pages/update-password.html",window.location.href).href});
+            await accountAdmin("create",{account_type:"USER",display_name:displayName,job_title_code:elements.accountJobTitleForStaff.value,login_method:"EMAIL",email,staff_id:created.staff_id,permissions:[],role_codes:[],redirect_to:passwordSetupUrl});
             setMessage(elements.pageMessage,`Staff ${created.employee_code} created and invitation sent.`,"success");
           } catch(accountError) {
             closeEditor(true); await loadDirectory();
@@ -1209,7 +1213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (sendSetupButton) {
       sendSetupButton.disabled = true;
       try {
-        await accountAdmin("send_setup_link", { auth_user_id:sendSetupButton.dataset.accountSendSetup, redirect_to:new URL("../pages/update-password.html",window.location.href).href });
+        await accountAdmin("send_setup_link", { auth_user_id:sendSetupButton.dataset.accountSendSetup, redirect_to:passwordSetupUrl });
         setMessage(elements.pageMessage, "A secure password setup link was sent by email.", "success");
       } catch (error) { setMessage(elements.pageMessage, friendlyError(error), "error"); }
       finally { sendSetupButton.disabled = false; }

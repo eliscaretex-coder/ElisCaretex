@@ -51,8 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const redirectTo = new URL(
-        "./update-password.html",
-        window.location.href
+        "pages/update-password.html",
+        window.ELIS_CONFIG?.PUBLIC_APP_URL || window.location.origin
       ).href;
 
       const { error } = await client.auth.resetPasswordForEmail(email, {
