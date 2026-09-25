@@ -239,6 +239,9 @@ Deno.serve(async (req) => {
   const jobTitleCode = value(body,"job_title_code").toUpperCase();
   const loginMethod = accountType === "TERMINAL" ? "TERMINAL" : value(body,"login_method") === "USERNAME" ? "USERNAME" : "EMAIL";
   const loginIdentifier = value(body,"login_identifier").toLowerCase().replace(/[^a-z0-9._-]+/g,"-").replace(/^-|-$/g,"");
+  const redirectTo = value(body,"redirect_to");
+  const operationalJobTitles = new Set(["GENERAL_OPERATIVE","TEAM_LEADER","LABEL_OPERATIVE","CLEANER","MAINTENANCE","PRODUCTION_SUPERVISOR","PRODUCTION_MANAGER"]);
+  const validRedirect = (() => { try { const url=new URL(redirectTo); return ["eliscaretex-coder.github.io","localhost","127.0.0.1"].includes(url.hostname) ? url.href : ""; } catch { return ""; } })();
 
   try {
     if (action !== "create") {
@@ -247,6 +250,7 @@ Deno.serve(async (req) => {
     }
     if (accountType === "TERMINAL" && ["create","update"].includes(action) && (!capabilities.canManage || capabilities.accessScope !== "ALL")) throw new Error("Manage permission with All scope is required for terminal accounts.");
     if (accountType === "USER" && ["create","update"].includes(action)) await assertJobTitleScope(admin,jobTitleCode,capabilities.accessScope);
+    if (accountType === "USER" && operationalJobTitles.has(jobTitleCode) && !staffId && ["create","update"].includes(action)) throw new Error("Link this operational account to its Staff Master record.");
     let preserved: Awaited<ReturnType<typeof existingAccountConfiguration>> | null = null;
     if (action === "update" && !capabilities.canManage) {
       if (!accountId) throw new Error("Account identifier is required.");
@@ -263,9 +267,12 @@ Deno.serve(async (req) => {
       selectedPermissions = preserved ? preserved.permissions : resolved.permissions;
     }
     if (action === "create") {
-      if (!displayName || password.length < 12 || (accountType === "USER" && (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@")) : !loginIdentifier))) || (accountType === "TERMINAL" && (!deviceCode || !deviceName || !stationId))) throw new Error("Complete the account details and an initial password with at least 12 characters.");
+      const passwordRequired = accountType === "TERMINAL" || loginMethod === "USERNAME";
+      if (!displayName || (passwordRequired && password.length < 12) || (accountType === "USER" && (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@") || !validRedirect) : !loginIdentifier))) || (accountType === "TERMINAL" && (!deviceCode || !deviceName || !stationId))) throw new Error(passwordRequired ? "Complete the account details and an initial password with at least 12 characters." : "Complete the account details and a valid invitation destination.");
       const technicalEmail = accountType === "TERMINAL" ? `${deviceCode.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}@terminal.eliscaretex.local` : loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email;
-      const { data, error } = await admin.auth.admin.createUser({ email: technicalEmail, password, email_confirm: true });
+      const { data, error } = loginMethod === "EMAIL" && accountType === "USER"
+        ? await admin.auth.admin.inviteUserByEmail(technicalEmail,{ redirectTo:validRedirect })
+        : await admin.auth.admin.createUser({ email:technicalEmail,password,email_confirm:true });
       if (error || !data.user) throw error || new Error("The account could not be created.");
       await assertLinkableStaff(admin, staffId, data.user.id);
       await setStaffLink(admin, data.user.id, staffId);
@@ -275,7 +282,7 @@ Deno.serve(async (req) => {
         const { error: deviceError } = await admin.from("production_station_devices").insert({ station_id: stationId, device_code: deviceCode, device_name: deviceName, device_auth_user_id: data.user.id, created_by_auth_user_id: identity.user.id });
         if (deviceError) throw deviceError;
       }
-      return respond({ ok: true, auth_user_id: data.user.id, technical_email: accountType === "TERMINAL" ? technicalEmail : null });
+      return respond({ ok:true,auth_user_id:data.user.id,technical_email:accountType === "TERMINAL" ? technicalEmail : null,invitation_sent:loginMethod === "EMAIL" && accountType === "USER" });
     }
 
     if (!accountId) throw new Error("Account identifier is required.");
@@ -288,6 +295,15 @@ Deno.serve(async (req) => {
       .eq("device_auth_user_id", accountId)
       .maybeSingle();
     if (terminalError) throw terminalError;
+
+    if (action === "send_setup_link") {
+      const { data:userData,error:userError }=await admin.auth.admin.getUserById(accountId);
+      if (userError || !userData.user?.email || userData.user.email.endsWith(".eliscaretex.local")) throw new Error("This account does not use a personal email address.");
+      if (!validRedirect) throw new Error("The password setup destination is not valid.");
+      const { error }=await admin.auth.resetPasswordForEmail(userData.user.email,{ redirectTo:validRedirect });
+      if (error) throw error;
+      return respond({ ok:true,setup_link_sent:true });
+    }
 
     if (action === "reset_password") {
       if (!terminal) throw new Error("Password reset is available only for registered production computers.");

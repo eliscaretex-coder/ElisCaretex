@@ -36,9 +36,8 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   const queryParameters = new URLSearchParams(window.location.search);
 
-  const recoveryUrlDetected =
-    hashParameters.get("type") === "recovery" ||
-    queryParameters.get("type") === "recovery";
+  const linkType=hashParameters.get("type")||queryParameters.get("type");
+  const recoveryUrlDetected=linkType === "recovery" || linkType === "invite";
 
   const redirectError =
     hashParameters.get("error_description") ||
@@ -157,7 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const {
     data: { subscription }
   } = client.auth.onAuthStateChange((event, session) => {
-    if (event === "PASSWORD_RECOVERY" && session) {
+    if ((event === "PASSWORD_RECOVERY" || (recoveryUrlDetected && ["SIGNED_IN","INITIAL_SESSION"].includes(event))) && session) {
       showRecoveryForm();
     }
   });

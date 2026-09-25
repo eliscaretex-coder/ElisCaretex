@@ -16,7 +16,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js" defer></script>
   <script src="../assets/js/operational-page-nav.js" defer></script>
-  <script src="../assets/js/staff.js?v=20260924-2" defer></script>
+  <script src="../assets/js/staff.js?v=20260925-1" defer></script>
 </head>
 
 <body class="staff-page">
@@ -318,9 +318,10 @@
         <label id="accountPasswordField" class="staff-field">
           <span>Initial or replacement password *</span>
           <input id="accountEditorPassword" type="password" minlength="12" autocomplete="new-password">
+          <small id="accountPasswordHelp">Required for usernames and production computers.</small>
         </label>
         <label class="staff-field">
-          <span>Linked Staff Master record (optional)</span>
+          <span>Linked Staff Master record</span>
           <select id="accountEditorStaff"></select>
         </label>
         <section id="accountTerminalFields" class="staff-form-section hidden">

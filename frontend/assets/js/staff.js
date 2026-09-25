@@ -427,6 +427,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ${state.canEditAccounts ? `<button class="staff-row-button account-edit-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>` : ""}
       ${state.canManageAccounts ? `<details class="account-actions-menu"><summary>More</summary><div>
         ${terminal ? `<button class="staff-row-button" type="button" data-account-reset-password="${escapeHtml(account.auth_user_id)}">Reset password</button>` : ""}
+        ${!terminal && account.login_method !== "USERNAME" ? `<button class="staff-row-button" type="button" data-account-send-setup="${escapeHtml(account.auth_user_id)}">Send setup link</button>` : ""}
         ${lifecycle}
         ${terminal ? "" : `<button class="staff-row-button danger" type="button" data-account-delete="${escapeHtml(account.auth_user_id)}" data-account-email="${escapeHtml(account.email || "this account")}">Delete</button>`}
       </div></details>` : ""}
@@ -527,6 +528,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountUsernameField.classList.toggle("hidden", terminal || !username);
     elements.accountEmail.required = !terminal && !username;
     elements.accountUsername.required = username;
+    const emailInvitation = !terminal && !username;
+    elements.accountPasswordField.classList.toggle("hidden", emailInvitation || (Boolean(elements.accountId.value) && (terminal || !state.canManageAccounts)));
+    elements.accountPassword.required = !elements.accountId.value && !emailInvitation;
   }
 
   function resetAccountEditor() {
@@ -540,7 +544,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const terminalOption = elements.accountType.querySelector('option[value="TERMINAL"]');
     if (terminalOption) terminalOption.disabled = !state.canManageAccounts || accountAccessScope() !== "ALL";
     elements.accountLoginMethod.value = "EMAIL";
-    elements.accountPassword.required = true;
+    elements.accountPassword.required = false;
     elements.accountPassword.placeholder = "Minimum 12 characters";
     elements.accountStaff.innerHTML = accountStaffOptions();
     elements.accountTerminalStation.innerHTML = option("", "Select station") + (state.reference?.stations || []).map((station) => option(station.station_id, station.station_name)).join("");
@@ -598,7 +602,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountStaff.closest(".staff-field").classList.toggle("hidden", terminal);
     elements.accountJobTitleField.classList.toggle("hidden", terminal);
     elements.accountLoginMethodField.classList.toggle("hidden", terminal);
-    elements.accountPasswordField.classList.toggle("hidden", Boolean(elements.accountId.value) && (terminal || !state.canManageAccounts));
     applyLoginMethod();
     elements.accountName.required = !terminal;
     elements.accountTerminalCode.required = terminal;
@@ -693,17 +696,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const username = elements.accountUsername.value.trim();
     const password = elements.accountPassword.value;
     const roleCodes = selectedAccountRoles();
-    if ((!terminal && (!elements.accountName.value.trim() || !elements.accountJobTitle.value || (elements.accountLoginMethod.value === "EMAIL" ? !email : !username))) || (!accountId && password.length < 12) || (terminal && (!elements.accountTerminalCode.value.trim() || !elements.accountTerminalName.value.trim() || !elements.accountTerminalStation.value))) {
-      setMessage(elements.accountMessage, "Complete the account details and use an initial password with at least 12 characters.", "error");
+    const emailInvitation = !terminal && elements.accountLoginMethod.value === "EMAIL";
+    const operationalJob = ["GENERAL_OPERATIVE","TEAM_LEADER","LABEL_OPERATIVE","CLEANER","MAINTENANCE","PRODUCTION_SUPERVISOR","PRODUCTION_MANAGER"].includes(elements.accountJobTitle.value);
+    if (operationalJob && !elements.accountStaff.value) {
+      setMessage(elements.accountMessage, "Select the employee's Staff Master record for this operational account.", "error");
+      return;
+    }
+    if ((!terminal && (!elements.accountName.value.trim() || !elements.accountJobTitle.value || (emailInvitation ? !email : !username) || (operationalJob && !elements.accountStaff.value))) || (!accountId && !emailInvitation && password.length < 12) || (terminal && (!elements.accountTerminalCode.value.trim() || !elements.accountTerminalName.value.trim() || !elements.accountTerminalStation.value))) {
+      setMessage(elements.accountMessage, emailInvitation ? "Complete the account name, job title and personal email." : "Complete the account details and use an initial password with at least 12 characters.", "error");
       return;
     }
     state.busy = true;
     elements.accountSave.disabled = true;
     setMessage(elements.accountMessage, accountId ? "Saving account..." : "Creating account...");
     try {
-      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), job_title_code:terminal ? undefined : elements.accountJobTitle.value, login_method:terminal ? "TERMINAL" : elements.accountLoginMethod.value, login_identifier:username || undefined, email: email || undefined, password: password || undefined, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
+      const result = await accountAdmin(accountId ? "update" : "create", { auth_user_id: accountId || undefined, account_type: elements.accountType.value, display_name: terminal ? elements.accountTerminalName.value.trim() : elements.accountName.value.trim(), job_title_code:terminal ? undefined : elements.accountJobTitle.value, login_method:terminal ? "TERMINAL" : elements.accountLoginMethod.value, login_identifier:username || undefined, email: email || undefined, password: emailInvitation ? undefined : password || undefined, redirect_to:new URL("../pages/update-password.html",window.location.href).href, staff_id: terminal ? null : elements.accountStaff.value || null, role_codes: roleCodes, permissions:selectedAccountPermissions(), device_code: elements.accountTerminalCode.value.trim(), device_name: elements.accountTerminalName.value.trim(), station_id: elements.accountTerminalStation.value || undefined });
       closeAccountEditor(true);
-      setMessage(elements.pageMessage, result.technical_email ? `Production computer created. Technical sign-in: ${result.technical_email}` : accountId ? "Account updated." : "Account created.", "success");
+      setMessage(elements.pageMessage, result.technical_email ? `Production computer created. Technical sign-in: ${result.technical_email}` : result.invitation_sent ? "Account created. A secure password setup invitation was sent by email." : accountId ? "Account updated." : "Account created.", "success");
       await loadAccounts();
     } catch (error) {
       setMessage(elements.accountMessage, friendlyError(error), "error");
@@ -1164,6 +1173,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const resetTerminalPasswordButton = event.target.closest("[data-account-reset-password]");
     if (resetTerminalPasswordButton) return openTerminalPasswordReset(resetTerminalPasswordButton.dataset.accountResetPassword);
+
+    const sendSetupButton = event.target.closest("[data-account-send-setup]");
+    if (sendSetupButton) {
+      sendSetupButton.disabled = true;
+      try {
+        await accountAdmin("send_setup_link", { auth_user_id:sendSetupButton.dataset.accountSendSetup, redirect_to:new URL("../pages/update-password.html",window.location.href).href });
+        setMessage(elements.pageMessage, "A secure password setup link was sent by email.", "success");
+      } catch (error) { setMessage(elements.pageMessage, friendlyError(error), "error"); }
+      finally { sendSetupButton.disabled = false; }
+      return;
+    }
 
     const disableAccountButton = event.target.closest("[data-account-disable]");
     if (disableAccountButton) {
