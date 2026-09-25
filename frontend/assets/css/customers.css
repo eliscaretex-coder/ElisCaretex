@@ -1855,6 +1855,9 @@ body.customers-modal-open {
   ) !important;
 }
 
+/* Expected KG completeness for production capacity planning */
+.customers-kg-coverage{display:grid;grid-template-columns:minmax(190px,1fr) minmax(210px,1fr) auto;align-items:center;gap:14px;margin:10px 0;padding:11px 14px;border:1px solid #9fd5d7;border-radius:11px;background:#effafa}.customers-kg-coverage.has-missing{border-color:#f1c46b;background:#fff9eb}.customers-kg-coverage>div{display:grid;gap:2px}.customers-kg-coverage small{color:#087c80;font-size:8px;font-weight:900;letter-spacing:.08em}.customers-kg-coverage strong{color:#0b7f83;font-size:17px}.customers-kg-coverage.has-missing>div:nth-child(2) strong{color:#a25c00}.customers-kg-coverage span{color:#5d7487;font-size:9px}.customers-kg-coverage button.active{background:#17334d;color:#fff}.customers-planner-value-cell{display:table-cell}.customers-planner-value-cell .customers-planner-kg,.customers-planner-value-cell>span{display:block}.customers-planner-value-cell .customers-planner-kg{color:#087f83;font-size:10px}.customers-planner-value-cell>span{margin-top:2px;font-size:8px}.customers-planner-value-cell.is-missing-kg{background:#fff4dc!important}.customers-planner-value-cell.is-missing-kg .customers-planner-kg{color:#a45b00}.customers-list-kg{color:#087f83}.customers-list-kg.missing{display:inline-flex;padding:3px 6px;border-radius:999px;background:#fff0d5;color:#a45b00;font-size:9px}@media(max-width:800px){.customers-kg-coverage{grid-template-columns:1fr 1fr}.customers-kg-coverage button{grid-column:1/-1}}
+
 .customers-planner-customer .customers-route-dot {
   margin: 0 2px 0 1px;
 }

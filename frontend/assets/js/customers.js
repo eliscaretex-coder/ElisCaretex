@@ -92,6 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
       view: "planner",
       search: "",
       items: [],
+      missingKgOnly: false,
       reordering: false,
       drag: null
     },
@@ -584,6 +585,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderSchedulePlanner(payload) {
     const label = state.schedule.service === "mop" ? "MOP" : "Clothes";
+    const kgRows = state.schedule.items.filter((item) => Number(item.expected_kg) > 0);
+    const missingKgRows = state.schedule.items.length - kgRows.length;
+    const kgCoverage = state.schedule.items.length ? Math.round(kgRows.length / state.schedule.items.length * 100) : 0;
+    const weeklyKg = kgRows.reduce((total, item) => total + Number(item.expected_kg || 0), 0);
 
     mainPanel.innerHTML = `
       <div class="customers-panel-title">
@@ -694,6 +699,12 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
       </div>
 
+      <section class="customers-kg-coverage${missingKgRows ? " has-missing" : " complete"}">
+        <div><small>PLANNING DATA</small><strong>${escapeHtml(formatNumber(weeklyKg, "0.0"))} kg</strong><span>Expected weekly ${escapeHtml(label)} load</span></div>
+        <div><strong>${kgCoverage}%</strong><span>KG coverage · ${kgRows.length} of ${state.schedule.items.length} schedule rows</span></div>
+        <button id="scheduleMissingKgButton" class="customers-secondary-button${state.schedule.missingKgOnly ? " active" : ""}" type="button" ${missingKgRows ? "" : "disabled"}>${state.schedule.missingKgOnly ? "Show all rows" : `Review ${missingKgRows} missing KG`}</button>
+      </section>
+
       <div id="scheduleDisplay"></div>
     `;
 
@@ -708,10 +719,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (state.schedule.items.length === 0) {
+    if (visibleScheduleItems().length === 0) {
       display.innerHTML = emptyHtml(
-        "No schedule rows match this search.",
-        "Try another customer name."
+        state.schedule.missingKgOnly ? "All visible schedule rows have expected KG." : "No schedule rows match this search.",
+        state.schedule.missingKgOnly ? "Turn off the missing KG filter to see the full planner." : "Try another customer name."
       );
       return;
     }
@@ -726,10 +737,16 @@ document.addEventListener("DOMContentLoaded", () => {
     bindPlannerReorderControls(display);
   }
 
+  function visibleScheduleItems() {
+    return state.schedule.missingKgOnly
+      ? state.schedule.items.filter((item) => !(Number(item.expected_kg) > 0))
+      : state.schedule.items;
+  }
+
   function groupedScheduleItems() {
     const grouped = new Map(DAYS.map((day) => [day.number, []]));
 
-    state.schedule.items.forEach((item) => {
+    visibleScheduleItems().forEach((item) => {
       const dayNumber = Number(item.production_weekday);
 
       if (grouped.has(dayNumber)) {
@@ -1233,6 +1250,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return { allowed: false, message: "Clear the search box to change production order." };
     }
 
+    if (state.schedule.missingKgOnly) {
+      return { allowed: false, message: "Show all rows before changing production order." };
+    }
+
     if (effectiveDate < businessDate) {
       return { allowed: false, message: "Historical production order is read only." };
     }
@@ -1271,7 +1292,7 @@ document.addEventListener("DOMContentLoaded", () => {
       headerColumns += `
         <th class="customers-day-subheading ${day.className}">Customer</th>
         <th class="customers-day-subheading ${day.className}">
-          ${state.schedule.service === "mop" ? "Trolley" : "Clothes"}
+          KG / ${state.schedule.service === "mop" ? "Trolley" : "Trolleys"}
         </th>
       `;
     });
@@ -1355,8 +1376,9 @@ document.addEventListener("DOMContentLoaded", () => {
               </button>
             </div>
           </td>
-          <td class="customers-planner-value-cell customers-route-cell" style="${routeStyle}" title="${escapeHtml(item.trolley_summary || "No planned trolley")}">
-            ${escapeHtml(item.trolley_summary || "—")}
+          <td class="customers-planner-value-cell customers-route-cell${Number(item.expected_kg) > 0 ? "" : " is-missing-kg"}" style="${routeStyle}" title="${escapeHtml(item.trolley_summary || "No planned trolley")}">
+            <strong class="customers-planner-kg">${Number(item.expected_kg) > 0 ? `${escapeHtml(formatNumber(item.expected_kg, "0.0"))} kg` : "KG needed"}</strong>
+            <span>${escapeHtml(item.trolley_summary || "—")}</span>
           </td>
         `;
       });
@@ -1405,13 +1427,14 @@ document.addEventListener("DOMContentLoaded", () => {
               <th>Order</th>
               <th>Customer</th>
               ${state.schedule.service === "mop" ? "<th>MOP products</th>" : ""}
+              <th>Expected KG</th>
               <th>Trolleys</th>
               <th>Instructions</th>
               <th>Alert</th>
             </tr>
           </thead>
           <tbody>
-            ${state.schedule.items
+            ${visibleScheduleItems()
               .map((item) => {
                 const instructions =
                   state.schedule.service === "mop"
@@ -1441,6 +1464,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         ? `<td>${escapeHtml((item.mop_products || []).join(", ") || "—")}</td>`
                         : ""
                     }
+                    <td><strong class="customers-list-kg${Number(item.expected_kg) > 0 ? "" : " missing"}">${Number(item.expected_kg) > 0 ? `${escapeHtml(formatNumber(item.expected_kg, "0.0"))} kg` : "Missing"}</strong></td>
                     <td>${escapeHtml(item.trolley_summary || "—")}</td>
                     <td>${escapeHtml(instructions || "—")}</td>
                     <td>
@@ -1464,6 +1488,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-schedule-service]").forEach((button) => {
       button.addEventListener("click", () => {
         state.schedule.service = button.dataset.scheduleService;
+        state.schedule.missingKgOnly = false;
         loadMainView();
       });
     });
@@ -1483,6 +1508,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const refreshButton = document.getElementById("scheduleRefreshButton");
     const addButton = document.getElementById("scheduleAddCustomerButton");
     const printButton = document.getElementById("schedulePrintButton");
+    const missingKgButton = document.getElementById("scheduleMissingKgButton");
 
     searchInput?.addEventListener("input", () => {
       state.schedule.search = searchInput.value.trim();
@@ -1501,6 +1527,10 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshButton?.addEventListener("click", loadMainView);
     addButton?.addEventListener("click", () => openCustomerForm("create"));
     printButton?.addEventListener("click", printSchedulePlanner);
+    missingKgButton?.addEventListener("click", () => {
+      state.schedule.missingKgOnly = !state.schedule.missingKgOnly;
+      renderSchedulePlanner({ effective_date: effectiveDateInput.value, total_count: state.schedule.items.length });
+    });
   }
 
   function bindScheduleCustomerButtons(container) {
