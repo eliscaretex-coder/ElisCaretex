@@ -318,13 +318,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadAccounts() {
     renderLoading("Loading accounts and access...");
     try {
-      const [data, jobAccess] = await Promise.all([rpc("get_admin_account_access_directory", { p_search:state.accountSearch || null }), rpc("get_admin_account_job_access")]);
+      const [data, jobAccess, staffDirectory] = await Promise.all([
+        rpc("get_admin_account_access_directory", { p_search:state.accountSearch || null }),
+        rpc("get_admin_account_job_access"),
+        rpc("get_staff_directory", { p_status:"ACTIVE",p_shift_code:null,p_search:null }).catch(() => ({ staff:[] }))
+      ]);
       const profileMap = new Map((jobAccess?.profiles || []).map((profile) => [profile.auth_user_id,profile]));
       (data?.accounts || []).forEach((account) => Object.assign(account,profileMap.get(account.auth_user_id) || {}));
       state.accounts = Array.isArray(data?.accounts) ? data.accounts : [];
       state.accountRoles = Array.isArray(data?.available_roles) ? data.available_roles : [];
       state.accountModules = Array.isArray(data?.available_modules) ? data.available_modules : [];
       state.accountJobTitles = Array.isArray(jobAccess?.job_titles) ? jobAccess.job_titles : [];
+      state.directoryStaff = Array.isArray(staffDirectory?.staff) ? staffDirectory.staff : [];
       renderAccounts(data || {});
     } catch (error) {
       console.error("Failed to load accounts and access:", error);
