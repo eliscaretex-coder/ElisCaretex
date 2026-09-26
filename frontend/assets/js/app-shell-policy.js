@@ -131,7 +131,8 @@
     MOP_PRODUCTION: "operations.mop-production",
     DISTRIBUTION: "operations.distribution",
     PRODUCTION_TRACKER: "operations.production-tracker",
-    TROLLEYS: "operations.trolleys"
+    TROLLEYS: "operations.trolleys",
+    PRODUCTION_INSIGHTS: "management.production-insights"
   });
 
   const MODULE_NAVIGATION_PERMISSIONS = Object.freeze({
@@ -145,6 +146,7 @@
     DISTRIBUTION: [NAVIGATION_PERMISSIONS.DISTRIBUTION],
     PRODUCTION_TRACKER: [NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER],
     TROLLEYS: [NAVIGATION_PERMISSIONS.TROLLEYS],
+    PRODUCTION_INSIGHTS: [NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS],
     STAFF_MASTER: [NAVIGATION_PERMISSIONS.STAFF_MASTER],
     ACCOUNTS_ACCESS: ["administration.accounts-access"]
   });
@@ -252,6 +254,12 @@
         { id:"trolleys-master", label:"Trolley Master", href:"./pages/trolleys.html#master" },
         { id:"trolleys-types", label:"Trolley Types", href:"./pages/trolleys.html#types" }
       ]
+    },
+    {
+      id: "production-insights", label: "Production Intelligence",
+      description: "Official production history, demand learning and management indicators",
+      href: "./pages/production-insights.html", icon: "results", group: "Management",
+      permission: NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS
     },
     {
       id: "staff-master", label: "Staff Master",

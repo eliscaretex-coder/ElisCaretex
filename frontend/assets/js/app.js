@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const adminStaffModule = document.getElementById("adminStaffModule");
   const adminRosterModule = document.getElementById("adminRosterModule");
   const adminMyRosterModule = document.getElementById("adminMyRosterModule");
+  const adminProductionInsightsModule = document.getElementById("adminProductionInsightsModule");
 
   const operationalSidebarToggle = document.getElementById("operationalSidebarToggle");
   const operationalNav = document.getElementById("operationalNav");
@@ -411,6 +412,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       adminMyRosterModule.classList.toggle(
         "hidden",
         !access.can(shellPolicy.NAVIGATION_PERMISSIONS.MY_ROSTER)
+      );
+    }
+
+    if (adminProductionInsightsModule) {
+      adminProductionInsightsModule.classList.toggle(
+        "hidden",
+        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS)
       );
     }
 

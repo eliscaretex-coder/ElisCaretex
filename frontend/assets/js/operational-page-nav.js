@@ -18,7 +18,8 @@
       ".finish-topbar",
       ".finish-results-topbar",
       ".production-tracker-header",
-      ".trolleys-header"
+      ".trolleys-header",
+      ".production-insights-header"
     ].join(","));
     pageHeader?.classList.add("operational-page-header");
 

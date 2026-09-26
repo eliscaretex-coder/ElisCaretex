@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Production Intelligence | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/production-insights.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20260926-1" defer></script>
+  <script src="../assets/js/production-insights.js" defer></script>
+</head>
+<body class="production-insights-page">
+  <div class="operational-tool-page-shell" data-operational-shell-root>
+    <main class="production-insights-content">
+      <header class="production-insights-header">
+        <div><p>Management</p><h1>Production Intelligence</h1><span>Official production history and demand learning.</span></div>
+        <div class="production-insights-filters">
+          <label>From<input id="insightsFrom" type="date"></label>
+          <label>To<input id="insightsTo" type="date"></label>
+          <button id="insightsRefresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <p id="insightsMessage" class="production-insights-message" aria-live="polite"></p>
+      <aside class="production-insights-policy"><strong>Official KG</strong><span>Finish and MOP Production only. Sorting estimates are never included.</span></aside>
+
+      <section id="insightsKpis" class="production-insights-kpis" aria-label="Production summary"></section>
+
+      <section class="production-insights-card">
+        <header><div><p>Weekly history</p><h2>Actual production trend</h2><span>Week-by-week record ready for annual and seasonal comparison.</span></div><b id="insightsWeekCount">0 weeks</b></header>
+        <div id="insightsWeekly" class="production-insights-weekly"></div>
+      </section>
+
+      <section class="production-insights-card">
+        <header><div><p>Automatic learning</p><h2>Next-week customer estimate</h2><span>The system needs at least three recent production records before showing an estimate.</span></div><b id="insightsForecastCount">0 customers</b></header>
+        <div id="insightsForecasts" class="production-insights-forecasts"></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
