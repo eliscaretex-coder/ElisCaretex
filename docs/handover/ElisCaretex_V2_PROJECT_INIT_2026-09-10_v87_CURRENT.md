@@ -1,236 +1,453 @@
-# ElisCaretex V2 - Authoritative AI Project INIT v87
+# ElisCaretex V2 - Authoritative AI Project INIT v88
 
-**Date:** 2026-09-10
-**Purpose:** current AI-to-AI handover for the ElisCaretex V2 laundry operations platform.
-**Current source authority:** the working tree containing this file.
-**Supersedes:** `ElisCaretex_V2_PROJECT_INIT_2026-08-18_v86_DISTRIBUTION_CURRENT.md` and older INIT handovers.
+**Handover date:** 2026-09-26
 
-**Continuation update:** 2026-09-23. The owner now keeps the publishable Git repository in OneDrive and uses this Codex workspace as the editable AI working copy when needed. See section 2 before doing any work.
+**Purpose:** authoritative AI-to-AI continuation guide for the ElisCaretex V2 laundry operations platform.
 
-## 1. Read First
+**Repository state reviewed through:** commit `67b0d93` plus this INIT update.
+**Supersedes:** INIT v87 and every older INIT/handover snapshot.
 
-This is a live operational platform, not a UI prototype. Read the current source before changing it and preserve the distinction between planned, actual, reported and corrected facts.
+The filename is retained for compatibility with existing links. The content is v88 and current as of 2026-09-26.
+
+## 1. Read this first
+
+This is a live operational platform, not a UI prototype. Before changing anything, inspect the current source and query the current database state. Preserve the distinction between planned, actual, reported, corrected, approximate, and official facts.
 
 Current Supabase development project:
 
 ```text
-ElisCaretex-dev
+name: ElisCaretex-dev
 project ref: fcimmysqifzxoanmpylh
+region: eu-west-1
+status verified 2026-09-26: ACTIVE_HEALTHY
+PostgreSQL: 17.6.1.147
 ```
 
-Use these evidence terms accurately:
+Use evidence terms accurately:
 
-- **Applied**: migration execution was confirmed against the development project.
-- **Validated**: a focused syntax, SQL or operational check passed.
-- **Owner confirmed**: the owner tested the behaviour in the browser.
-- **Prepared**: source exists but deployment or operational proof is not confirmed.
+- **Applied:** execution was confirmed against the development Supabase project.
+- **Validated:** a focused syntax, SQL, permission, or browser check passed.
+- **Owner confirmed:** the owner tested the behaviour in the browser.
+- **Prepared:** source exists but deployment or operational proof is not confirmed.
 
-Do not apply Supabase writes unless the owner explicitly requests that action. Do not treat a local migration file as proof that it was applied.
+Code, database objects, filenames, and UI text stay in English. Conversation with the owner is normally in Portuguese.
 
-Code, database/schema names, filenames and UI text remain in English. Conversation with the owner is in Portuguese.
+## 2. Authoritative source and deployment
 
-## 2. Source and Startup
-
-Current working source:
+Current Codex working repository:
 
 ```text
-C:/Users/paulob/Documents/Codex/2026-09-10/an/work/laundry-platform-v2-analysis/laundry-platform-v2
+C:/Users/paulob/Documents/Codex/2026-09-23/le/work/laundry-platform-v2-access
+branch: master
+remote: https://github.com/eliscaretex-coder/ElisCaretex.git
 ```
 
-Owner's Git/GitHub working folder:
+Owner's OneDrive working copy:
 
 ```text
 C:/Users/paulob/OneDrive - ELIS/Documents/Paulo/laundry-platform-v2-foundation/laundry-platform-v2
 ```
 
-GitHub repository:
-
-```text
-https://github.com/eliscaretex-coder/ElisCaretex.git
-branch: master
-```
-
-Local application URL normally used by the owner:
-
-```text
-http://127.0.0.1:5500/frontend/index.html
-```
-
-Useful first reads:
-
-```text
-README.md
-docs/architecture/overview.md
-docs/architecture/PLATFORM_CORRECTION_REGISTER_20260818.md
-docs/NAVIGATION-ACCESS-MODEL.md
-docs/operations/PRODUCTION_TERMINAL_ROLLOUT.md
-supabase/migrations/
-```
-
-The correction register is the active backlog and implementation record. Its current entries reach **P-041**.
-
-Current collaboration/deployment workflow:
-
-1. Codex may edit the Codex working copy listed above.
-2. The owner copies changed files into the OneDrive Git working folder.
-3. The owner commits and pushes from the OneDrive folder:
-
-```text
-git status
-git add -A
-git commit -m "Describe the change"
-git push origin master
-```
-
-4. GitHub Pages deploys automatically from `master` using:
-
-```text
-.github/workflows/pages.yml
-```
-
-GitHub Pages publishes only the `frontend` folder. The live Pages URL is expected to be:
+GitHub Pages:
 
 ```text
 https://eliscaretex-coder.github.io/ElisCaretex/
 ```
 
-Supabase Auth should allow that URL in Site URL / Redirect URLs for login and password recovery. Do not put private credentials into frontend files. `frontend/assets/js/config.js` intentionally contains only the Supabase project URL and publishable key.
+Local development normally serves `frontend/`, for example:
 
-Security note from 2026-09-23: no `.env`, private key, service-role key or obvious private credential was found in the tracked source. The old `.reference-distribution` folder contained a Google Apps Script URL reference; if that endpoint is still active, disable/rotate it or remove the reference before making the repository broadly public.
+```text
+http://127.0.0.1:5500/frontend/index.html
+```
 
-## 3. Platform Architecture
+The workflow `.github/workflows/pages.yml` deploys the `frontend` directory from `master`.
+
+Before work:
+
+```text
+git status
+git pull origin master
+```
+
+Do not discard a dirty working tree. Existing changes may belong to the owner. The OneDrive copy and Codex copy can diverge; confirm which one is authoritative before copying or pulling files.
+
+Useful first reads:
+
+```text
+README.md
+docs/README.md
+docs/architecture/overview.md
+docs/NAVIGATION-ACCESS-MODEL.md
+docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md
+docs/operations/PRODUCTION_TERMINAL_ROLLOUT.md
+supabase/migrations/
+```
+
+## 3. Architecture and security model
 
 ```text
 Static operational frontend
   -> Supabase Auth
-  -> PostgreSQL RLS, constraints and controlled RPCs
-  -> append-only operational evidence, corrections and audit/history
+  -> PostgreSQL RLS, constraints, controlled RPCs and Edge Functions
+  -> append-only/versioned operational evidence and audit history
 ```
 
-The frontend is an operational workflow surface, never the security boundary. PostgreSQL owns authorization and critical validation.
+The frontend is not a security boundary. PostgreSQL and server-side functions own authorization and critical validation.
 
 Core rules:
 
-1. Preserve published schedules and rosters; never silently rewrite history.
-2. Keep planned, actual, reported and corrected data separate.
-3. Correct operational evidence through controlled replacement/correction flows, not destructive edits.
-4. Production terminals are fixed computers; production people do not sign in individually on them.
-5. New workspaces and actions need matching server-side authorization and targeted validation.
-6. Never present simulation/test activity as real production data.
+1. Never silently rewrite published schedules, rosters, approvals, or production history.
+2. Correct evidence through versioning, replacement, cancellation, or append-only events.
+3. Do not expose a `service_role`/secret key in frontend code.
+4. A `SECURITY DEFINER` RPC must revoke default `PUBLIC` access and perform an internal identity/permission check.
+5. Production terminals are fixed computers; staff attribution comes from Roster/Actual data, not the terminal account.
+6. Never present simulation or test activity as real production.
+7. Do not infer official production from Sorting estimates.
+8. New UI permissions require matching database authorization and negative tests.
 
-## 4. Current Workspaces
+`frontend/assets/js/config.js` contains only the Supabase project URL and browser-safe publishable/anon configuration. Never commit SMTP passwords, service-role keys, personal passwords, or private credentials.
 
-| Workspace | Current status and responsibility |
+## 4. Current workspaces
+
+| Workspace | Current responsibility/status |
 | --- | --- |
-| Customer Workspace | Customer master, versioned schedules, schedule planner, routes and operational reports. Schedule-only access is read-only. |
-| Distribution | Daily board, route customers by day/order, weekly roster, actuals, drivers, fleet, routes and history. |
-| Production Roster | Planned staffing, shifts, leave governance, publication and history. `FINISH_UNITS_PER_KG` is maintained in Roster Settings, initially 6 units per kg. |
-| Sorting / Washing | Washing, trolley intake, staff actuals, no-work, timed moves and controlled Finish cover transfer. |
-| MOP Production | Standalone MOP production, corrections, ABS and MOP Types. A registered Sorting terminal can enter MOP Production; MOP Types are read-only to that terminal. |
-| Finish Production | Table-based Finish production, scanned trolley control, KG/Units lines, ReWash ledger, staff actuals and delivery reconciliation. |
-| Finish Results | Daily/Table/Shift performance, including ReWash and Units-to-KG equivalent treatment. |
-| Production Tracker | Shared route-centric production trace with the Route board and an Operational list. |
-| Trolleys | Trolley master/types, locations, custody and history. |
-| Staff Master | Staff master, roles, COVER capabilities, roster context and administrator-only Accounts & Access. |
+| Home | Role-aware cards, notification attention badge, personal/management entry points. |
+| Customer Workspace | Customer master, versioned weekly planner, product services, routes, trolley requirements and history. |
+| Production Roster | Weekly roster planning, publication, staff view, leave/day-off requests, approvals and capacity calendar. |
+| My Roster | Personal published roster for linked staff; administrators and production management can inspect published staff rosters. |
+| Sorting / Washing | Intake, washers, approximate load KG, staff actuals, no-work and governed area moves. |
+| MOP Production | Official MOP production, types, corrections, ABS and reconciliation. It appears under Sorting in navigation, not as a duplicate root item. |
+| Finish Production | Table 1/2/3 production, official Clothes KG, Units, batches, trolleys, ReWash, staff actuals and delivery reconciliation. |
+| Finish Results | Daily/table/shift performance including unit-to-KG equivalent and ReWash visibility. |
+| Production Tracker | Shared route/customer production trace covering washing, MOP, Finish, ABS and trolley evidence. |
+| Production Intelligence | Manager analytics for official production, capacity, seasonality, Sorting/trolley flow and forward planning. |
+| Distribution | Daily planning, routes/stops, weekly roster, driver/fleet master, actuals and history. |
+| Trolleys | Trolley type/master, physical trolleys, lifecycle, locations and custody history. |
+| Staff Master | Staff directory, operational roles, cover capability, onboarding and Accounts & Access. |
+| Notifications | Staff inbox plus manager/supervisor notice creation, delivery, read and acknowledgement tracking. |
+| Privacy | Employee privacy notice and acknowledgement entry point. |
 
-Customer Service is **not implemented yet**. The owner has defined its expected scope: customer complaints, trace back to likely production/table/scanner, directed resolution tasks, metrics, and quality alerts visible in Sorting/MOP/Finish/Distribution. Revisit this only after the owner requests it again.
+Customer Service complaints/quality workflow is still not implemented. The expected future scope includes complaints, trace-back to production/table/scanner, assigned actions, resolution status, metrics, and cross-area quality alerts. Do not invent this module without renewed owner direction and the owner's existing form definition.
 
-## 5. Identity, Accounts and Terminals
+## 5. Shared UI contract
 
-There are three different identities:
+The application received a cross-page visual refresh based on the owner's Finish reference application:
 
-1. **Staff Master**: operational people used in roster, attendance and production attribution. It does not imply a system login.
-2. **System user**: a person with an individual login and assigned access. A Staff Master link is optional.
-3. **Production terminal account**: a shared account bound to a physical station/computer. It has no required Staff Master link and is not a person.
+- teal compact page headers and stronger contrast;
+- reduced vertical waste for small notebook screens;
+- consistent white cards, borders, typography, controls, status chips and tables;
+- duplicate page headings removed;
+- the existing customer list/side panel pattern retained where it was better;
+- the left sidebar remains compact and opens only while the pointer is inside it;
+- clicking navigation must not close/flicker the sidebar while the pointer remains inside;
+- page navigation no longer rebuilds the full sidebar, avoiding the previous blackout effect;
+- MOP Production exists only inside the Sorting submenu;
+- Finish top-right shift/table controls have corrected readable colours.
 
-Administrators manage accounts through **Staff Master -> Accounts & Access**. They can create, edit, disable and reset passwords for active system/terminal accounts, inspect roles, terminal binding and module access. Existing passwords cannot be read back; the recovery workflow sets and confirms a new password.
+Preserve this shared shell. Do not introduce a page-specific visual system unless there is a strong operational reason.
 
-Finish terminals are tied to their own Table. Sorting terminals are tied to Sorting and can access MOP Production as configured. Production staff attribution comes from Roster/Actual records, not from the terminal login and not from a PIN.
+## 6. Identity model, jobs, accounts and permissions
 
-## 6. Finish Operational Contract
+Keep these identities separate:
 
-Finish is under active refinement and has the following implemented behaviour:
+1. **Staff Master record:** operational person used for roster, leave, attendance and production attribution.
+2. **Personal system account:** individual Supabase Auth login, optionally linked to one active Staff Master record.
+3. **Production terminal account:** fixed shared device/account bound to a station/table; not a person and normally not linked to Staff Master.
 
-- Each terminal is restricted to its assigned Table when applicable.
-- The terminal shows the customer schedule read-only and can view the shared Tracker.
-- A future customer is acceptable when delivery is today or later; a past delivery customer is blocked except for the governed late/reconciliation path.
-- Medium trolley requirements accept an unreserved Medium or Large trolley; other type rules remain exact.
-- Finish staff uses the Roster as a pre-fill, then records Actual staffing. Manual staff confirmation proposes the Ireland-local current time and requires explicit confirmation.
-- Staff Actual supports absence, later arrival, edited break, overtime, early leaving and timed moves between Finish Tables. Eligible `SORTING_AREA` COVER staff can move to Sorting. The maximum recorded daily span is 13 hours.
-- Worked time deducts the recorded break. Evening work through the configured 03:00 boundary remains on the originating workday.
-- Before saving a staff-time edit, the UI shows the effective time/break/net-work preview and requests confirmation.
-- Customer production keeps raw KG and Units. Roster Settings controls the Units-to-KG conversion, currently 6 Units = 1 KG. Table metrics and Results use the equivalent KG while retaining raw quantities.
-- Each Table/Shift has a separate audited ReWash ledger. ReWash is visible in Results and never confused with delivery reconciliation.
-- Washed Clothes due by delivery-day midday without Finish evidence trigger a blocking reconciliation decision. A processed confirmation requires only a positive quantity in KG or Units and stays outside production metrics. `NOT_PROCESSED` re-prompts after two hours; a later real Finish record is the only path into production metrics.
-- The Finish queue shows the current complete day and controlled delayed/advanced continuation days, with receipt/wash/Finish state, scheduled day/date, route and customer colour.
+Current job-title hierarchy/templates include Administrator, IT Manager, General Manager, Production Manager, Logistics Manager, Maintenance, Production Supervisor, Team Leader, General Operative, Label, Cleaner, Auditor and Customer Service. Team Leader currently has the same operational authority baseline as General Operative unless an explicit grant changes it.
 
-## 7. Sorting and MOP Staffing Contract
-
-Sorting Staff intentionally matches the Finish staff layout and editing model as closely as possible. It records Actual Position (`MOP` or `Clothes`), time, break, worked time and status.
-
-- `No Work` and `Move` must stay operationally limited. Sorting whole-shift Move offers only Finish Table 1, 2 or 3.
-- Timed staff moves preserve worked time against the correct origin/destination area.
-- Only an active Staff Master `SORTING_AREA` COVER capability permits the relevant Finish-to-Sorting cover move.
-- MOP Type Management is visible read-only to the registered Sorting terminal. Create/edit remains restricted to ADMIN or MANAGER.
-
-## 8. Production Tracker Contract
-
-`get_production_tracker_v4(date)` is the shared production read model. It consolidates schedule, washing, MOP, Finish, ABS and trolley evidence. It must not infer completed work from washing estimates.
-
-Two views are available in Production Tracker:
-
-- **Route board**: detailed route blocks, washed estimate versus processed actual, ABS and trolley capacity/evidence.
-- **Operational list**: fast route-coloured scan by priority, showing status, production/washing quantity, batch and trolley codes.
-
-The list shows every `production_flow_item` for the selected date, including Clothes and MOP when the schedule contains both. A date with only Clothes scheduled correctly shows only Clothes.
-
-Finish batch references are returned from active `finish_production_lines` by migration `202609090032_tracker_finish_batch_references.sql`. MOP continues to show its existing batch/external evidence when present.
-
-## 9. Recent Applied Migrations
-
-The latest source migrations are:
+Permissions are flexible per account/module and support:
 
 ```text
-202609090024_staff_primary_role_current_roster_choice.sql
-202609090025_staff_primary_role_stale_draft_repair.sql
-202609090026_staff_primary_role_future_roster_drafts.sql
-202609090027_finish_overdue_reconciliation_backlog.sql
-202609090028_finish_reconciliation_exclude_simulated_washes.sql
-202609090029_finish_manual_staff_start_time_guard.sql
-202609090030_finish_unit_to_kg_conversion.sql
-202609090031_finish_staff_metrics_unit_conversion.sql
-202609090032_tracker_finish_batch_references.sql
+VIEW
+CREATE
+EDIT
+APPROVE
+MANAGE
 ```
 
-These were applied to `fcimmysqifzxoanmpylh` during the current work, with focused validation recorded in the correction register. Re-query the live schema before depending on any migration in a new environment.
+Job title selects relevant defaults, but administrators can adapt grants for real operational changes. General Operatives must not receive approval permissions merely because a generic permission exists.
 
-## 10. Known Follow-ups and Constraints
+Accounts & Access now supports:
 
-Consult the correction register before planning work. High-value follow-ups include:
+- cleaner account directory layout;
+- create and edit for personal and terminal accounts;
+- job title and login method;
+- module permissions derived from job-title templates and adjustable grants;
+- staff linking;
+- disable/delete/reset/invite/resend actions as applicable;
+- pending password/account-setup visibility;
+- scoped administrator actions enforced server-side.
 
-- complete the Customer Service workspace only when restarted by the owner;
-- resolve or formally accept remaining Supabase security-advisor findings;
-- finish role/action authorization tests across all modules;
-- preserve evidence that simulated operational records have been removed;
-- add broader browser acceptance coverage for critical operational workflows;
-- keep advanced terminal actions constrained until their terminal checks are explicitly implemented and tested.
+Staff onboarding now creates the Staff Master record first and automatically generates the next unique `EMP-xxxxx` employee code. Manual employee-code entry is not allowed. If an email is supplied and access is requested, the system sends an invitation so the employee creates their own password. The administrator must not choose the employee's password.
 
-Do not remove historical migrations, generated legacy references or audit evidence merely because they look old. Remove only temporary artifacts whose lack of use has been verified.
+Personal email is acceptable for login only through the consent/onboarding process. A staff record can be created without email and linked/changed later. Login access, Staff Master, permissions and privacy acknowledgement are separate records.
 
-## 11. Graphify
+Current Supabase email/redirect behaviour:
 
-The checked-in `graphify-out/` report was generated on 2026-08-26 and is useful as a relationship map, but is stale after the recent Finish/Tracker changes. A refresh was attempted on 2026-09-10 and Graphify returned Windows `Access denied` during AST extraction. Re-run `graphify update .` after releasing any process that holds the generated output or source file lock. Do not treat its older report date as the current architecture authority; this INIT, the current source and the correction register win.
+- GitHub Pages URLs must be allowed in Supabase Auth Site URL/Redirect URLs;
+- local redirect URLs are only for local testing;
+- owner confirmed custom Gmail SMTP works as of 2026-09-26;
+- branded invite/reset templates exist in project source/guidance, but Supabase templates require custom SMTP to edit;
+- never hard-code localhost as the production invitation redirect.
 
-## 12. Future AI Startup Checklist
+Staff deactivation must remove access. Immediate deactivation disables access; planned leaving dates support scheduled deactivation logic. Re-check session revocation/expiry for strict offboarding because deleting/disabling a record alone does not retroactively invalidate every already-issued JWT.
 
-1. Read this INIT, `README.md`, the architecture overview and correction register.
-2. Inspect current source before proposing a change. Do not assume historical screenshots or old INITs represent current behaviour.
-3. Preserve shared navigation and shell conventions; use one consistent internal-tab/submenu pattern.
-4. For database work, read Supabase guidance, query read-only state first and apply a migration only with owner approval.
-5. Add targeted validation for every protected cross-area change.
-6. Keep updates to the owner in Portuguese and code/UI text in English.
-7. Record material new behaviour or unresolved risk in the correction register and refresh this INIT at the next handover.
+## 7. Staff and Distribution transfer
 
-## 13. Authority Statement
+The Staff Master interface is intentionally clean:
 
-This `INIT v87` is the project handover authority as of 2026-09-10. The active source folder, latest applied migration state and correction register override older INIT files, ZIP-only baselines and historic screenshots.
+- Transfer to Driver is inside Edit, not a separate row action;
+- internal labels such as `LEG` and `Legacy` are hidden from end users;
+- transferred staff no longer remain in active Production Staff lists unless explicitly scoped for Production;
+- transfer uses an atomic database operation and must collect/validate driver-specific information;
+- an existing driver match must be handled without creating a duplicate.
+
+## 8. Roster, My Roster and leave governance
+
+Implemented behaviour:
+
+- linked employees can view their published roster in My Roster;
+- ADM, Production Manager and Supervisor can inspect published rosters to verify planning results;
+- My Roster has navigation back to the application;
+- employees can request Holiday or Day Off from the staff-facing workflow;
+- leave requests appear as notifications and inside the Roster `Leave request control centre`;
+- approved/pending requests appear in the planning context so roster planners see conflicts;
+- a leave-capacity calendar summarizes pending and approved absence across weeks/months;
+- supervisor and Production Manager can approve alternatively;
+- requests longer than the configured threshold require General Manager approval and then return to the production approval chain;
+- the threshold is configurable in Roster Settings / Leave Approval;
+- Team Leader follows General Operative leave authority, not supervisor authority.
+
+Do not bypass the event/review history when importing or correcting leave decisions.
+
+## 9. Notices and notifications
+
+The internal notice system supports:
+
+- targeted Information, Action Required and Training notices;
+- optional acknowledgement requirement;
+- manager/supervisor creation flow hidden until explicitly opened;
+- recipient read/acknowledgement status visible to authorized senders;
+- home-page attention indicator;
+- clear unread/read/action state in Notifications;
+- configurable visibility period/automatic expiry;
+- recipient dismissal/hide to reduce clutter;
+- sender cleanup of old sent notices;
+- leave-request notifications link directly to the Roster control centre.
+
+Avoid permanent unfiltered notification lists. New notification types need a lifecycle, audience, attention rule, expiry/archive behaviour and destination action.
+
+## 10. Finish operational contract
+
+- Finish official Clothes weight is recorded by Table 1/2/3 and shift.
+- Terminals remain restricted to their assigned Table when applicable.
+- Customer queue uses schedule/flow/trolley evidence and controlled continuation dates.
+- Staff actuals support attendance, absence, later arrival, break edits, overtime, early leave and timed table/Sorting moves.
+- `SORTING_AREA` cover requires an active capability.
+- Evening work crossing the configured 03:00 boundary remains on the originating business date.
+- Production lines retain raw `KG` or `UNIT`; Units-to-KG conversion is configurable, initially 6 Units = 1 KG.
+- ReWash is a separate audited ledger, visible in Results and not confused with delivery reconciliation.
+- Corrections are append-only/superseding, not destructive edits.
+- Delivery reconciliation does not enter production metrics unless a real Finish record is later created.
+
+Official Clothes KG for analytics comes only from active Finish production `KG` lines.
+
+## 11. Sorting, MOP and trolley contract
+
+Sorting wash weight is operational and approximate. It must never be treated as official produced KG.
+
+MOP Production is separate and its recorded physical weight is official MOP KG. Late/missed entries use reconciliation paths rather than being disguised as current live entries.
+
+Trolley UI improvements include:
+
+- obsolete `Scan a trolley` screen removed;
+- Trolley Master summarizes quantities by trolley size/type;
+- cleaner Trolley Master layout;
+- Physical Trolley create/edit forms are closed until requested;
+- registry/service fields are not permanently exposed;
+- trolley lifecycle and custody remain governed operational evidence.
+
+## 12. Production Intelligence
+
+Production Intelligence is implemented for authorized management accounts through:
+
+```text
+frontend/pages/production-insights.html
+frontend/assets/js/production-insights.js
+frontend/assets/css/production-insights.css
+```
+
+Canonical official view:
+
+```text
+public.production_official_actuals
+```
+
+It combines only:
+
+- Clothes: active `finish_production_entries` with `finish_production_lines.unit_code='KG'`;
+- MOP: recorded `sorting_mop_production_batches.total_weight_kg`, dated by physical processing date.
+
+Sorting/washing estimates are deliberately excluded from official KG.
+
+Implemented manager views:
+
+- official total, Finish, MOP, production-day and customer KPIs;
+- weekly official history and learned customer forecast;
+- daily production with recorded Finish attendance/capacity;
+- shift and workstation breakdown;
+- Sorting intakes, washer runs, approximate KG and exceptions kept visually separate;
+- trolley received/sent flow;
+- monthly Finish/MOP history;
+- customer share, weekly range, variation and learning readiness;
+- six-week forward demand versus published Finish roster capacity;
+- separate MOP demand, never counted as Finish capacity load;
+- states `LEARNING`, `ROSTER_NOT_PUBLISHED`, `COVERED`, `WATCH`, and `AT_RISK`.
+
+Forecast learning uses recent official history and requires at least three records per customer/product. Incomplete days remain `LEARNING`; the UI must not report false surplus/shortage. The current test database does not yet contain trustworthy production history, so learning output is expected until real Apps Script history is imported.
+
+Applied Production Intelligence migrations:
+
+```text
+202609260001_production_intelligence_foundation.sql
+202609260002_production_intelligence_operational_breakdown.sql
+202609260003_production_intelligence_sorting_trolleys.sql
+202609260004_production_intelligence_customer_seasonality.sql
+202609260005_production_intelligence_forward_capacity.sql
+```
+
+Live Supabase migration history also contains two refinement entries:
+
+```text
+production_intelligence_forward_capacity_compact_learning
+production_intelligence_forward_capacity_final_states
+```
+
+Their final function definition is consolidated in local migration `202609260005_production_intelligence_forward_capacity.sql`. Do not reintroduce the earlier uncompact payload or zero-as-missing capacity behaviour.
+
+## 13. Historical Apps Script data import
+
+The owner has thousands of historical Apps Script records to import after source conversion. The complete contract is:
+
+```text
+docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md
+```
+
+This guide is mandatory reading. Key rules:
+
+- land raw source in restricted `staging` first;
+- retain source files, row IDs, legacy IDs, raw JSON, batch ID and deterministic fingerprint;
+- map identities explicitly; never guess UUIDs from names;
+- use idempotent transactional promotion;
+- do not create Auth accounts while importing historical staff;
+- reconcile counts and totals before commit;
+- official Clothes/MOP KG rules above are non-negotiable;
+- ambiguous records remain blocked for owner review.
+
+Existing staging support already covers legacy customers/schedules and roster/leave. Finish, ReWash, MOP, Sorting, trolley and Distribution source formats require source-specific restricted staging tables and reviewed promotion logic after the actual exports are supplied.
+
+## 14. Supabase state verified 2026-09-26
+
+Recent live migration groups include:
+
+```text
+20260924: staff-to-driver transfer; flexible account permissions; privacy;
+            job titles/login methods; scoped account administration;
+            Staff Master and leave permission enforcement; My Roster;
+            admin/management published roster access; notification inbox.
+20260925: unified staff onboarding; internal notices; notice management;
+            notification lifecycle/home badge; ambiguous RPC removal;
+            personal sent-notice cleanup.
+20260926: Production Intelligence foundation, breakdowns, Sorting/trolleys,
+            seasonality and forward capacity.
+```
+
+Active Edge Functions:
+
+```text
+production-roster-leave-email     active, verify_jwt=true, live version 3
+admin-account-management          active, verify_jwt=true, live version 14
+```
+
+Local source exists in:
+
+```text
+supabase/functions/production-roster-leave-email/index.ts
+supabase/functions/admin-account-management/index.ts
+```
+
+The database has many governed `SECURITY DEFINER` RPCs. Run Supabase security advisors after new database work. An existing recommendation remains to enable leaked-password protection in Supabase Auth. Also review advisor warnings methodically; do not remove legitimate authenticated RPC execution without understanding their internal guards.
+
+## 15. Recent Git milestones
+
+Key commits from the current continuation:
+
+```text
+5741b21  employee privacy notice and UI improvements
+9f056cd  flexible account permissions foundation
+511af4f  job titles and flexible account login
+9284e47  permission-aware navigation
+d8f3b32  authenticated employee My Roster
+8f8a665  management published roster view
+4156979  unified staff onboarding and account invitation
+7b97492  account redirect and branded invite template
+71671fb  targeted staff notices and acknowledgements
+9082ac0  notification attention and lifecycle controls
+18f45e2  leave capacity planning calendar
+9ed134f  Production Intelligence foundation
+0433ac7  official operational breakdowns
+f04f0eb  Sorting and trolley intelligence
+cdcf7af  customer seasonality intelligence
+13b98f7  forward demand/capacity planning
+67b0d93  Apps Script data import contract
+```
+
+Use Git history for detailed file-level evidence.
+
+## 16. Known constraints and open risks
+
+1. Current operational database data is largely test data and must not be treated as real historical performance.
+2. Production Intelligence remains in learning state until real official Finish/MOP history is imported.
+3. Forward capacity needs published future Finish rosters; missing publication is shown explicitly.
+4. Historical Apps Script source formats still need to be inventoried and converted source by source.
+5. Customer Service/complaints remains future work.
+6. Full role/action negative testing is still needed across modules.
+7. Browser acceptance coverage for critical workflows is incomplete.
+8. Supabase leaked-password protection should be enabled.
+9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
+10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
+11. The older correction register predates several 2026-09-24 to 2026-09-26 features. Current source, Git history, live Supabase state and this INIT override stale register entries.
+
+## 17. Recommended next work
+
+Priority order:
+
+1. **Inventory Apps Script exports.** List each file/sheet/object, date range, key, row count and data meaning.
+2. **Build the import pipeline one domain at a time.** Start with identity/master mappings, then official Finish/MOP history needed by Production Intelligence.
+3. **Reconcile official production.** Compare source and target KG by date, customer, shift, table/product and batch.
+4. **Publish representative future rosters** and validate six-week demand/capacity once real history exists.
+5. **Run role-based acceptance tests** for ADM, managers, supervisors, General Operatives, terminals and Distribution isolation.
+6. **Complete security hardening,** including leaked-password protection and focused RPC/permission review.
+7. **Expand manager analytics** only after real-data quality is proven: day/shift/table trends, capacity efficiency, customer seasonality, trolley flow and Distribution performance.
+8. **Improve automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
+9. Resume Customer Service only with owner-provided form/flow definitions.
+
+Do not build advanced analytics on unvalidated legacy data. Data provenance and reconciliation come first.
+
+## 18. Future AI startup checklist
+
+1. Read this INIT and `docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md` fully.
+2. Run `git status`, inspect recent history and confirm the active working copy.
+3. Query the live Supabase schema/migrations before relying on local assumptions.
+4. Preserve the shared visual shell and compact notebook-friendly layout.
+5. Keep personal accounts, Staff Master records and terminal accounts separate.
+6. Keep Production and Distribution visibility isolated according to permission scope.
+7. Preserve official versus approximate KG separation.
+8. Add server-side authorization and negative tests for every new protected action.
+9. Never import historical data directly into operational tables without staging/reconciliation.
+10. Report material behaviour, migrations, validation and unresolved risks back into this INIT at the next handover.
+
+## 19. Authority statement
+
+This INIT v88 is the handover authority as of 2026-09-26. Current source, current Git history, current live Supabase state, and explicit owner decisions override older INIT files, ZIP baselines, screenshots, stale generated reports and historical assumptions.
