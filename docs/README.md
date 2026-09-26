@@ -16,3 +16,5 @@ This directory contains the active documentation for Laundry Platform V2.
 | `NAVIGATION-ACCESS-MODEL.md` | Sidebar workspaces and role-aware navigation model. |
 
 Historical snapshots, interim handovers and one-off build evidence are intentionally excluded from the active source tree. The current architecture and correction register replace them as the maintained project reference.
+
+For historical Google Apps Script conversion and database loading, start with `database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md`.
