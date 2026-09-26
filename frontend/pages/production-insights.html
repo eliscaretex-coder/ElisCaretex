@@ -38,6 +38,22 @@
       </section>
 
       <section class="production-insights-card">
+        <header><div><p>Daily control</p><h2>Production and recorded capacity</h2><span>Capacity appears only when actual Finish attendance hours exist.</span></div><b id="insightsDayCount">0 days</b></header>
+        <div id="insightsDaily" class="production-insights-daily"></div>
+      </section>
+
+      <div class="production-insights-split">
+        <section class="production-insights-card">
+          <header><div><p>Shift</p><h2>Production by shift</h2></div></header>
+          <div id="insightsShifts" class="production-insights-ranking"></div>
+        </section>
+        <section class="production-insights-card">
+          <header><div><p>Workstation</p><h2>Production by table / area</h2></div></header>
+          <div id="insightsWorkstations" class="production-insights-ranking"></div>
+        </section>
+      </div>
+
+      <section class="production-insights-card">
         <header><div><p>Automatic learning</p><h2>Next-week customer estimate</h2><span>The system needs at least three recent production records before showing an estimate.</span></div><b id="insightsForecastCount">0 customers</b></header>
         <div id="insightsForecasts" class="production-insights-forecasts"></div>
       </section>
