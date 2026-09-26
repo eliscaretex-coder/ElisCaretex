@@ -306,6 +306,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     mopCancelSaving: false,
     mopSelectedFlowId: null,
     mopTrolleyCodes: [],
+    mopTrolleyValidation: null,
     mopLateEntry: null,
     mopReconciliationFlowId: null,
     mopTrolleyReportReference: null,
@@ -494,7 +495,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.sorting=null;
       state.mop=null;
       state.mopSelectedFlowId=null;
-      state.mopTrolleyCodes=[];
+      state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;
       state.mopLateEntry=null;
       state.trolleyOperatorStaffId=null;
       state.attendanceStaffId=null;
@@ -3742,22 +3743,48 @@ document.addEventListener("DOMContentLoaded", async () => {
       const code=req.trolley_type_name||req.display_code||req.trolley_type_code||"Trolley";
       return `${Number(req.quantity||0)}×${code}${req.empty_trolley?" EMPTY":""}`;
     }).join(" · ");
-    const countMismatch=required&&!lateUnknown&&state.mopTrolleyCodes.length>0&&state.mopTrolleyCodes.length!==qty;
+    const validation=state.mopTrolleyValidation;
+    const hardIssues=Array.isArray(validation?.hard_issues)?validation.hard_issues:[];
+    const planIssues=Array.isArray(validation?.plan_issues)?validation.plan_issues:[];
+    const countMismatch=required&&!lateUnknown&&state.mopTrolleyCodes.length>0&&validation
+      ? !validation.matches_plan
+      : required&&!lateUnknown&&state.mopTrolleyCodes.length>0&&state.mopTrolleyCodes.length!==qty;
     el.mopTrolleySection.classList.toggle("not-required",!required);
     el.mopTrolleySection.classList.toggle("late-unknown",required&&lateUnknown);
-    el.mopTrolleySection.classList.toggle("mismatch",countMismatch);
+    el.mopTrolleySection.classList.toggle("mismatch",countMismatch||hardIssues.length>0);
     el.mopTrolleyRequirement.textContent=!required?"No trolley required":`${qty} trolley${qty===1?"":"s"} expected${requirementText?` · ${requirementText}`:""}`;
     el.mopTrolleyInputWrap.hidden=!required||lateUnknown;
     if(el.mopLateTrolleyUnknownInlineLabel)el.mopLateTrolleyUnknownInlineLabel.hidden=!(required&&Boolean(state.mopLateEntry));
     if(el.mopLateTrolleyUnknownInline)el.mopLateTrolleyUnknownInline.checked=lateUnknown;
-    el.mopTrolleyChips.innerHTML=state.mopTrolleyCodes.map(code=>`<span class="sorting-mop-trolley-chip">${esc(code)}<button type="button" data-mop-remove-trolley="${esc(code)}">×</button></span>`).join("");
+    el.mopTrolleyChips.innerHTML=state.mopTrolleyCodes.map(code=>{
+      const scanned=(Array.isArray(validation?.scanned)?validation.scanned:[]).find(item=>String(item.trolley_code).toUpperCase()===code);
+      const type=scanned?.display_code||scanned?.trolley_type_name||"";
+      return `<span class="sorting-mop-trolley-chip">${esc(code)}${type?` · ${esc(type)}`:""}<button type="button" data-mop-remove-trolley="${esc(code)}">×</button></span>`;
+    }).join("");
     el.mopTrolleyHelp.textContent=!required
       ? "This MOP product does not own a clean trolley requirement. No trolley will be invented or assigned."
       : lateUnknown
         ? "Late entry: trolley number explicitly recorded as no longer available."
+        : hardIssues.length
+          ? `Cannot use this selection: ${hardIssues.join(" ")}`
         : countMismatch
-          ? `Contract expects ${qty} trolley${qty===1?"":"s"}; ${state.mopTrolleyCodes.length} ${state.mopTrolleyCodes.length===1?"is":"are"} scanned. Save will preserve this mismatch instead of changing the published schedule.`
+          ? `Quantity / size mismatch: ${planIssues.join(" ")||`contract expects ${qty} trolley${qty===1?"":"s"}`}. Review the scan or explicitly accept the mismatch when saving.`
+        : validation&&state.mopTrolleyCodes.length
+          ? "Quantity and trolley size match the published customer plan."
           : `Scan the clean trolley${qty===1?"":"s"} used for this customer. The physical trolley lifecycle is assigned only when this production record is saved.`;
+  }
+
+  async function validateMopTrolleySelection(){
+    const row=mopSelected();
+    if(!row)return null;
+    const validation=await rpc("validate_mop_trolley_selection",{
+      p_production_flow_item_id:row.production_flow_item_id,
+      p_trolley_codes:state.mopTrolleyCodes
+    });
+    if(validation?.schema_version!=="MOP_TROLLEY_SCAN_V1")throw new Error("MOP trolley validation backend is out of date.");
+    state.mopTrolleyValidation=validation;
+    renderMopTrolley();
+    return validation;
   }
 
   function ensureMopTrolleyReportUi(){
@@ -4127,7 +4154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(el.businessDateStatus){el.businessDateStatus.textContent="Shared operational Business Date";el.businessDateStatus.className="sorting-business-date-status";}
       }
       if(state.mopSelectedFlowId&&!mopQueue().some(r=>r.production_flow_item_id===state.mopSelectedFlowId)){
-        state.mopSelectedFlowId=null;state.mopTrolleyCodes=[];state.mopLateEntry=null;
+        state.mopSelectedFlowId=null;state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;state.mopLateEntry=null;
       }
       renderMop();
     }catch(error){
@@ -4150,17 +4177,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       return;
     }
-    state.mopSelectedFlowId=flowId;state.mopTrolleyCodes=[];state.mopLateEntry=null;
+    state.mopSelectedFlowId=flowId;state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;state.mopLateEntry=null;
     renderMop();
     if(reconcile&&["RECONCILIATION_REQUIRED","NOT_PROCESSED_CONFIRMED"].includes(row.production_status))openMopReconciliation(row);
   }
 
-  function addMopTrolley(){
+  async function addMopTrolley(){
     const raw=String(el.mopTrolleyInput.value||"").trim().toUpperCase().replace(/\s+/g,"");
     if(!raw)return;
     if(!/^T\d{1,10}T$/.test(raw))return setMessage("Invalid trolley code. Expected format like T123T.","error");
     if(!state.mopTrolleyCodes.includes(raw))state.mopTrolleyCodes.push(raw);
-    el.mopTrolleyInput.value="";renderMopTrolley();
+    el.mopTrolleyInput.value="";state.mopTrolleyValidation=null;renderMopTrolley();
+    try{await validateMopTrolleySelection();}
+    catch(error){console.error(error);setMopSaveMessage(friendly(error),"error");}
   }
 
   function recalcMopLine(input){
@@ -4208,11 +4237,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "Scan the clean trolley used for this customer before saving.";
       setMopSaveMessage(message,"warning");setMessage(message,"warning");return;
     }
+    let trolleyMismatchAccepted=false;
+    if(!lateUnknown){
+      let validation;
+      try{validation=await validateMopTrolleySelection();}
+      catch(error){const message=friendly(error);setMopSaveMessage(message,"error");setMessage(message,"error");return;}
+      if(validation?.hard_block){
+        const message=(validation.hard_issues||[]).join(" ")||"One or more scanned trolleys cannot be used.";
+        setMopSaveMessage(message,"error");setMessage(message,"error");return;
+      }
+      if(!validation?.matches_plan){
+        const detail=(validation?.plan_issues||[]).join(" ");
+        trolleyMismatchAccepted=window.confirm(`Trolley quantity / size does not match the published plan.\n\n${detail}\n\nUse these scanned trolleys anyway?`);
+        if(!trolleyMismatchAccepted){setMopSaveMessage("Review the trolley scan or report an incorrect trolley plan.","warning");return;}
+      }
+    }
     el.mopSave.disabled=true;
     setMopSaveMessage("Saving MOP production…","info");
     setMessage("Saving MOP production…");
     try{
-      const result=await rpc("save_sorting_mop_production",{
+      const result=await rpc("save_sorting_mop_production_v2",{
         p_shift_code:state.shift,
         p_production_flow_item_id:row.production_flow_item_id,
         p_operator_staff_id:staffId,
@@ -4222,11 +4266,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         p_physical_processed_on:state.mopLateEntry?.processedOn||null,
         p_physical_processed_time:state.mopLateEntry?.processedTime||null,
         p_entry_mode:state.mopLateEntry?"LATE_RECONCILIATION":"LIVE",
+        p_accept_trolley_mismatch:trolleyMismatchAccepted,
         p_notes:state.mopLateEntry
           ? `Missed entry reason: ${state.mopLateEntry.reason}${el.mopNotes.value.trim()?` | ${el.mopNotes.value.trim()}`:""}`
           : (el.mopNotes.value.trim()||null)
       });
-      state.mopSelectedFlowId=null;state.mopTrolleyCodes=[];state.mopLateEntry=null;state.mopReconciliationFlowId=null;
+      state.mopSelectedFlowId=null;state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;state.mopLateEntry=null;state.mopReconciliationFlowId=null;
       setMopSaveMessage("");
       await loadMop();if(!standaloneMop)await loadStaffWork();
       setMessage(result?.message||"MOP production recorded.","success");
@@ -4278,7 +4323,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!processedOn){el.mopReconciliationMessage.textContent="Choose the date the MOP was physically processed.";return;}
     if(missedReason.length<3){el.mopReconciliationMessage.textContent="Enter a short reason why the production entry was missed.";return;}
     state.mopSelectedFlowId=row.production_flow_item_id;
-    state.mopTrolleyCodes=[];
+    state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;
     state.mopLateEntry={processedOn,processedTime:el.mopLateProcessedTime.value||null,trolleyUnknown:Boolean(el.mopLateTrolleyUnknown.checked),reason:missedReason};
     el.mopReconciliationDialog.close();renderMop();
     setMessage("Step 2 of 2: enter the actual processed KG or Units, then Save missed MOP entry. This confirmation remains unresolved until Save succeeds.","warning");
@@ -5030,18 +5075,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.mopQueue?.addEventListener("click",e=>{const b=e.target.closest("[data-mop-flow]");if(b)selectMopFlow(b.dataset.mopFlow);});
   el.mopAddTrolley?.addEventListener("click",()=>{setMopSaveMessage("");addMopTrolley();});
   el.mopTrolleyInput?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addMopTrolley();}});
-  el.mopTrolleyChips?.addEventListener("click",e=>{const b=e.target.closest("[data-mop-remove-trolley]");if(!b)return;state.mopTrolleyCodes=state.mopTrolleyCodes.filter(code=>code!==b.dataset.mopRemoveTrolley);renderMopTrolley();});
+  el.mopTrolleyChips?.addEventListener("click",async e=>{const b=e.target.closest("[data-mop-remove-trolley]");if(!b)return;state.mopTrolleyCodes=state.mopTrolleyCodes.filter(code=>code!==b.dataset.mopRemoveTrolley);state.mopTrolleyValidation=null;renderMopTrolley();try{await validateMopTrolleySelection();}catch(error){console.error(error);setMopSaveMessage(friendly(error),"error");}});
   el.mopLateTrolleyUnknownInline?.addEventListener("change",()=>{
     if(!state.mopLateEntry)return;
     state.mopLateEntry.trolleyUnknown=Boolean(el.mopLateTrolleyUnknownInline.checked);
-    if(state.mopLateEntry.trolleyUnknown)state.mopTrolleyCodes=[];
+    if(state.mopLateEntry.trolleyUnknown){state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;}
     setMopSaveMessage("");
     renderMopTrolley();
   });
   el.mopTypeRows?.addEventListener("input",e=>{const input=e.target.closest("[data-mop-field]");if(input){setMopSaveMessage("");recalcMopLine(input);}});
   el.mopClear?.addEventListener("click",()=>{
     const wasLate=Boolean(state.mopLateEntry);
-    state.mopSelectedFlowId=null;state.mopTrolleyCodes=[];state.mopLateEntry=null;state.mopReconciliationFlowId=null;
+    state.mopSelectedFlowId=null;state.mopTrolleyCodes=[];state.mopTrolleyValidation=null;state.mopLateEntry=null;state.mopReconciliationFlowId=null;
     renderMop();
     setMopSaveMessage("");
     setMessage(wasLate?"Missed-entry draft cleared. The production confirmation is still required.":"");
