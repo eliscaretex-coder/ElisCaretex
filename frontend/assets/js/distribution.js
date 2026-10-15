@@ -96,12 +96,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const assigned = new Set(activeRuns.map((run) => String(run.route_id)));
     const pendingRoutes = new Set(stops.filter((stop) => !assigned.has(String(stop.route_id))).map((stop) => String(stop.route_id))).size;
     const handoff = state.data?.trolley_handoff?.summary || {};
+    const productionLoad = state.data?.production_load?.summary || {};
     const fleet = state.data?.fleet_summary || {};
     const items = [
       [stops.length, "Scheduled stops", ""],
       [activeRuns.length, "Active routes", ""],
       [pendingRoutes, "Routes to plan", pendingRoutes ? "attention" : ""],
       [handoff.trolley_count || 0, "Trolleys prepared", ""],
+      [`${fmtNumber(productionLoad.known_vehicle_load_kg, 1)} kg`, "Known vehicle load", productionLoad.not_started_customers ? "attention" : ""],
       [(fleet.open_defects || 0) + (fleet.compliance_due || 0), "Fleet attention", (fleet.open_defects || fleet.compliance_due) ? "risk" : ""]
     ];
     el.kpis.innerHTML = items.map(([value, label, cls]) => `<article class="${cls}"><strong>${esc(fmtNumber(value))}</strong><span>${esc(label)}</span></article>`).join("");
@@ -135,6 +137,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     return Number(row?.trolley_count || 0);
   }
 
+  function productionLoadForRoute(routeId) {
+    return (state.data?.production_load?.routes || []).find((route) => String(route.route_id) === String(routeId)) || null;
+  }
+
   function renderBoard() {
     const list = routeData();
     if (!list.length) {
@@ -146,9 +152,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       const run = route.run;
       const kg = route.stops.reduce((sum, stop) => sum + Number(stop.estimated_kg || 0), 0);
       const stopUnits = route.stops.reduce((sum, stop) => sum + Number(stop.stop_units || 0), 0);
-      const trolley = handoffCount(route.route_id);
+      const load = productionLoadForRoute(route.route_id);
+      const trolley = Number(load?.trolley_count ?? handoffCount(route.route_id));
+      const readyCustomers = Number(load?.ready_customers || 0);
+      const scheduledCustomers = Number(load?.scheduled_customers || route.stops.length || 0);
+      const producedKg = Number(load?.produced_kg || 0);
+      const finishKg = Number(load?.finish_kg || 0);
+      const mopKg = Number(load?.mop_kg || 0);
+      const mopUnits = Number(load?.mop_units || 0);
+      const trolleyTareKg = Number(load?.trolley_tare_kg || 0);
+      const knownVehicleLoadKg = Number(load?.known_vehicle_load_kg || 0);
+      const readiness = scheduledCustomers ? Math.round(readyCustomers * 100 / scheduledCustomers) : 0;
+      const loadState = readyCustomers === scheduledCustomers && scheduledCustomers > 0 ? "ready" : readyCustomers > 0 ? "progress" : "waiting";
       const colour = validColor(route.route_color);
-      return `<article class="distribution-route-card" style="--route-color:${colour}"><div class="distribution-route-card-head"><span class="distribution-route-code">${esc(route.route_code || "R")}</span><div class="distribution-route-title"><h3>${esc(route.display_name || route.route_code || "Route")}</h3><p>${run ? `Run ${esc(titleCase(run.run_status))}` : "Not yet planned"}</p></div>${statusPill(run?.run_status || "UNPLANNED")}</div><div class="distribution-route-metrics"><span><b>${fmtNumber(route.stops.length)}</b> scheduled stops</span><span><b>${fmtNumber(kg)} kg</b> expected load</span><span><b>${fmtNumber(trolley)}</b> trolleys prepared</span></div><div class="distribution-route-assignment"><div>Driver<strong>${esc(run?.primary_driver_name || "Not assigned")}</strong></div><div>Vehicle<strong>${esc(run?.vehicle_registration || "Not assigned")}</strong></div></div><div class="distribution-card-actions">${canPlan ? `<button class="distribution-button primary" type="button" data-route-plan="${esc(route.route_id)}">${run ? "Edit route" : "Plan route"}</button>` : ""}${run ? `<button class="distribution-button secondary" type="button" data-route-stops="${esc(run.run_id)}">Stops ${fmtNumber(run.completed_stop_count)}/${fmtNumber(run.stop_count)}</button>` : ""}${run && canPlan && ["READY", "DRAFT"].includes(run.run_status) ? `<button class="distribution-button secondary" type="button" data-route-status="DISPATCHED" data-run-id="${esc(run.run_id)}">Dispatch</button>` : ""}${run && canPlan && ["DISPATCHED", "IN_PROGRESS"].includes(run.run_status) ? `<button class="distribution-button secondary" type="button" data-route-status="COMPLETED" data-run-id="${esc(run.run_id)}">Complete</button>` : ""}</div></article>`;
+      return `<article class="distribution-route-card production-${loadState}" style="--route-color:${colour}"><div class="distribution-route-card-head"><span class="distribution-route-code">${esc(route.route_code || "R")}</span><div class="distribution-route-title"><h3>${esc(route.display_name || route.route_code || "Route")}</h3><p>${run ? `Run ${esc(titleCase(run.run_status))}` : "Not yet planned"}</p></div>${statusPill(run?.run_status || "UNPLANNED")}</div><div class="distribution-route-metrics production-load"><span><b>${fmtNumber(route.stops.length)}</b> scheduled stops</span><span><b>${fmtNumber(kg, 1)} kg</b> expected load</span><span><b>${fmtNumber(producedKg, 1)} kg</b> produced actual</span><span class="known-load"><b>${load?.load_is_partial ? "≥ " : ""}${fmtNumber(knownVehicleLoadKg, 1)} kg</b> known truck load</span></div><section class="distribution-production-readiness ${loadState}"><div class="distribution-production-readiness-head"><strong>${fmtNumber(readyCustomers)}/${fmtNumber(scheduledCustomers)} customers ready</strong><span>${fmtNumber(readiness)}%</span></div><div class="distribution-production-progress"><span style="width:${readiness}%"></span></div><div class="distribution-production-breakdown"><span><b>Finish</b>${fmtNumber(finishKg, 1)} kg</span><span><b>MOP</b>${fmtNumber(mopKg, 1)} kg${mopUnits > 0 ? ` / ${fmtNumber(mopUnits)} units` : ""}</span><span><b>Trolleys</b>${fmtNumber(trolley)} actual${load?.planned_trolleys ? ` / ${fmtNumber(load.planned_trolleys)} planned` : ""}</span><span><b>Trolley tare</b>${fmtNumber(trolleyTareKg, 1)} kg</span>${load?.load_is_partial ? '<em>Load remains partial until production and trolley data are complete.</em>' : '<em class="complete">Production load complete.</em>'}</div></section><div class="distribution-route-assignment"><div>Driver<strong>${esc(run?.primary_driver_name || "Not assigned")}</strong></div><div>Vehicle<strong>${esc(run?.vehicle_registration || "Not assigned")}</strong></div></div><div class="distribution-card-actions">${canPlan ? `<button class="distribution-button primary" type="button" data-route-plan="${esc(route.route_id)}">${run ? "Edit route" : "Plan route"}</button>` : ""}${run ? `<button class="distribution-button secondary" type="button" data-route-stops="${esc(run.run_id)}">Stops ${fmtNumber(run.completed_stop_count)}/${fmtNumber(run.stop_count)}</button>` : ""}${run && canPlan && ["READY", "DRAFT"].includes(run.run_status) ? `<button class="distribution-button secondary" type="button" data-route-status="DISPATCHED" data-run-id="${esc(run.run_id)}">Dispatch</button>` : ""}${run && canPlan && ["DISPATCHED", "IN_PROGRESS"].includes(run.run_status) ? `<button class="distribution-button secondary" type="button" data-route-status="COMPLETED" data-run-id="${esc(run.run_id)}">Complete</button>` : ""}</div></article>`;
     }).join("")}</div>`;
   }
 
@@ -441,7 +458,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (value !== date) setMessage("Sunday is not an operating day. Showing Monday instead."); else setMessage("");
     el.date.value = value; el.refresh.disabled = true; el.panel.style.opacity = ".55";
     try {
-      const data = await rpc("get_distribution_operations_dashboard", { p_business_date: value });
+      const data = await rpc("get_distribution_operations_dashboard_v2", { p_business_date: value });
       if (data?.schema_version !== "DISTRIBUTION_OPERATIONS_V1") throw new Error("Distribution backend is out of date. Apply the Distribution Operations migration.");
       if (!data?.capabilities?.can_view_distribution_operations) throw new Error("Your active role does not allow access to Distribution.");
       state.data = data; render();
