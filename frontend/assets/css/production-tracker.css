@@ -101,8 +101,16 @@ body.production-tracker-page{margin:0;background:linear-gradient(180deg,#eaf2f8 
 .production-tracker-operational-route.not-started .production-tracker-operational-route-code,
 .production-tracker-route-block.not-started .production-tracker-route-mark{filter:grayscale(.8);opacity:.58}
 .production-tracker-operational-item{transition:opacity .16s ease,filter .16s ease,background .16s ease,box-shadow .16s ease}
-.production-tracker-operational-item.not-started{border-left-color:#cbd5e1;background:#f8fafc;box-shadow:none;filter:saturate(.25);opacity:.56}
-.production-tracker-operational-item.not-started:hover{opacity:.76}
+.production-tracker-operational-item.not-started{border-left-color:#cbd5e1;background:#f8fafc;box-shadow:none}
+.production-tracker-operational-item.not-started>.production-tracker-operational-priority,
+.production-tracker-operational-item.not-started>.production-tracker-operational-status,
+.production-tracker-operational-item.not-started>.production-tracker-operational-quantity,
+.production-tracker-operational-item.not-started>.production-tracker-operational-evidence{filter:saturate(.25);opacity:.5}
+.production-tracker-operational-item.not-started .production-tracker-operational-customer>span{opacity:.58}
+.production-tracker-operational-item.not-started:hover>.production-tracker-operational-priority,
+.production-tracker-operational-item.not-started:hover>.production-tracker-operational-status,
+.production-tracker-operational-item.not-started:hover>.production-tracker-operational-quantity,
+.production-tracker-operational-item.not-started:hover>.production-tracker-operational-evidence{opacity:.7}
 .production-tracker-operational-item.washed{border-left-color:#2563eb;background:#eff6ff;box-shadow:inset 0 0 0 1px #bfdbfe}
 .production-tracker-operational-item.in-progress{border-left-color:#0f766e;background:#ecfeff;box-shadow:inset 0 0 0 1px #99f6e4}
 .production-tracker-operational-item.abs-pending{border-left-color:#d97706;background:#fffbeb;box-shadow:inset 0 0 0 1px #fde68a}
@@ -115,6 +123,8 @@ body.production-tracker-page{margin:0;background:linear-gradient(180deg,#eaf2f8 
 .production-tracker-operational-item.tracker-ok .production-tracker-operational-status{background:#dcfce7;color:#15803d}
 .production-tracker-operational-item.in-progress .production-tracker-operational-status{background:#ccfbf1;color:#0f766e}
 .production-tracker-operational-item{grid-template-columns:30px 20px minmax(185px,1.3fr) minmax(165px,.8fr) minmax(230px,1fr)}
+.production-tracker-operational-customer strong{display:inline-block;padding:3px 7px;border-left:5px solid var(--route-color);border-radius:4px;background:color-mix(in srgb,var(--route-color) 14%,#fff)}
+.production-tracker-operational-item.not-started .production-tracker-operational-customer strong{filter:none;opacity:1;color:#0f172a;background:color-mix(in srgb,var(--route-color) 18%,#fff)}
 .production-tracker-stream-row.not-started td:not(.production-tracker-customer-cell){filter:saturate(.2);opacity:.5}
 .production-tracker-stream-row.washed td:not(.production-tracker-customer-cell){background:#eff6ff}
 .production-tracker-stream-row.in-progress td:not(.production-tracker-customer-cell){background:#ecfeff}
