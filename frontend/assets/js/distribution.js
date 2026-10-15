@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const distributionTabIds = ["board", "customers", "roster", "actuals", "drivers", "fleet", "routes", "history"];
   const initialTab = String(location.hash || "").replace("#", "");
-  const state = { data: null, activeTab: distributionTabIds.includes(initialTab) ? initialTab : "board", routeDetail: null, master: null, roster: null, rosterWeek: "", rosterDirty: false, rosterEditing: null, pendingRouteId: "", pendingVehicleId: "", history: null, actuals: null, actualsWeek: "", routeCustomersCollapsed: new Set(), routeCustomersWeekly: null, routeCustomersDay: "", routeCustomersRoute: "", routeCustomersSearch: "" };
+  const state = { data: null, nextData: null, boardDay: "current", runBusinessDate: "", activeTab: distributionTabIds.includes(initialTab) ? initialTab : "board", routeDetail: null, master: null, roster: null, rosterWeek: "", rosterDirty: false, rosterEditing: null, pendingRouteId: "", pendingVehicleId: "", history: null, actuals: null, actualsWeek: "", routeCustomersCollapsed: new Set(), routeCustomersWeekly: null, routeCustomersDay: "", routeCustomersRoute: "", routeCustomersSearch: "" };
   const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   const isoToday = () => new Date().toISOString().slice(0, 10);
   const localDate = (value) => String(value || "").slice(0, 10);
@@ -33,9 +33,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const setMessage = (message = "", kind = "") => { el.message.textContent = message; el.message.className = `distribution-message ${kind}`; };
   const setInline = (node, message = "") => { node.textContent = message; };
   const close = (dialog) => { if (dialog?.open) dialog.close(); };
-  const activeStops = () => Array.isArray(state.data?.reference_stops) ? state.data.reference_stops : [];
-  const runs = () => Array.isArray(state.data?.runs) ? state.data.runs : [];
-  const routes = () => Array.isArray(state.data?.routes) ? state.data.routes : [];
+  const activeStops = (data = state.data) => Array.isArray(data?.reference_stops) ? data.reference_stops : [];
+  const runs = (data = state.data) => Array.isArray(data?.runs) ? data.runs : [];
+  const routes = (data = state.data) => Array.isArray(data?.routes) ? data.routes : [];
   const drivers = () => Array.isArray(state.data?.drivers) ? state.data.drivers : [];
   const vehicles = () => Array.isArray(state.data?.vehicles) ? state.data.vehicles : [];
   const rosterEntries = () => Array.isArray(state.roster?.entries) ? state.roster.entries : [];
@@ -49,6 +49,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const date = new Date(`${value}T12:00:00`);
     if (date.getDay() !== 0) return value;
     date.setDate(date.getDate() + 1);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function nextDeliveryDate(value = isoToday()) {
+    const date = new Date(`${localDate(value)}T12:00:00`);
+    date.setDate(date.getDate() + 1);
+    if (date.getDay() === 0) date.setDate(date.getDate() + 1);
     return date.toISOString().slice(0, 10);
   }
 
@@ -103,10 +110,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       [activeRuns.length, "Active routes", ""],
       [pendingRoutes, "Routes to plan", pendingRoutes ? "attention" : ""],
       [handoff.trolley_count || 0, "Trolleys prepared", ""],
-      [`${fmtNumber(productionLoad.known_vehicle_load_kg, 1)} kg`, "Known vehicle load", productionLoad.not_started_customers ? "attention" : ""],
+      [productionLoad.known_vehicle_load_kg || 0, "Known load (kg)", productionLoad.not_started_customers ? "attention" : "", 1],
       [(fleet.open_defects || 0) + (fleet.compliance_due || 0), "Fleet attention", (fleet.open_defects || fleet.compliance_due) ? "risk" : ""]
     ];
-    el.kpis.innerHTML = items.map(([value, label, cls]) => `<article class="${cls}"><strong>${esc(fmtNumber(value))}</strong><span>${esc(label)}</span></article>`).join("");
+    el.kpis.innerHTML = items.map(([value, label, cls, digits = 0]) => `<article class="${cls}"><strong>${esc(fmtNumber(value, digits))}</strong><span>${esc(label)}</span></article>`).join("");
   }
 
   function renderTabs() {
@@ -116,15 +123,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.tabs.innerHTML = tabs.map(([id, label]) => `<button class="distribution-tab ${state.activeTab === id ? "active" : ""}" data-tab="${id}" type="button">${label}</button>`).join("");
   }
 
-  function routeData() {
+  function routeData(data = state.data) {
     const byId = new Map();
-    routes().filter((route) => route.active).forEach((route) => byId.set(String(route.route_id), { ...route, stops: [], run: null }));
-    activeStops().forEach((stop) => {
+    routes(data).filter((route) => route.active).forEach((route) => byId.set(String(route.route_id), { ...route, stops: [], run: null }));
+    activeStops(data).forEach((stop) => {
       const key = String(stop.route_id || "");
       if (!byId.has(key)) byId.set(key, { route_id: stop.route_id, route_code: stop.route_code || "UNASSIGNED", display_name: stop.route_display_name || "Route not assigned", route_color: stop.route_color, stops: [], run: null });
       byId.get(key).stops.push(stop);
     });
-    runs().forEach((run) => {
+    runs(data).forEach((run) => {
       const key = String(run.route_id);
       if (!byId.has(key)) byId.set(key, { route_id: run.route_id, route_code: run.route_code, display_name: run.route_display_name, route_color: run.route_color, stops: [], run });
       else byId.get(key).run = run;
@@ -132,28 +139,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     return [...byId.values()].filter((route) => route.stops.length || route.run).sort((a, b) => String(a.route_code || "").localeCompare(String(b.route_code || "")));
   }
 
-  function handoffCount(routeId) {
-    const row = (state.data?.trolley_handoff?.routes || []).find((route) => String(route.route_id) === String(routeId));
+  function handoffCount(routeId, data = state.data) {
+    const row = (data?.trolley_handoff?.routes || []).find((route) => String(route.route_id) === String(routeId));
     return Number(row?.trolley_count || 0);
   }
 
-  function productionLoadForRoute(routeId) {
-    return (state.data?.production_load?.routes || []).find((route) => String(route.route_id) === String(routeId)) || null;
+  function productionLoadForRoute(routeId, data = state.data) {
+    return (data?.production_load?.routes || []).find((route) => String(route.route_id) === String(routeId)) || null;
+  }
+
+  const boardData = () => state.boardDay === "next" && state.nextData ? state.nextData : state.data;
+
+  function boardDayCard(data, key, label) {
+    const summary = data?.production_load?.summary || {};
+    const selected = state.boardDay === key;
+    return `<button class="distribution-board-day ${selected ? "active" : ""}" type="button" data-board-day="${key}" aria-pressed="${selected}"><span class="distribution-board-day-head"><span><small>${esc(label)}</small><strong>${esc(fmtDate(data?.business_date))}</strong></span><em>${selected ? "Showing details" : "View details"}</em></span><span class="distribution-board-day-metrics"><span><b>${fmtNumber(summary.ready_customers || 0)}/${fmtNumber(summary.scheduled_customers || 0)}</b> customers ready</span><span><b>${fmtNumber(summary.produced_kg || 0, 1)} kg</b> produced</span><span><b>${fmtNumber(summary.trolley_count || 0)}</b> trolleys</span><span><b>${summary.load_is_partial ? "&ge; " : ""}${fmtNumber(summary.known_vehicle_load_kg || 0, 1)} kg</b> known load</span></span></button>`;
   }
 
   function renderBoard() {
-    const list = routeData();
+    const data = boardData();
+    const list = routeData(data);
+    const dayCards = `<div class="distribution-board-days">${boardDayCard(state.data, "current", localDate(state.data?.business_date) === nextOperatingDate(isoToday()) ? "Delivery today" : "Selected delivery")}${boardDayCard(state.nextData, "next", "Next delivery")}</div>`;
     if (!list.length) {
-      el.panel.innerHTML = `<div class="distribution-empty">No scheduled Distribution stops exist for ${esc(fmtShortDate(state.data?.business_date))}.</div>`;
+      el.panel.innerHTML = `${dayCards}<div class="distribution-empty">No scheduled Distribution stops exist for ${esc(fmtShortDate(data?.business_date))}.</div>`;
       return;
     }
     const canPlan = Boolean(caps().can_plan_runs);
-    el.panel.innerHTML = `<div class="distribution-toolbar"><div><h2>Daily route board</h2><p>Published customer schedules are the source. Route runs hold the operational assignment for this day.</p></div><span>${esc(fmtDate(state.data?.business_date))}</span></div><div class="distribution-route-grid">${list.map((route) => {
+    el.panel.innerHTML = `${dayCards}<div class="distribution-toolbar"><div><h2>Daily route board</h2><p>Published customer schedules are the source. Route runs hold the operational assignment for this day.</p></div><span>${esc(fmtDate(data?.business_date))}</span></div><div class="distribution-route-grid">${list.map((route) => {
       const run = route.run;
       const kg = route.stops.reduce((sum, stop) => sum + Number(stop.estimated_kg || 0), 0);
       const stopUnits = route.stops.reduce((sum, stop) => sum + Number(stop.stop_units || 0), 0);
-      const load = productionLoadForRoute(route.route_id);
-      const trolley = Number(load?.trolley_count ?? handoffCount(route.route_id));
+      const load = productionLoadForRoute(route.route_id, data);
+      const trolley = Number(load?.trolley_count ?? handoffCount(route.route_id, data));
       const readyCustomers = Number(load?.ready_customers || 0);
       const scheduledCustomers = Number(load?.scheduled_customers || route.stops.length || 0);
       const producedKg = Number(load?.produced_kg || 0);
@@ -455,13 +472,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function load(date = el.date.value || nextOperatingDate()) {
     const value = nextOperatingDate(date);
+    const nextValue = nextDeliveryDate(value);
+    const dateChanged = Boolean(state.data?.business_date && localDate(state.data.business_date) !== value);
     if (value !== date) setMessage("Sunday is not an operating day. Showing Monday instead."); else setMessage("");
     el.date.value = value; el.refresh.disabled = true; el.panel.style.opacity = ".55";
     try {
-      const data = await rpc("get_distribution_operations_dashboard_v2", { p_business_date: value });
+      const [data, nextData] = await Promise.all([
+        rpc("get_distribution_operations_dashboard_v2", { p_business_date: value }),
+        rpc("get_distribution_operations_dashboard_v2", { p_business_date: nextValue })
+      ]);
       if (data?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
+      if (nextData?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
       if (!data?.capabilities?.can_view_distribution_operations) throw new Error("Your active role does not allow access to Distribution.");
-      state.data = data; render();
+      state.data = data; state.nextData = nextData; if (dateChanged) state.boardDay = "current"; render();
       if (state.activeTab === "customers") await loadRouteCustomers();
     } catch (error) {
       console.error(error); setMessage(error.message || "Distribution could not be loaded."); el.panel.innerHTML = `<div class="distribution-empty">${esc(error.message || "Distribution is unavailable.")}</div>`;
@@ -521,9 +544,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function optionList(items, selected, label, disabled) { return `<option value="">Not assigned</option>${items.map((item) => `<option value="${esc(item.id)}" ${String(item.id) === String(selected || "") ? "selected" : ""} ${item.disabled ? "disabled" : ""}>${esc(label(item))}</option>`).join("")}`; }
   function openRun(routeId) {
-    const route = routeData().find((item) => String(item.route_id) === String(routeId)); if (!route) return;
+    const data = boardData();
+    const route = routeData(data).find((item) => String(item.route_id) === String(routeId)); if (!route) return;
     const run = route.run || {}; const unavailableDriver = (driver) => driver.employment_status !== "ACTIVE" || driver.availability_status !== "AVAILABLE";
-    el.runTitle.textContent = route.display_name || route.route_code; el.runSubtitle.textContent = `${route.stops.length} scheduled stop${route.stops.length === 1 ? "" : "s"} · ${fmtDate(state.data.business_date)}`;
+    state.runBusinessDate = data.business_date;
+    el.runTitle.textContent = route.display_name || route.route_code; el.runSubtitle.textContent = `${route.stops.length} scheduled stop${route.stops.length === 1 ? "" : "s"} · ${fmtDate(data.business_date)}`;
     el.runId.value = run.run_id || ""; el.runRouteId.value = route.route_id; el.runVersion.value = run.row_version || ""; el.runStatus.value = run.run_status === "READY" ? "READY" : "DRAFT"; el.runNotes.value = run.dispatch_notes || "";
     el.runPrimary.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.primary_driver_id, (driver) => `${driver.display_name} · ${driver.driver_code}`);
     el.runSupport.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.support_driver_id, (driver) => `${driver.display_name} · ${driver.driver_code}`);
@@ -532,7 +557,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function saveRun() {
-    const payload = { run_id: el.runId.value || null, business_date: el.date.value, route_id: el.runRouteId.value, primary_driver_id: el.runPrimary.value || null, support_driver_id: el.runSupport.value || null, vehicle_id: el.runVehicle.value || null, run_status: el.runStatus.value, dispatch_notes: el.runNotes.value, row_version: el.runVersion.value || null };
+    const payload = { run_id: el.runId.value || null, business_date: state.runBusinessDate || el.date.value, route_id: el.runRouteId.value, primary_driver_id: el.runPrimary.value || null, support_driver_id: el.runSupport.value || null, vehicle_id: el.runVehicle.value || null, run_status: el.runStatus.value, dispatch_notes: el.runNotes.value, row_version: el.runVersion.value || null };
     const button = $("distributionRunSave"); button.disabled = true; setInline(el.runMessage, "");
     try { await rpc("save_distribution_route_run", { p_run: payload }); close(el.runDialog); setMessage("Route execution saved.", "success"); await load(el.date.value); }
     catch (error) { setInline(el.runMessage, error.message || "Route could not be saved."); } finally { button.disabled = false; }
@@ -541,7 +566,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function openStops(runId) {
     try {
       state.routeDetail = await rpc("get_distribution_route_run_detail", { p_run_id: runId });
-      const run = runs().find((item) => String(item.run_id) === String(runId));
+      const run = runs(boardData()).find((item) => String(item.run_id) === String(runId));
       el.stopTitle.textContent = run?.route_display_name || "Route stops"; el.stopSubtitle.textContent = `${fmtDate(state.routeDetail.business_date)} · ${titleCase(state.routeDetail.run_status)}`; setInline(el.stopMessage, "");
       renderStopList(); el.manualForm.classList.add("hidden"); el.addStop.hidden = !caps().can_plan_runs || !["DRAFT", "READY"].includes(state.routeDetail.run_status); el.stopDialog.showModal();
     } catch (error) { setMessage(error.message || "Route stops could not be loaded."); }
@@ -792,6 +817,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function switchDistributionTab(tabId) { const next = distributionTabIds.includes(tabId) ? tabId : "board"; if (next === state.activeTab) return; state.activeTab = next; if (location.hash !== `#${state.activeTab}`) history.replaceState(null, "", `#${state.activeTab}`); if (state.activeTab === "customers") { render(); await loadRouteCustomers(); } else if (state.activeTab === "roster") await loadRoster(); else if (state.activeTab === "actuals") await loadActuals(); else if (state.activeTab === "history") await loadHistory(); else render(); }
   el.tabs.addEventListener("click", async (event) => { const button = event.target.closest("[data-tab]"); if (!button) return; await switchDistributionTab(button.dataset.tab); });
   window.addEventListener("hashchange", () => switchDistributionTab(String(location.hash || "").replace("#", "")));
+  el.panel.addEventListener("click", (event) => { const button = event.target.closest("[data-board-day]"); if (!button) return; state.boardDay = button.dataset.boardDay === "next" ? "next" : "current"; renderBoard(); event.stopImmediatePropagation(); });
   el.panel.addEventListener("click", (event) => { const routeCustomersToggle = event.target.closest("[data-route-customers-toggle]"); const routeCustomersAction = event.target.closest("[data-route-customers-action]"); const rosterDriver = event.target.closest("[data-roster-driver]"); const rosterCell = event.target.closest("[data-roster-route]"); const rosterSave = event.target.closest("[data-roster-save]"); const rosterPublish = event.target.closest("[data-roster-publish]"); const rosterShift = event.target.closest("[data-roster-week-shift]"); const actualsSave = event.target.closest("[data-actuals-save]"); const actualsShift = event.target.closest("[data-actuals-week-shift]"); const historyRefresh = event.target.closest("[data-history-refresh]"); const plan = event.target.closest("[data-route-plan]"); const stops = event.target.closest("[data-route-stops]"); const status = event.target.closest("[data-route-status]"); const master = event.target.closest("[data-master-action]"); if (routeCustomersToggle) { const key = routeCustomersToggle.dataset.routeCustomersToggle; if (state.routeCustomersCollapsed.has(key)) state.routeCustomersCollapsed.delete(key); else state.routeCustomersCollapsed.add(key); renderRouteCustomers(); } else if (routeCustomersAction) { if (routeCustomersAction.dataset.routeCustomersAction === "expand") state.routeCustomersCollapsed.clear(); else routeCustomerGroups(state.routeCustomersWeekly?.items || []).forEach((group) => state.routeCustomersCollapsed.add(routeCustomerKey(group))); renderRouteCustomers(); } else if (rosterDriver) openRosterEntryForDriver(rosterDriver.dataset.rosterDriver, rosterDriver.dataset.rosterDate); else if (rosterCell) openRosterEntryLegacy(rosterCell.dataset.rosterRoute, rosterCell.dataset.rosterDate); else if (rosterSave) saveRoster(); else if (rosterPublish) publishRoster(); else if (rosterShift) { const date = new Date(`${state.roster.week_start}T12:00:00`); date.setDate(date.getDate() + Number(rosterShift.dataset.rosterWeekShift) * 7); loadRoster(date.toISOString().slice(0, 10)); } else if (actualsSave) saveActuals(); else if (actualsShift) { const date = new Date(`${state.actuals.week_start}T12:00:00`); date.setDate(date.getDate() + Number(actualsShift.dataset.actualsWeekShift) * 7); loadActuals(date.toISOString().slice(0, 10)); } else if (historyRefresh) loadHistory(); else if (plan) openRun(plan.dataset.routePlan); else if (stops) openStops(stops.dataset.routeStops); else if (status) setRunStatus(status.dataset.runId, status.dataset.routeStatus); else if (master) { const [action, id] = master.dataset.masterAction.split(":"); if (action === "new-driver") openMaster("driver"); if (action === "new-vehicle") openMaster("vehicle"); if (action === "new-route") openMaster("route"); if (action === "edit-driver") openMaster("driver", drivers().find((item) => String(item.driver_id) === id)); if (action === "edit-vehicle") openMaster("vehicle", vehicles().find((item) => String(item.vehicle_id) === id)); if (action === "edit-route") openMaster("route", routes().find((item) => String(item.route_id) === id)); if (action === "leave-driver") openMaster("absence", { driver_id: id }); if (action === "maintenance-vehicle") openMaster("maintenance", { vehicle_id: id }); if (action === "defect-vehicle") openMaster("defect", { vehicle_id: id }); } });
   el.runForm.addEventListener("submit", (event) => { event.preventDefault(); saveRun(); }); el.masterForm.addEventListener("submit", (event) => { event.preventDefault(); saveMaster(); }); el.rosterForm.addEventListener("submit", (event) => { event.preventDefault(); applyRosterEntry(); }); el.rosterStatus.addEventListener("change", syncRosterEntryControls);
   el.rosterDialog.addEventListener("click", (event) => {
