@@ -280,7 +280,7 @@
 
 
       <section class="sorting-view" data-view-panel="tracker" hidden>
-        <section class="production-tracker-shell sorting-embedded-production-tracker">
+        <section class="production-tracker-shell sorting-embedded-production-tracker" data-default-view="list">
           <button id="productionTrackerSignOut" type="button" hidden>Sign out</button>
           <main class="production-tracker-main">
             <p id="productionTrackerMessage" class="production-tracker-message" aria-live="polite"></p>
@@ -331,8 +331,8 @@
                     <option value="MOP">MOP only</option>
                   </select>
                   <div class="production-tracker-view-switch" role="group" aria-label="Tracker view">
-                    <button id="productionTrackerBoardView" class="active" type="button" aria-pressed="true">Route board</button>
-                    <button id="productionTrackerListView" type="button" aria-pressed="false">Operational list</button>
+                    <button id="productionTrackerBoardView" type="button" aria-pressed="false">Route board</button>
+                    <button id="productionTrackerListView" class="active" type="button" aria-pressed="true">Operational list</button>
                   </div>
                   <div class="production-tracker-route-actions">
                     <button id="productionTrackerExpandAll" type="button">Expand all</button>

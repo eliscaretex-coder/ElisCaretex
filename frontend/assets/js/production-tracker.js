@@ -13,7 +13,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     expandAll: $("productionTrackerExpandAll"), collapseAll: $("productionTrackerCollapseAll"), routeActions: document.querySelector(".production-tracker-route-actions"),
     historyDialog: $("productionTrackerHistoryDialog"), historyClose: $("productionTrackerHistoryClose"), historyCancel: $("productionTrackerHistoryCancel"), historyLoad: $("productionTrackerHistoryLoad"), historyInput: $("productionTrackerHistoryInput"), historyMessage: $("productionTrackerHistoryMessage")
   };
-  const initialView = new URLSearchParams(location.search).get("view");
+  const trackerShell = document.querySelector(".production-tracker-shell");
+  const initialView = new URLSearchParams(location.search).get("view") || trackerShell?.dataset.defaultView;
   const state = { data: null, date: "", today: "", history: false, dayStats: {}, collapsedRoutes: new Set(), view: String(initialView || "").toUpperCase() === "LIST" ? "LIST" : "BOARD" };
   const esc = (v) => String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   const titleCode = (v) => String(v || "").toLowerCase().split("_").map(x=>x?x[0].toUpperCase()+x.slice(1):"").join(" ");
