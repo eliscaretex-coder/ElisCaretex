@@ -459,7 +459,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.date.value = value; el.refresh.disabled = true; el.panel.style.opacity = ".55";
     try {
       const data = await rpc("get_distribution_operations_dashboard_v2", { p_business_date: value });
-      if (data?.schema_version !== "DISTRIBUTION_OPERATIONS_V1") throw new Error("Distribution backend is out of date. Apply the Distribution Operations migration.");
+      if (data?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
       if (!data?.capabilities?.can_view_distribution_operations) throw new Error("Your active role does not allow access to Distribution.");
       state.data = data; render();
       if (state.activeTab === "customers") await loadRouteCustomers();
