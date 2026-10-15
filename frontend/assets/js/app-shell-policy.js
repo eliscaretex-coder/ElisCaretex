@@ -192,7 +192,6 @@
         { id:"sorting-washing", label:"Washing", href:"./pages/sorting.html#washing" },
         { id:"sorting-trolley", label:"Trolley Intake", href:"./pages/sorting.html#trolley" },
         { id:"sorting-mop", label:"MOP Production", href:"./pages/mop-production.html" },
-        { id:"sorting-tracker", label:"Production Tracker", href:"./pages/sorting.html#tracker" },
         { id:"sorting-staff", label:"Staff", href:"./pages/sorting.html#staff" }
       ]
     },
