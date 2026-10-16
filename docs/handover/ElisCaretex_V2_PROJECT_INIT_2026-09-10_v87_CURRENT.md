@@ -1,13 +1,13 @@
-# ElisCaretex V2 - Authoritative AI Project INIT v88
+# ElisCaretex V2 - Authoritative AI Project INIT v89
 
-**Handover date:** 2026-09-26
+**Handover date:** 2026-10-16
 
 **Purpose:** authoritative AI-to-AI continuation guide for the ElisCaretex V2 laundry operations platform.
 
-**Repository state reviewed through:** commit `67b0d93` plus this INIT update.
-**Supersedes:** INIT v87 and every older INIT/handover snapshot.
+**Repository state reviewed through:** commit `467735a` plus this INIT update.
+**Supersedes:** INIT v88 and every older INIT/handover snapshot.
 
-The filename is retained for compatibility with existing links. The content is v88 and current as of 2026-09-26.
+The filename is retained for compatibility with existing links. The content is v89 and current as of 2026-10-16.
 
 ## 1. Read this first
 
@@ -19,7 +19,7 @@ Current Supabase development project:
 name: ElisCaretex-dev
 project ref: fcimmysqifzxoanmpylh
 region: eu-west-1
-status verified 2026-09-26: ACTIVE_HEALTHY
+database access and advisors verified 2026-10-16: available
 PostgreSQL: 17.6.1.147
 ```
 
@@ -37,7 +37,7 @@ Code, database objects, filenames, and UI text stay in English. Conversation wit
 Current Codex working repository:
 
 ```text
-C:/Users/paulob/Documents/Codex/2026-09-23/le/work/laundry-platform-v2-access
+C:/Users/paulob/Documents/Codex/2026-09-26/en/work/laundry-platform-v2
 branch: master
 remote: https://github.com/eliscaretex-coder/ElisCaretex.git
 ```
@@ -60,7 +60,7 @@ Local development normally serves `frontend/`, for example:
 http://127.0.0.1:5500/frontend/index.html
 ```
 
-The workflow `.github/workflows/pages.yml` deploys the `frontend` directory from `master`.
+The workflow `.github/workflows/pages.yml` validates all frontend JavaScript and pinned Supabase browser imports before deploying the `frontend` directory from `master`.
 
 Before work:
 
@@ -145,6 +145,11 @@ The application received a cross-page visual refresh based on the owner's Finish
 - Finish top-right shift/table controls have corrected readable colours.
 
 Preserve this shared shell. Do not introduce a page-specific visual system unless there is a strong operational reason.
+
+Operational master data may be incomplete during rollout. Missing staff defaults,
+driver compliance dates and fleet details must be shown as visible warnings in the
+relevant screens. They are not hard requirements for saving unrelated operational
+work unless a specific workflow rule explicitly requires the value.
 
 ## 6. Identity model, jobs, accounts and permissions
 
@@ -347,7 +352,7 @@ This guide is mandatory reading. Key rules:
 
 Existing staging support already covers legacy customers/schedules and roster/leave. Finish, ReWash, MOP, Sorting, trolley and Distribution source formats require source-specific restricted staging tables and reviewed promotion logic after the actual exports are supplied.
 
-## 14. Supabase state verified 2026-09-26
+## 14. Supabase state verified 2026-10-16
 
 Recent live migration groups include:
 
@@ -361,6 +366,10 @@ Recent live migration groups include:
             personal sent-notice cleanup.
 20260926: Production Intelligence foundation, breakdowns, Sorting/trolleys,
             seasonality and forward capacity.
+20261015: Distribution Daily Route Board production-load visibility for the
+            current and next delivery dates.
+20261016: public-view security hardening, internal RPC grant correction and
+            immutable function search paths.
 ```
 
 Active Edge Functions:
@@ -377,7 +386,14 @@ supabase/functions/production-roster-leave-email/index.ts
 supabase/functions/admin-account-management/index.ts
 ```
 
-The database has many governed `SECURITY DEFINER` RPCs. Run Supabase security advisors after new database work. An existing recommendation remains to enable leaked-password protection in Supabase Auth. Also review advisor warnings methodically; do not remove legitimate authenticated RPC execution without understanding their internal guards.
+Seven exposed views were changed to `security_invoker` and anonymous view access
+was revoked. Internal privileged RPCs no longer inherit anonymous execution from
+`PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
+The 13 mutable function search-path warnings were cleared. Run Supabase security
+advisors after new database work. Remaining platform-level recommendations include
+enabling leaked-password protection in Supabase Auth and reviewing the `btree_gist`
+extension location. Do not remove legitimate authenticated RPC execution without
+understanding its internal guards.
 
 ## 15. Recent Git milestones
 
@@ -401,37 +417,44 @@ f04f0eb  Sorting and trolley intelligence
 cdcf7af  customer seasonality intelligence
 13b98f7  forward demand/capacity planning
 67b0d93  Apps Script data import contract
+d486c40  refreshed authoritative handover
+f43ac2c  MOP trolley validation and terminal ABS attribution
+345f22a  shared Operational List for Sorting Production Tracker
+ffcfc08  clearer not-started and active Production Tracker states
+6a31913  real production load on the Distribution Daily Route Board
+30699db  current and next delivery load comparison
+467735a  security hardening, operational warnings and deployment validation
 ```
 
 Use Git history for detailed file-level evidence.
 
 ## 16. Known constraints and open risks
 
-1. Current operational database data is largely test data and must not be treated as real historical performance.
-2. Production Intelligence remains in learning state until real official Finish/MOP history is imported.
+1. Current-day operational activity remains pre-production/test activity. Imported historical production must retain source provenance and be reconciled before it is treated as authoritative management reporting.
+2. Production Intelligence remains in learning state until imported Finish/MOP history is reconciled and accepted by the owner.
 3. Forward capacity needs published future Finish rosters; missing publication is shown explicitly.
 4. Historical Apps Script source formats still need to be inventoried and converted source by source.
 5. Customer Service/complaints remains future work.
-6. Full role/action negative testing is still needed across modules.
-7. Browser acceptance coverage for critical workflows is incomplete.
+6. Read-only browser acceptance passed for ADMIN, Sorting terminal and Finish terminal on desktop and mobile. Destructive/action-level negative testing is still needed across modules.
+7. A controlled end-to-end Intake -> Washing -> Finish/MOP -> Tracker -> Distribution test is still required after deployment, followed by cleanup of the test evidence.
 8. Supabase leaked-password protection should be enabled.
 9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
 10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
 11. The older correction register predates several 2026-09-24 to 2026-09-26 features. Current source, Git history, live Supabase state and this INIT override stale register entries.
+12. Terminal accounts can emit a non-blocking `Notification summary could not be loaded` console warning. The notification bootstrap should skip or cleanly handle accounts without notification permission.
 
 ## 17. Recommended next work
 
 Priority order:
 
-1. **Inventory Apps Script exports.** List each file/sheet/object, date range, key, row count and data meaning.
-2. **Build the import pipeline one domain at a time.** Start with identity/master mappings, then official Finish/MOP history needed by Production Intelligence.
-3. **Reconcile official production.** Compare source and target KG by date, customer, shift, table/product and batch.
-4. **Publish representative future rosters** and validate six-week demand/capacity once real history exists.
-5. **Run role-based acceptance tests** for ADM, managers, supervisors, General Operatives, terminals and Distribution isolation.
-6. **Complete security hardening,** including leaked-password protection and focused RPC/permission review.
-7. **Expand manager analytics** only after real-data quality is proven: day/shift/table trends, capacity efficiency, customer seasonality, trolley flow and Distribution performance.
-8. **Improve automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
-9. Resume Customer Service only with owner-provided form/flow definitions.
+1. **Run the controlled cross-area acceptance flow.** Exercise Intake, Washing, Finish/MOP, Production Tracker and Distribution without mixing the evidence with real production; verify cancellation/correction and clean up the test records afterward.
+2. **Remove the terminal notification warning** and add a regression check for terminal accounts without notification permission.
+3. **Complete operational master data gradually.** Use the non-blocking Staff, Driver and Fleet warnings; do not introduce blanket save requirements.
+4. **Inventory and reconcile remaining Apps Script exports.** Compare source and target counts/KG by date, customer, shift, table/product and batch.
+5. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
+6. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
+7. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
+8. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
 
 Do not build advanced analytics on unvalidated legacy data. Data provenance and reconciliation come first.
 
@@ -450,4 +473,4 @@ Do not build advanced analytics on unvalidated legacy data. Data provenance and 
 
 ## 19. Authority statement
 
-This INIT v88 is the handover authority as of 2026-09-26. Current source, current Git history, current live Supabase state, and explicit owner decisions override older INIT files, ZIP baselines, screenshots, stale generated reports and historical assumptions.
+This INIT v89 is the handover authority as of 2026-10-16. Current source, current Git history, current live Supabase state, and explicit owner decisions override older INIT files, ZIP baselines, screenshots, stale generated reports and historical assumptions.
