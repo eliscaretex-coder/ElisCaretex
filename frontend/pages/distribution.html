@@ -14,7 +14,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20260925-1" defer></script>
-  <script src="../assets/js/distribution.js?v=20261015-3" defer></script>
+  <script src="../assets/js/distribution.js?v=20261016-1" defer></script>
 </head>
 <body class="distribution-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -122,11 +122,11 @@
   </dialog>
 
   <dialog id="distributionMasterDialog" class="distribution-dialog">
-    <form id="distributionMasterForm" method="dialog" onsubmit="return false;">
+    <form id="distributionMasterForm" method="dialog">
       <header><div><p id="distributionMasterEyebrow">Distribution master</p><h2 id="distributionMasterTitle">Record</h2></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionMasterDialog" aria-label="Close">×</button></header>
       <div id="distributionMasterFields" class="distribution-form-grid"></div>
       <p id="distributionMasterMessage" class="distribution-inline-message" aria-live="polite"></p>
-      <footer><button class="distribution-button secondary" type="button" data-close-dialog="distributionMasterDialog">Cancel</button><button id="distributionMasterSave" class="distribution-button primary" type="submit">Save</button></footer>
+      <footer><button class="distribution-button secondary" type="button" data-close-dialog="distributionMasterDialog">Cancel</button><button id="distributionMasterSave" class="distribution-button primary" type="button">Save</button></footer>
     </form>
   </dialog>
 </body>

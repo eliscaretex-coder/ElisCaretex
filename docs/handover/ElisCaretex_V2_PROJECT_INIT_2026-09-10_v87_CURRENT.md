@@ -436,7 +436,7 @@ Use Git history for detailed file-level evidence.
 4. Historical Apps Script source formats still need to be inventoried and converted source by source.
 5. Customer Service/complaints remains future work.
 6. Read-only browser acceptance passed for ADMIN, Sorting terminal and Finish terminal on desktop and mobile. Destructive/action-level negative testing is still needed across modules.
-7. A controlled end-to-end Intake -> Washing -> Finish/MOP -> Tracker -> Distribution test is still required after deployment, followed by cleanup of the test evidence.
+7. A controlled Clothes Intake -> Washing -> Finish -> Tracker -> Distribution flow passed on 2026-10-16 and its evidence was removed. The equivalent MOP/ABS and governed cancellation/correction paths remain to be exercised.
 8. Supabase leaked-password protection should be enabled.
 9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
 10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
@@ -446,7 +446,7 @@ Use Git history for detailed file-level evidence.
 
 Priority order:
 
-1. **Run the controlled cross-area acceptance flow.** Exercise Intake, Washing, Finish/MOP, Production Tracker and Distribution without mixing the evidence with real production; verify cancellation/correction and clean up the test records afterward.
+1. **Complete controlled cross-area acceptance.** The Clothes path and Distribution load visibility passed with cleanup on 2026-10-16. Exercise the MOP/ABS path plus cancellation/correction and clean up its test evidence afterward.
 2. **Complete operational master data gradually.** Use the non-blocking Staff, Driver and Fleet warnings; do not introduce blanket save requirements.
 3. **Inventory and reconcile remaining Apps Script exports.** Compare source and target counts/KG by date, customer, shift, table/product and batch.
 4. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
