@@ -291,6 +291,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const access = item.accessAccount;
     const accessLabel = !access ? "Access pending" : access.last_sign_in_at ? "Access active" : "Invitation pending";
     const accessTone = !access || !access.last_sign_in_at ? "pending" : "active";
+    const setupMissing = item.active && (!item.default_shift_name || !item.default_area_name || !item.primary_role_name);
+    const reviewLabel = item.import_review_required
+      ? `<span class="staff-review-chip" title="${escapeHtml(item.import_review_notes || "Review required")}">Review required</span>`
+      : setupMissing
+        ? '<span class="staff-review-chip" title="Add the default shift, area and primary operational role.">Setup incomplete</span>'
+        : '<span class="staff-subtext">—</span>';
     return `
       <tr>
         <td>
@@ -307,7 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <strong>Joined:</strong> ${formatDate(item.joined_on)}<br>
           <span class="staff-subtext">Deactivated: ${formatDate(item.deactivated_on)}</span>
         </td>
-        <td>${item.import_review_required ? `<span class="staff-review-chip" title="${escapeHtml(item.import_review_notes || "Review required")}">Review required</span>` : '<span class="staff-subtext">—</span>'}</td>
+        <td>${reviewLabel}</td>
         <td>${rowActions(item)}</td>
       </tr>
     `;

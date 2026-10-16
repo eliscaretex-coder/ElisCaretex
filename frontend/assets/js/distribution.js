@@ -259,6 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function manageButton(label, action, enabled = true) { return enabled ? `<button class="distribution-button secondary" type="button" data-master-action="${action}">${label}</button>` : ""; }
   function driverCompliance(driver) {
+    if (!driver.licence_expires_on || !driver.cpc_expires_on) return ["Dates incomplete", "warn"];
     const dates = [driver.licence_expires_on, driver.cpc_expires_on].filter(Boolean).map((value) => new Date(`${localDate(value)}T12:00:00`));
     const soon = dates.some((date) => date <= new Date(Date.now() + 30 * 86400000));
     const expired = dates.some((date) => date < new Date(`${isoToday()}T12:00:00`));
@@ -276,6 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const today = new Date(`${isoToday()}T12:00:00`);
     if (dates.some((date) => date < today)) return ["Compliance expired", "danger"];
     if (dates.some((date) => date <= new Date(Date.now() + 30 * 86400000))) return ["Compliance due", "warn"];
+    if (!vehicle.capacity_kg || !vehicle.capacity_trolleys || !vehicle.insurance_expires_on || !vehicle.test_expires_on) return ["Details incomplete", "warn"];
     return ["Compliance OK", ""];
   }
 

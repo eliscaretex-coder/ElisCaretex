@@ -1,0 +1,13 @@
+alter function public.production_roster_week_start(date) set search_path = pg_catalog, public;
+alter function public.require_draft_schedule_parent() set search_path = pg_catalog, public;
+alter function public.set_updated_at_and_row_version() set search_path = pg_catalog, public;
+alter function public.set_updated_at() set search_path = pg_catalog, public;
+alter function public.sorting_resolve_attendance_status(text,integer,boolean,boolean,boolean) set search_path = pg_catalog, public;
+alter function public.sorting_trolley_intake_state(integer,integer,integer,integer,integer,integer) set search_path = pg_catalog, public;
+alter function public.sorting_trolley_receipt_status(integer,integer) set search_path = pg_catalog, public;
+alter function public.validate_schedule_product_variant() set search_path = pg_catalog, public;
+alter function public.validate_schedule_trolley_requirement_product() set search_path = pg_catalog, public;
+alter function public.validate_schedule_trolley_requirement() set search_path = pg_catalog, public;
+alter function public.weekday_name(smallint) set search_path = pg_catalog, public;
+alter function staging.parse_legacy_delivery_window(text) set search_path = pg_catalog, public, staging;
+alter function staging.parse_legacy_trolley_text(text) set search_path = pg_catalog, public, staging;

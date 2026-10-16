@@ -844,7 +844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ? "EMPTY ONLY · WASHING LOCKED"
                     : "WAITING TROLLEY SCAN";
               if(!washed&&!scanReady&&otherReceipt){
-                gateLabel=`RECEIVED AS ${esc(intakeProductCodes(otherReceipt).join(" + "))} Â· FIX IN INTAKE`;
+                gateLabel=`RECEIVED AS ${esc(intakeProductCodes(otherReceipt).join(" + "))} · FIX IN INTAKE`;
               }
               const dotClass=washed?"done":scanReady?"scan-ready":otherReceipt?"other-service":emptyOnly?"empty-only":"pending";
               return `<div class="sorting-today-item${routeColor?" route-colored":""}${washed?" is-washed":""}${scanReady?" wash-scan-ready":""}${otherReceipt?" wash-other-service":""}${emptyOnly?" wash-empty-only":""}${washedNoScan?" wash-no-scan":""}"${routeStyle}
@@ -1213,11 +1213,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function loadWashing(){
-    try{state.washing=await rpc("get_sorting_washing_context_v4",{p_shift_code:state.shift});}
-    catch(error){console.warn("Washing context V4 not available; using V3 until Migration 031 is applied.",error);state.washing=await rpc("get_sorting_washing_context_v3",{p_shift_code:state.shift});}
-    let board;
-    try{board=await rpc("get_sorting_customer_board_v4",{p_shift_code:state.shift});}
-    catch(error){console.warn("Washing board V4 not available; using V3 until Migration 030 is applied.",error);board=await rpc("get_sorting_customer_board_v3",{p_shift_code:state.shift});}
+    state.washing=await rpc("get_sorting_washing_context_v4",{p_shift_code:state.shift});
+    const board=await rpc("get_sorting_customer_board_v4",{p_shift_code:state.shift});
     if(state.washing){
       state.washing.today_customers=Array.isArray(board?.customers)?board.customers:[];
       state.washing.unscheduled_scan_customers=Array.isArray(board?.unscheduled_scan_customers)?board.unscheduled_scan_customers:[];
@@ -3241,12 +3238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function loadSorting(){
-    try{
-      state.sorting=await rpc("get_sorting_trolley_intake_context_v3",{p_shift_code:state.shift});
-    }catch(error){
-      console.warn("Reception V3 not available; using V2 until Migration 030 is applied.",error);
-      state.sorting=await rpc("get_sorting_trolley_intake_context_v2",{p_shift_code:state.shift});
-    }
+    state.sorting=await rpc("get_sorting_trolley_intake_context_v3",{p_shift_code:state.shift});
     renderTrolleyStaffBar();
     renderTrolleySummary();
     renderArrivals();
