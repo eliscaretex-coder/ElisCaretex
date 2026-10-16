@@ -441,20 +441,18 @@ Use Git history for detailed file-level evidence.
 9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
 10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
 11. The older correction register predates several 2026-09-24 to 2026-09-26 features. Current source, Git history, live Supabase state and this INIT override stale register entries.
-12. Terminal accounts can emit a non-blocking `Notification summary could not be loaded` console warning. The notification bootstrap should skip or cleanly handle accounts without notification permission.
 
 ## 17. Recommended next work
 
 Priority order:
 
 1. **Run the controlled cross-area acceptance flow.** Exercise Intake, Washing, Finish/MOP, Production Tracker and Distribution without mixing the evidence with real production; verify cancellation/correction and clean up the test records afterward.
-2. **Remove the terminal notification warning** and add a regression check for terminal accounts without notification permission.
-3. **Complete operational master data gradually.** Use the non-blocking Staff, Driver and Fleet warnings; do not introduce blanket save requirements.
-4. **Inventory and reconcile remaining Apps Script exports.** Compare source and target counts/KG by date, customer, shift, table/product and batch.
-5. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
-6. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
-7. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
-8. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
+2. **Complete operational master data gradually.** Use the non-blocking Staff, Driver and Fleet warnings; do not introduce blanket save requirements.
+3. **Inventory and reconcile remaining Apps Script exports.** Compare source and target counts/KG by date, customer, shift, table/product and batch.
+4. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
+5. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
+6. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
+7. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
 
 Do not build advanced analytics on unvalidated legacy data. Data provenance and reconciliation come first.
 

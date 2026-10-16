@@ -432,7 +432,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMessage(adminAppMessage, "Sign-in confirmed.", "success");
   }
 
-  async function renderNotificationAttention() {
+  async function renderNotificationAttention(canViewNotifications) {
+    if (!canViewNotifications) return;
     try {
       const { data, error } = await client.rpc("get_my_notification_summary");
       if (error) throw error;
@@ -490,6 +491,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const roleCodes = activeRoleCodes(profile);
+    const access = shellPolicy.navigationAccess(
+      roleCodes,
+      shellPolicy.permissionOverrides(profile)
+    );
 
     if (roleCodes.length === 0 && !(profile.permissions || []).length) {
       throw new Error("This account has no active access permission.");
@@ -504,7 +509,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderOperationalShell(profile, roleCodes);
       showOperationalShell();
     }
-    await renderNotificationAttention();
+    await renderNotificationAttention(
+      access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS)
+    );
   }
 
   async function signOut(button) {
