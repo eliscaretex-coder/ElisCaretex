@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const activeStops = (data = state.data) => Array.isArray(data?.reference_stops) ? data.reference_stops : [];
   const runs = (data = state.data) => Array.isArray(data?.runs) ? data.runs : [];
   const routes = (data = state.data) => Array.isArray(data?.routes) ? data.routes : [];
-  const drivers = () => Array.isArray(state.data?.drivers) ? state.data.drivers : [];
+  const drivers = () => Array.isArray(state.driverMaster) ? state.driverMaster : (Array.isArray(state.data?.drivers) ? state.data.drivers : []);
   const vehicles = () => Array.isArray(state.data?.vehicles) ? state.data.vehicles : [];
   const rosterEntries = () => Array.isArray(state.roster?.entries) ? state.roster.entries : [];
   const rosterRoutes = () => Array.isArray(state.roster?.routes) ? state.roster.routes : [];
@@ -504,14 +504,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (value !== date) setMessage("Sunday is not an operating day. Showing Monday instead."); else setMessage("");
     el.date.value = value; el.refresh.disabled = true; el.panel.style.opacity = ".55";
     try {
-      const [data, nextData] = await Promise.all([
+      const [data, nextData, driverMaster] = await Promise.all([
         rpc("get_distribution_operations_dashboard_v2", { p_business_date: value }),
-        rpc("get_distribution_operations_dashboard_v2", { p_business_date: nextValue })
+        rpc("get_distribution_operations_dashboard_v2", { p_business_date: nextValue }),
+        rpc("get_distribution_driver_master")
       ]);
       if (data?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
       if (nextData?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
       if (!data?.capabilities?.can_view_distribution_operations) throw new Error("Your active role does not allow access to Distribution.");
-      state.data = data; state.nextData = nextData; if (dateChanged) state.boardDay = "current"; render();
+      state.data = data; state.nextData = nextData; state.driverMaster = driverMaster; if (dateChanged) state.boardDay = "current"; render();
       if (state.activeTab === "customers") await loadRouteCustomers();
     } catch (error) {
       console.error(error); setMessage(error.message || "Distribution could not be loaded."); el.panel.innerHTML = `<div class="distribution-empty">${esc(error.message || "Distribution is unavailable.")}</div>`;
@@ -635,10 +636,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<label class="${wide ? "wide" : ""}"><span>${esc(label)}</span>${control}</label>`;
   }
 
+  function nextDriverCode() {
+    const highest = drivers().reduce((max, driver) => {
+      const match = /^DRV-(\d+)$/i.exec(String(driver.driver_code || ""));
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    return `DRV-${String(highest + 1).padStart(3, "0")}`;
+  }
+
+  function driverLicenceFields(selected = []) {
+    const values = new Set(Array.isArray(selected) ? selected.map((value) => String(value).toUpperCase()) : []);
+    return `<fieldset class="distribution-driver-licences"><legend>Licence type</legend><div>${["B", "C", "D"].map((category) => `<label><input type="checkbox" value="${category}" data-master-licence ${values.has(category) ? "checked" : ""}><span>${category}</span></label>`).join("")}</div><small>Select every category held by this driver.</small></fieldset>`;
+  }
+
   function openMaster(kind, item = {}) {
     state.master = { kind, item }; setInline(el.masterMessage, ""); const title = { driver: "Driver", vehicle: "Vehicle", route: "Route", absence: "Driver leave", maintenance: "Vehicle maintenance", defect: "Vehicle defect" }[kind];
     el.masterEyebrow.textContent = kind === "route" ? "Route master" : kind === "vehicle" || kind === "maintenance" || kind === "defect" ? "Fleet" : "Driver management"; el.masterTitle.textContent = item[`${kind}_id`] ? `Edit ${title}` : `Add ${title}`;
-    if (kind === "driver") el.masterFields.innerHTML = field("driver_id", "", "hidden", item.driver_id || "") + field("driver_code", "Driver code", "text", item.driver_code || "") + field("display_name", "Full name", "text", item.display_name || "") + field("phone", "Phone", "text", item.phone || "") + field("email", "Email", "email", item.email || "") + field("licence_number", "Licence number", "text", item.licence_number || "") + field("licence_expires_on", "Licence expiry", "date", localDate(item.licence_expires_on)) + field("cpc_expires_on", "CPC expiry", "date", localDate(item.cpc_expires_on)) + field("employment_status", "Employment", "select", item.employment_status || "ACTIVE", [["ACTIVE","Active"],["INACTIVE","Inactive"],["SUSPENDED","Suspended"]]) + field("availability_status", "Availability", "select", item.availability_status || "AVAILABLE", [["AVAILABLE","Available"],["LEAVE","Leave"],["UNAVAILABLE","Unavailable"]]) + field("notes", "Notes", "textarea", item.notes || "", null, true);
+    if (kind === "driver") {
+      el.masterFields.innerHTML = field("driver_id", "", "hidden", item.driver_id || "") + field("driver_code", "Driver code", "text", item.driver_code || nextDriverCode()) + field("display_name", "Full name", "text", item.display_name || "") + field("phone", "Phone", "text", item.phone || "") + field("email", "Email", "email", item.email || "") + field("licence_number", "Licence number", "text", item.licence_number || "") + driverLicenceFields(item.licence_categories) + field("licence_expires_on", "Licence expiry", "date", localDate(item.licence_expires_on)) + field("cpc_expires_on", "CPC expiry", "date", localDate(item.cpc_expires_on)) + field("employment_status", "Employment", "select", item.employment_status || "ACTIVE", [["ACTIVE","Active"],["INACTIVE","Inactive"],["SUSPENDED","Suspended"]]) + field("availability_status", "Availability", "select", item.availability_status || "AVAILABLE", [["AVAILABLE","Available"],["LEAVE","Leave"],["UNAVAILABLE","Unavailable"]]) + field("notes", "Notes", "textarea", item.notes || "", null, true);
+      const codeInput = el.masterFields.querySelector('[data-master-key="driver_code"]');
+      if (codeInput) { codeInput.readOnly = true; codeInput.setAttribute("aria-readonly", "true"); codeInput.title = "Generated automatically and cannot be changed."; }
+    }
     if (kind === "vehicle") el.masterFields.innerHTML = field("vehicle_id", "", "hidden", item.vehicle_id || "") + field("registration_number", "Registration", "text", item.registration_number || "") + field("display_name", "Vehicle name", "text", item.display_name || "") + field("vehicle_type", "Type", "select", item.vehicle_type || "TRUCK", [["TRUCK","Truck"],["VAN","Van"],["OTHER","Other"]]) + field("operational_status", "Operational status", "select", item.operational_status || "AVAILABLE", [["AVAILABLE","Available"],["MAINTENANCE","Maintenance"],["OUT_OF_SERVICE","Out of service"]]) + field("capacity_kg", "Capacity KG", "number", item.capacity_kg || "") + field("capacity_trolleys", "Trolley capacity", "number", item.capacity_trolleys || "") + field("odometer_km", "Odometer KM", "number", item.odometer_km || "") + field("road_tax_expires_on", "Road tax expiry", "date", localDate(item.road_tax_expires_on)) + field("insurance_expires_on", "Insurance expiry", "date", localDate(item.insurance_expires_on)) + field("test_expires_on", "Test expiry", "date", localDate(item.test_expires_on)) + field("service_due_on", "Service due", "date", localDate(item.service_due_on)) + field("notes", "Notes", "textarea", item.notes || "", null, true);
     if (kind === "route") el.masterFields.innerHTML = field("route_id", "", "hidden", item.route_id || "") + field("route_code", "Route code", "text", item.route_code || "") + field("display_name", "Display name", "text", item.display_name || "") + field("route_color", "Route colour", "color", item.route_color || "#0f8b8d") + field("route_kind", "Route type", "select", item.route_kind || "STANDARD", [["STANDARD","Standard"],["COLLECTION","Collection"],["AD_HOC","Ad hoc"],["SUPPORT","Support"]]) + field("sort_order", "Display order", "number", item.sort_order || 0) + field("default_km", "Planned KM", "number", item.default_km || 0) + field("default_hours", "Planned hours", "number", item.default_hours || 0) + field("notes", "Notes", "textarea", item.notes || "", null, true);
     if (kind === "absence") el.masterFields.innerHTML = field("absence_id", "", "hidden", item.absence_id || "") + field("driver_id", "Driver", "select", item.driver_id || "", drivers().map((driver) => [driver.driver_id, `${driver.display_name} · ${driver.driver_code}`])) + field("absence_type", "Type", "select", item.absence_type === "DAY_OFF" ? "DAY_OFF" : "HOLIDAY", [["HOLIDAY","Holiday"],["DAY_OFF","Day off"]]) + field("starts_on", "Start date", "date", localDate(item.starts_on || state.data?.business_date)) + field("ends_on", "End date", "date", localDate(item.ends_on || state.data?.business_date)) + field("notes", "Notes", "textarea", item.notes || "", null, true);
@@ -647,9 +665,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.masterDialog.showModal();
   }
 
-  function masterValues() { const value = {}; el.masterFields.querySelectorAll("[data-master-key]").forEach((input) => { value[input.dataset.masterKey] = input.value || null; }); return value; }
+  function masterValues() { const value = {}; el.masterFields.querySelectorAll("[data-master-key]").forEach((input) => { value[input.dataset.masterKey] = input.value || null; }); if (state.master?.kind === "driver") value.licence_categories = [...el.masterFields.querySelectorAll("[data-master-licence]:checked")].map((input) => input.value); return value; }
   async function saveMaster() {
     const { kind } = state.master || {}; const value = masterValues(); const procedures = { driver: "save_distribution_driver", vehicle: "save_fleet_vehicle", route: "save_distribution_route", absence: "save_distribution_driver_leave_admin", maintenance: "save_fleet_vehicle_maintenance", defect: "save_fleet_vehicle_defect" }; const params = { driver: "p_driver", vehicle: "p_vehicle", route: "p_route", absence: "p_absence", maintenance: "p_maintenance", defect: "p_defect" };
+    if (kind === "driver" && !value.licence_categories.length) { setInline(el.masterMessage, "Select at least one licence type: B, C or D."); return; }
     if (!procedures[kind]) return; const button = $("distributionMasterSave"); button.disabled = true; setInline(el.masterMessage, "");
     try { await rpc(procedures[kind], { [params[kind]]: value }); close(el.masterDialog); setMessage(`${titleCase(kind)} saved.`, "success"); if(kind==="absence"){await loadLeaveCalendar();if(state.roster)await loadRoster(state.rosterWeek)}else await load(el.date.value); }
     catch (error) { setInline(el.masterMessage, error.message || "Record could not be saved."); } finally { button.disabled = false; }

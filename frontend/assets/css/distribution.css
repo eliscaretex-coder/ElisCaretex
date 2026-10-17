@@ -159,6 +159,7 @@
 /* Weekly Distribution roster readability and print sheet. */
 .distribution-driver-roster-table thead th small{color:#000!important;font-weight:900;text-shadow:none!important}
 .distribution-roster-print-header{display:none}
+.distribution-driver-licences{display:grid;gap:7px;margin:0;border:1px solid #cfdbe5;border-radius:7px;padding:9px 10px}.distribution-driver-licences legend{padding:0 4px;color:#526271;font-size:.7rem;font-weight:800}.distribution-driver-licences>div{display:flex;gap:8px}.distribution-driver-licences label{display:flex!important;align-items:center;justify-content:center;gap:6px;min-width:48px;border:1px solid #cfdbe5;border-radius:6px;background:#f8fafc;padding:7px 10px;color:#172033!important;font-size:.78rem!important}.distribution-driver-licences input{width:auto!important;margin:0}.distribution-driver-licences small{color:#718096;font-size:.64rem}.distribution-form-grid input[readonly]{background:#edf2f7;color:#526271;cursor:not-allowed;font-weight:800}
 
 @page{size:A4 landscape;margin:8mm}
 @media print{
@@ -187,6 +188,13 @@
   .distribution-driver-roster-table thead th:nth-child(2){width:11mm!important}
   .distribution-driver-roster-table thead th:nth-child(3){width:34mm!important;padding-left:2mm!important}
   .distribution-driver-roster-table thead th:nth-last-child(-n+4){width:12mm!important}
+  .distribution-driver-roster-table thead th:nth-child(2),
+  .distribution-driver-roster-table tbody td:nth-child(2),
+  .distribution-driver-roster-table thead th:nth-last-child(-n+3),
+  .distribution-driver-roster-table tbody td:nth-last-child(-n+3),
+  .distribution-driver-roster-table tfoot tr:first-child td:nth-last-child(-n+3),
+  .distribution-driver-roster-table tfoot tr:nth-child(2),
+  .distribution-driver-roster-table tfoot tr:nth-child(3){display:none!important}
   .distribution-driver-roster-table .distribution-driver-name{padding-left:2mm!important;font-size:8pt!important}
   .distribution-driver-day-button{min-height:7mm!important;gap:.5mm!important}
   .distribution-driver-day-button strong{min-width:0!important;padding:1.2mm 1.5mm!important;font-size:7pt!important}
