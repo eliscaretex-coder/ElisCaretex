@@ -174,6 +174,7 @@
   body.distribution-page .distribution-required-routes,
   body.distribution-page dialog{display:none!important}
   body.distribution-page .distribution-shell,
+  body.distribution-page .operational-tool-page-shell,
   body.distribution-page .distribution-main,
   body.distribution-page .distribution-panel,
   body.distribution-page .distribution-driver-roster{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:#fff!important}
@@ -181,7 +182,7 @@
   .distribution-roster-print-header h1{margin:0;font-size:16pt;line-height:1.1}
   .distribution-roster-print-header p,.distribution-roster-print-header span{margin:3px 0 0;color:#475569;font-size:8pt;font-weight:700}
   .distribution-driver-roster-table-wrap{overflow:visible!important;border:1px solid #b9c5d3!important;border-radius:0!important;box-shadow:none!important}
-  .distribution-driver-roster-table{width:100%!important;min-width:0!important;font-size:7pt!important;table-layout:fixed!important}
+  .distribution-driver-roster-table{width:100%!important;min-width:0!important;font-size:7pt!important;table-layout:fixed!important;background:#fff!important}
   .distribution-driver-roster-table th,.distribution-driver-roster-table td{height:9mm!important;padding:1mm!important}
   .distribution-driver-roster-table thead th{height:10mm!important;font-size:7pt!important}
   .distribution-driver-roster-table thead th:nth-child(1){width:8mm!important}
@@ -199,7 +200,11 @@
   .distribution-driver-day-button{min-height:7mm!important;gap:.5mm!important}
   .distribution-driver-day-button strong{min-width:0!important;padding:1.2mm 1.5mm!important;font-size:7pt!important}
   .distribution-driver-day-button small{font-size:5.5pt!important}
+  .distribution-driver-day-button small{max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important}
   .distribution-leave-reminder{font-size:5pt!important}
+  .distribution-driver-roster-table tfoot{background:#fff!important}
+  .distribution-driver-roster-table tfoot tr:not(:first-child){display:none!important;background:#fff!important}
+  .distribution-driver-roster-table tfoot tr:first-child{background:#f0f5fa!important}
   .distribution-driver-roster-table tfoot th,.distribution-driver-roster-table tfoot td{height:6mm!important}
   .distribution-driver-roster-table tfoot th{padding-left:18mm!important}
   .distribution-driver-roster-table tr{break-inside:avoid;page-break-inside:avoid}
