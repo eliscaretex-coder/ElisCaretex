@@ -436,22 +436,24 @@ Use Git history for detailed file-level evidence.
 4. Historical Apps Script source formats still need to be inventoried and converted source by source.
 5. Customer Service/complaints remains future work.
 6. Read-only browser acceptance passed for ADMIN, Sorting terminal and Finish terminal on desktop and mobile. Destructive/action-level negative testing is still needed across modules.
-7. A controlled Clothes Intake -> Washing -> Finish -> Tracker -> Distribution flow passed on 2026-10-16 and its evidence was removed. The equivalent MOP/ABS and governed cancellation/correction paths remain to be exercised.
+7. Controlled Clothes and MOP paths passed Intake -> Washing -> Production -> Tracker -> Distribution on 2026-10-16 and their evidence was removed. MOP ABS posting, append-only correction and the live-trolley cancellation guard also passed. Migration `202610160004` preserves terminal staff attribution on corrected MOP/ABS evidence.
 8. Supabase leaked-password protection should be enabled.
 9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
 10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
 11. The older correction register predates several 2026-09-24 to 2026-09-26 features. Current source, Git history, live Supabase state and this INIT override stale register entries.
+12. Operational-master review on 2026-10-17 found 3 of 39 active Staff records flagged for setup/import review; all 13 active Drivers still lack their Staff link, phone and licence/CPC details; and all 14 active Fleet records still lack KG/trolley capacity and insurance expiry. The application shows these as non-blocking warnings. Values must be completed from authoritative business records, not inferred.
+13. Account promotion is separate from the Staff Master operational role. Controlled tests on 2026-10-17 passed for Production Supervisor, Logistics Manager and Customer Service permission templates, plus a General Operative to Supervisor operational-role change with published roster history preserved. The test account and Staff record were restored to General Operative.
 
 ## 17. Recommended next work
 
 Priority order:
 
-1. **Complete controlled cross-area acceptance.** The Clothes path and Distribution load visibility passed with cleanup on 2026-10-16. Exercise the MOP/ABS path plus cancellation/correction and clean up its test evidence afterward.
-2. **Complete operational master data gradually.** Use the non-blocking Staff, Driver and Fleet warnings; do not introduce blanket save requirements.
-3. **Inventory and reconcile remaining Apps Script exports.** Compare source and target counts/KG by date, customer, shift, table/product and batch.
-4. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
-5. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
-6. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
+1. **Complete operational master data gradually.** Use the non-blocking Staff, Driver and Fleet warnings; do not introduce blanket save requirements.
+2. **Inventory and reconcile remaining Apps Script exports.** Compare source and target counts/KG by date, customer, shift, table/product and batch.
+3. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
+4. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
+5. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
+6. **Add same-weekday customer KG planning suggestions** from the last three official Finish/MOP production records. Show the three source dates and average, retain manual Expected KG as the approved plan, and never use Sorting/Washing estimates as official KG.
 7. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
 
 Do not build advanced analytics on unvalidated legacy data. Data provenance and reconciliation come first.

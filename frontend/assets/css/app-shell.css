@@ -1198,10 +1198,7 @@ body.elis-operational-tool-page.sorting-page .sorting-content {
 
 body.elis-operational-tool-page.sorting-page .sorting-workspace-tabs,
 body.elis-operational-tool-page.finish-page .finish-workspace-tabs,
-body.elis-operational-tool-page.staff-page .staff-workspace-tabs,
-body.elis-operational-tool-page.trolleys-page .trolleys-tabs,
-body.elis-operational-tool-page.customers-page .customers-main-tabs,
-body.elis-operational-tool-page.distribution-page .distribution-tabs {
+body.elis-operational-tool-page.trolleys-page .trolleys-tabs {
   display: none;
 }
 

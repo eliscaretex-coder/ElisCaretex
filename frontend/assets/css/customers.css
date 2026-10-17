@@ -4413,3 +4413,21 @@ body.customers-modal-open {
 .customers-operational-report-list{display:grid;gap:12px}.customers-operational-report-card{border:1px solid #dce7ee;border-left:5px solid #e8a23a;background:#fff;border-radius:14px;padding:14px;box-shadow:0 4px 18px rgba(22,61,90,.05)}.customers-operational-report-card.resolved{border-left-color:#2e9c63}.customers-operational-report-card.rejected{border-left-color:#8b97a3}.customers-operational-report-card>header{display:flex;justify-content:space-between;gap:15px;align-items:flex-start}.customers-operational-report-card h3{margin:5px 0 2px;color:#173e5d}.customers-operational-report-card header p,.customers-operational-report-card time{margin:0;color:#6c7f8d;font-size:12px}.customers-operational-report-comparison{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.customers-operational-report-comparison article{border:1px solid #dce7ee;background:#f8fbfd;border-radius:11px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}.customers-operational-report-comparison article.reported{background:#fff7e7;border-color:#f1d596}.customers-operational-report-comparison span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#718493}.customers-operational-report-comparison strong{color:#183f5e}.customers-operational-report-note{margin:8px 0;color:#334f63}.customers-operational-report-evidence{font-size:12px;color:#647b8b}.customers-operational-report-card>footer{display:flex;justify-content:flex-end;margin-top:12px}.customers-operational-report-reviewed{display:flex!important;flex-direction:column;align-items:flex-end;gap:3px;color:#667b8a;font-size:12px}.customers-operational-report-reviewed strong{color:#334f63}
 .customers-operational-report-modal{max-width:760px}.customers-operational-report-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.customers-operational-report-facts>div,.customers-operational-report-reason{border:1px solid #dce7ee;background:#f8fbfd;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}.customers-operational-report-facts span,.customers-operational-report-reason span{font-size:11px;color:#718493;text-transform:uppercase;letter-spacing:.04em}.customers-operational-report-reason{margin-bottom:12px}.customers-operational-report-modal .customers-modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px 20px}
 @media(max-width:700px){.customers-operational-report-comparison,.customers-operational-report-facts{grid-template-columns:1fr}.customers-operational-report-card>header{flex-direction:column}}
+
+.customers-planner-set-kg {
+  border: 1px solid #d89219;
+  border-radius: 6px;
+  background: #fffaf0;
+  color: #925000;
+  padding: 3px 7px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.customers-planner-set-kg:hover,
+.customers-planner-set-kg:focus-visible {
+  background: #ffe8b5;
+  outline: 2px solid rgba(216, 146, 25, 0.25);
+}

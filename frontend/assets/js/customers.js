@@ -700,7 +700,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
 
       <section class="customers-kg-coverage${missingKgRows ? " has-missing" : " complete"}">
-        <div><small>PLANNING DATA</small><strong>${escapeHtml(formatNumber(weeklyKg, "0.0"))} kg</strong><span>Expected weekly ${escapeHtml(label)} load</span></div>
+        <div><small>PLANNING DATA</small><strong>${escapeHtml(formatNumber(weeklyKg, "0.0"))} kg</strong><span>Expected weekly ${escapeHtml(label)} load</span><span>To enter KG, click Set KG, choose Edit Schedule, then complete Expected KG inside the scheduled day.</span></div>
         <div><strong>${kgCoverage}%</strong><span>KG coverage · ${kgRows.length} of ${state.schedule.items.length} schedule rows</span></div>
         <button id="scheduleMissingKgButton" class="customers-secondary-button${state.schedule.missingKgOnly ? " active" : ""}" type="button" ${missingKgRows ? "" : "disabled"}>${state.schedule.missingKgOnly ? "Show all rows" : `Review ${missingKgRows} missing KG`}</button>
       </section>
@@ -1292,7 +1292,7 @@ document.addEventListener("DOMContentLoaded", () => {
       headerColumns += `
         <th class="customers-day-subheading ${day.className}">Customer</th>
         <th class="customers-day-subheading ${day.className}">
-          KG / ${state.schedule.service === "mop" ? "Trolley" : "Trolleys"}
+          Expected KG / ${state.schedule.service === "mop" ? "Trolley" : "Trolleys"}
         </th>
       `;
     });
@@ -1377,7 +1377,9 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </td>
           <td class="customers-planner-value-cell customers-route-cell${Number(item.expected_kg) > 0 ? "" : " is-missing-kg"}" style="${routeStyle}" title="${escapeHtml(item.trolley_summary || "No planned trolley")}">
-            <strong class="customers-planner-kg">${Number(item.expected_kg) > 0 ? `${escapeHtml(formatNumber(item.expected_kg, "0.0"))} kg` : "KG needed"}</strong>
+            ${Number(item.expected_kg) > 0
+              ? `<strong class="customers-planner-kg">${escapeHtml(formatNumber(item.expected_kg, "0.0"))} kg</strong>`
+              : `<button class="customers-planner-set-kg" type="button" data-open-schedule data-customer-id="${escapeHtml(item.customer_id)}" data-customer-code="${escapeHtml(item.customer_code)}" data-customer-name="${escapeHtml(item.customer_name)}" title="Open this customer's schedule and enter Expected KG">Set KG</button>`}
             <span>${escapeHtml(item.trolley_summary || "—")}</span>
           </td>
         `;
@@ -2039,7 +2041,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span>Order ${escapeHtml(product.production_order ?? "—")}</span>
         </div>
         <div class="customers-studio-product-fields">
-          ${readonlyField("Quantity plan", quantityParts.join(" · ") || "Not set")}
+          ${readonlyField("Expected KG / units", quantityParts.join(" · ") || "Not set")}
           ${readonlyField("Trolley", product.trolley_summary || "No planned trolley")}
           ${
             variants.length
@@ -3575,7 +3577,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span>Order ${escapeHtml(product.production_order ?? "—")}</span>
         </div>
         <div class="customers-studio-product-fields">
-          ${readonlyField("Quantity plan", quantityParts.join(" · ") || "Not set")}
+          ${readonlyField("Expected KG / units", quantityParts.join(" · ") || "Not set")}
           ${variants.length ? readonlyField("Products", variants.join(", "), { wide: true }) : ""}
           ${readonlyField("Instructions", product.production_instructions, { wide: true, multiline: true })}
         </div>
