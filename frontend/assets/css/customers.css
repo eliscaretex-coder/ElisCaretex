@@ -4432,28 +4432,63 @@ body.customers-modal-open {
   outline: 2px solid rgba(216, 146, 25, 0.25);
 }
 
-/* Keep the per-day schedule editor readable after Expected KG was added. */
+/* Show the six operating days together while keeping schedule facts compact. */
 .customers-studio-week-board.is-editing {
-  grid-template-columns: repeat(3, minmax(300px, 1fr));
+  grid-template-columns: repeat(6, minmax(165px, 1fr));
 }
 
 .customers-studio-edit-day {
-  min-width: 300px;
+  min-width: 165px;
 }
 
 .customers-studio-product-edit-grid {
-  grid-template-columns: minmax(0, 0.9fr) minmax(140px, 1.1fr);
+  grid-template-columns: minmax(58px, 0.55fr) minmax(92px, 1fr);
   align-items: start;
 }
 
 .customers-studio-managed-order {
-  min-height: 62px;
-  padding: 7px 9px;
+  min-height: 48px;
+  padding: 6px 7px;
+  grid-template-columns: 1fr;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+}
+
+.customers-studio-managed-order > strong {
+  grid-row: auto;
+  grid-column: auto;
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.customers-studio-managed-order > span {
+  font-size: 0.52rem;
+}
+
+.customers-studio-delivery-day {
+  grid-column: 1 / -1;
+  min-height: 38px;
+  grid-template-columns: auto 1fr;
+  justify-items: start;
+  gap: 6px;
+}
+
+.customers-studio-delivery-day > strong {
+  justify-self: end;
+}
+
+.customers-studio-day-edit-fields {
+  grid-template-columns: 1fr 1fr;
+}
+
+.customers-studio-trolley-row {
+  grid-template-columns: 1fr 1fr;
 }
 
 .customers-studio-expected-kg {
   align-self: start;
-  padding: 7px 9px;
+  padding: 6px 7px;
   border: 1.5px solid #2aa9a8;
   border-radius: 9px;
   background: #effafa;
@@ -4465,7 +4500,7 @@ body.customers-modal-open {
 }
 
 .customers-studio-expected-kg input {
-  height: 36px;
+  height: 31px;
   border-color: #70c7c7;
   font-size: 0.9rem;
   font-weight: 800;
@@ -4473,11 +4508,11 @@ body.customers-modal-open {
 
 @media (max-width: 1100px) {
   .customers-studio-week-board.is-editing {
-    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    grid-template-columns: repeat(3, minmax(210px, 1fr));
   }
 
   .customers-studio-edit-day {
-    min-width: 280px;
+    min-width: 210px;
   }
 }
 
@@ -4492,5 +4527,10 @@ body.customers-modal-open {
 
   .customers-studio-product-edit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .customers-studio-managed-order,
+  .customers-studio-delivery-day {
+    grid-column: 1 / -1;
   }
 }

@@ -2279,7 +2279,9 @@ document.addEventListener("DOMContentLoaded", () => {
       <section class="customers-studio-week-board${draft ? " is-editing" : ""}" aria-label="Weekly customer schedule">
         ${
           draft
-            ? DAYS.map((dayDefinition) => renderDraftDayCard(dayDefinition)).join("")
+            ? DAYS.filter((dayDefinition) => dayDefinition.number <= 6)
+                .map((dayDefinition) => renderDraftDayCard(dayDefinition))
+                .join("")
             : DAYS.filter((dayDefinition) =>
                 dayDefinition.number <= 6 || days.some((day) => Number(day.production_weekday) === dayDefinition.number)
               )
@@ -3355,10 +3357,9 @@ document.addEventListener("DOMContentLoaded", () => {
         ${renderDraftTrolleySection(day)}
 
         <div class="customers-studio-day-fields customers-studio-day-edit-fields">
-          <div class="customers-studio-managed-order">
-            <span>Delivery day</span>
+          <div class="customers-studio-managed-order customers-studio-delivery-day" title="Automatically set to the next day, skipping Sunday.">
+            <span>Delivery</span>
             <strong>${escapeHtml(weekdayLabel(nextDistributionWeekday(dayDefinition.number)))}</strong>
-            <small>Calculated automatically as the next day after production, skipping Sunday.</small>
           </div>
           ${dayInputField("Delivery order", "delivery_order", day.delivery_order, "number", "1")}
           ${dayInputField("Window start", "delivery_window_start", day.delivery_window_start, "time")}
@@ -3375,10 +3376,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const missing = orderText === "!";
 
     return `
-      <div class="customers-studio-managed-order${missing ? " is-pending" : ""}">
-        <span>Production order</span>
+      <div class="customers-studio-managed-order${missing ? " is-pending" : ""}" title="${missing ? "Assigned automatically when saved." : "Change this order in the Weekly Planner."}">
+        <span>Order</span>
         <strong>${missing ? "Auto" : escapeHtml(orderText)}</strong>
-        <small>${missing ? "Assigned when this schedule is saved." : "Managed in the Weekly Planner."}</small>
       </div>
     `;
   }
