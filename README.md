@@ -4,7 +4,7 @@ ElisCaretex's shared operational platform for customer planning, distribution, r
 
 ## Start here
 
-- `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` is the current AI handover and delivery baseline.
+- `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` is the authoritative AI handover (INIT v90, updated 2026-10-17) and delivery baseline.
 - `docs/handover/REVIEW_2026-10-16.md` records the latest security, UI, database and browser validation review.
 - `docs/architecture/overview.md` is the current architecture and access-model summary.
 - `docs/architecture/PLATFORM_CORRECTION_REGISTER_20260818.md` is the active register of known risks and future corrections.

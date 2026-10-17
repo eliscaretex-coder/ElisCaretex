@@ -4,7 +4,7 @@ This directory contains the active documentation for Laundry Platform V2.
 
 | Location | Purpose |
 | --- | --- |
-| `handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` | Current AI-to-AI project handover and working baseline. |
+| `handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` | Authoritative AI-to-AI project handover (INIT v90, updated 2026-10-17) and working baseline. |
 | `handover/REVIEW_2026-10-16.md` | Latest security, UI, database and browser validation review. |
 | `architecture/overview.md` | Current platform architecture, modules and access model. |
 | `architecture/PLATFORM_CORRECTION_REGISTER_20260818.md` | Active corrective backlog and delivery risks. |

@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedVersionId: null,
       view: "schedule",
       history: null,
+      kgHistory: null,
       readOnlyPayload: null,
       readOnlyDistributionPayload: null
     }
@@ -2163,8 +2164,21 @@ document.addEventListener("DOMContentLoaded", () => {
       p_selected_version_id: selectedVersionId,
       p_effective_date: effectiveDateInput.value
     });
+    let kgHistory = null;
+
+    try {
+      kgHistory = await rpc("get_customer_kg_history", {
+        p_customer_id: customerId,
+        p_from_date: null,
+        p_to_date: state.capabilities?.business_date || null,
+        p_recent_limit: 3
+      });
+    } catch (error) {
+      console.warn("Customer KG history could not be loaded:", error);
+    }
 
     state.studio.management = management;
+    state.studio.kgHistory = kgHistory;
     state.studio.view = "schedule";
     state.studio.selectedVersionId = selectedVersionId;
     state.studio.customerId = management?.customer?.customer_id || customerId;
@@ -3398,7 +3412,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ${unavailable ? '<div class="customers-studio-product-unavailable">This product is no longer enabled in Customer Master. Untick it above to remove it from this day.</div>' : ""}
         <div class="customers-studio-product-edit-grid">
           ${productionOrderManagedField(product.production_order)}
-          ${reference.uses_kg ? productInputField("Expected KG", "expected_kg", product.expected_kg, "number", "0.01") : ""}
+          ${reference.uses_kg ? expectedKgInputField(day, product) : ""}
           ${reference.uses_units ? productInputField("Expected units", "expected_units", product.expected_units, "number", "1") : ""}
           ${productTextareaField("Production instructions", "production_instructions", product.production_instructions)}
           ${
@@ -3636,6 +3650,41 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  function customerKgSuggestion(weekday, productCode) {
+    const suggestions = Array.isArray(state.studio.kgHistory?.suggestions)
+      ? state.studio.kgHistory.suggestions
+      : [];
+    return suggestions.find((item) =>
+      Number(item.production_weekday) === Number(weekday)
+      && String(item.product_code || "").toUpperCase() === String(productCode || "").toUpperCase()
+    ) || null;
+  }
+
+  function expectedKgInputField(day, product) {
+    const suggestion = customerKgSuggestion(day.production_weekday, product.product_code);
+    const ready = suggestion?.status === "READY" && Number(suggestion.suggested_kg) > 0;
+    const points = Number(suggestion?.history_points || 0);
+    const records = Array.isArray(suggestion?.recent_records) ? suggestion.recent_records : [];
+    const evidence = records.map((record) =>
+      `${formatDate(record.actual_date)}: ${formatNumber(record.actual_kg, "0.0")} kg`
+    ).join(" · ");
+
+    return `
+      <div class="customers-studio-field customers-studio-expected-kg">
+        <label>
+          <span>Expected KG</span>
+          <input type="number" value="${escapeHtml(product.expected_kg ?? "")}" min="0" step="0.01" data-product-field="expected_kg">
+        </label>
+        ${ready
+          ? `<div class="customers-studio-kg-suggestion" title="${escapeHtml(evidence)}">
+              <span>3-day avg. <strong>${escapeHtml(formatNumber(suggestion.suggested_kg, "0.0"))} kg</strong></span>
+              <button type="button" data-apply-kg-suggestion="${escapeHtml(suggestion.suggested_kg)}">Use</button>
+            </div>`
+          : `<small class="customers-studio-kg-learning">Learning · ${points}/3 matching days</small>`}
+      </div>
+    `;
+  }
+
   function productTextareaField(label, fieldName, value) {
     return `
       <label class="customers-studio-field customers-studio-product-instructions">
@@ -3770,6 +3819,18 @@ document.addEventListener("DOMContentLoaded", () => {
             actionButton.disabled = false;
           }
         });
+        return;
+      }
+
+      const kgSuggestionButton = event.target.closest("[data-apply-kg-suggestion]");
+
+      if (kgSuggestionButton) {
+        const product = productDocumentByElement(kgSuggestionButton);
+        if (product) {
+          product.expected_kg = kgSuggestionButton.dataset.applyKgSuggestion;
+          markStudioDirty();
+          rerenderScheduleManagement();
+        }
         return;
       }
 

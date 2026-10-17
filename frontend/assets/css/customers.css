@@ -4494,15 +4494,59 @@ body.customers-modal-open {
   background: #effafa;
 }
 
-.customers-studio-expected-kg > span {
-  color: #087c80;
-  font-size: 0.62rem;
+.customers-studio-expected-kg > label {
+  display: block;
 }
 
-.customers-studio-expected-kg input {
+.customers-studio-expected-kg > label > span {
+  display: block;
+  color: #087c80;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.customers-studio-expected-kg > label > input {
+  width: 100%;
   height: 31px;
   border-color: #70c7c7;
   font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.customers-studio-kg-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 4px;
+  color: #0f766e;
+  font-size: 0.54rem;
+}
+
+.customers-studio-kg-suggestion strong {
+  display: block;
+  font-size: 0.66rem;
+}
+
+.customers-studio-kg-suggestion button {
+  min-height: 23px;
+  padding: 2px 6px;
+  border: 1px solid #0f8d8d;
+  border-radius: 6px;
+  background: #0f8d8d;
+  color: #fff;
+  font-size: 0.56rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.customers-studio-kg-learning {
+  display: block;
+  margin-top: 4px;
+  color: #9a6700;
+  font-size: 0.54rem;
   font-weight: 800;
 }
 

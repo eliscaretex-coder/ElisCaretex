@@ -6,14 +6,14 @@
   <title>Production Intelligence | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/production-insights.css">
+  <link rel="stylesheet" href="../assets/css/production-insights.css?v=20261017-2">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20260926-1" defer></script>
-  <script src="../assets/js/production-insights.js" defer></script>
+  <script src="../assets/js/production-insights.js?v=20261017-2" defer></script>
 </head>
 <body class="production-insights-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -45,6 +45,12 @@
       <section class="production-insights-card">
         <header class="production-insights-customer-header"><div><p>Customer analysis</p><h2>Volume contribution and weekly variation</h2><span>Supports seasonal planning after historical data import.</span></div><div><input id="insightsCustomerSearch" type="search" placeholder="Search customer…"><b id="insightsCustomerCount">0 customers</b></div></header>
         <div id="insightsCustomers" class="production-insights-customers"></div>
+      </section>
+
+      <section id="insightsCustomerHistoryCard" class="production-insights-card production-insights-history-card" hidden>
+        <header><div><p>Customer KG history</p><h2 id="insightsCustomerHistoryTitle">Customer</h2><span>Official Finish and MOP records, with weekday-specific three-day averages.</span></div><button id="insightsCustomerHistoryClose" type="button">Close</button></header>
+        <div id="insightsCustomerSuggestions" class="production-insights-suggestions"></div>
+        <div id="insightsCustomerHistory" class="production-insights-history"></div>
       </section>
 
       <section class="production-insights-card production-insights-capacity-card">

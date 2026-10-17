@@ -1,13 +1,15 @@
-# ElisCaretex V2 - Authoritative AI Project INIT v89
+# ElisCaretex V2 - Authoritative AI Project INIT v90
 
-**Handover date:** 2026-10-16
+**Handover date:** 2026-10-17
 
 **Purpose:** authoritative AI-to-AI continuation guide for the ElisCaretex V2 laundry operations platform.
 
-**Repository state reviewed through:** commit `467735a` plus this INIT update.
-**Supersedes:** INIT v88 and every older INIT/handover snapshot.
+**Repository state reviewed through:** commit `91570ef` plus the documented
+customer KG history/suggestion change set currently awaiting commit and push.
+**Supersedes:** INIT v89 and every older INIT/handover snapshot.
 
-The filename is retained for compatibility with existing links. The content is v89 and current as of 2026-10-16.
+The filename is retained for compatibility with existing links. The content is
+v90 and current as of 2026-10-17.
 
 ## 1. Read this first
 
@@ -19,7 +21,7 @@ Current Supabase development project:
 name: ElisCaretex-dev
 project ref: fcimmysqifzxoanmpylh
 region: eu-west-1
-database access and advisors verified 2026-10-16: available
+database access and advisors verified 2026-10-17: available
 PostgreSQL: 17.6.1.147
 ```
 
@@ -310,7 +312,31 @@ Implemented manager views:
 - separate MOP demand, never counted as Finish capacity load;
 - states `LEARNING`, `ROSTER_NOT_PUBLISHED`, `COVERED`, `WATCH`, and `AT_RISK`.
 
-Forecast learning uses recent official history and requires at least three records per customer/product. Incomplete days remain `LEARNING`; the UI must not report false surplus/shortage. The current test database does not yet contain trustworthy production history, so learning output is expected until real Apps Script history is imported.
+Expected KG and forward-capacity learning use the latest three official records
+for the same customer, product and production weekday. Fewer than three matching
+days remain `LEARNING`; the UI must not report false surplus/shortage. Sorting
+and Washing estimates never enter this calculation.
+
+Customer Schedule shows the three source dates and values beside Expected KG.
+The `Use` action only updates the editable draft and never silently overwrites
+or publishes an approved plan. Production Intelligence provides a `History`
+action for each customer, with the official Finish/MOP timeline and independent
+Monday-to-Saturday averages by product.
+
+Historical production is present in the development database and drives these
+views, but its Apps Script reconciliation is deliberately postponed. Treat
+management totals as provisional until source-versus-target counts and KG have
+been formally reconciled and accepted by the owner.
+
+Read-only snapshot verified on 2026-10-17:
+
+```text
+Finish: 13,201 records, 123 customers, 2026-01-06 to 2026-09-26, 823,581.96 kg
+MOP:     1,446 records,  50 customers, 2026-07-13 to 2026-09-26,  49,574.02 kg
+Ready customer/product/weekday groups with >=3 official days: 676
+```
+
+These figures are validation evidence, not a permanent business baseline.
 
 Applied Production Intelligence migrations:
 
@@ -320,6 +346,7 @@ Applied Production Intelligence migrations:
 202609260003_production_intelligence_sorting_trolleys.sql
 202609260004_production_intelligence_customer_seasonality.sql
 202609260005_production_intelligence_forward_capacity.sql
+202610170001_customer_kg_history_and_weekday_suggestions.sql
 ```
 
 Live Supabase migration history also contains two refinement entries:
@@ -352,7 +379,7 @@ This guide is mandatory reading. Key rules:
 
 Existing staging support already covers legacy customers/schedules and roster/leave. Finish, ReWash, MOP, Sorting, trolley and Distribution source formats require source-specific restricted staging tables and reviewed promotion logic after the actual exports are supplied.
 
-## 14. Supabase state verified 2026-10-16
+## 14. Supabase state verified 2026-10-17
 
 Recent live migration groups include:
 
@@ -370,6 +397,8 @@ Recent live migration groups include:
             current and next delivery dates.
 20261016: public-view security hardening, internal RPC grant correction and
             immutable function search paths.
+20261017: permission-guarded customer KG history and weekday suggestions;
+            forward capacity aligned to the same latest-three-weekdays rule.
 ```
 
 Active Edge Functions:
@@ -424,6 +453,10 @@ ffcfc08  clearer not-started and active Production Tracker states
 6a31913  real production load on the Distribution Daily Route Board
 30699db  current and next delivery load comparison
 467735a  security hardening, operational warnings and deployment validation
+3bf985c  platform review handover refresh
+9e31279  terminal notification access and handover update
+785ed39  route creation fix and operational acceptance evidence
+91570ef  workspace navigation and customer KG planning improvements
 ```
 
 Use Git history for detailed file-level evidence.
@@ -431,7 +464,7 @@ Use Git history for detailed file-level evidence.
 ## 16. Known constraints and open risks
 
 1. Current-day operational activity remains pre-production/test activity. Imported historical production must retain source provenance and be reconciled before it is treated as authoritative management reporting.
-2. Production Intelligence remains in learning state until imported Finish/MOP history is reconciled and accepted by the owner.
+2. Historical Finish/MOP records are visible in Production Intelligence and can support provisional planning suggestions, but their source reconciliation and formal owner acceptance remain pending.
 3. Forward capacity needs published future Finish rosters; missing publication is shown explicitly.
 4. Historical Apps Script source formats still need to be inventoried and converted source by source.
 5. Customer Service/complaints remains future work.
@@ -453,14 +486,14 @@ Priority order:
 3. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
 4. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
 5. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
-6. **Add same-weekday customer KG planning suggestions** from the last three official Finish/MOP production records. Show the three source dates and average, retain manual Expected KG as the approved plan, and never use Sorting/Washing estimates as official KG.
-7. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
+6. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
 
 Do not build advanced analytics on unvalidated legacy data. Data provenance and reconciliation come first.
 
 ## 18. Future AI startup checklist
 
-1. Read this INIT and `docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md` fully.
+1. Read this INIT, `docs/handover/REVIEW_2026-10-16.md` and
+   `docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md` fully.
 2. Run `git status`, inspect recent history and confirm the active working copy.
 3. Query the live Supabase schema/migrations before relying on local assumptions.
 4. Preserve the shared visual shell and compact notebook-friendly layout.
@@ -469,8 +502,14 @@ Do not build advanced analytics on unvalidated legacy data. Data provenance and 
 7. Preserve official versus approximate KG separation.
 8. Add server-side authorization and negative tests for every new protected action.
 9. Never import historical data directly into operational tables without staging/reconciliation.
-10. Report material behaviour, migrations, validation and unresolved risks back into this INIT at the next handover.
+10. Check whether the customer KG change set documented here has been committed
+    and pushed; the Supabase migration is already applied, while the frontend
+    must reach `master` for GitHub Pages deployment.
+11. Report material behaviour, migrations, validation and unresolved risks back into this INIT at the next handover.
 
 ## 19. Authority statement
 
-This INIT v89 is the handover authority as of 2026-10-16. Current source, current Git history, current live Supabase state, and explicit owner decisions override older INIT files, ZIP baselines, screenshots, stale generated reports and historical assumptions.
+This INIT v90 is the handover authority as of 2026-10-17. Current source,
+current Git history, current live Supabase state, and explicit owner decisions
+override older INIT files, ZIP baselines, screenshots, stale generated reports
+and historical assumptions.
