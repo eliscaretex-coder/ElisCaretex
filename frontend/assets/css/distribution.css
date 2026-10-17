@@ -157,7 +157,7 @@
 @media(max-width:620px){.distribution-leave-title{align-items:stretch;flex-direction:column}.distribution-leave-title .distribution-button{width:100%}.distribution-leave-months{grid-template-columns:1fr}.distribution-leave-pending{grid-template-columns:1fr}.distribution-leave-pending>b{justify-self:start}.distribution-leave-layout{grid-template-columns:minmax(0,1fr)}}
 
 /* Weekly Distribution roster readability and print sheet. */
-.distribution-driver-roster-table thead th small{color:#fff!important;font-weight:900;text-shadow:0 1px 1px rgba(0,0,0,.4)}
+.distribution-driver-roster-table thead th small{color:#000!important;font-weight:900;text-shadow:none!important}
 .distribution-roster-print-header{display:none}
 
 @page{size:A4 landscape;margin:8mm}
