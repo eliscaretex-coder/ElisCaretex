@@ -122,6 +122,7 @@
   const NAVIGATION_PERMISSIONS = Object.freeze({
     CUSTOMER_WORKSPACE: "customer.workspace",
     MY_ROSTER: "self.my-roster",
+    MY_DRIVER_ROSTER: "self.my-driver-roster",
     NOTIFICATIONS: "self.notifications",
     STAFF_MASTER: "staff.master",
     PRODUCTION_ROSTER: "production.roster",
@@ -137,6 +138,7 @@
 
   const MODULE_NAVIGATION_PERMISSIONS = Object.freeze({
     MY_ROSTER: [NAVIGATION_PERMISSIONS.MY_ROSTER],
+    MY_DRIVER_ROSTER: [NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER],
     NOTIFICATIONS: [NAVIGATION_PERMISSIONS.NOTIFICATIONS],
     CUSTOMERS: [NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE],
     PRODUCTION_ROSTER: [NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER],
@@ -160,6 +162,11 @@
       id: "my-roster", label: "My Roster", description: "My published schedule and leave requests",
       href: "./pages/roster-view.html", icon: "schedule", group: "Self service",
       permission: NAVIGATION_PERMISSIONS.MY_ROSTER
+    },
+    {
+      id: "my-driver-roster", label: "My Driver Roster", description: "My routes, customers and leave requests",
+      href: "./pages/driver-roster.html", icon: "distribution", group: "Self service",
+      permission: NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER
     },
     {
       id: "notifications", label: "Notifications", description: "Requests, decisions and updates",

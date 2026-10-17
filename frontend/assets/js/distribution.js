@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const tabs = [
       ["board", "Daily board"], ["customers", "Route customers"], ["roster", "Weekly roster"], ["actuals", "Actuals"], ["drivers", "Drivers"], ["fleet", "Fleet"], ["routes", "Routes"], ["history", "History"]
     ];
-    el.tabs.innerHTML = tabs.map(([id, label]) => `<button class="distribution-tab ${state.activeTab === id ? "active" : ""}" data-tab="${id}" type="button">${label}</button>`).join("");
+    el.tabs.innerHTML = tabs.map(([id, label]) => `<button class="distribution-tab ${state.activeTab === id ? "active" : ""}" data-tab="${id}" type="button">${label}</button>`).join("") + `<a class="distribution-tab" href="./driver-guides.html">Customer guides</a>`;
   }
 
   function routeData(data = state.data) {

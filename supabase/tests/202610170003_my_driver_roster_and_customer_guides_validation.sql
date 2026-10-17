@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select has_table('public','customer_driver_guides','driver guide metadata exists');
+select results_eq($$select public from storage.buckets where id='customer-driver-guides'$$,array[false],'driver guide bucket is private');
+select results_eq($$select file_size_limit from storage.buckets where id='customer-driver-guides'$$,array[15728640::bigint],'driver guide uploads are limited to 15 MB');
+select has_function('public','get_my_driver_roster',array['date'],'personal driver roster RPC exists');
+select has_function('public','get_my_driver_route',array['uuid'],'personal route detail RPC exists');
+select has_function('public','submit_my_driver_leave_request',array['text','date','date','text'],'driver leave request RPC exists');
+select has_function('public','get_driver_guide_admin',array['uuid'],'supervisor guide RPC exists');
+select has_function('public','save_driver_guide',array['jsonb'],'supervisor guide save RPC exists');
+select results_eq($$select count(*)::integer from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'customer_driver_guides_%'$$,array[4],'private storage has four scoped policies');
+select results_eq($$select count(*)::integer from public.job_title_permission_templates where module_code='MY_DRIVER_ROSTER' and job_title_code in('DRIVER','LOGISTICS_MANAGER','GENERAL_MANAGER','ADMINISTRATOR') and can_view$$,array[4],'driver roster permissions exist');
+select * from finish();
+rollback;

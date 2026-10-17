@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const adminStaffModule = document.getElementById("adminStaffModule");
   const adminRosterModule = document.getElementById("adminRosterModule");
   const adminMyRosterModule = document.getElementById("adminMyRosterModule");
+  const adminMyDriverRosterModule = document.getElementById("adminMyDriverRosterModule");
   const adminProductionInsightsModule = document.getElementById("adminProductionInsightsModule");
 
   const operationalSidebarToggle = document.getElementById("operationalSidebarToggle");
@@ -414,6 +415,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         !access.can(shellPolicy.NAVIGATION_PERMISSIONS.MY_ROSTER)
       );
     }
+
+    if (adminMyDriverRosterModule) adminMyDriverRosterModule.classList.toggle("hidden",!access.can(shellPolicy.NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER));
 
     if (adminProductionInsightsModule) {
       adminProductionInsightsModule.classList.toggle(
