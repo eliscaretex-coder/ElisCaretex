@@ -160,6 +160,7 @@
 .distribution-driver-roster-table thead th small{color:#000!important;font-weight:900;text-shadow:none!important}
 .distribution-roster-print-header{display:none}
 .distribution-driver-licences{display:grid;gap:7px;margin:0;border:1px solid #cfdbe5;border-radius:7px;padding:9px 10px}.distribution-driver-licences legend{padding:0 4px;color:#526271;font-size:.7rem;font-weight:800}.distribution-driver-licences>div{display:flex;gap:8px}.distribution-driver-licences label{display:flex!important;align-items:center;justify-content:center;gap:6px;min-width:48px;border:1px solid #cfdbe5;border-radius:6px;background:#f8fafc;padding:7px 10px;color:#172033!important;font-size:.78rem!important}.distribution-driver-licences input{width:auto!important;margin:0}.distribution-driver-licences small{color:#718096;font-size:.64rem}.distribution-form-grid input[readonly]{background:#edf2f7;color:#526271;cursor:not-allowed;font-weight:800}
+.distribution-history-event strong,.distribution-history-event span{display:block}.distribution-history-event span{margin-top:3px;color:#718096;font-size:.66rem}.distribution-history-detail{min-width:360px;line-height:1.45}.distribution-history-by{white-space:nowrap;font-weight:700}
 
 @page{size:A4 landscape;margin:8mm}
 @media print{
