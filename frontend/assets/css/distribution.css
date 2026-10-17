@@ -155,3 +155,44 @@
 .distribution-leave-page{display:grid;gap:14px}.distribution-leave-title{display:flex;align-items:center;justify-content:space-between;gap:18px}.distribution-leave-title h2,.distribution-leave-title p{margin:0}.distribution-leave-title p{margin-top:3px;color:#61728a;font-size:.78rem}.distribution-leave-layout{display:grid;grid-template-columns:minmax(320px,.62fr) minmax(580px,1.38fr);gap:14px;align-items:start}.distribution-leave-pending-panel,.distribution-leave-calendar-panel{border:1px solid #d8e1ea;border-radius:11px;background:#fff;overflow:hidden}.distribution-leave-pending-panel>header,.distribution-leave-calendar-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #d8e1ea;background:#f8fafc}.distribution-leave-pending-panel>header div,.distribution-leave-calendar-panel>header{font-size:.78rem}.distribution-leave-pending-panel>header span,.distribution-leave-calendar-panel>header span{display:block;color:#6b7d92;font-size:.67rem}.distribution-leave-pending-panel>header button{border:1px solid #d5dee8;border-radius:7px;background:#fff;padding:6px 11px;color:#52657b}.distribution-leave-pending-panel>div{display:grid;gap:8px;padding:12px}.distribution-leave-pending{display:grid;grid-template-columns:1fr auto;gap:7px 10px;border:1px solid #f1b525;border-radius:10px;background:#fffaf0;padding:11px}.distribution-leave-pending strong,.distribution-leave-pending span,.distribution-leave-pending small{display:block}.distribution-leave-pending span,.distribution-leave-pending small{margin-top:3px;color:#60738b;font-size:.7rem}.distribution-leave-pending small.warning{color:#a15b00;font-weight:800}.distribution-leave-pending>b{align-self:start;border:1px solid #f4cf63;border-radius:999px;background:#fff4c9;padding:5px 8px;color:#9a5a00;font-size:.62rem}.distribution-leave-pending footer{grid-column:1/-1;display:flex;gap:7px}.distribution-leave-pending footer button{border:0;border-radius:7px;background:#18b957;color:#fff;padding:7px 11px;font-weight:850}.distribution-leave-pending footer button.secondary{border:1px solid #d8e1ea;background:#fff;color:#566a80}.distribution-leave-empty{padding:26px;text-align:center;color:#7b8a9d}.distribution-leave-filters{display:grid;gap:8px;padding:12px;border-bottom:1px solid #d8e1ea}.distribution-leave-filters select{width:100%;height:39px;border:1px solid #d6e0ea;border-radius:7px;background:#f2f6fa;padding:0 11px;color:#172033}.distribution-leave-months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:12px}.distribution-leave-month{min-height:185px;border:1px solid #dbe3eb;border-radius:10px;overflow:hidden;background:#fff}.distribution-leave-month h3{margin:0;padding:8px 10px;background:#101a31;color:#fff;font-size:.75rem}.distribution-leave-month>div{display:grid;gap:7px;padding:8px}.distribution-leave-month>div>p{align-self:center;margin:48px 0;text-align:center;color:#9aa6b7;font-size:.7rem}.distribution-leave-card{display:grid;gap:2px;border:1px solid #efc4dc;border-radius:8px;background:#fff3f9;padding:8px;color:#a90040}.distribution-leave-card.day_off{border-color:#cdd8e4;background:#f5f8fb;color:#18355d}.distribution-leave-card strong{font-size:.7rem}.distribution-leave-card span,.distribution-leave-card small{font-size:.64rem}.distribution-leave-card>div{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:5px}.distribution-leave-card button{border:1px solid #b7d7ff;border-radius:6px;background:#edf6ff;color:#0756bd;padding:5px;font-size:.62rem;font-weight:850}.distribution-leave-card button.danger{border-color:#ffc6c6;background:#fff5f5;color:#d71920}.distribution-driver-day.leave-pending{background:#fff8df}.distribution-driver-day.leave-pending .distribution-driver-day-button{box-shadow:inset 0 0 0 2px #f2b327}.distribution-leave-reminder{display:block;margin-top:3px;border-radius:4px;background:#f2b327;color:#493000;padding:2px 3px;font-size:.48rem;font-style:normal;font-weight:950;line-height:1.05}.distribution-driver-day.leave .distribution-driver-day-button{cursor:not-allowed;opacity:1}
 @media(max-width:1050px){.distribution-leave-layout{grid-template-columns:1fr}.distribution-leave-months{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.distribution-leave-title{align-items:stretch;flex-direction:column}.distribution-leave-title .distribution-button{width:100%}.distribution-leave-months{grid-template-columns:1fr}.distribution-leave-pending{grid-template-columns:1fr}.distribution-leave-pending>b{justify-self:start}.distribution-leave-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Weekly Distribution roster readability and print sheet. */
+.distribution-driver-roster-table thead th small{color:#fff!important;font-weight:900;text-shadow:0 1px 1px rgba(0,0,0,.4)}
+.distribution-roster-print-header{display:none}
+
+@page{size:A4 landscape;margin:8mm}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  body.distribution-page{background:#fff!important}
+  body.distribution-page .operational-sidebar,
+  body.distribution-page .distribution-header,
+  body.distribution-page .distribution-message,
+  body.distribution-page .distribution-kpis,
+  body.distribution-page .distribution-tabs,
+  body.distribution-page .distribution-driver-roster>.roster-toolbar,
+  body.distribution-page .distribution-required-routes,
+  body.distribution-page dialog{display:none!important}
+  body.distribution-page .distribution-shell,
+  body.distribution-page .distribution-main,
+  body.distribution-page .distribution-panel,
+  body.distribution-page .distribution-driver-roster{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:#fff!important}
+  .distribution-roster-print-header{display:flex!important;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 5mm;padding:0 0 3mm;border-bottom:2px solid #18263b;color:#111827}
+  .distribution-roster-print-header h1{margin:0;font-size:16pt;line-height:1.1}
+  .distribution-roster-print-header p,.distribution-roster-print-header span{margin:3px 0 0;color:#475569;font-size:8pt;font-weight:700}
+  .distribution-driver-roster-table-wrap{overflow:visible!important;border:1px solid #b9c5d3!important;border-radius:0!important;box-shadow:none!important}
+  .distribution-driver-roster-table{width:100%!important;min-width:0!important;font-size:7pt!important;table-layout:fixed!important}
+  .distribution-driver-roster-table th,.distribution-driver-roster-table td{height:9mm!important;padding:1mm!important}
+  .distribution-driver-roster-table thead th{height:10mm!important;font-size:7pt!important}
+  .distribution-driver-roster-table thead th:nth-child(1){width:8mm!important}
+  .distribution-driver-roster-table thead th:nth-child(2){width:11mm!important}
+  .distribution-driver-roster-table thead th:nth-child(3){width:34mm!important;padding-left:2mm!important}
+  .distribution-driver-roster-table thead th:nth-last-child(-n+4){width:12mm!important}
+  .distribution-driver-roster-table .distribution-driver-name{padding-left:2mm!important;font-size:8pt!important}
+  .distribution-driver-day-button{min-height:7mm!important;gap:.5mm!important}
+  .distribution-driver-day-button strong{min-width:0!important;padding:1.2mm 1.5mm!important;font-size:7pt!important}
+  .distribution-driver-day-button small{font-size:5.5pt!important}
+  .distribution-leave-reminder{font-size:5pt!important}
+  .distribution-driver-roster-table tfoot th,.distribution-driver-roster-table tfoot td{height:6mm!important}
+  .distribution-driver-roster-table tfoot th{padding-left:18mm!important}
+  .distribution-driver-roster-table tr{break-inside:avoid;page-break-inside:avoid}
+}
