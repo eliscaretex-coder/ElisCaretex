@@ -3378,7 +3378,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="customers-studio-managed-order${missing ? " is-pending" : ""}">
         <span>Production order</span>
         <strong>${missing ? "Auto" : escapeHtml(orderText)}</strong>
-        <small>${missing ? "Assigned automatically when this schedule is saved." : "Move the customer in the weekly planner to change this number."}</small>
+        <small>${missing ? "Assigned when this schedule is saved." : "Managed in the Weekly Planner."}</small>
       </div>
     `;
   }
@@ -3627,8 +3627,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function productInputField(label, fieldName, value, type = "text", step = "") {
+    const fieldClass = fieldName === "expected_kg" ? " customers-studio-expected-kg" : "";
     return `
-      <label class="customers-studio-field">
+      <label class="customers-studio-field${fieldClass}">
         <span>${escapeHtml(label)}</span>
         <input type="${escapeHtml(type)}" value="${escapeHtml(value ?? "")}" ${step ? `min="0" step="${escapeHtml(step)}"` : ""} data-product-field="${escapeHtml(fieldName)}">
       </label>

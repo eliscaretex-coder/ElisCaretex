@@ -4431,3 +4431,66 @@ body.customers-modal-open {
   background: #ffe8b5;
   outline: 2px solid rgba(216, 146, 25, 0.25);
 }
+
+/* Keep the per-day schedule editor readable after Expected KG was added. */
+.customers-studio-week-board.is-editing {
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+}
+
+.customers-studio-edit-day {
+  min-width: 300px;
+}
+
+.customers-studio-product-edit-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(140px, 1.1fr);
+  align-items: start;
+}
+
+.customers-studio-managed-order {
+  min-height: 62px;
+  padding: 7px 9px;
+}
+
+.customers-studio-expected-kg {
+  align-self: start;
+  padding: 7px 9px;
+  border: 1.5px solid #2aa9a8;
+  border-radius: 9px;
+  background: #effafa;
+}
+
+.customers-studio-expected-kg > span {
+  color: #087c80;
+  font-size: 0.62rem;
+}
+
+.customers-studio-expected-kg input {
+  height: 36px;
+  border-color: #70c7c7;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .customers-studio-week-board.is-editing {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+
+  .customers-studio-edit-day {
+    min-width: 280px;
+  }
+}
+
+@media (max-width: 760px) {
+  .customers-studio-week-board.is-editing {
+    grid-template-columns: 1fr;
+  }
+
+  .customers-studio-edit-day {
+    min-width: 0;
+  }
+
+  .customers-studio-product-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
