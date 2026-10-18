@@ -1,7 +1,48 @@
 # Work log — shared by Codex, Claude and the owner
 
-One entry per finished task, newest at the top. Read the latest entries before
-starting work: they record changes the INIT handover may not cover yet.
+One entry per finished task, newest at the top. Read the open action items and the
+latest entries before starting work: they record changes the INIT handover may not
+cover yet.
+
+## Open action items
+
+Whoever completes an item ticks it (`[x]`), adds the date and commit, and records the
+work as a normal entry below. Remove ticked items at the next INIT refresh.
+
+### For Codex
+
+- [ ] **Refresh the INIT handover to v91** in
+      `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md`:
+  - [ ] Add the Distribution work from the 2026-10-17 entry below (commits `1f69f2e` to
+        `acfca47`, migrations `202610170002` to `202610170012`): what each workspace now
+        does, which permissions/RPCs protect it, and its validation status using the INIT
+        evidence terms (Applied, Validated, Owner confirmed, Prepared).
+  - [ ] Add My Driver Roster and Customer Guides to section 4 (workspaces), the new
+        migrations to section 14 and the commits to section 15.
+  - [ ] Update "Repository state reviewed through" to the newest commit.
+  - [ ] Section 2: name `AGENTS.md` and `WORKLOG.md` as required reading and state that
+        Claude also works on this repository through `claude/*` Pull Requests.
+  - [ ] Section 18: close checklist item 10. Verified 2026-10-18: the customer KG change set
+        (frontend and `202610170001_customer_kg_history_and_weekday_suggestions.sql`) is
+        on `master` in commit `9308683` and deployed.
+  - [ ] Add the migration-history caveat from `AGENTS.md` section 5 to section 14.
+- [ ] **From now on, after every task:** add a WORKLOG entry (format above), including
+      every migration applied to `ElisCaretex-dev`.
+- [ ] **Before every task:** `git pull origin master`, read this file, and check open Pull
+      Requests from Claude so you do not edit the same files at the same time.
+
+### For the owner
+
+- [ ] Review and merge Pull Request #1 (this coordination setup).
+- [ ] Decide whether `.reference-distribution/` is still needed. `README.md` describes it,
+      but it is not in the repository. Either commit it or remove the README line.
+- [ ] Enable leaked-password protection in Supabase Auth (open since INIT v90, section 16).
+
+### Done
+
+- [x] 2026-10-18 — Owner: set `master` as the GitHub default branch and deleted `main`.
+- [x] 2026-10-18 — Owner decision, Claude: Graphify is no longer used. Its references were
+      removed from `README.md` and `docs/architecture/overview.md`.
 
 Entry format:
 
@@ -19,14 +60,16 @@ Entry format:
 ## 2026-10-18 — Claude — Repository and database review; coordination files
 
 - Branch / commits: `claude/coordination-setup` (Pull Request into `master`).
-- Changed: added `AGENTS.md`, `CLAUDE.md` and this work log. No code or database change.
+- Changed: added `AGENTS.md`, `CLAUDE.md` and this work log; linked them from `README.md`
+  and `docs/README.md`; removed the unused Graphify references (owner decision). No code
+  or database change.
 - Database: none. Read-only checks only.
 - Validation, against `master` at `acfca47`:
   - `node scripts/validate-repository.mjs` passed (24 JavaScript files, 20 HTML files).
   - No service-role key, secret key or password found in tracked files.
     `frontend/assets/js/config.js` contains only the project URL, the publishable key and the public app URL.
-  - Every file and commit hash cited in the INIT exists, except `.reference-distribution/`
-    and `graphify-out/`, which `README.md` mentions but are not in the repository.
+  - Every file and commit hash cited in the INIT exists. `README.md` also mentioned
+    `.reference-distribution/` and `graphify-out/`, which are not in the repository.
   - All 11 migrations added after INIT v90 (`202610170002` to `202610170012`) appear in the
     live migration history. Spot checks found their objects (for example
     `customer_driver_guides`, `get_my_driver_roster`) in the database.
@@ -37,14 +80,8 @@ Entry format:
     to the six token-based production roster endpoints; 281 authenticated
     `SECURITY DEFINER` functions (expected design, internal guards); 103 tables with RLS
     enabled and no policies (INFO; access goes through RPCs).
-- Open / next:
-  - The INIT handover (last updated in `9308683`, 2026-10-17 17:48) does not yet describe
-    the Distribution driver-roster and customer-guide work from the entry below. The next
-    INIT refresh should add it.
-  - The GitHub default branch is still the obsolete `main`. Owner action: set `master` as
-    default in Settings → General, then delete `main`.
-  - `README.md` mentions `.reference-distribution/` and `graphify-out/`, which exist only in
-    local copies, if anywhere.
+- Open / next: see "Open action items" at the top. The INIT handover (last updated in
+  `9308683`, 2026-10-17 17:48) does not yet describe the Distribution work below.
 
 ## 2026-10-17 — Codex (recorded from Git history) — Distribution driver roster and customer guides
 

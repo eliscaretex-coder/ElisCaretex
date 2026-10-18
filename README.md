@@ -20,7 +20,6 @@ ElisCaretex's shared operational platform for customer planning, distribution, r
 frontend/     Static operational frontend
 supabase/     Database migrations, Edge Functions and validation SQL
 docs/         Current architecture, operational, database, frontend and test guidance
-graphify-out/  Locally generated code map and technical report
 ```
 
 ## Working rules
@@ -28,4 +27,4 @@ graphify-out/  Locally generated code map and technical report
 1. Use controlled Supabase RPCs for protected operational data; navigation visibility is not authorization.
 2. Keep production terminals separate from individual system-user accounts.
 3. Preserve the distinction between planned, actual, reported and corrected operational facts.
-4. Refresh Graphify after material source changes before a cross-module review. The checked-in map may be older than the current handover when a local file lock prevents regeneration.
+4. Follow `AGENTS.md` for branches, database changes and the shared work log.

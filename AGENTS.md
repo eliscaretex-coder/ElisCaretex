@@ -20,8 +20,8 @@ Codex reads this file automatically. Claude reads it through `CLAUDE.md`.
 | Project knowledge | `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` (INIT, authoritative) |
 | Who changed what, recently | `docs/handover/WORKLOG.md` |
 
-The branch `main` is an obsolete upload from 2026-09-23 (15 files). Do not read it,
-branch from it or open Pull Requests against it.
+`master` is the default and only long-lived branch. The obsolete `main` branch was
+deleted by the owner on 2026-10-18. Do not recreate it.
 
 Local copies (the Codex working copy and the owner's OneDrive copy) are not the
 source of truth. Anything that is not pushed to `master` does not exist for the
@@ -30,7 +30,8 @@ other agent.
 ## 2. Required reading before any change
 
 1. This file.
-2. The last entries of `docs/handover/WORKLOG.md`. These record work that the INIT may not cover yet.
+2. `docs/handover/WORKLOG.md`: the "Open action items" list at the top, then the latest
+   entries. These record work that the INIT may not cover yet.
 3. The INIT handover named above, in full, including its section 18 (startup checklist).
 4. `docs/handover/REVIEW_2026-10-16.md`.
 5. `docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md` before any data import work.
@@ -93,7 +94,8 @@ or on file names alone.
 
 ## 6. End-of-task checklist
 
-1. Append an entry to `docs/handover/WORKLOG.md` (format at the top of that file).
+1. Add an entry to `docs/handover/WORKLOG.md` (format at the top of that file) and
+   tick or remove the "Open action items" you completed.
 2. For material behaviour, security or database changes, also update the INIT
    handover. Keep its "evidence terms" honest: Applied, Validated, Owner
    confirmed, Prepared.
