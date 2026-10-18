@@ -11,24 +11,27 @@ work as a normal entry below. Remove ticked items at the next INIT refresh.
 
 ### For Codex
 
-- [ ] **Refresh the INIT handover to v91** in
+Completed 2026-10-18 in c796ff3 (INIT v91); recorded by this WORKLOG entry.
+The two recurring checklist items below are adopted ongoing rules, not retired obligations.
+
+- [x] **Refresh the INIT handover to v91** in
       `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md`:
-  - [ ] Add the Distribution work from the 2026-10-17 entry below (commits `1f69f2e` to
+  - [x] Add the Distribution work from the 2026-10-17 entry below (commits `1f69f2e` to
         `acfca47`, migrations `202610170002` to `202610170012`): what each workspace now
         does, which permissions/RPCs protect it, and its validation status using the INIT
         evidence terms (Applied, Validated, Owner confirmed, Prepared).
-  - [ ] Add My Driver Roster and Customer Guides to section 4 (workspaces), the new
+  - [x] Add My Driver Roster and Customer Guides to section 4 (workspaces), the new
         migrations to section 14 and the commits to section 15.
-  - [ ] Update "Repository state reviewed through" to the newest commit.
-  - [ ] Section 2: name `AGENTS.md` and `WORKLOG.md` as required reading and state that
+  - [x] Update "Repository state reviewed through" to the newest commit.
+  - [x] Section 2: name `AGENTS.md` and `WORKLOG.md` as required reading and state that
         Claude also works on this repository through `claude/*` Pull Requests.
-  - [ ] Section 18: close checklist item 10. Verified 2026-10-18: the customer KG change set
+  - [x] Section 18: close checklist item 10. Verified 2026-10-18: the customer KG change set
         (frontend and `202610170001_customer_kg_history_and_weekday_suggestions.sql`) is
         on `master` in commit `9308683` and deployed.
-  - [ ] Add the migration-history caveat from `AGENTS.md` section 5 to section 14.
-- [ ] **From now on, after every task:** add a WORKLOG entry (format above), including
+  - [x] Add the migration-history caveat from `AGENTS.md` section 5 to section 14.
+- [x] **From now on, after every task:** add a WORKLOG entry (format above), including
       every migration applied to `ElisCaretex-dev`.
-- [ ] **Before every task:** `git pull origin master`, read this file, and check open Pull
+- [x] **Before every task:** `git pull origin master`, read this file, and check open Pull
       Requests from Claude so you do not edit the same files at the same time.
 
 ### For the owner
@@ -56,6 +59,39 @@ Entry format:
 ```
 
 ---
+
+## 2026-10-18 — Codex — INIT v91 and working copy on the new computer
+
+- Branch / commits: `master`, `c796ff3` (INIT refresh); this accompanying WORKLOG
+  completion commit records the checklist and validation.
+- Changed: refreshed INIT to v91, documenting Distribution publication/printing,
+  My Driver Roster, Customer Guides, leave calendar/review, driver identity and
+  readable history, with actual permission/RPC guards and honest evidence status.
+  Added migrations `202610170002`–`202610170012`, all 12 Distribution commits,
+  coordination milestones and the migration-history caveat. Closed startup item 10:
+  customer KG frontend/migration reached master and deployment in `9308683`, per
+  the existing verified action item. Added AGENTS/WORKLOG reading, Claude PR
+  coordination and per-task logging as ongoing requirements.
+- Working copy: Codex now works on this new computer at
+  `C:/Users/bress/Documents/Codex/2026-10-18/clone-o-reposit-rio-https-github/ElisCaretex`,
+  cloned from GitHub `master`; the INIT replaces the previous Codex computer path.
+  GitHub master remains authoritative. Follow `AGENTS.md` on every future task.
+- Database: none. No migrations applied, no operational records changed and no
+  live database revalidation. Applied evidence is attributed to Claude's prior
+  2026-10-18 review; SQL tests and Distribution owner acceptance remain unconfirmed.
+- Validation: read AGENTS, WORKLOG, full INIT, review and import guide; fetched,
+  checked clean status, pulled master and inspected recent history. GitHub open-PR
+  search returned no open PRs; remote `claude/coordination-setup` still exists but
+  PR #1 is already merged in `296e117`. Reviewed migration definitions and frontend
+  RPC/Storage usage. `node scripts/validate-repository.mjs` passed (24 JavaScript
+  files, 20 HTML files); `git diff --check` passed. No browser or SQL tests run.
+- Open / next: push to origin/master is pending: Git Credential Manager on this new
+  computer returned Access is denied while retrieving GitHub credentials. Both
+  documentation commits are local; remote master remains at `296e117`.
+  Recurring start/end checklists continue on every task. Distribution
+  browser/negative permission tests and owner acceptance remain pending. Owner
+  items concerning `.reference-distribution/` and leaked-password protection are
+  unchanged; the old owner PR #1 action is already satisfied by merge `296e117`.
 
 ## 2026-10-18 — Claude — Repository and database review; coordination files
 
