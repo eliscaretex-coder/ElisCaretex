@@ -4,6 +4,8 @@ ElisCaretex's shared operational platform for customer planning, distribution, r
 
 ## Start here
 
+- `AGENTS.md` holds the shared working rules for Codex and Claude: source of truth, branches, database changes and handover duties.
+- `docs/handover/WORKLOG.md` records who changed what, newest first. Read it before starting work.
 - `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` is the authoritative AI handover (INIT v90, updated 2026-10-17) and delivery baseline.
 - `docs/handover/REVIEW_2026-10-16.md` records the latest security, UI, database and browser validation review.
 - `docs/architecture/overview.md` is the current architecture and access-model summary.
