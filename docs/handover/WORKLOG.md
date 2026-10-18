@@ -60,6 +60,21 @@ Entry format:
 
 ---
 
+## 2026-10-18 — Codex — Git identity and completed push correction
+
+- Branch / commits: `master`; new documentation commit, preserving all previous
+  commits, including `c796ff3` and `5c2ce7a`.
+- Changed: corrected the earlier entry to record the completed push and both
+  commits on `origin/master`. Configured this computer's global Git identity as
+  Paulo Bressan with the email explicitly supplied by the owner. Existing global
+  settings were preserved. No old commits were amended, rebased or rewritten.
+- Database: none.
+- Validation: fetched/pulled `master`; both commits are ancestors of
+  `origin/master`. No open PRs found; checked the remaining Claude branch.
+  Verified global `user.name` and `user.email`. Repository validation passed
+  (24 JavaScript files, 20 HTML files); `git diff --check` passed.
+- Open / next: existing operational acceptance and owner action items remain.
+
 ## 2026-10-18 — Codex — INIT v91 and working copy on the new computer
 
 - Branch / commits: `master`, `c796ff3` (INIT refresh); this accompanying WORKLOG
@@ -85,9 +100,10 @@ Entry format:
   PR #1 is already merged in `296e117`. Reviewed migration definitions and frontend
   RPC/Storage usage. `node scripts/validate-repository.mjs` passed (24 JavaScript
   files, 20 HTML files); `git diff --check` passed. No browser or SQL tests run.
-- Open / next: push to origin/master is pending: Git Credential Manager on this new
-  computer returned Access is denied while retrieving GitHub credentials. Both
-  documentation commits are local; remote master remains at `296e117`.
+- Push completed: commits `c796ff3` and `5c2ce7a` are on `origin/master`, verified
+  on 2026-10-18. The earlier credential error was resolved by the owner's push
+  from their Windows session.
+- Open / next:
   Recurring start/end checklists continue on every task. Distribution
   browser/negative permission tests and owner acceptance remain pending. Owner
   items concerning `.reference-distribution/` and leaked-password protection are
