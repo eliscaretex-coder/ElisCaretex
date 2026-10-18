@@ -1,6 +1,6 @@
 # Laundry Platform V2 Architecture Overview
 
-> **Canonical architecture summary** - updated 2026-09-10 from the current source. The checked-in Graphify report is dated 2026-08-26 and awaits regeneration after a local Windows access-denied failure.
+> **Canonical architecture summary** - updated 2026-09-10 from the current source.
 > Detailed delivery risks and unfinished work remain in `PLATFORM_CORRECTION_REGISTER_20260818.md`.
 
 ## Platform shape
@@ -93,13 +93,3 @@ Supabase Edge Functions are used only when an external service or server-side in
 6. Shared production computers are fixed terminals; personal administrator accounts must not become production terminals.
 7. Remove simulated operational data rather than presenting it as live work.
 8. New workspaces and protected actions must add matching server-side authorization and targeted validation.
-
-## Graphify reference
-
-The checked-in code graph was generated on 2026-08-26 and contains frontend and Supabase SQL migration relationships from that point in time. It is stored in `graphify-out/`:
-
-- `graph.html` is the interactive visual map.
-- `GRAPH_REPORT.md` is the generated technical report.
-- `graph.json` is queried by Graphify before cross-module changes.
-
-Refresh it after meaningful changes with Graphify's update command. A 2026-09-10 refresh attempt failed with a local Windows access-denied error, so use the current source and `docs/handover/ElisCaretex_V2_PROJECT_INIT_2026-09-10_v87_CURRENT.md` until it is regenerated. Treat the graph as a map of source relationships; this document remains the concise operational interpretation and the correction register remains the backlog of known risks.
