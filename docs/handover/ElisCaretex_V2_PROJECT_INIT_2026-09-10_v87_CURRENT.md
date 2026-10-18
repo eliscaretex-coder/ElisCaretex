@@ -1,15 +1,15 @@
-# ElisCaretex V2 - Authoritative AI Project INIT v90
+# ElisCaretex V2 - Authoritative AI Project INIT v91
 
-**Handover date:** 2026-10-17
+**Handover date:** 2026-10-18
 
 **Purpose:** authoritative AI-to-AI continuation guide for the ElisCaretex V2 laundry operations platform.
 
-**Repository state reviewed through:** commit `91570ef` plus the documented
-customer KG history/suggestion change set currently awaiting commit and push.
-**Supersedes:** INIT v89 and every older INIT/handover snapshot.
+**Repository state reviewed through:** commit `296e117` (merged coordination PR #1).
+This documentation refresh follows that source baseline.
+**Supersedes:** INIT v90 and every older INIT/handover snapshot.
 
 The filename is retained for compatibility with existing links. The content is
-v90 and current as of 2026-10-17.
+v91 and current as of 2026-10-18.
 
 ## 1. Read this first
 
@@ -39,12 +39,17 @@ Code, database objects, filenames, and UI text stay in English. Conversation wit
 Current Codex working repository:
 
 ```text
-C:/Users/paulob/Documents/Codex/2026-09-26/en/work/laundry-platform-v2
+C:/Users/bress/Documents/Codex/2026-10-18/clone-o-reposit-rio-https-github/ElisCaretex
 branch: master
 remote: https://github.com/eliscaretex-coder/ElisCaretex.git
 ```
 
-Owner's OneDrive working copy:
+Codex now works on this new computer. This repository was cloned on 2026-10-18;
+the path above replaces the previous computer's Codex working path. GitHub
+`master` is the source of truth. Do not recreate the deleted `main` branch.
+Claude also works here through `claude/*` Pull Requests into `master`.
+
+Owner's OneDrive working copy (previous computer; availability here not verified):
 
 ```text
 C:/Users/paulob/OneDrive - ELIS/Documents/Paulo/laundry-platform-v2-foundation/laundry-platform-v2
@@ -67,11 +72,22 @@ The workflow `.github/workflows/pages.yml` validates all frontend JavaScript and
 Before work:
 
 ```text
+git fetch origin
 git status
 git pull origin master
+git log --oneline -15
 ```
 
-Do not discard a dirty working tree. Existing changes may belong to the owner. The OneDrive copy and Codex copy can diverge; confirm which one is authoritative before copying or pulling files.
+Do not discard a dirty working tree. Existing changes may belong to the owner.
+Local copies can diverge; GitHub `master` remains authoritative. Check open Claude
+PRs and `claude/*` branches before editing; tell the owner about overlapping files.
+
+Required reading: `AGENTS.md`, then open items and latest entries in
+`docs/handover/WORKLOG.md`, this INIT in full and
+`docs/handover/REVIEW_2026-10-16.md`. Read the import guide before import work.
+After every task add a WORKLOG entry, including every migration applied to
+`ElisCaretex-dev` (or none), validation and unfinished work. Follow AGENTS.md for
+all subsequent tasks.
 
 Useful first reads:
 
@@ -123,13 +139,80 @@ Core rules:
 | Finish Results | Daily/table/shift performance including unit-to-KG equivalent and ReWash visibility. |
 | Production Tracker | Shared route/customer production trace covering washing, MOP, Finish, ABS and trolley evidence. |
 | Production Intelligence | Manager analytics for official production, capacity, seasonality, Sorting/trolley flow and forward planning. |
-| Distribution | Daily planning, routes/stops, weekly roster, driver/fleet master, actuals and history. |
+| Distribution | Daily planning, routes/stops, weekly roster publication and printing, driver/fleet master, actuals, driver leave calendar/review and readable history. |
+| My Driver Roster | `frontend/pages/driver-roster.html`: published weekly assignments, route stops/customer guides and Holiday/Day Off requests; management can inspect the full published week. |
+| Customer Guides | `frontend/pages/driver-guides.html`: management of customer photos/PDFs and pending driver leave decisions; assigned drivers view private guides through published routes. |
 | Trolleys | Trolley type/master, physical trolleys, lifecycle, locations and custody history. |
 | Staff Master | Staff directory, operational roles, cover capability, onboarding and Accounts & Access. |
 | Notifications | Staff inbox plus manager/supervisor notice creation, delivery, read and acknowledgement tracking. |
 | Privacy | Employee privacy notice and acknowledgement entry point. |
 
 Customer Service complaints/quality workflow is still not implemented. The expected future scope includes complaints, trace-back to production/table/scanner, assigned actions, resolution status, metrics, and cross-area quality alerts. Do not invent this module without renewed owner direction and the owner's existing form definition.
+
+### Distribution continuation, 2026-10-17
+
+Commits `1f69f2e` through `acfca47` delivered:
+
+- Distribution roster publication: `publish_distribution_roster_week` calls
+  `require_distribution_plan_access`, checks row versions and validates the roster.
+  Only `PLANNED` entries create route runs and require route, primary driver and
+  vehicle. Training, Holiday, Absent and Sick entries do not create runs; existing
+  operational runs remain protected. Weekly layouts and print output were refined.
+- My Driver Roster: `get_my_driver_roster`, `get_my_driver_route` and
+  `submit_my_driver_leave_request` serve published assignments, route stops and
+  personal leave requests. `current_distribution_driver_id` resolves an authenticated
+  account through an active Staff link and active Distribution driver. Drivers see
+  their own assignments; management sees the full published week. Mobile layouts,
+  current/next-week switching, search and photo/PDF viewing are implemented.
+- Customer Guides: `get_driver_guide_admin`, `save_driver_guide`,
+  `update_driver_guide`, `set_driver_guide_active` and `delete_driver_guide` require
+  `can_manage_driver_guides`: authenticated identity plus
+  `has_account_permission('DISTRIBUTION','MANAGE',null)`. Metadata has RLS enabled
+  and direct public/anon/authenticated access revoked. The private
+  `customer-driver-guides` bucket accepts JPG/PNG/WebP/PDF up to 15 MB. Four Storage
+  policies guard reads/writes: writes require management; reads require an active
+  guide and `can_view_driver_guide_object` / `can_view_driver_guide_customer`.
+  These allow management or the primary/support driver of a published assignment
+  with a matching route-run customer stop. Viewers request 300-second signed URLs.
+- `MY_DRIVER_ROSTER` permission templates cover Driver (OWN), Logistics Manager
+  (DISTRIBUTION), General Manager and Administrator (ALL). Migration `202610170004`
+  grants matching existing accounts access. These navigation permissions do not
+  replace the RPC identity/management guards above.
+- Driver leave: `get_driver_leave_requests_admin` and `review_driver_leave_request`
+  support decisions. The calendar uses `get_distribution_driver_leave_calendar`,
+  `save_distribution_driver_leave_admin` and `delete_distribution_driver_leave_admin`.
+  All require management access. Pending/approved overlaps and published-roster
+  conflicts are checked; changes do not silently rewrite published rosters.
+- Driver identity: `get_distribution_driver_master` uses
+  `require_distribution_read_access`; `save_distribution_driver` uses
+  `require_distribution_master_access`. Database-generated `DRV-xxx` codes use an
+  advisory lock and are preserved on edits. Licence categories are recorded.
+- Readable history: `get_distribution_activity_history` uses
+  `require_distribution_read_access`, with actor names and event summaries.
+  The trigger `record_customer_driver_guide_event` appends guide creation, update,
+  file replacement, activation/deactivation and deletion to Distribution master
+  events; direct trigger-function execution is revoked from all application roles.
+  The callable RPCs revoke PUBLIC/anonymous execution and use authenticated grants
+  with internal guards. Existing read/plan/master guards require active authenticated
+  Staff identity and their allowed operational roles.
+
+Evidence carried forward from the 2026-10-18 WORKLOG review:
+
+- **Applied:** all 11 migrations `202610170002` through `202610170012` were found
+  in live migration history by Claude, with spot checks of objects including
+  `customer_driver_guides` and `get_my_driver_roster`. No migration was applied or
+  live database state rechecked during this documentation refresh.
+- **Validated:** original pushes passed Pages validation, as recorded in WORKLOG;
+  local repository validation was rerun for this refresh. This proves syntax and
+  dependency-pin checks, not operational acceptance.
+- **Prepared:** SQL checks exist in
+  `supabase/tests/202610170002_fix_distribution_roster_nonworking_publication_validation.sql`
+  (DO-block definition/grant checks) and
+  `supabase/tests/202610170003_my_driver_roster_and_customer_guides_validation.sql`
+  (10 transactional pgTAP checks). Execution is not recorded and they were not run
+  in this refresh. They do not prove full action-level authorization coverage.
+- **Owner confirmed:** not recorded for this continuation. Browser acceptance,
+  focused negative permission tests and owner operational acceptance remain pending.
 
 ## 5. Shared UI contract
 
@@ -379,7 +462,7 @@ This guide is mandatory reading. Key rules:
 
 Existing staging support already covers legacy customers/schedules and roster/leave. Finish, ReWash, MOP, Sorting, trolley and Distribution source formats require source-specific restricted staging tables and reviewed promotion logic after the actual exports are supplied.
 
-## 14. Supabase state verified 2026-10-17
+## 14. Supabase state and recorded verification through 2026-10-18
 
 Recent live migration groups include:
 
@@ -400,6 +483,36 @@ Recent live migration groups include:
 20261017: permission-guarded customer KG history and weekday suggestions;
             forward capacity aligned to the same latest-three-weekdays rule.
 ```
+
+Distribution migrations, **Applied** according to Claude's live-history review
+recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
+
+```text
+202610170002_fix_distribution_roster_nonworking_publication.sql
+202610170003_my_driver_roster_and_customer_guides.sql
+202610170004_grant_my_driver_roster_to_existing_accounts.sql
+202610170005_harden_driver_guide_storage_access.sql
+202610170006_driver_leave_review.sql
+202610170007_distribution_driver_roster_management_view.sql
+202610170008_manage_customer_driver_guide_files.sql
+202610170009_distribution_driver_leave_calendar.sql
+202610170010_distribution_driver_identity.sql
+202610170011_distribution_history_readable.sql
+202610170012_customer_guide_history.sql
+```
+
+**Migration-history caveat (verified 2026-10-18, AGENTS.md section 5):** live
+`supabase_migrations` history starts at `20260811163258` and lists 94 entries,
+while the repository holds 179 files from `202607160001`. The 50 files before
+2026-08-11 and 41 later files (including
+`202608120008_finish_v2_production_foundation.sql`) were applied outside tracked
+history; spot checks confirmed their database objects. Four live entries have names
+different from matching files. Two live entries,
+`production_intelligence_forward_capacity_compact_learning` and
+`production_intelligence_forward_capacity_final_states`, are consolidated in
+`202609260005_production_intelligence_forward_capacity.sql`. Query current database
+objects to determine whether a change is applied; history and filenames alone are
+insufficient. Never edit, rename or rerun historical migrations.
 
 Active Edge Functions:
 
@@ -457,6 +570,22 @@ ffcfc08  clearer not-started and active Production Tracker states
 9e31279  terminal notification access and handover update
 785ed39  route creation fix and operational acceptance evidence
 91570ef  workspace navigation and customer KG planning improvements
+9308683  customer KG history and weekday suggestions committed and deployed
+1f69f2e  Distribution publication for non-working entries
+0d421e0  My Driver Roster and customer delivery guides
+1010b62  Driver Roster management and weekly layout
+183c193  customer driver guide management
+4183915  mobile driver roster and guide viewer
+3838bae  Distribution driver leave calendar
+6ee169f  Distribution leave labels and roster printing
+d244524  Distribution leave labels and roster printing
+66a8832  driver codes, licence types and roster printing
+e3d3e39  Distribution roster print layout
+e7edb07  readable Distribution history
+acfca47  Customer Guide actions in Distribution history
+eaf8e7a  shared agent rules and WORKLOG
+f7c457b  Graphify removal and Codex action items
+296e117  merge coordination PR #1 into master
 ```
 
 Use Git history for detailed file-level evidence.
@@ -492,9 +621,11 @@ Do not build advanced analytics on unvalidated legacy data. Data provenance and 
 
 ## 18. Future AI startup checklist
 
-1. Read this INIT, `docs/handover/REVIEW_2026-10-16.md` and
+1. Read `AGENTS.md`, `docs/handover/WORKLOG.md`, this INIT,
+   `docs/handover/REVIEW_2026-10-16.md` and
    `docs/database/APPS_SCRIPT_DATA_IMPORT_GUIDE.md` fully.
-2. Run `git status`, inspect recent history and confirm the active working copy.
+2. Run the AGENTS fetch/status/pull/history checklist, confirm the active working
+   copy and check open Claude PRs/branches before editing overlapping files.
 3. Query the live Supabase schema/migrations before relying on local assumptions.
 4. Preserve the shared visual shell and compact notebook-friendly layout.
 5. Keep personal accounts, Staff Master records and terminal accounts separate.
@@ -502,14 +633,15 @@ Do not build advanced analytics on unvalidated legacy data. Data provenance and 
 7. Preserve official versus approximate KG separation.
 8. Add server-side authorization and negative tests for every new protected action.
 9. Never import historical data directly into operational tables without staging/reconciliation.
-10. Check whether the customer KG change set documented here has been committed
-    and pushed; the Supabase migration is already applied, while the frontend
-    must reach `master` for GitHub Pages deployment.
-11. Report material behaviour, migrations, validation and unresolved risks back into this INIT at the next handover.
+10. [x] Closed 2026-10-18: customer KG frontend and migration
+    `202610170001_customer_kg_history_and_weekday_suggestions.sql` are on `master`
+    in commit `9308683` and deployed, as verified in the WORKLOG action item.
+11. Add a WORKLOG entry after every task, including applied migrations and
+    validation; update this INIT for material behaviour, security or database changes.
 
 ## 19. Authority statement
 
-This INIT v90 is the handover authority as of 2026-10-17. Current source,
+This INIT v91 is the handover authority as of 2026-10-18. Current source,
 current Git history, current live Supabase state, and explicit owner decisions
 override older INIT files, ZIP baselines, screenshots, stale generated reports
 and historical assumptions.
