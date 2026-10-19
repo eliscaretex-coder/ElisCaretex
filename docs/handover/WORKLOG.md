@@ -80,6 +80,34 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Fleet: vehicle off road until its expected return
+
+- Branch / commits: `claude/fleet-vehicle-off-road-periods`, Pull Request.
+- Changed: owner request after the Distribution review. A defect now records whether the
+  vehicle can be used (Roadworthy / Restricted use / Off road) and a required expected
+  return date; a maintenance has a required expected return date. Off-road defects and
+  planned or in-progress maintenance block the vehicle in the roster picker, on the daily
+  route plan and in roster save/publish from the start date until the day before the
+  expected return; an overdue return blocks today until someone presses **Return to
+  service** in Fleet (or closes the defect / completes the maintenance). Expired documents
+  only warn (owner decision). Fleet rows show status, the most urgent document by name and
+  12-month defects / days off road; **History** opens metrics (defects, days off road,
+  maintenance, days rostered, KM) and every past item. Board cards flag the vehicle, the
+  roster marks published days whose vehicle is now blocked, and saving a defect or
+  maintenance lists the published roster days to reassign. HIGH/CRITICAL severity no longer
+  silently sets the vehicle Out of service.
+- Database: `202610190005_fleet_vehicle_off_road_periods.sql`, **not applied** (Prepared).
+  It declares the CentralDB-imported columns `expected_return_on`, `repair_date` and
+  `vehicle_status_snapshot`, and backfills `vehicle_condition` from the imported snapshot:
+  231D45366 (Out Of Service since 15 Jul, still open) becomes off road and blocks today
+  until it is returned to service.
+- Validation: the block rule, defect save, roster conflicts and return to service were run
+  against `ElisCaretex-dev` inside a transaction that was rolled back (nothing kept).
+  `node scripts/validate-repository.mjs` passed. UI checked in Chromium on the live site
+  with the changed files served locally and the new RPC fields stubbed; nothing was saved.
+  The pgTAP file `supabase/tests/202610190005_..._validation.sql` runs after the migration.
+- Open / next: apply the migration (owner), run the test file and the security advisors.
+
 ## 2026-10-19 — Claude — Distribution alerts and weekly actuals history
 
 - Branch / commits: `claude/distribution-alerts-actuals-history`, Pull Request.

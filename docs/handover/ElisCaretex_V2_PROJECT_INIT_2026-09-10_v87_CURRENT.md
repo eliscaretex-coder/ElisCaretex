@@ -198,6 +198,16 @@ Commits `1f69f2e` through `acfca47` delivered:
   data per row with an "incomplete only" filter (warnings, never save blockers).
 - Driver exit (`202610190002`, Applied 2026-10-19): the Drivers row action is **Remove**
   (former **Leave**, which only duplicated the Leave calendar). See section 7.
+- Fleet off-road periods (`202610190005`, Prepared, not applied): every defect records
+  whether the vehicle can be used (Roadworthy / Restricted / Off road) and an expected
+  return date; every maintenance has an expected return date. An off-road defect or a
+  planned/in-progress maintenance blocks the vehicle in the roster, on daily routes and in
+  roster validation from its start date until the day before the expected return; an
+  overdue return keeps blocking today until **Return to service**
+  (`return_fleet_vehicle_to_service`) or closing the item. Expired documents only warn
+  (owner decision 2026-10-19). Fleet shows per-vehicle 12-month metrics and a History
+  dialog (`get_fleet_vehicle_history`). The one rule lives in
+  `distribution_vehicle_block_reason(vehicle, date)`.
 - Page alerts and weekly actuals (2026-10-19, frontend only, Prepared): under the
   Distribution summary cards, one chip per area (Drivers, Fleet, last week's actuals)
   appears only when something is expired, due within 30 days, leaving within 14 days,
@@ -549,6 +559,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190001_distribution_driver_fleet_master_completion.sql   (applied 2026-10-19)
 202610190002_distribution_driver_exit_workflow.sql             (applied 2026-10-19)
 202610190004_driver_reinstate_keeps_scheduled_status.sql      (applied 2026-10-19, owner)
+202610190005_fleet_vehicle_off_road_periods.sql               (prepared, not applied)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
