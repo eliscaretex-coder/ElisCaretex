@@ -73,8 +73,13 @@ Entry format:
   Drivers/Fleet show which details are missing with an "incomplete only" filter.
   Optional `row_version` checks reject stale edits.
 - Database: `202610190001_distribution_driver_fleet_master_completion.sql`
-  prepared, **not applied** to `ElisCaretex-dev`. Apply it before merging, since
-  the frontend calls `get_fleet_vehicle_master`.
+  **applied** to `ElisCaretex-dev` on 2026-10-19 at the owner's request (live
+  history name `distribution_driver_fleet_master_completion`). Checked live: the
+  five functions are SECURITY DEFINER, not executable by anon, executable by
+  authenticated; as an ADMIN (read-only transaction) the fleet master returned 18
+  full vehicle rows, the driver master 16 drivers, Staff link options 2 records.
+  Security advisors show no new finding for these functions beyond the existing
+  project-wide "authenticated SECURITY DEFINER executable" warning.
 - Validation: migration and behaviour (permission guards, Staff link rules,
   partial-edit preservation, stale row_version, duplicate registration) checked
   on a local PostgreSQL 16 with stubbed auth/staff objects; browser check of the
@@ -82,7 +87,8 @@ Entry format:
   console errors); `node scripts/validate-repository.mjs` passed. pgTAP file
   `supabase/tests/202610190001_distribution_driver_fleet_master_completion_validation.sql`
   not yet run against the development project.
-- Open / next: owner applies the migration and fills the real driver/fleet data;
+- Open / next: merge the PR (the frontend now matches the database); fill the real
+  driver/fleet data. Only 2 non-production Staff records exist to link drivers to;
   INIT section 4 can mention the Staff link and fleet master RPCs at the next refresh.
 
 ## 2026-10-18 — Codex — Git identity and completed push correction
