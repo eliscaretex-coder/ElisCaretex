@@ -198,6 +198,14 @@ Commits `1f69f2e` through `acfca47` delivered:
   data per row with an "incomplete only" filter (warnings, never save blockers).
 - Driver exit (`202610190002`, Applied 2026-10-19): the Drivers row action is **Remove**
   (former **Leave**, which only duplicated the Leave calendar). See section 7.
+- Page alerts and weekly actuals (2026-10-19, frontend only, Prepared): under the
+  Distribution summary cards, one chip per area (Drivers, Fleet, last week's actuals)
+  appears only when something is expired, due within 30 days, leaving within 14 days,
+  has open defects or missing details; each chip opens its tab. The former "Fleet
+  attention" card was replaced by these chips. The Actuals tab now opens on a history
+  of closed weeks (hours and KM actual versus planned, recorded count, status) with the
+  entry form collapsed until a week is opened. Both read the existing
+  `get_distribution_actuals_week`; no new RPC or migration.
 - Readable history: `get_distribution_activity_history` uses
   `require_distribution_read_access`, with actor names and event summaries.
   The trigger `record_customer_driver_guide_event` appends guide creation, update,

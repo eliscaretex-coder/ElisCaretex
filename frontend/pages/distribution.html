@@ -6,7 +6,7 @@
   <title>Distribution | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css?v=20261017-1">
-  <link rel="stylesheet" href="../assets/css/distribution.css?v=20261019-2">
+  <link rel="stylesheet" href="../assets/css/distribution.css?v=20261019-3">
   <link rel="stylesheet" href="../assets/css/roster.css">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <style>@page { size: A4 landscape; margin: 8mm; }</style>
@@ -15,7 +15,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20260925-1" defer></script>
-  <script src="../assets/js/distribution.js?v=20261019-3" defer></script>
+  <script src="../assets/js/distribution.js?v=20261019-4" defer></script>
 </head>
 <body class="distribution-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -37,6 +37,7 @@
       <main class="distribution-main">
         <p id="distributionMessage" class="distribution-message" aria-live="polite"></p>
         <section id="distributionKpis" class="distribution-kpis" aria-label="Distribution summary"></section>
+        <section id="distributionAlerts" class="distribution-alerts" aria-label="Distribution alerts" hidden></section>
         <nav id="distributionTabs" class="distribution-tabs" aria-label="Distribution workspace"></nav>
         <section id="distributionPanel" class="distribution-panel">
           <div class="distribution-loading">Loading Distribution workspace...</div>

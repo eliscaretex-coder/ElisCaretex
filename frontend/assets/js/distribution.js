@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const $ = (id) => document.getElementById(id);
   const el = {
     date: $("distributionDate"), today: $("distributionTodayButton"), refresh: $("distributionRefreshButton"), message: $("distributionMessage"),
-    kpis: $("distributionKpis"), tabs: $("distributionTabs"), panel: $("distributionPanel"),
+    kpis: $("distributionKpis"), alerts: $("distributionAlerts"), tabs: $("distributionTabs"), panel: $("distributionPanel"),
     runDialog: $("distributionRunDialog"), runForm: $("distributionRunForm"), runTitle: $("distributionRunTitle"), runSubtitle: $("distributionRunSubtitle"), runId: $("distributionRunId"), runRouteId: $("distributionRunRouteId"), runVersion: $("distributionRunVersion"), runPrimary: $("distributionRunPrimaryDriver"), runSupport: $("distributionRunSupportDriver"), runVehicle: $("distributionRunVehicle"), runStatus: $("distributionRunStatus"), runNotes: $("distributionRunNotes"), runMessage: $("distributionRunMessage"),
     stopDialog: $("distributionStopDialog"), stopTitle: $("distributionStopTitle"), stopSubtitle: $("distributionStopSubtitle"), stopList: $("distributionStopList"), stopMessage: $("distributionStopMessage"), addStop: $("distributionAddStopButton"), manualForm: $("distributionManualStopForm"), manualKind: $("distributionManualStopKind"), manualName: $("distributionManualStopName"), manualEircode: $("distributionManualStopEircode"), manualKg: $("distributionManualStopKg"), manualInstructions: $("distributionManualStopInstructions"), manualSave: $("distributionManualStopSave"),
     masterDialog: $("distributionMasterDialog"), masterForm: $("distributionMasterForm"), masterEyebrow: $("distributionMasterEyebrow"), masterTitle: $("distributionMasterTitle"), masterFields: $("distributionMasterFields"), masterMessage: $("distributionMasterMessage"),
@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   const distributionTabIds = ["board", "customers", "roster", "leave", "actuals", "drivers", "fleet", "routes", "history"];
   const initialTab = String(location.hash || "").replace("#", "");
-  const state = { data: null, nextData: null, boardDay: "current", runBusinessDate: "", activeTab: distributionTabIds.includes(initialTab) ? initialTab : "board", routeDetail: null, master: null, roster: null, rosterWeek: "", rosterDirty: false, rosterEditing: null, rosterLeave: null, leaveCalendar: null, leaveDriverFilter: "", leaveTypeFilter: "", pendingRouteId: "", pendingVehicleId: "", history: null, actuals: null, actualsWeek: "", routeCustomersCollapsed: new Set(), routeCustomersWeekly: null, routeCustomersDay: "", routeCustomersRoute: "", routeCustomersSearch: "", driverStaffOptions: null, driversIncompleteOnly: false, showFormerDrivers: false, fleetIncompleteOnly: false };
+  const state = { data: null, nextData: null, boardDay: "current", runBusinessDate: "", activeTab: distributionTabIds.includes(initialTab) ? initialTab : "board", routeDetail: null, master: null, roster: null, rosterWeek: "", rosterDirty: false, rosterEditing: null, rosterLeave: null, leaveCalendar: null, leaveDriverFilter: "", leaveTypeFilter: "", pendingRouteId: "", pendingVehicleId: "", history: null, actuals: null, actualsHistory: null, actualsHistoryWeeks: 8, actualsOpenWeek: "", lastWeekActuals: null, routeCustomersCollapsed: new Set(), routeCustomersWeekly: null, routeCustomersDay: "", routeCustomersRoute: "", routeCustomersSearch: "", driverStaffOptions: null, driversIncompleteOnly: false, showFormerDrivers: false, fleetIncompleteOnly: false };
   const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   const isoToday = () => new Date().toISOString().slice(0, 10);
   const localDate = (value) => String(value || "").slice(0, 10);
@@ -70,8 +70,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function weekInputValue(weekStart) {
     const date = new Date(`${localDate(weekStart)}T12:00:00`);
     const thursday = new Date(date); thursday.setDate(thursday.getDate() + 3);
-    const firstThursday = new Date(thursday.getFullYear(), 0, 4);
-    firstThursday.setDate(firstThursday.getDate() + ((4 - firstThursday.getDay() + 7) % 7));
+    // ISO week 1 is the week that contains 4 January.
+    const firstThursday = new Date(thursday.getFullYear(), 0, 4, 12);
+    firstThursday.setDate(firstThursday.getDate() - ((firstThursday.getDay() + 6) % 7) + 3);
     const week = 1 + Math.round((thursday - firstThursday) / 604800000);
     return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
   }
@@ -105,16 +106,78 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pendingRoutes = new Set(stops.filter((stop) => !assigned.has(String(stop.route_id))).map((stop) => String(stop.route_id))).size;
     const handoff = state.data?.trolley_handoff?.summary || {};
     const productionLoad = state.data?.production_load?.summary || {};
-    const fleet = state.data?.fleet_summary || {};
     const items = [
       [stops.length, "Scheduled stops", ""],
       [activeRuns.length, "Active routes", ""],
       [pendingRoutes, "Routes to plan", pendingRoutes ? "attention" : ""],
       [handoff.trolley_count || 0, "Trolleys prepared", ""],
-      [productionLoad.known_vehicle_load_kg || 0, "Known load (kg)", productionLoad.not_started_customers ? "attention" : "", 1],
-      [(fleet.open_defects || 0) + (fleet.compliance_due || 0), "Fleet attention", (fleet.open_defects || fleet.compliance_due) ? "risk" : ""]
+      [productionLoad.known_vehicle_load_kg || 0, "Known load (kg)", productionLoad.not_started_customers ? "attention" : "", 1]
     ];
     el.kpis.innerHTML = items.map(([value, label, cls, digits = 0]) => `<article class="${cls}"><strong>${esc(fmtNumber(value, digits))}</strong><span>${esc(label)}</span></article>`).join("");
+    renderAlerts();
+  }
+
+  const daysUntil = (value) => Math.round((new Date(`${localDate(value)}T12:00:00`) - new Date(`${isoToday()}T12:00:00`)) / 86400000);
+  const hasValue = (value) => value !== null && value !== undefined && value !== "";
+
+  function documentAlerts(records, documents, nameOf) {
+    const expired = []; const due = [];
+    records.forEach((record) => documents.forEach(([label, key]) => {
+      if (!record[key]) return;
+      const days = daysUntil(record[key]);
+      if (days < 0) expired.push(`${nameOf(record)} ${label} (${fmtShortDate(record[key])})`);
+      else if (days <= 30) due.push(`${nameOf(record)} ${label} (${fmtShortDate(record[key])})`);
+    }));
+    return { expired, due };
+  }
+
+  // Top-of-page alerts: one compact chip per area, shown only when something is missing, due soon or overdue.
+  function distributionAlerts() {
+    const currentDrivers = drivers().filter((driver) => !isFormerDriver(driver));
+    const activeVehicles = vehicles().filter((vehicle) => vehicle.active !== false);
+    const driverName = (driver) => shortName(driver.display_name) || driver.driver_code || "Driver";
+    const vehicleName = (vehicle) => vehicle.registration_number || vehicle.display_name || "Vehicle";
+    const driverDocs = documentAlerts(currentDrivers, [["licence", "licence_expires_on"], ["CPC", "cpc_expires_on"]], driverName);
+    const fleetDocs = documentAlerts(activeVehicles, [["road tax", "road_tax_expires_on"], ["insurance", "insurance_expires_on"], ["test", "test_expires_on"], ["service", "service_due_on"]], vehicleName);
+    const area = (label, tab, parts, filter = "", week = "") => {
+      const present = parts.filter((part) => part.items.length);
+      if (!present.length) return null;
+      const level = present.some((part) => part.level === "danger") ? "danger" : present.some((part) => part.level === "warn") ? "warn" : "info";
+      const onlyIncomplete = present.every((part) => part.incomplete);
+      return { level, tab, filter: onlyIncomplete ? filter : "", week, text: `${label}: ${present.map((part) => `${fmtNumber(part.items.length)} ${part.label}`).join(" · ")}`, detail: present.map((part) => `${part.title}:\n${part.items.map((item) => `  ${item}`).join("\n")}`).join("\n") };
+    };
+    const lastWeek = state.lastWeekActuals ? actualsCompletion(state.lastWeekActuals) : null;
+    return [
+      area("Drivers", "drivers", [
+        { level: "danger", label: "expired", title: "Expired documents", items: driverDocs.expired },
+        { level: "warn", label: "due in 30 days", title: "Documents due in 30 days", items: driverDocs.due },
+        { level: "info", label: "leaving soon", title: "Leaving in the next 14 days", items: currentDrivers.filter((driver) => driverExitScheduled(driver) && daysUntil(driver.deactivated_on) <= 14).map((driver) => `${driverName(driver)} (${fmtShortDate(driver.deactivated_on)})`) },
+        { level: "info", label: "missing details", title: "Missing details", incomplete: true, items: currentDrivers.filter((driver) => driverMissing(driver).length).map((driver) => `${driverName(driver)}: ${driverMissing(driver).join(", ")}`) }
+      ], "incomplete"),
+      area("Fleet", "fleet", [
+        { level: "danger", label: "expired", title: "Expired documents", items: fleetDocs.expired },
+        { level: "warn", label: "with open defects", title: "Open defects", items: activeVehicles.filter((vehicle) => Number(vehicle.open_defect_count || 0)).map((vehicle) => `${vehicleName(vehicle)} (${fmtNumber(vehicle.open_defect_count)})`) },
+        { level: "warn", label: "due in 30 days", title: "Documents due in 30 days", items: fleetDocs.due },
+        { level: "info", label: "missing details", title: "Missing details", incomplete: true, items: activeVehicles.filter((vehicle) => vehicleMissing(vehicle).length).map((vehicle) => `${vehicleName(vehicle)}: ${vehicleMissing(vehicle).join(", ")}`) }
+      ], "incomplete"),
+      lastWeek?.missing ? { level: "warn", tab: "actuals", filter: "", week: localDate(state.lastWeekActuals.week_start), text: `Last week's actuals: ${lastWeek.done ? `${fmtNumber(lastWeek.missing)} missing` : "not recorded"}`, detail: [...lastWeek.missingDrivers, ...lastWeek.missingVehicles].join("\n") } : null
+    ].filter(Boolean);
+  }
+
+  function renderAlerts() {
+    if (!el.alerts) return;
+    const alerts = distributionAlerts();
+    el.alerts.hidden = !alerts.length;
+    el.alerts.innerHTML = alerts.map((alert) => `<button class="distribution-alert ${alert.level}" type="button" data-alert-tab="${esc(alert.tab)}" data-alert-filter="${esc(alert.filter || "")}" data-alert-week="${esc(alert.week || "")}" title="${esc(alert.detail)}"><i aria-hidden="true"></i><span>${esc(alert.text)}</span></button>`).join("");
+  }
+
+  async function openAlert(button) {
+    const tab = button.dataset.alertTab;
+    if (tab === "drivers") { state.driversIncompleteOnly = button.dataset.alertFilter === "incomplete"; state.showFormerDrivers = false; }
+    if (tab === "fleet") state.fleetIncompleteOnly = button.dataset.alertFilter === "incomplete";
+    if (tab === "actuals" && button.dataset.alertWeek) state.actualsOpenWeek = button.dataset.alertWeek;
+    if (state.activeTab === tab) { if (tab === "actuals") await openActualsWeek(state.actualsOpenWeek); else render(); }
+    else await switchDistributionTab(tab);
   }
 
   function renderTabs() {
@@ -362,20 +425,68 @@ document.addEventListener("DOMContentLoaded", async () => {
     return value === null || value === undefined ? "" : value;
   }
 
-  function renderActuals() {
-    if (!state.actuals) { el.panel.innerHTML = `<div class="distribution-loading">Loading weekly actuals...</div>`; return; }
-    const canManage = Boolean(state.actuals.can_manage);
-    const week = state.actuals.week_start;
-    const range = `${fmtShortDate(state.actuals.week_start)} - ${fmtShortDate(state.actuals.week_end)}`;
-    const driversRows = (state.actuals.drivers || []).map((driver) => {
+  function shiftWeek(weekStart, weeks) {
+    const date = new Date(`${localDate(weekStart)}T12:00:00`); date.setDate(date.getDate() + weeks * 7);
+    return date.toISOString().slice(0, 10);
+  }
+
+  const lastClosedWeek = () => shiftWeek(mondayFor(isoToday()), -1);
+  const fmtDayMonth = (value) => new Intl.DateTimeFormat("en-IE", { day: "2-digit", month: "short" }).format(new Date(`${localDate(value)}T12:00:00`));
+
+  // A driver or vehicle is due when the roster planned work for it, or a value was already recorded.
+  function actualsCompletion(week) {
+    const driverRows = Array.isArray(week?.drivers) ? week.drivers : [];
+    const vehicleRows = Array.isArray(week?.vehicles) ? week.vehicles : [];
+    const driversDue = driverRows.filter((driver) => Number(driver.planned_hours || 0) > 0 || hasValue(driver.actual_hours));
+    const vehiclesDue = vehicleRows.filter((vehicle) => Number(vehicle.planned_km || 0) > 0 || hasValue(vehicle.actual_km));
+    const missingDrivers = driversDue.filter((driver) => !hasValue(driver.actual_hours)).map((driver) => `${driver.display_name}: hours`);
+    const missingVehicles = vehiclesDue.filter((vehicle) => !hasValue(vehicle.actual_km)).map((vehicle) => `${vehicle.registration_number}: KM`);
+    const due = driversDue.length + vehiclesDue.length;
+    const missing = missingDrivers.length + missingVehicles.length;
+    const sum = (rows, key) => rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+    return {
+      due, missing, done: due - missing, missingDrivers, missingVehicles,
+      plannedHours: sum(driverRows, "planned_hours"), actualHours: sum(driverRows, "actual_hours"), hoursRecorded: driverRows.some((driver) => hasValue(driver.actual_hours)),
+      plannedKm: sum(vehicleRows, "planned_km"), actualKm: sum(vehicleRows, "actual_km"), kmRecorded: vehicleRows.some((vehicle) => hasValue(vehicle.actual_km)),
+      status: !due ? "none" : !missing ? "complete" : missing === due ? "pending" : "partial"
+    };
+  }
+
+  function actualsStatusLabel(completion) {
+    return { none: "No plan", complete: "Recorded", pending: "Not recorded", partial: `${fmtNumber(completion.missing)} missing` }[completion.status];
+  }
+
+  function actualsEditor(week) {
+    const canManage = Boolean(week.can_manage);
+    const driversRows = (week.drivers || []).map((driver) => {
       const variance = Number(actualValue(driver.actual_hours) || 0) - Number(driver.planned_hours || 0);
       return `<tr><td><strong>${esc(driver.display_name)}</strong><span>${esc(driver.driver_code || "")}</span></td><td>${fmtNumber(driver.planned_hours, 1)}</td><td><input type="number" min="0" step="0.25" value="${esc(actualValue(driver.actual_hours))}" data-actual-driver="${esc(driver.driver_id)}" data-planned-hours="${esc(driver.planned_hours || 0)}" ${canManage ? "" : "disabled"}></td><td class="${variance < 0 ? "attention" : "ok"}">${driver.actual_hours === null || driver.actual_hours === undefined ? "-" : fmtNumber(variance, 1)}</td></tr>`;
     }).join("");
-    const vehicleRows = (state.actuals.vehicles || []).map((vehicle) => {
+    const vehicleRows = (week.vehicles || []).map((vehicle) => {
       const variance = Number(actualValue(vehicle.actual_km) || 0) - Number(vehicle.planned_km || 0);
       return `<tr><td><strong>${esc(vehicle.registration_number)}</strong><span>${esc(vehicle.display_name || titleCase(vehicle.vehicle_type))}</span></td><td>${fmtNumber(vehicle.planned_km, 1)}</td><td><input type="number" min="0" step="0.1" value="${esc(actualValue(vehicle.actual_km))}" data-actual-vehicle="${esc(vehicle.vehicle_id)}" data-planned-km="${esc(vehicle.planned_km || 0)}" ${canManage ? "" : "disabled"}></td><td><input type="number" min="0" step="0.1" value="${esc(actualValue(vehicle.odometer_km))}" data-actual-odometer="${esc(vehicle.vehicle_id)}" ${canManage ? "" : "disabled"}></td><td class="${variance < 0 ? "attention" : "ok"}">${vehicle.actual_km === null || vehicle.actual_km === undefined ? "-" : fmtNumber(variance, 1)}</td></tr>`;
     }).join("");
-    el.panel.innerHTML = `<section class="distribution-actuals"><div class="distribution-toolbar"><div><h2>Weekly actuals</h2><p>Record actual driver hours, vehicle KM and odometer readings for history.</p></div><div class="distribution-header-actions"><button class="distribution-button secondary" type="button" data-actuals-week-shift="-1">Previous week</button><label class="distribution-week-field"><span>ISO Week</span><input id="distributionActualsWeek" type="week" value="${esc(weekInputValue(week))}"></label><button class="distribution-button secondary" type="button" data-actuals-week-shift="1">Next week</button>${canManage ? `<button class="distribution-button primary" type="button" data-actuals-save>Save actuals</button>` : ""}</div></div><div class="distribution-roster-status"><div><strong>${esc(range)}</strong><span>Planned values come from the Distribution Weekly Roster route KM/hours.</span></div></div><div class="distribution-actuals-grid"><section><h3>Driver hours</h3><div class="distribution-table-wrap"><table class="distribution-table distribution-actuals-table"><thead><tr><th>Driver</th><th>Planned hrs</th><th>Actual hrs</th><th>Variance</th></tr></thead><tbody>${driversRows || `<tr><td colspan="4">No active drivers found.</td></tr>`}</tbody></table></div></section><section><h3>Vehicle mileage</h3><div class="distribution-table-wrap"><table class="distribution-table distribution-actuals-table"><thead><tr><th>Vehicle</th><th>Planned KM</th><th>Actual KM</th><th>Odometer</th><th>Variance</th></tr></thead><tbody>${vehicleRows || `<tr><td colspan="5">No active vehicles found.</td></tr>`}</tbody></table></div></section></div></section>`;
+    return `<div class="distribution-actuals-editor" id="distributionActualsEditor"><div class="distribution-actuals-editor-head"><div><strong>${esc(weekInputValue(week.week_start).replace("-W", " · W"))} · ${esc(fmtShortDate(week.week_start))} - ${esc(fmtShortDate(week.week_end))}</strong><span>Planned values come from the Distribution Weekly Roster route KM/hours.</span></div><div class="distribution-card-actions"><button class="distribution-button secondary" type="button" data-actuals-close>Close</button>${canManage ? `<button class="distribution-button primary" type="button" data-actuals-save>Save actuals</button>` : ""}</div></div><div class="distribution-actuals-grid"><section><h3>Driver hours</h3><div class="distribution-table-wrap"><table class="distribution-table distribution-actuals-table"><thead><tr><th>Driver</th><th>Planned hrs</th><th>Actual hrs</th><th>Variance</th></tr></thead><tbody>${driversRows || `<tr><td colspan="4">No active drivers found.</td></tr>`}</tbody></table></div></section><section><h3>Vehicle mileage</h3><div class="distribution-table-wrap"><table class="distribution-table distribution-actuals-table"><thead><tr><th>Vehicle</th><th>Planned KM</th><th>Actual KM</th><th>Odometer</th><th>Variance</th></tr></thead><tbody>${vehicleRows || `<tr><td colspan="5">No active vehicles found.</td></tr>`}</tbody></table></div></section></div></div>`;
+  }
+
+  // Weekly history of closed weeks; a week's entry form opens only on request.
+  function renderActuals() {
+    if (!state.actualsHistory) { el.panel.innerHTML = `<div class="distribution-loading">Loading weekly actuals...</div>`; return; }
+    const openWeek = state.actualsOpenWeek;
+    const editing = state.actuals && localDate(state.actuals.week_start) === openWeek ? state.actuals : null;
+    const inHistory = state.actualsHistory.some((week) => localDate(week.week_start) === openWeek);
+    const rows = state.actualsHistory.map((week) => {
+      const start = localDate(week.week_start);
+      const completion = actualsCompletion(week);
+      const open = start === openWeek;
+      const hours = completion.hoursRecorded ? `${fmtNumber(completion.actualHours, 1)} / ${fmtNumber(completion.plannedHours, 1)}` : `- / ${fmtNumber(completion.plannedHours, 1)}`;
+      const km = completion.kmRecorded ? `${fmtNumber(completion.actualKm, 1)} / ${fmtNumber(completion.plannedKm, 1)}` : `- / ${fmtNumber(completion.plannedKm, 1)}`;
+      const label = completion.done ? "Edit" : "Record";
+      const row = `<tr class="${open ? "open" : ""}"><td><strong>${esc(weekInputValue(start).slice(-3))}</strong><span>${esc(fmtDayMonth(start))} - ${esc(fmtDayMonth(week.week_end))}${start === lastClosedWeek() ? " · last week" : ""}</span></td><td>${esc(hours)}</td><td>${esc(km)}</td><td>${completion.due ? `${fmtNumber(completion.done)}/${fmtNumber(completion.due)}` : "-"}</td><td><span class="distribution-actuals-state ${completion.status}" title="${esc([...completion.missingDrivers, ...completion.missingVehicles].join("\n"))}">${esc(actualsStatusLabel(completion))}</span></td><td>${open ? `<button class="distribution-button secondary" type="button" data-actuals-close>Close</button>` : `<button class="distribution-button secondary" type="button" data-actuals-open="${esc(start)}">${label}</button>`}</td></tr>`;
+      return open && editing ? `${row}<tr class="distribution-actuals-editor-row"><td colspan="6">${actualsEditor(editing)}</td></tr>` : row;
+    }).join("");
+    const outside = editing && !inHistory ? actualsEditor(editing) : "";
+    el.panel.innerHTML = `<section class="distribution-actuals"><div class="distribution-toolbar"><div><h2>Weekly actuals</h2><p>Driver hours and vehicle KM are recorded after each week closes. Open a week to record or correct it.</p></div><div class="distribution-header-actions"><label class="distribution-week-field"><span>Open another week</span><input id="distributionActualsWeek" type="week" value="${esc(openWeek ? weekInputValue(openWeek) : "")}"></label></div></div>${outside}<div class="distribution-table-wrap"><table class="distribution-table distribution-actuals-history"><thead><tr><th>Week</th><th>Driver hours (actual / planned)</th><th>Vehicle KM (actual / planned)</th><th>Recorded</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${state.actualsHistoryWeeks < 52 ? `<div class="distribution-actuals-more"><button class="distribution-button secondary" type="button" data-actuals-more>Show older weeks</button></div>` : ""}</section>`;
   }
 
   function rosterEntry(routeId, workDate) {
@@ -553,16 +664,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (value !== date) setMessage("Sunday is not an operating day. Showing Monday instead."); else setMessage("");
     el.date.value = value; el.refresh.disabled = true; el.panel.style.opacity = ".55";
     try {
-      const [data, nextData, driverMaster, fleetMaster] = await Promise.all([
+      const [data, nextData, driverMaster, fleetMaster, lastWeekActuals] = await Promise.all([
         rpc("get_distribution_operations_dashboard_v2", { p_business_date: value }),
         rpc("get_distribution_operations_dashboard_v2", { p_business_date: nextValue }),
         rpc("get_distribution_driver_master"),
-        rpc("get_fleet_vehicle_master")
+        rpc("get_fleet_vehicle_master"),
+        rpc("get_distribution_actuals_week", { p_week_start: lastClosedWeek() }).catch((error) => { console.warn("Last week's actuals are unavailable.", error); return null; })
       ]);
       if (data?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
       if (nextData?.schema_version !== "DISTRIBUTION_OPERATIONS_V2") throw new Error("Distribution backend is out of date. Apply the Distribution production load migration.");
       if (!data?.capabilities?.can_view_distribution_operations) throw new Error("Your active role does not allow access to Distribution.");
-      state.data = data; state.nextData = nextData; state.driverMaster = driverMaster; state.fleetMaster = fleetMaster; if (dateChanged) state.boardDay = "current"; render();
+      state.data = data; state.nextData = nextData; state.driverMaster = driverMaster; state.fleetMaster = fleetMaster; state.lastWeekActuals = lastWeekActuals; if (dateChanged) state.boardDay = "current"; render();
       if (state.activeTab === "customers") await loadRouteCustomers();
     } catch (error) {
       console.error(error); setMessage(error.message || "Distribution could not be loaded."); el.panel.innerHTML = `<div class="distribution-empty">${esc(error.message || "Distribution is unavailable.")}</div>`;
@@ -618,18 +730,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     } finally { el.panel.style.opacity = "1"; }
   }
 
-  async function loadActuals(weekStart = state.actualsWeek || state.rosterWeek || mondayFor(state.data?.business_date || isoToday())) {
-    const value = mondayFor(weekStart);
-    state.actualsWeek = value;
+  async function loadActuals() {
+    const weeks = Array.from({ length: state.actualsHistoryWeeks }, (_, index) => shiftWeek(lastClosedWeek(), -index));
     if (state.activeTab === "actuals") { el.panel.style.opacity = ".55"; renderActuals(); }
     try {
-      state.actuals = await rpc("get_distribution_actuals_week", { p_week_start: value });
+      state.actualsHistory = await Promise.all(weeks.map((week) => rpc("get_distribution_actuals_week", { p_week_start: week })));
+      const last = state.actualsHistory.find((week) => localDate(week.week_start) === lastClosedWeek());
+      if (last) state.lastWeekActuals = last;
+      const open = state.actualsHistory.find((week) => localDate(week.week_start) === state.actualsOpenWeek);
+      if (open) state.actuals = open;
       if (state.activeTab === "actuals") render();
+      if (state.actualsOpenWeek && !open) await openActualsWeek(state.actualsOpenWeek);
     } catch (error) {
       console.error(error); setMessage(error.message || "Distribution actuals could not be loaded.");
       if (state.activeTab === "actuals") el.panel.innerHTML = `<div class="distribution-empty">${esc(error.message || "Distribution actuals are unavailable. Apply the Distribution actuals migration.")}</div>`;
     } finally { if (state.activeTab === "actuals") el.panel.style.opacity = "1"; }
   }
+
+  async function openActualsWeek(weekStart) {
+    state.actualsOpenWeek = weekStart;
+    if (!weekStart) { renderActuals(); return; }
+    const cached = (state.actualsHistory || []).find((week) => localDate(week.week_start) === weekStart);
+    try {
+      state.actuals = cached || await rpc("get_distribution_actuals_week", { p_week_start: weekStart });
+    } catch (error) {
+      console.error(error); setMessage(error.message || "Distribution actuals could not be loaded."); state.actualsOpenWeek = "";
+    }
+    if (state.activeTab !== "actuals") return;
+    renderActuals();
+    $("distributionActualsEditor")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
 
   function optionList(items, selected, label, disabled) { return `<option value="">Not assigned</option>${items.map((item) => `<option value="${esc(item.id)}" ${String(item.id) === String(selected || "") ? "selected" : ""} ${item.disabled ? "disabled" : ""}>${esc(label(item))}</option>`).join("")}`; }
   function openRun(routeId) {
@@ -978,8 +1109,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       return { vehicle_id: vehicleId, planned_km: input.dataset.plannedKm || 0, actual_km: input.value === "" ? null : input.value, odometer_km: odometer?.value || null, notes: vehicleById.get(vehicleId)?.notes || null };
     }).filter((item) => item.actual_km !== null || item.odometer_km !== null);
     try {
-      state.actuals = await rpc("save_distribution_actuals_week", { p_week_start: state.actuals.week_start, p_driver_actuals: driverActuals, p_vehicle_mileage: vehicleMileage });
-      setMessage("Distribution actuals saved to history.", "success"); render();
+      const saved = await rpc("save_distribution_actuals_week", { p_week_start: state.actuals.week_start, p_driver_actuals: driverActuals, p_vehicle_mileage: vehicleMileage });
+      const savedWeek = localDate(saved.week_start);
+      state.actuals = saved; state.actualsOpenWeek = "";
+      if (state.actualsHistory) state.actualsHistory = state.actualsHistory.map((week) => localDate(week.week_start) === savedWeek ? saved : week);
+      if (savedWeek === lastClosedWeek()) state.lastWeekActuals = saved;
+      setMessage(`Actuals for ${fmtShortDate(savedWeek)} - ${fmtShortDate(saved.week_end)} saved to history.`, "success"); render();
     } catch (error) {
       console.error(error); setMessage(error.message || "Distribution actuals could not be saved.");
     } finally { if (button && button.isConnected) button.disabled = false; }
@@ -988,12 +1123,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function reviewDriverLeave(absenceId, decision) { const verb=decision==="APPROVED"?"approve":"reject"; if(!window.confirm(`Confirm you want to ${verb} this driver leave request?`))return; try{await rpc("review_driver_leave_request",{p_absence_id:absenceId,p_decision:decision});setMessage(`Leave request ${decision.toLowerCase()}.`,"success");await loadLeaveCalendar();if(state.roster)await loadRoster(state.rosterWeek)}catch(error){setMessage(error.message||"Leave request could not be reviewed.")} }
   async function deleteDriverLeave(absenceId) { if(!window.confirm("Delete this approved driver leave? The dates will become available for roster planning again."))return; try{await rpc("delete_distribution_driver_leave_admin",{p_absence_id:absenceId});setMessage("Approved leave deleted.","success");await loadLeaveCalendar();if(state.roster)await loadRoster(state.rosterWeek)}catch(error){setMessage(error.message||"Driver leave could not be deleted.")} }
   async function switchDistributionTab(tabId) { const next = distributionTabIds.includes(tabId) ? tabId : "board"; if (next === state.activeTab) return; state.activeTab = next; if (location.hash !== `#${state.activeTab}`) history.replaceState(null, "", `#${state.activeTab}`); if (state.activeTab === "customers") { render(); await loadRouteCustomers(); } else if (state.activeTab === "roster") await loadRoster(); else if (state.activeTab === "leave") await loadLeaveCalendar(); else if (state.activeTab === "actuals") await loadActuals(); else if (state.activeTab === "history") await loadHistory(); else render(); }
+  el.alerts?.addEventListener("click", (event) => { const button = event.target.closest("[data-alert-tab]"); if (button) openAlert(button); });
   el.tabs.addEventListener("click", async (event) => { const button = event.target.closest("[data-tab]"); if (!button) return; await switchDistributionTab(button.dataset.tab); });
   window.addEventListener("hashchange", () => switchDistributionTab(String(location.hash || "").replace("#", "")));
   el.panel.addEventListener("click", (event) => { const button = event.target.closest("[data-board-day]"); if (!button) return; state.boardDay = button.dataset.boardDay === "next" ? "next" : "current"; renderBoard(); event.stopImmediatePropagation(); });
   el.panel.addEventListener("click", (event) => { const add=event.target.closest("[data-leave-add]"),refresh=event.target.closest("[data-leave-refresh]"),review=event.target.closest("[data-leave-review]"),edit=event.target.closest("[data-leave-edit]"),remove=event.target.closest("[data-leave-delete]"); if(!add&&!refresh&&!review&&!edit&&!remove)return;event.stopImmediatePropagation();if(add)openMaster("absence",{starts_on:isoToday(),ends_on:isoToday()});else if(refresh)loadLeaveCalendar();else if(review)reviewDriverLeave(review.dataset.leaveReview,review.dataset.leaveDecision);else if(edit)openMaster("absence",(state.leaveCalendar?.approved||[]).find(item=>String(item.absence_id)===edit.dataset.leaveEdit)||{});else if(remove)deleteDriverLeave(remove.dataset.leaveDelete); });
   el.panel.addEventListener("click", (event) => { if (!event.target.closest("[data-roster-print]")) return; event.stopImmediatePropagation(); window.print(); });
-  el.panel.addEventListener("click", (event) => { const routeCustomersToggle = event.target.closest("[data-route-customers-toggle]"); const routeCustomersAction = event.target.closest("[data-route-customers-action]"); const rosterDriver = event.target.closest("[data-roster-driver]"); const rosterCell = event.target.closest("[data-roster-route]"); const rosterSave = event.target.closest("[data-roster-save]"); const rosterPublish = event.target.closest("[data-roster-publish]"); const rosterShift = event.target.closest("[data-roster-week-shift]"); const actualsSave = event.target.closest("[data-actuals-save]"); const actualsShift = event.target.closest("[data-actuals-week-shift]"); const historyRefresh = event.target.closest("[data-history-refresh]"); const plan = event.target.closest("[data-route-plan]"); const stops = event.target.closest("[data-route-stops]"); const status = event.target.closest("[data-route-status]"); const master = event.target.closest("[data-master-action]"); const masterFilter = event.target.closest("[data-master-filter]"); if (routeCustomersToggle) { const key = routeCustomersToggle.dataset.routeCustomersToggle; if (state.routeCustomersCollapsed.has(key)) state.routeCustomersCollapsed.delete(key); else state.routeCustomersCollapsed.add(key); renderRouteCustomers(); } else if (routeCustomersAction) { if (routeCustomersAction.dataset.routeCustomersAction === "expand") state.routeCustomersCollapsed.clear(); else routeCustomerGroups(state.routeCustomersWeekly?.items || []).forEach((group) => state.routeCustomersCollapsed.add(routeCustomerKey(group))); renderRouteCustomers(); } else if (rosterDriver) openRosterEntryForDriver(rosterDriver.dataset.rosterDriver, rosterDriver.dataset.rosterDate); else if (rosterCell) openRosterEntryLegacy(rosterCell.dataset.rosterRoute, rosterCell.dataset.rosterDate); else if (rosterSave) saveRoster(); else if (rosterPublish) publishRoster(); else if (rosterShift) { const date = new Date(`${state.roster.week_start}T12:00:00`); date.setDate(date.getDate() + Number(rosterShift.dataset.rosterWeekShift) * 7); loadRoster(date.toISOString().slice(0, 10)); } else if (actualsSave) saveActuals(); else if (actualsShift) { const date = new Date(`${state.actuals.week_start}T12:00:00`); date.setDate(date.getDate() + Number(actualsShift.dataset.actualsWeekShift) * 7); loadActuals(date.toISOString().slice(0, 10)); } else if (historyRefresh) loadHistory(); else if (plan) openRun(plan.dataset.routePlan); else if (stops) openStops(stops.dataset.routeStops); else if (status) setRunStatus(status.dataset.runId, status.dataset.routeStatus); else if (master) { const [action, id] = master.dataset.masterAction.split(":"); if (action === "new-driver") openDriver(); if (action === "new-vehicle") openMaster("vehicle"); if (action === "new-route") openMaster("route"); if (action === "edit-driver") openDriver(drivers().find((item) => String(item.driver_id) === id)); if (action === "edit-vehicle") openMaster("vehicle", vehicles().find((item) => String(item.vehicle_id) === id)); if (action === "edit-route") openMaster("route", routes().find((item) => String(item.route_id) === id)); if (action === "remove-driver") openMaster("remove", drivers().find((item) => String(item.driver_id) === id)); if (action === "reinstate-driver") openMaster("reinstate", drivers().find((item) => String(item.driver_id) === id)); if (action === "maintenance-vehicle") openMaster("maintenance", { vehicle_id: id }); if (action === "defect-vehicle") openMaster("defect", { vehicle_id: id }); if (action === "edit-defect") openMaster("defect", (state.data?.fleet_defects || []).find((item) => String(item.defect_id) === id)); if (action === "edit-maintenance") openMaster("maintenance", (state.data?.fleet_maintenance || []).find((item) => String(item.maintenance_id) === id)); } else if (masterFilter) { if (masterFilter.dataset.masterFilter === "former-drivers") { state.showFormerDrivers = !state.showFormerDrivers; state.driversIncompleteOnly = false; renderDrivers(); } else if (masterFilter.dataset.masterFilter === "drivers") { state.driversIncompleteOnly = !state.driversIncompleteOnly; renderDrivers(); } else { state.fleetIncompleteOnly = !state.fleetIncompleteOnly; renderFleet(); } } });
+  el.panel.addEventListener("click", (event) => { const routeCustomersToggle = event.target.closest("[data-route-customers-toggle]"); const routeCustomersAction = event.target.closest("[data-route-customers-action]"); const rosterDriver = event.target.closest("[data-roster-driver]"); const rosterCell = event.target.closest("[data-roster-route]"); const rosterSave = event.target.closest("[data-roster-save]"); const rosterPublish = event.target.closest("[data-roster-publish]"); const rosterShift = event.target.closest("[data-roster-week-shift]"); const actualsSave = event.target.closest("[data-actuals-save]"); const actualsOpen = event.target.closest("[data-actuals-open]"); const actualsClose = event.target.closest("[data-actuals-close]"); const actualsMore = event.target.closest("[data-actuals-more]"); const historyRefresh = event.target.closest("[data-history-refresh]"); const plan = event.target.closest("[data-route-plan]"); const stops = event.target.closest("[data-route-stops]"); const status = event.target.closest("[data-route-status]"); const master = event.target.closest("[data-master-action]"); const masterFilter = event.target.closest("[data-master-filter]"); if (routeCustomersToggle) { const key = routeCustomersToggle.dataset.routeCustomersToggle; if (state.routeCustomersCollapsed.has(key)) state.routeCustomersCollapsed.delete(key); else state.routeCustomersCollapsed.add(key); renderRouteCustomers(); } else if (routeCustomersAction) { if (routeCustomersAction.dataset.routeCustomersAction === "expand") state.routeCustomersCollapsed.clear(); else routeCustomerGroups(state.routeCustomersWeekly?.items || []).forEach((group) => state.routeCustomersCollapsed.add(routeCustomerKey(group))); renderRouteCustomers(); } else if (rosterDriver) openRosterEntryForDriver(rosterDriver.dataset.rosterDriver, rosterDriver.dataset.rosterDate); else if (rosterCell) openRosterEntryLegacy(rosterCell.dataset.rosterRoute, rosterCell.dataset.rosterDate); else if (rosterSave) saveRoster(); else if (rosterPublish) publishRoster(); else if (rosterShift) { const date = new Date(`${state.roster.week_start}T12:00:00`); date.setDate(date.getDate() + Number(rosterShift.dataset.rosterWeekShift) * 7); loadRoster(date.toISOString().slice(0, 10)); } else if (actualsSave) saveActuals(); else if (actualsOpen) openActualsWeek(actualsOpen.dataset.actualsOpen); else if (actualsClose) openActualsWeek(""); else if (actualsMore) { state.actualsHistoryWeeks = Math.min(52, state.actualsHistoryWeeks + 8); loadActuals(); } else if (historyRefresh) loadHistory(); else if (plan) openRun(plan.dataset.routePlan); else if (stops) openStops(stops.dataset.routeStops); else if (status) setRunStatus(status.dataset.runId, status.dataset.routeStatus); else if (master) { const [action, id] = master.dataset.masterAction.split(":"); if (action === "new-driver") openDriver(); if (action === "new-vehicle") openMaster("vehicle"); if (action === "new-route") openMaster("route"); if (action === "edit-driver") openDriver(drivers().find((item) => String(item.driver_id) === id)); if (action === "edit-vehicle") openMaster("vehicle", vehicles().find((item) => String(item.vehicle_id) === id)); if (action === "edit-route") openMaster("route", routes().find((item) => String(item.route_id) === id)); if (action === "remove-driver") openMaster("remove", drivers().find((item) => String(item.driver_id) === id)); if (action === "reinstate-driver") openMaster("reinstate", drivers().find((item) => String(item.driver_id) === id)); if (action === "maintenance-vehicle") openMaster("maintenance", { vehicle_id: id }); if (action === "defect-vehicle") openMaster("defect", { vehicle_id: id }); if (action === "edit-defect") openMaster("defect", (state.data?.fleet_defects || []).find((item) => String(item.defect_id) === id)); if (action === "edit-maintenance") openMaster("maintenance", (state.data?.fleet_maintenance || []).find((item) => String(item.maintenance_id) === id)); } else if (masterFilter) { if (masterFilter.dataset.masterFilter === "former-drivers") { state.showFormerDrivers = !state.showFormerDrivers; state.driversIncompleteOnly = false; renderDrivers(); } else if (masterFilter.dataset.masterFilter === "drivers") { state.driversIncompleteOnly = !state.driversIncompleteOnly; renderDrivers(); } else { state.fleetIncompleteOnly = !state.fleetIncompleteOnly; renderFleet(); } } });
   el.runForm.addEventListener("submit", (event) => { event.preventDefault(); saveRun(); }); el.masterForm.addEventListener("submit", (event) => { event.preventDefault(); saveMaster(); }); $("distributionMasterSave").addEventListener("click", saveMaster); el.rosterForm.addEventListener("submit", (event) => { event.preventDefault(); applyRosterEntry(); }); el.rosterStatus.addEventListener("change", syncRosterEntryControls);
   el.rosterDialog.addEventListener("click", (event) => {
     const route = event.target.closest("[data-roster-pending-route]");
@@ -1006,7 +1142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   el.stopList.addEventListener("change", (event) => { const select = event.target.closest("[data-stop-status]"); if (select) updateStopStatus(select.dataset.stopStatus, select.value); });
   el.addStop.addEventListener("click", () => el.manualForm.classList.toggle("hidden")); el.manualSave.addEventListener("click", addManualStop);
-  el.panel.addEventListener("change", (event) => { const routeCustomersDay = event.target.closest("[data-route-customers-day]"); const routeCustomersRoute = event.target.closest("[data-route-customers-route]"); const routeCustomersSearch = event.target.closest("[data-route-customers-search]"); const week = event.target.closest("#distributionRosterWeek"); const actualsWeek = event.target.closest("#distributionActualsWeek"); const required = event.target.closest("[data-required-routes-date]"); if (routeCustomersDay || routeCustomersRoute || routeCustomersSearch) { if (routeCustomersDay) state.routeCustomersDay = routeCustomersDay.value; if (routeCustomersRoute) state.routeCustomersRoute = routeCustomersRoute.value; if (routeCustomersSearch) state.routeCustomersSearch = routeCustomersSearch.value.trim(); renderRouteCustomers(); } else if (week) loadRoster(weekStartFromInput(week.value)); else if (actualsWeek) loadActuals(weekStartFromInput(actualsWeek.value)); else if (required && state.roster) renderRoster(); });
+  el.panel.addEventListener("change", (event) => { const routeCustomersDay = event.target.closest("[data-route-customers-day]"); const routeCustomersRoute = event.target.closest("[data-route-customers-route]"); const routeCustomersSearch = event.target.closest("[data-route-customers-search]"); const week = event.target.closest("#distributionRosterWeek"); const actualsWeek = event.target.closest("#distributionActualsWeek"); const required = event.target.closest("[data-required-routes-date]"); if (routeCustomersDay || routeCustomersRoute || routeCustomersSearch) { if (routeCustomersDay) state.routeCustomersDay = routeCustomersDay.value; if (routeCustomersRoute) state.routeCustomersRoute = routeCustomersRoute.value; if (routeCustomersSearch) state.routeCustomersSearch = routeCustomersSearch.value.trim(); renderRouteCustomers(); } else if (week) loadRoster(weekStartFromInput(week.value)); else if (actualsWeek) { if (actualsWeek.value) openActualsWeek(weekStartFromInput(actualsWeek.value)); } else if (required && state.roster) renderRoster(); });
   el.panel.addEventListener("change",(event)=>{const driver=event.target.closest("[data-leave-filter-driver]"),type=event.target.closest("[data-leave-filter-type]");if(!driver&&!type)return;if(driver)state.leaveDriverFilter=driver.value;if(type)state.leaveTypeFilter=type.value;renderLeaveCalendar();});
   el.panel.addEventListener("input", (event) => { const note = event.target.closest("#distributionRosterNote"); const required = event.target.closest("[data-required-routes-date]"); if (!state.roster || (!note && !required)) return; if (note) { if (state.roster.document) state.roster.document.roster_note = note.value; else state.roster.roster_note = note.value; } if (required) { state.roster.required_routes = { ...(state.roster.required_routes || {}), [required.dataset.requiredRoutesDate]: Math.max(0, Number(required.value || 0)) }; } state.rosterDirty = true; const save = el.panel.querySelector("[data-roster-save]"); if (save) save.disabled = false; });
   document.addEventListener("click", (event) => { const closeButton = event.target.closest("[data-close-dialog]"); if (closeButton) close($(closeButton.dataset.closeDialog)); });
