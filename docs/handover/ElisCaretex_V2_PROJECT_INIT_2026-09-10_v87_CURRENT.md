@@ -196,7 +196,7 @@ Commits `1f69f2e` through `acfca47` delivered:
   `get_fleet_vehicle_master` (read access). Open defects and maintenance can be
   updated or closed from the Fleet tab. Drivers and Fleet list missing master
   data per row with an "incomplete only" filter (warnings, never save blockers).
-- Driver exit (`202610190002`, Prepared): the Drivers row action is **Remove**
+- Driver exit (`202610190002`, Applied 2026-10-19): the Drivers row action is **Remove**
   (former **Leave**, which only duplicated the Leave calendar). See section 7.
 - Readable history: `get_distribution_activity_history` uses
   `require_distribution_read_access`, with actor names and event summaries.
@@ -536,7 +536,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610170011_distribution_history_readable.sql
 202610170012_customer_guide_history.sql
 202610190001_distribution_driver_fleet_master_completion.sql   (applied 2026-10-19)
-202610190002_distribution_driver_exit_workflow.sql             (prepared)
+202610190002_distribution_driver_exit_workflow.sql             (applied 2026-10-19)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
