@@ -41,6 +41,23 @@ The two recurring checklist items below are adopted ongoing rules, not retired o
 - [ ] Enable leaked-password protection in Supabase Auth when the project moves to the
       Pro plan. It cannot be enabled on the current Free plan (verified 2026-10-19).
 
+### Database size (Supabase Free plan, 500 MB) — after development is complete
+
+Measured 2026-10-19: database 272 MB after the staging `VACUUM FULL`; application data
+(`public`) 146 MB for about 9 months of records (~15 MB/month). Owner decision: stay on
+the Free plan for now.
+
+- [ ] Export `staging.apps_script_*` to a backup file (Drive or Storage), then drop it
+      once the Apps Script reconciliation is finished (~107 MB). Owner approval required.
+- [ ] `VACUUM FULL` the bloated `public` tables, for example `sorting_wash_run_customers`
+      (29 MB table, 11 MB live data). Estimated 30–40 MB.
+- [ ] Remove the 2026-08-06 simulation data (correction log item P-008).
+- [ ] Drop the 3 duplicate indexes on `distribution_roster_entries` and
+      `distribution_roster_versions` (Supabase performance advisor), through a migration.
+- [ ] Review the 23 unused indexes reported by the performance advisor.
+- [ ] Later, owner decision: archive detailed production records older than about two
+      years to files and keep daily and per-customer totals in the database.
+
 ### Done
 
 - [x] 2026-10-19 — Owner: stronger Supabase Auth password policy (minimum length and
