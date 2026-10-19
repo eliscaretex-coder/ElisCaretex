@@ -63,6 +63,23 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Sorting Washing: Reception exception unlocks Save
+
+- Branch / commits: `claude/wash-reception-exception-save`, Pull Request.
+- Changed: in `frontend/assets/js/sorting.js` the Save washing button now also accepts a
+  customer covered by a staged Reception exception with a reason. Before, the button
+  only accepted a CONTENTS trolley scan, so the exception flow (already sent by
+  `washPayload()` and validated by `sorting_assert_wash_reception_gate_v2`) could never
+  be saved. The button tooltip now mentions the exception.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. In a browser against the live
+  site with the Sorting terminal account and the changed `sorting.js` served locally:
+  staging an exception enables Save washing, removing the customer disables it again.
+  Nothing was saved. Found during the browser test recorded in the project folder
+  (`teste-aplicacao/teste-navegador.md`).
+- Open / next: a real wash with an exception has not been saved yet; test it after merge
+  and cancel the wash through the app.
+
 ## 2026-10-19 — Claude — Database back under the Free plan size limit
 
 - Branch / commits: `claude/staging-vacuum-worklog`, Pull Request (this entry only).
