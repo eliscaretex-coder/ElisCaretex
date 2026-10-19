@@ -85,9 +85,10 @@ Entry format:
 - Branch / commits: `claude/roster-edit-published-week`, Pull Request.
 - Problem (owner report): once a week was published, every roster cell was disabled and
   there was no way to change it; the page offered no action to start a new version.
-- Changed: a published, current or future week shows **Edit roster**. It unlocks the cells;
-  Save creates a new draft version (the published one is not changed) and Publish replaces
-  the published version, as the database already supported.
+- Changed: a published, current or future week is editable directly (the owner clicked the
+  cells and expected the dialog; an **Edit roster** button first was missed, so it was
+  removed). Save creates a new draft version (the published one is not changed) and
+  Publish replaces the published version, as the database already supported.
 - Validation: in Chromium on the live site with the changed file served locally and every
   write blocked, cells went from 0 to 65 clickable after Edit roster and the entry dialog
   opened. `node scripts/validate-repository.mjs` passed. No database change.
