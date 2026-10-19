@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Roster: Edit roster on a published week
+
+- Branch / commits: `claude/roster-edit-published-week`, Pull Request.
+- Problem (owner report): once a week was published, every roster cell was disabled and
+  there was no way to change it; the page offered no action to start a new version.
+- Changed: a published, current or future week shows **Edit roster**. It unlocks the cells;
+  Save creates a new draft version (the published one is not changed) and Publish replaces
+  the published version, as the database already supported.
+- Validation: in Chromium on the live site with the changed file served locally and every
+  write blocked, cells went from 0 to 65 clickable after Edit roster and the entry dialog
+  opened. `node scripts/validate-repository.mjs` passed. No database change.
+- Open / next: saving this week also needs `202610190007` applied (route 612 today keeps
+  231D45366, which is off road).
+
 ## 2026-10-19 — Claude — Roster: keep a published vehicle that went off road
 
 - Branch / commits: `claude/roster-keep-published-vehicle`, Pull Request.
