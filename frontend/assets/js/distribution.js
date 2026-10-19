@@ -827,7 +827,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.runPrimary.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.primary_driver_id, (driver) => `${driver.display_name} · ${driver.driver_code}`);
     el.runSupport.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.support_driver_id, (driver) => `${driver.display_name} · ${driver.driver_code}`);
     const offRoadToday = (vehicle) => localDate(data.business_date) === isoToday() && vehicle.unavailable_today;
-    el.runVehicle.innerHTML = optionList(vehicles().map((vehicle) => ({ id: vehicle.vehicle_id, ...vehicle, disabled: !vehicle.active || vehicle.operational_status !== "AVAILABLE" || Boolean(offRoadToday(vehicle)) })), run.vehicle_id, (vehicle) => `${vehicle.registration_number}${vehicle.display_name ? ` · ${vehicle.display_name}` : ""}${offRoadToday(vehicle) ? " (off road)" : ""}`);
+    el.runVehicle.innerHTML = optionList(vehicles().map((vehicle) => ({ id: vehicle.vehicle_id, ...vehicle, disabled: String(vehicle.vehicle_id) !== String(run.vehicle_id || "") && (!vehicle.active || vehicle.operational_status !== "AVAILABLE" || Boolean(offRoadToday(vehicle))) })), run.vehicle_id, (vehicle) => `${vehicle.registration_number}${vehicle.display_name ? ` · ${vehicle.display_name}` : ""}${offRoadToday(vehicle) ? " (off road)" : ""}`);
     setInline(el.runMessage, ""); el.runDialog.showModal();
   }
 
