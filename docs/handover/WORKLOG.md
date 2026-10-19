@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Roster: keep a published vehicle that went off road
+
+- Branch / commits: `claude/roster-keep-published-vehicle`, Pull Request.
+- Problem (owner report): after `202610190005` the weekly roster could not be saved at all.
+  Saving re-validates the whole week, and one published day (route 612 today, 231D45366,
+  off road since 15 Jul) failed the new vehicle rule, so every edit was refused.
+- Changed: a blocked vehicle still cannot be newly chosen, but a day already published with
+  it is kept and only flagged (⚠) in the roster; the same applies to the vehicle a daily
+  route already has. The roster dialog lets a cell keep its current vehicle.
+- Database: `202610190007_roster_keeps_published_vehicle.sql`, **not applied** (Prepared).
+  Replaces `validate_distribution_roster_version` and `save_distribution_route_run`.
+- Validation: reproduced the failure as the owner's account (saving the published week
+  unchanged returned "Vehicle 231D45366 cannot be used on Mon 19 Oct"); with the new
+  function, inside a rolled-back transaction, the same save succeeded and moving 231D45366
+  to another route was still refused. `node scripts/validate-repository.mjs` passed.
+- Open / next: apply the migration (owner), run the test file and the security advisors.
+
 ## 2026-10-19 — Claude — Fleet: temporary (short hire) vehicles
 
 - Branch / commits: `claude/fleet-vehicle-off-road-periods` (same Pull Request).
