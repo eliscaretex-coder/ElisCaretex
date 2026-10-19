@@ -208,7 +208,7 @@ Commits `1f69f2e` through `acfca47` delivered:
   (owner decision 2026-10-19). Fleet shows per-vehicle 12-month metrics and a History
   dialog (`get_fleet_vehicle_history`). The one rule lives in
   `distribution_vehicle_block_reason(vehicle, date)`.
-- Fleet temporary vehicles (`202610190006`, Prepared, not applied): a vehicle marked
+- Fleet temporary vehicles (`202610190006`, Applied and Validated 2026-10-19): a vehicle marked
   Temporary hire needs only registration, type, capacity, hire company and an optional
   "available until" date; documents do not count as missing. After that date the same
   block rule stops it being rostered.
@@ -564,7 +564,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190002_distribution_driver_exit_workflow.sql             (applied 2026-10-19)
 202610190004_driver_reinstate_keeps_scheduled_status.sql      (applied 2026-10-19, owner)
 202610190005_fleet_vehicle_off_road_periods.sql               (applied 2026-10-19)
-202610190006_fleet_temporary_vehicles.sql                     (prepared, not applied)
+202610190006_fleet_temporary_vehicles.sql                     (applied 2026-10-19)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,

@@ -90,16 +90,18 @@ Entry format:
   count as missing (only trolley capacity does). After its available-until date the vehicle
   is blocked in the roster and on daily routes ("Temporary vehicle, hire ended DD Mon") and
   Fleet shows "Hire ended — edit to extend or set Inactive".
-- Database: `202610190006_fleet_temporary_vehicles.sql`, **not applied** (Prepared). Adds
+- Database: `202610190006_fleet_temporary_vehicles.sql`, **Applied 2026-10-19** on the
+  owner's explicit request. Adds
   `fleet_vehicles.is_temporary`, `available_until`, `hire_company`; replaces
   `distribution_vehicle_block_reason` and `save_fleet_vehicle` (which now also saves the
   three fields and returns `roster_conflicts`).
 - Validation: migration and saves run as the owner's account inside a rolled-back
   transaction on `ElisCaretex-dev` (free on the last day, blocked the day after, existing
   vehicle fields kept on a partial save). Form checked in Chromium, nothing saved.
-  `node scripts/validate-repository.mjs` passed. Test file
-  `supabase/tests/202610190006_fleet_temporary_vehicles_validation.sql` runs after applying.
-- Open / next: apply the migration (owner), run the test file and the security advisors.
+  `node scripts/validate-repository.mjs` passed. After applying, the test file
+  `supabase/tests/202610190006_fleet_temporary_vehicles_validation.sql` passed 8/8 and the
+  security advisors showed no new finding.
+- Open / next: the frontend reaches production when the Pull Request is merged.
 
 ## 2026-10-19 — Claude — Fleet: vehicle off road until its expected return
 
