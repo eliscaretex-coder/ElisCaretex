@@ -212,6 +212,9 @@ Commits `1f69f2e` through `acfca47` delivered:
   Temporary hire needs only registration, type, capacity, hire company and an optional
   "available until" date; documents do not count as missing. After that date the same
   block rule stops it being rostered.
+- Roster keeps published vehicle days (`202610190007`, Prepared, not applied): a vehicle
+  that becomes blocked after a day was published stays on that day (flagged) so the rest of
+  the week can still be saved; only a new choice of a blocked vehicle is refused.
 - Page alerts and weekly actuals (2026-10-19, frontend only, Prepared): under the
   Distribution summary cards, one chip per area (Drivers, Fleet, last week's actuals)
   appears only when something is expired, due within 30 days, leaving within 14 days,
@@ -565,6 +568,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190004_driver_reinstate_keeps_scheduled_status.sql      (applied 2026-10-19, owner)
 202610190005_fleet_vehicle_off_road_periods.sql               (applied 2026-10-19)
 202610190006_fleet_temporary_vehicles.sql                     (applied 2026-10-19)
+202610190007_roster_keeps_published_vehicle.sql               (prepared, not applied)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,

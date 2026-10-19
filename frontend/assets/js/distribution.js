@@ -1158,7 +1158,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const primary = rosterDrivers().find((item) => String(item.driver_id) === String(driverId));
     const vehicle = rosterVehicles().find((item) => String(item.vehicle_id) === String(state.pendingVehicleId));
     if (status === "PLANNED" && (!vehicle?.active || vehicle.operational_status !== "AVAILABLE")) { setInline(el.rosterMessage, "This Vehicle is not available."); return; }
-    if (status === "PLANNED" && vehicleBlockedOnDay(vehicle.vehicle_id, workDate)) { setInline(el.rosterMessage, `This Vehicle cannot be used on this day: ${shortBlockReason(vehicleBlockedOnDay(vehicle.vehicle_id, workDate))}.`); return; }
+    // A blocked vehicle cannot be newly chosen, but the cell may keep the one it already has (the roster flags it).
+    const currentCell = driverRosterEntry(driverId, workDate);
+    const keepsVehicle = currentCell && String(currentCell.vehicle_id) === String(vehicle?.vehicle_id) && String(currentCell.route_id) === String(routeId);
+    if (status === "PLANNED" && !keepsVehicle && vehicleBlockedOnDay(vehicle.vehicle_id, workDate)) { setInline(el.rosterMessage, `This Vehicle cannot be used on this day: ${shortBlockReason(vehicleBlockedOnDay(vehicle.vehicle_id, workDate))}.`); return; }
     if (status === "PLANNED" && vehicleUsageForDay(vehicle.vehicle_id, workDate).length >= vehicleDailyLimit(vehicle)) { setInline(el.rosterMessage, "This Vehicle has reached its daily limit."); return; }
     const value = {
       ...(driverRosterEntry(driverId, workDate) || {}), route_id: status === "PLANNED" ? routeId : null, work_date: workDate, assignment_status: status,
