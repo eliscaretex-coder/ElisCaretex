@@ -533,7 +533,8 @@ was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
 The 13 mutable function search-path warnings were cleared. Run Supabase security
 advisors after new database work. Remaining platform-level recommendations include
-enabling leaked-password protection in Supabase Auth and reviewing the `btree_gist`
+enabling leaked-password protection in Supabase Auth (Pro plan required; a stronger
+password length and character policy is set in the meantime, owner 2026-10-19) and reviewing the `btree_gist`
 extension location. Do not remove legitimate authenticated RPC execution without
 understanding its internal guards.
 
@@ -599,7 +600,7 @@ Use Git history for detailed file-level evidence.
 5. Customer Service/complaints remains future work.
 6. Read-only browser acceptance passed for ADMIN, Sorting terminal and Finish terminal on desktop and mobile. Destructive/action-level negative testing is still needed across modules.
 7. Controlled Clothes and MOP paths passed Intake -> Washing -> Production -> Tracker -> Distribution on 2026-10-16 and their evidence was removed. MOP ABS posting, append-only correction and the live-trolley cancellation guard also passed. Migration `202610160004` preserves terminal staff attribution on corrected MOP/ABS evidence.
-8. Supabase leaked-password protection should be enabled.
+8. Supabase leaked-password protection requires the Pro plan; the project is on the Free plan, so it could not be enabled (owner, 2026-10-19). As the interim control, the owner raised the Auth minimum password length and set character requirements (Owner confirmed, 2026-10-19). Enable leaked-password protection after an upgrade to Pro.
 9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
 10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
 11. The older correction register predates several 2026-09-24 to 2026-09-26 features. Current source, Git history, live Supabase state and this INIT override stale register entries.
