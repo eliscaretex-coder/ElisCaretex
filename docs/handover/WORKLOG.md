@@ -63,6 +63,21 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Database back under the Free plan size limit
+
+- Branch / commits: `claude/staging-vacuum-worklog`, Pull Request (this entry only).
+- Changed: the Supabase dashboard showed "Exceeding usage limits" (database 0.574 of
+  0.5 GB). 368 MB of the 533 MB were the `staging.apps_script_*` import tables, mostly
+  empty space left by repeated imports. On owner request, ran `VACUUM FULL` on
+  `apps_script_finish_lines`, `apps_script_wash_lines`, `apps_script_staff_sessions`,
+  `apps_script_mop_lines` and `apps_script_trolley_returns`. No data was changed.
+- Database: maintenance only, no migration. Database 533 MB → 272 MB; staging 368 MB
+  → 107 MB (finish lines 166 → 49 MB, wash lines 146 → 42 MB).
+- Validation: row counts identical before and after (finish 28285, wash 34557, staff
+  sessions 8258, MOP 2191, trolley returns 1451).
+- Open / next: if staging is re-imported again, run `VACUUM FULL` on the reloaded tables
+  afterwards, or the space returns.
+
 ## 2026-10-19 — Claude — Claude Code hooks and skills for the repository rules
 
 - Branch / commits: `claude/claude-code-automations`, Pull Request.
