@@ -41,6 +41,23 @@ The two recurring checklist items below are adopted ongoing rules, not retired o
 - [ ] Enable leaked-password protection in Supabase Auth when the project moves to the
       Pro plan. It cannot be enabled on the current Free plan (verified 2026-10-19).
 
+### Database size (Supabase Free plan, 500 MB) — after development is complete
+
+Measured 2026-10-19: database 272 MB after the staging `VACUUM FULL`; application data
+(`public`) 146 MB for about 9 months of records (~15 MB/month). Owner decision: stay on
+the Free plan for now.
+
+- [ ] Export `staging.apps_script_*` to a backup file (Drive or Storage), then drop it
+      once the Apps Script reconciliation is finished (~107 MB). Owner approval required.
+- [ ] `VACUUM FULL` the bloated `public` tables, for example `sorting_wash_run_customers`
+      (29 MB table, 11 MB live data). Estimated 30–40 MB.
+- [ ] Remove the 2026-08-06 simulation data (correction log item P-008).
+- [ ] Drop the 3 duplicate indexes on `distribution_roster_entries` and
+      `distribution_roster_versions` (Supabase performance advisor), through a migration.
+- [ ] Review the 23 unused indexes reported by the performance advisor.
+- [ ] Later, owner decision: archive detailed production records older than about two
+      years to files and keep daily and per-customer totals in the database.
+
 ### Done
 
 - [x] 2026-10-19 — Owner: stronger Supabase Auth password policy (minimum length and
@@ -65,7 +82,7 @@ Entry format:
 
 ## 2026-10-19 — Claude — Apps Script history reconciliation (staging to target)
 
-- Branch / commits: `claude/apps-script-history-reconciliation` (draft Pull Request).
+- Branch / commits: `claude/apps-script-history-reconciliation` (Pull Request #3).
 - Changed: added `docs/database/apps-script-history-reconciliation.md` (what the
   2026-09-26 import loaded, excluded and still needs), migration
   `202610190003_capture_apps_script_history_staging.sql` (records the six
@@ -79,6 +96,25 @@ Entry format:
 - Open / next: source-file totals versus staging, owner acceptance of the exclusions,
   the two BLOCKED groups, MOP before 2026-07-13, and a provenance column for MOP
   batches. See section "Still open" of the new document.
+
+## 2026-10-19 — Claude — Review fixes: cancel a scheduled driver exit, migration guard
+
+- Branch / commits: `claude/review-fixes`, Pull Request.
+- Changed: review of PRs #2 and #5 to #8 found two fixes. (1) Distribution > Drivers now
+  offers **Cancel exit** on a driver with a scheduled (future) exit; before, a scheduled
+  exit could only be moved, not cancelled. Migration `202610190004` makes
+  `reinstate_distribution_driver` keep the current employment and availability when it
+  cancels a scheduled exit (before, it always set ACTIVE/AVAILABLE, so a SUSPENDED
+  driver became active). A driver who has left is still made ACTIVE/AVAILABLE.
+  (2) `.claude/hooks/guard-repository-rules.mjs` now blocks edits only to committed
+  migrations, so a new migration can be corrected before its first commit.
+- Database: `202610190004_driver_reinstate_keeps_scheduled_status.sql` **applied** to
+  `ElisCaretex-dev` by the owner through the SQL Editor on 2026-10-19 (Owner confirmed).
+- Validation: `node scripts/validate-repository.mjs` passed. Hook tested with a committed
+  migration (blocked) and a new staged one (allowed). Migration and UI not run live.
+- Open / next: run the `202610190004` test file against the database (not yet run). Schema drift: live
+  `distribution_drivers` also has `legacy_driver_id` and `import_source`, which no
+  migration declares.
 
 ## 2026-10-19 — Claude — Sorting Washing: Reception exception unlocks Save
 

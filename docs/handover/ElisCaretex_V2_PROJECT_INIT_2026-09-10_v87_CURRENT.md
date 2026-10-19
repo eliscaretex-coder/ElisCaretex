@@ -320,7 +320,10 @@ Driver exit (Distribution > Drivers > Remove), mirroring Staff deactivation:
   returned and shown to the planner for reassignment.
 - `reinstate_distribution_driver` (reason required) restores an `INACTIVE` or
   scheduled driver, and the linked Staff record only when its deactivation came
-  from a driver exit.
+  from a driver exit. The Drivers tab offers it as **Reinstate** for a former
+  driver and **Cancel exit** for a scheduled exit. Migration `202610190004`
+  (Applied 2026-10-19 by the owner, Owner confirmed) keeps the current employment/availability when a
+  scheduled exit is cancelled; a former driver becomes ACTIVE/AVAILABLE.
 - Nothing is deleted. Every exit, scheduled exit and reinstatement is written to
   `audit_log` (`REMOVE_DISTRIBUTION_DRIVER`, `SCHEDULE_DISTRIBUTION_DRIVER_EXIT`,
   `REINSTATE_DISTRIBUTION_DRIVER`) with old/new rows and the reason, and the
@@ -537,6 +540,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610170012_customer_guide_history.sql
 202610190001_distribution_driver_fleet_master_completion.sql   (applied 2026-10-19)
 202610190002_distribution_driver_exit_workflow.sql             (applied 2026-10-19)
+202610190004_driver_reinstate_keeps_scheduled_status.sql      (applied 2026-10-19, owner)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
