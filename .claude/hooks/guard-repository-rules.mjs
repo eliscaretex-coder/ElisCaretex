@@ -13,6 +13,14 @@ function block(message) {
   process.exit(2);
 }
 
+function isCommitted(path) {
+  try {
+    return execSync(`git log -1 --format=%H -- "${path}"`, { cwd: input.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() !== "";
+  } catch {
+    return false;
+  }
+}
+
 if (input.tool_name === "Bash") {
   const command = String(toolInput.command ?? "");
   for (const push of command.match(/git\s+push\b[^;&|]*/g) ?? []) {
@@ -32,7 +40,8 @@ if (input.tool_name === "Bash") {
   }
 } else {
   const path = String(toolInput.file_path ?? "").replace(/\\/g, "/");
-  if (/\/supabase\/migrations\/[^/]+\.sql$/.test(path) && existsSync(path)) {
-    block("This migration already exists. Historical migrations are never edited: create a new migration file instead (see the new-migration skill).");
+  // Only committed migrations are history; a new file in this task can still be corrected.
+  if (/\/supabase\/migrations\/[^/]+\.sql$/.test(path) && existsSync(path) && isCommitted(path)) {
+    block("This migration is already committed. Historical migrations are never edited: create a new migration file instead (see the new-migration skill).");
   }
 }
