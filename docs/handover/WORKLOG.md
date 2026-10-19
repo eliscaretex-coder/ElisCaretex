@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Apps Script history reconciliation (staging to target)
+
+- Branch / commits: `claude/apps-script-history-reconciliation` (Pull Request #3).
+- Changed: added `docs/database/apps-script-history-reconciliation.md` (what the
+  2026-09-26 import loaded, excluded and still needs), migration
+  `202610190003_capture_apps_script_history_staging.sql` (records the six
+  `staging.apps_script_*` tables that were created without a migration) and read-only
+  validation `supabase/tests/202610190003_apps_script_history_reconciliation_validation.sql`.
+- Database: none applied. The migration is idempotent and would change nothing on
+  `ElisCaretex-dev`; the owner decides whether to apply it.
+- Validation: the test queries were run read-only against `ElisCaretex-dev` and all
+  eight checks hold (Finish KG 823,581.96 = staging; MOP KG 49,574.02 = staging; no
+  orphan or altered lines).
+- Open / next: source-file totals versus staging, owner acceptance of the exclusions,
+  the two BLOCKED groups, MOP before 2026-07-13, and a provenance column for MOP
+  batches. See section "Still open" of the new document.
+
 ## 2026-10-19 — Claude — Review fixes: cancel a scheduled driver exit, migration guard
 
 - Branch / commits: `claude/review-fixes`, Pull Request.
