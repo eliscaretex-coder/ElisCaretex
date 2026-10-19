@@ -36,13 +36,16 @@ The two recurring checklist items below are adopted ongoing rules, not retired o
 
 ### For the owner
 
-- [ ] Review and merge Pull Request #1 (this coordination setup).
 - [ ] Decide whether `.reference-distribution/` is still needed. `README.md` describes it,
       but it is not in the repository. Either commit it or remove the README line.
-- [ ] Enable leaked-password protection in Supabase Auth (open since INIT v90, section 16).
+- [ ] Enable leaked-password protection in Supabase Auth when the project moves to the
+      Pro plan. It cannot be enabled on the current Free plan (verified 2026-10-19).
 
 ### Done
 
+- [x] 2026-10-19 — Owner: stronger Supabase Auth password policy (minimum length and
+      character requirements) set as the Free-plan alternative to leaked-password protection.
+- [x] 2026-10-18 — Owner: Pull Request #1 (coordination setup) merged in `296e117`.
 - [x] 2026-10-18 — Owner: set `master` as the GitHub default branch and deleted `main`.
 - [x] 2026-10-18 — Owner decision, Claude: Graphify is no longer used. Its references were
       removed from `README.md` and `docs/architecture/overview.md`.
@@ -62,7 +65,7 @@ Entry format:
 
 ## 2026-10-19 — Claude — Driver and fleet master completion
 
-- Branch / commits: `claude/driver-fleet-master`, Pull Request (draft).
+- Branch / commits: `claude/driver-fleet-master`, Pull Request #2.
 - Changed: Distribution Drivers can be linked to a non-production Staff Master
   record from the driver form (production staff still use Transfer to Driver).
   Driver and vehicle saves now merge into the stored row, fixing two data-loss
@@ -90,6 +93,22 @@ Entry format:
 - Open / next: merge the PR (the frontend now matches the database); fill the real
   driver/fleet data. Only 2 non-production Staff records exist to link drivers to;
   INIT section 4 can mention the Staff link and fleet master RPCs at the next refresh.
+
+## 2026-10-19 — Owner, documented by Claude — Supabase Auth password policy
+
+- Branch / commits: `claude/auth-password-policy` (Pull Request into `master`).
+- Changed: the owner tried to enable leaked-password protection (HaveIBeenPwned) in
+  `ElisCaretex-dev`. Supabase refused it: "available on Pro Plans and up", so the
+  project is on the Free plan. As the Free-plan alternative, the owner raised
+  **Minimum password length** and set **Password requirements** in Supabase Auth
+  (dashboard setting, not a migration). The exact values were not recorded here.
+- Database: none. Auth configuration changed in the dashboard only.
+- Validation: owner confirmed in the dashboard. Not validated by an agent (the
+  Supabase connector was unavailable in this session). The new rules apply only to
+  passwords created or changed from now on; existing passwords keep working.
+- Open / next: enable leaked-password protection after an upgrade to Pro. Check that
+  the invitation, forgot-password and update-password pages show the Auth error
+  message clearly when a password breaks the new rules.
 
 ## 2026-10-18 — Codex — Git identity and completed push correction
 
