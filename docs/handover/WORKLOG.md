@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Fleet: temporary (short hire) vehicles
+
+- Branch / commits: `claude/fleet-vehicle-off-road-periods` (same Pull Request).
+- Changed: owner request. Most trucks are hired and temporary ones come and go, so Fleet
+  has **Add temporary vehicle** and a "Kind" choice (Fleet vehicle / Temporary hire) in the
+  vehicle form. A temporary vehicle asks only for registration, type, capacity, hire company
+  and "Available until"; documents and the other registration details are hidden and do not
+  count as missing (only trolley capacity does). After its available-until date the vehicle
+  is blocked in the roster and on daily routes ("Temporary vehicle, hire ended DD Mon") and
+  Fleet shows "Hire ended — edit to extend or set Inactive".
+- Database: `202610190006_fleet_temporary_vehicles.sql`, **not applied** (Prepared). Adds
+  `fleet_vehicles.is_temporary`, `available_until`, `hire_company`; replaces
+  `distribution_vehicle_block_reason` and `save_fleet_vehicle` (which now also saves the
+  three fields and returns `roster_conflicts`).
+- Validation: migration and saves run as the owner's account inside a rolled-back
+  transaction on `ElisCaretex-dev` (free on the last day, blocked the day after, existing
+  vehicle fields kept on a partial save). Form checked in Chromium, nothing saved.
+  `node scripts/validate-repository.mjs` passed. Test file
+  `supabase/tests/202610190006_fleet_temporary_vehicles_validation.sql` runs after applying.
+- Open / next: apply the migration (owner), run the test file and the security advisors.
+
 ## 2026-10-19 — Claude — Fleet: vehicle off road until its expected return
 
 - Branch / commits: `claude/fleet-vehicle-off-road-periods`, Pull Request.
@@ -96,7 +117,8 @@ Entry format:
   roster marks published days whose vehicle is now blocked, and saving a defect or
   maintenance lists the published roster days to reassign. HIGH/CRITICAL severity no longer
   silently sets the vehicle Out of service.
-- Database: `202610190005_fleet_vehicle_off_road_periods.sql`, **not applied** (Prepared).
+- Database: `202610190005_fleet_vehicle_off_road_periods.sql`, **Applied 2026-10-19** on the
+  owner's request.
   It declares the CentralDB-imported columns `expected_return_on`, `repair_date` and
   `vehicle_status_snapshot`, and backfills `vehicle_condition` from the imported snapshot:
   231D45366 (Out Of Service since 15 Jul, still open) becomes off road and blocks today
@@ -105,8 +127,15 @@ Entry format:
   against `ElisCaretex-dev` inside a transaction that was rolled back (nothing kept).
   `node scripts/validate-repository.mjs` passed. UI checked in Chromium on the live site
   with the changed files served locally and the new RPC fields stubbed; nothing was saved.
-  The pgTAP file `supabase/tests/202610190005_..._validation.sql` runs after the migration.
-- Open / next: apply the migration (owner), run the test file and the security advisors.
+  After applying: the pgTAP file `supabase/tests/202610190005_..._validation.sql` passed
+  20/20 (pgTAP created and dropped inside the rolled-back transaction); as the owner's
+  account, the fleet master, roster week, vehicle history and a maintenance save (rolled
+  back) returned the expected blocks and conflicts. Security advisors: the new RPCs appear
+  only in the usual `authenticated_security_definer_function_executable` warning (they
+  check Distribution access inside); the internal helpers are not executable by any client
+  role.
+- Open / next: 231D45366 stays blocked on today's roster (route 612) until someone records
+  its return in Fleet. The frontend reaches production when the Pull Request is merged.
 
 ## 2026-10-19 — Claude — Distribution alerts and weekly actuals history
 
