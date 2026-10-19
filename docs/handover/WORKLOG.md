@@ -63,6 +63,37 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Driver and fleet master completion
+
+- Branch / commits: `claude/driver-fleet-master`, Pull Request #2.
+- Changed: Distribution Drivers can be linked to a non-production Staff Master
+  record from the driver form (production staff still use Transfer to Driver).
+  Driver and vehicle saves now merge into the stored row, fixing two data-loss
+  bugs: editing a driver cleared its Staff link, and editing a vehicle cleared
+  capacity m3, odometer and notes (the Fleet tab read the dashboard, which omits
+  them). Fleet now reads full rows via `get_fleet_vehicle_master`, vehicles can
+  be marked inactive, open defects and maintenance can be updated or closed, and
+  Drivers/Fleet show which details are missing with an "incomplete only" filter.
+  Optional `row_version` checks reject stale edits.
+- Database: `202610190001_distribution_driver_fleet_master_completion.sql`
+  **applied** to `ElisCaretex-dev` on 2026-10-19 at the owner's request (live
+  history name `distribution_driver_fleet_master_completion`). Checked live: the
+  five functions are SECURITY DEFINER, not executable by anon, executable by
+  authenticated; as an ADMIN (read-only transaction) the fleet master returned 18
+  full vehicle rows, the driver master 16 drivers, Staff link options 2 records.
+  Security advisors show no new finding for these functions beyond the existing
+  project-wide "authenticated SECURITY DEFINER executable" warning.
+- Validation: migration and behaviour (permission guards, Staff link rules,
+  partial-edit preservation, stale row_version, duplicate registration) checked
+  on a local PostgreSQL 16 with stubbed auth/staff objects; browser check of the
+  Drivers and Fleet tabs with a mocked Supabase client (desktop and mobile, no
+  console errors); `node scripts/validate-repository.mjs` passed. pgTAP file
+  `supabase/tests/202610190001_distribution_driver_fleet_master_completion_validation.sql`
+  not yet run against the development project.
+- Open / next: merge the PR (the frontend now matches the database); fill the real
+  driver/fleet data. Only 2 non-production Staff records exist to link drivers to;
+  INIT section 4 can mention the Staff link and fleet master RPCs at the next refresh.
+
 ## 2026-10-19 — Owner, documented by Claude — Supabase Auth password policy
 
 - Branch / commits: `claude/auth-password-policy` (Pull Request into `master`).
