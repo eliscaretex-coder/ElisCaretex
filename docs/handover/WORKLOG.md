@@ -63,6 +63,33 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Driver exit workflow (Remove replaces Leave)
+
+- Branch / commits: `claude/driver-offboarding`, Pull Request.
+- Changed: in Distribution > Drivers the **Leave** button (a duplicate of the
+  Leave calendar) is replaced by **Remove**: last working day plus a mandatory
+  reason, like Staff Master deactivation. Future dates are scheduled and applied
+  by a daily cron job; a linked non-production Staff record follows the same exit;
+  pending leave after the exit is cancelled; published roster assignments after
+  the exit are listed for reassignment, never changed. Former drivers can be
+  shown and **Reinstated** with a reason. The driver form no longer offers
+  "Inactive". INIT sections 4, 7 and 14 updated.
+- Database: `202610190002_distribution_driver_exit_workflow.sql` prepared,
+  **not applied**. The frontend calls `remove_distribution_driver` and
+  `reinstate_distribution_driver`, so apply it before merging.
+- Validation: local PostgreSQL 16 with stubbed auth/staff/roster/cron objects:
+  migration applies twice cleanly; auditor blocked; reason, self-removal, stale
+  row_version, double exit and Edit-to/from-INACTIVE rejected; scheduled exit keeps
+  the driver active and schedules the Staff record; pending leave after the exit
+  cancelled; published conflict returned; cron job deactivates after the date;
+  reinstate restores driver and Staff; three audit_log rows written. Browser check
+  of Drivers (Remove, Change exit, former drivers, Reinstate) with a mocked
+  Supabase client, no console errors. `node scripts/validate-repository.mjs` passed.
+- Open / next: the weekly planner does not yet warn when a driver with a scheduled
+  exit is assigned after the last working day (the remove action lists published
+  conflicts instead). The 3 live INACTIVE drivers already have `deactivated_on`
+  but no reason; they show as former drivers.
+
 ## 2026-10-19 — Claude — Driver and fleet master completion
 
 - Branch / commits: `claude/driver-fleet-master`, Pull Request #2.
