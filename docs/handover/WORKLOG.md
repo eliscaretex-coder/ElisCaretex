@@ -63,6 +63,24 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Claude Code hooks and skills for the repository rules
+
+- Branch / commits: `claude/claude-code-automations`, Pull Request.
+- Changed: added `.claude/settings.json` with two hooks. A PreToolUse hook
+  (`.claude/hooks/guard-repository-rules.mjs`) blocks Claude from editing an existing
+  file in `supabase/migrations/` and from pushing to `master`. A PostToolUse hook
+  (`.claude/hooks/validate-frontend.mjs`) runs `scripts/validate-repository.mjs` after
+  every edit under `frontend/`. Added the skills `new-migration` (file naming, SECURITY
+  DEFINER pattern, pgTAP test, WORKLOG) and `finish-task` (AGENTS.md section 6).
+  These files affect Claude Code only; Codex and the deploy are unchanged.
+- Database: none.
+- Validation: both hooks tested locally with allowed and blocked inputs (push of a
+  `claude/*` branch allowed; `git push origin master`, `HEAD:master` and a bare push
+  from `master` blocked; editing an existing migration blocked, creating a new one
+  allowed; a JavaScript syntax error reported). `node scripts/validate-repository.mjs`
+  passes.
+- Open / next: none.
+
 ## 2026-10-19 — Claude — Driver exit workflow (Remove replaces Leave)
 
 - Branch / commits: `claude/driver-offboarding`, Pull Request.
