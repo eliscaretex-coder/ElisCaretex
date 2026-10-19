@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_function('public','get_distribution_driver_staff_options','{}'::text[],'driver Staff link options RPC exists');
+select has_function('public','get_fleet_vehicle_master','{}'::text[],'full fleet master RPC exists');
+select has_function('public','save_distribution_driver',array['jsonb'],'driver save RPC exists');
+select has_function('public','save_fleet_vehicle',array['jsonb'],'vehicle save RPC exists');
+select ok(not has_function_privilege('anon','public.get_distribution_driver_staff_options()','execute'),'anon cannot list Staff link options');
+select ok(not has_function_privilege('anon','public.get_fleet_vehicle_master()','execute'),'anon cannot read fleet master');
+select ok(not has_function_privilege('anon','public.save_distribution_driver(jsonb)','execute'),'anon cannot save drivers');
+select ok(not has_function_privilege('anon','public.save_fleet_vehicle(jsonb)','execute'),'anon cannot save vehicles');
+select ok(has_function_privilege('authenticated','public.get_fleet_vehicle_master()','execute'),'authenticated can call fleet master (guarded internally)');
+select ok(pg_get_functiondef('public.get_distribution_driver_staff_options()'::regprocedure) like '%require_distribution_master_access%','Staff link options require Distribution master access');
+select ok(pg_get_functiondef('public.save_distribution_driver(jsonb)'::regprocedure) like '%Use Transfer to Driver in Staff Master%','production staff are sent to the Staff Master transfer');
+select ok(pg_get_functiondef('public.save_fleet_vehicle(jsonb)'::regprocedure) like '%to_jsonb(v_existing) || p_vehicle%','vehicle edits keep fields the screen does not send');
+select * from finish();
+rollback;

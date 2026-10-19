@@ -60,6 +60,31 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Driver and fleet master completion
+
+- Branch / commits: `claude/driver-fleet-master`, Pull Request (draft).
+- Changed: Distribution Drivers can be linked to a non-production Staff Master
+  record from the driver form (production staff still use Transfer to Driver).
+  Driver and vehicle saves now merge into the stored row, fixing two data-loss
+  bugs: editing a driver cleared its Staff link, and editing a vehicle cleared
+  capacity m3, odometer and notes (the Fleet tab read the dashboard, which omits
+  them). Fleet now reads full rows via `get_fleet_vehicle_master`, vehicles can
+  be marked inactive, open defects and maintenance can be updated or closed, and
+  Drivers/Fleet show which details are missing with an "incomplete only" filter.
+  Optional `row_version` checks reject stale edits.
+- Database: `202610190001_distribution_driver_fleet_master_completion.sql`
+  prepared, **not applied** to `ElisCaretex-dev`. Apply it before merging, since
+  the frontend calls `get_fleet_vehicle_master`.
+- Validation: migration and behaviour (permission guards, Staff link rules,
+  partial-edit preservation, stale row_version, duplicate registration) checked
+  on a local PostgreSQL 16 with stubbed auth/staff objects; browser check of the
+  Drivers and Fleet tabs with a mocked Supabase client (desktop and mobile, no
+  console errors); `node scripts/validate-repository.mjs` passed. pgTAP file
+  `supabase/tests/202610190001_distribution_driver_fleet_master_completion_validation.sql`
+  not yet run against the development project.
+- Open / next: owner applies the migration and fills the real driver/fleet data;
+  INIT section 4 can mention the Staff link and fleet master RPCs at the next refresh.
+
 ## 2026-10-18 — Codex — Git identity and completed push correction
 
 - Branch / commits: `master`; new documentation commit, preserving all previous
