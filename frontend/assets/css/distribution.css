@@ -241,3 +241,27 @@
 .distribution-actuals-editor-head strong, .distribution-actuals-editor-head span { display: block; }
 .distribution-actuals-editor-head span { margin-top: 3px; color: #64748b; font-size: .7rem; }
 .distribution-actuals-more { display: flex; justify-content: center; margin-top: 10px; }
+
+/* Fleet off-road periods, return to service and vehicle history (2026-10-19) */
+.distribution-text-danger { color: #b42318 !important; }
+.distribution-text-warn { color: #b45309 !important; }
+.distribution-vehicle-flag { display: block; margin-top: 3px; overflow: hidden; color: #b45309; font-size: .64rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.distribution-vehicle-flag.danger { color: #b42318; }
+.distribution-roster-vehicle-option.warn { border-color: #d9e2ea; box-shadow: none; }
+.distribution-roster-vehicle-option.warn small { color: #b45309; }
+.distribution-roster-vehicle-option.warn.doc-danger small { color: #b42318; }
+.distribution-roster-vehicle-option.off-road { opacity: 1; border-color: #f1c4bf; background: #fef3f2; }
+.distribution-roster-vehicle-option.off-road strong, .distribution-roster-vehicle-option.off-road span { color: #7a271a; }
+.distribution-roster-vehicle-option.off-road small { color: #b42318; text-transform: none; }
+.distribution-driver-day-button.vehicle-blocked strong { outline: 2px solid #b42318; outline-offset: 1px; }
+.distribution-driver-day-button.vehicle-blocked small { color: #b42318; }
+.distribution-vehicle-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; grid-column: 1 / -1; }
+.distribution-vehicle-metrics article { padding: 10px; border: 1px solid #d9e2ea; border-radius: 7px; background: #fff; }
+.distribution-vehicle-metrics strong { display: block; color: #0f172a; font-size: 1.1rem; }
+.distribution-vehicle-metrics span { display: block; margin-top: 2px; color: #64748b; font-size: .66rem; font-weight: 700; }
+.distribution-form-grid .distribution-table-wrap.wide { grid-column: 1 / -1; }
+.distribution-form-grid label[hidden] { display: none; }
+.distribution-vehicle-history td span { display: block; margin-top: 2px; color: #64748b; font-size: .66rem; }
+@media (max-width: 620px) { .distribution-vehicle-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 851px) { .distribution-fleet-list .distribution-master-row { grid-template-columns: minmax(190px, 1.2fr) repeat(3, minmax(110px, .7fr)) 350px; }.distribution-fleet-list .distribution-card-actions { justify-content: flex-end; flex-wrap: nowrap; } }
+.distribution-form-grid label:has(> input[type="hidden"]) { display: none; }
