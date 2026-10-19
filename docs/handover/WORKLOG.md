@@ -80,6 +80,28 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Distribution review after the Fleet and roster changes
+
+- Branch / commits: `claude/roster-review-fixes`, Pull Request.
+- Owner asked for a full review after PRs #13 to #16. Smoke-tested every Distribution tab,
+  the route, roster, defect, maintenance, history and temporary-vehicle dialogs in Chromium
+  on the live site with every write blocked: no page or console errors.
+- Found and fixed:
+  - Republishing a week (now possible) left daily routes the new version no longer plans
+    as READY with the old driver and vehicle, so a driver set to Off still showed on the
+    Daily board. `202610190008_roster_publish_clears_removed_runs.sql` (**not applied**,
+    Prepared) returns such DRAFT/READY routes from today onwards to DRAFT with no driver
+    or vehicle and logs `ROSTER_REMOVED`; dispatched or finished routes are untouched.
+    Reproduced as the owner's account (Alex Off on Wed 21 Oct: route 612 stayed READY with
+    Alex) and verified the fix in a rolled-back transaction (612 back to DRAFT, 42 READY
+    routes = 42 planned entries, today's 9 routes unchanged).
+  - The Edit route dialog disabled the route's own vehicle when it is off road today, so
+    the dialog could not be saved without changing it. The current vehicle stays
+    selectable (with `202610190007` the server accepts keeping it).
+- Still open: `202610190007` and `202610190008` need the owner's authorization to apply.
+  The 231D45366 Engine defect (off road since 15 Jul) is probably stale: Return to service
+  clears it if the truck is running.
+
 ## 2026-10-19 — Claude — Roster: Edit roster on a published week
 
 - Branch / commits: `claude/roster-edit-published-week`, Pull Request.

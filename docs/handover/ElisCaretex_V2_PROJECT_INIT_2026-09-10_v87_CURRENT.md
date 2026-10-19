@@ -569,6 +569,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190005_fleet_vehicle_off_road_periods.sql               (applied 2026-10-19)
 202610190006_fleet_temporary_vehicles.sql                     (applied 2026-10-19)
 202610190007_roster_keeps_published_vehicle.sql               (prepared, not applied)
+202610190008_roster_publish_clears_removed_runs.sql           (prepared, not applied)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
