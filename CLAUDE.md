@@ -7,3 +7,6 @@
 - Before starting, rebase on `origin/master` and read the newest entries in
   `docs/handover/WORKLOG.md`. Codex may have pushed since your last session.
 - Reply to the owner in Portuguese.
+- `.claude/settings.json` hooks block pushes to `master` and edits to existing migrations,
+  and validate the frontend after each edit. Use the `new-migration` skill for database
+  changes and the `finish-task` skill before delivering.
