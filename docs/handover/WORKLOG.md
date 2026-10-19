@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Distribution alerts and weekly actuals history
+
+- Branch / commits: `claude/distribution-alerts-actuals-history`, Pull Request.
+- Changed: Distribution shows compact alert chips under the summary cards, one per area
+  and only when needed: Drivers (expired or 30-day-due licence/CPC, exit within 14 days,
+  missing details), Fleet (expired or due road tax/insurance/test/service, open defects,
+  missing details) and last week's actuals still missing. A chip opens its tab (with the
+  "incomplete only" filter when that is the only issue). The "Fleet attention" card was
+  removed. The Actuals tab now lists the last 8 closed weeks (up to 52 with "Show older
+  weeks") with actual/planned totals and a Recorded / Missing / Not recorded / No plan
+  status; the entry form stays closed until a week is opened. Fixed `weekInputValue`,
+  which showed the previous ISO week (and W00 in early January) in the roster and
+  actuals week pickers.
+- Database: none. The history calls `get_distribution_actuals_week` once per week.
+- Validation: `node scripts/validate-repository.mjs` passed. Exercised in Chromium against
+  a stubbed Supabase client (alerts, opening a week from the alert, saving, older weeks,
+  week picker, mobile width); not run against `ElisCaretex-dev`.
+- Open / next: owner check on live data. The history lists only drivers and vehicles that
+  are active today, because the existing RPC filters them; a former driver's past hours
+  are still stored but not shown.
+
 ## 2026-10-19 — Claude — Apps Script history reconciliation (staging to target)
 
 - Branch / commits: `claude/apps-script-history-reconciliation` (Pull Request #3).
