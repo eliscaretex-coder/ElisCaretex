@@ -63,6 +63,25 @@ Entry format:
 
 ---
 
+## 2026-10-19 — Claude — Review fixes: cancel a scheduled driver exit, migration guard
+
+- Branch / commits: `claude/review-fixes`, Pull Request.
+- Changed: review of PRs #2 and #5 to #8 found two fixes. (1) Distribution > Drivers now
+  offers **Cancel exit** on a driver with a scheduled (future) exit; before, a scheduled
+  exit could only be moved, not cancelled. Migration `202610190004` makes
+  `reinstate_distribution_driver` keep the current employment and availability when it
+  cancels a scheduled exit (before, it always set ACTIVE/AVAILABLE, so a SUSPENDED
+  driver became active). A driver who has left is still made ACTIVE/AVAILABLE.
+  (2) `.claude/hooks/guard-repository-rules.mjs` now blocks edits only to committed
+  migrations, so a new migration can be corrected before its first commit.
+- Database: `202610190004_driver_reinstate_keeps_scheduled_status.sql` **Prepared, not
+  applied**. Until it is applied, Cancel exit works but sets the driver ACTIVE/AVAILABLE.
+- Validation: `node scripts/validate-repository.mjs` passed. Hook tested with a committed
+  migration (blocked) and a new staged one (allowed). Migration and UI not run live.
+- Open / next: apply `202610190004` and run its test file. Schema drift: live
+  `distribution_drivers` also has `legacy_driver_id` and `import_source`, which no
+  migration declares.
+
 ## 2026-10-19 — Claude — Sorting Washing: Reception exception unlocks Save
 
 - Branch / commits: `claude/wash-reception-exception-save`, Pull Request.
