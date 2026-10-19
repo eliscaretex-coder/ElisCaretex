@@ -187,6 +187,17 @@ Commits `1f69f2e` through `acfca47` delivered:
   `require_distribution_read_access`; `save_distribution_driver` uses
   `require_distribution_master_access`. Database-generated `DRV-xxx` codes use an
   advisory lock and are preserved on edits. Licence categories are recorded.
+  Since 2026-10-19 (`202610190001`, Applied): a driver can be linked to a
+  non-production Staff Master record from the driver form
+  (`get_distribution_driver_staff_options`, master access; production staff still
+  use Transfer to Driver). `save_distribution_driver` and `save_fleet_vehicle`
+  merge the payload into the stored row, so fields a screen does not send are
+  kept, and accept an optional `row_version`. Fleet reads full rows through
+  `get_fleet_vehicle_master` (read access). Open defects and maintenance can be
+  updated or closed from the Fleet tab. Drivers and Fleet list missing master
+  data per row with an "incomplete only" filter (warnings, never save blockers).
+- Driver exit (`202610190002`, Applied 2026-10-19): the Drivers row action is **Remove**
+  (former **Leave**, which only duplicated the Leave calendar). See section 7.
 - Readable history: `get_distribution_activity_history` uses
   `require_distribution_read_access`, with actor names and event summaries.
   The trigger `record_customer_driver_guide_event` appends guide creation, update,
@@ -292,6 +303,31 @@ The Staff Master interface is intentionally clean:
 - transferred staff no longer remain in active Production Staff lists unless explicitly scoped for Production;
 - transfer uses an atomic database operation and must collect/validate driver-specific information;
 - an existing driver match must be handled without creating a duplicate.
+
+Driver exit (Distribution > Drivers > Remove), mirroring Staff deactivation:
+
+- `remove_distribution_driver(driver, row_version, last working day, reason)`
+  requires Distribution master access and a reason. A past or today's date makes
+  the driver `INACTIVE`/`UNAVAILABLE` at once; a future date is stored in
+  `deactivated_on` and the daily `distribution-driver-scheduled-exit` cron job
+  (`process_scheduled_driver_exits`) applies it the day after. A user cannot
+  remove their own linked driver record.
+- A linked non-production Staff record gets the same exit (`deactivated_on`,
+  reason `Driver exit: ...`), so system access ends with the driver record; the
+  existing `staff-scheduled-deactivation` job covers future dates.
+- Pending (`REQUESTED`) driver leave starting after the exit is cancelled with a
+  note. Published roster assignments after the exit are never changed: they are
+  returned and shown to the planner for reassignment.
+- `reinstate_distribution_driver` (reason required) restores an `INACTIVE` or
+  scheduled driver, and the linked Staff record only when its deactivation came
+  from a driver exit.
+- Nothing is deleted. Every exit, scheduled exit and reinstatement is written to
+  `audit_log` (`REMOVE_DISTRIBUTION_DRIVER`, `SCHEDULE_DISTRIBUTION_DRIVER_EXIT`,
+  `REINSTATE_DISTRIBUTION_DRIVER`) with old/new rows and the reason, and the
+  Distribution History tab names "Last working day" and "Exit reason" changes.
+- `save_distribution_driver` refuses to move a driver to or from `INACTIVE`, so
+  every exit carries a date and a reason. Former drivers are hidden from the
+  Drivers list by default ("Show former drivers").
 
 ## 8. Roster, My Roster and leave governance
 
@@ -499,7 +535,14 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610170010_distribution_driver_identity.sql
 202610170011_distribution_history_readable.sql
 202610170012_customer_guide_history.sql
+202610190001_distribution_driver_fleet_master_completion.sql   (applied 2026-10-19)
+202610190002_distribution_driver_exit_workflow.sql             (applied 2026-10-19)
 ```
+
+Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
+`deactivated_on`, `roster_hidden`, `legacy_driver_id` and `import_source`, which
+no migration file created. `202610190002` declares the first three with
+`add column if not exists`.
 
 **Migration-history caveat (verified 2026-10-18, AGENTS.md section 5):** live
 `supabase_migrations` history starts at `20260811163258` and lists 94 entries,
@@ -533,7 +576,8 @@ was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
 The 13 mutable function search-path warnings were cleared. Run Supabase security
 advisors after new database work. Remaining platform-level recommendations include
-enabling leaked-password protection in Supabase Auth and reviewing the `btree_gist`
+enabling leaked-password protection in Supabase Auth (Pro plan required; a stronger
+password length and character policy is set in the meantime, owner 2026-10-19) and reviewing the `btree_gist`
 extension location. Do not remove legitimate authenticated RPC execution without
 understanding its internal guards.
 
@@ -599,7 +643,7 @@ Use Git history for detailed file-level evidence.
 5. Customer Service/complaints remains future work.
 6. Read-only browser acceptance passed for ADMIN, Sorting terminal and Finish terminal on desktop and mobile. Destructive/action-level negative testing is still needed across modules.
 7. Controlled Clothes and MOP paths passed Intake -> Washing -> Production -> Tracker -> Distribution on 2026-10-16 and their evidence was removed. MOP ABS posting, append-only correction and the live-trolley cancellation guard also passed. Migration `202610160004` preserves terminal staff attribution on corrected MOP/ABS evidence.
-8. Supabase leaked-password protection should be enabled.
+8. Supabase leaked-password protection requires the Pro plan; the project is on the Free plan, so it could not be enabled (owner, 2026-10-19). As the interim control, the owner raised the Auth minimum password length and set character requirements (Owner confirmed, 2026-10-19). Enable leaked-password protection after an upgrade to Pro.
 9. Strict staff offboarding should continue to verify Auth session revocation/expiry, not only database deactivation.
 10. Email templates, allowed redirects and SMTP should be rechecked after changing deployment domains.
 11. The older correction register predates several 2026-09-24 to 2026-09-26 features. Current source, Git history, live Supabase state and this INIT override stale register entries.

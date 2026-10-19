@@ -773,12 +773,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const legacyCorrection=correctionKeepsLegacySelection();
-    const gateReady=rows.length>0&&rows.every(row=>selectionScanReady(row)||legacyCorrection);
+    const gateReady=rows.length>0&&rows.every(row=>selectionScanReady(row)||selectionExceptionReady(row)||legacyCorrection);
     if(!state.busy)el.saveWash.disabled=!gateReady;
     el.saveWash.title=gateReady
       ? ""
       : rows.length
-        ? "Washing is locked until every selected customer has a CONTENTS trolley scan."
+        ? "Washing is locked until every selected customer has a CONTENTS trolley scan or a Reception exception."
         : "Select a scanned customer before saving Washing.";
   }
 

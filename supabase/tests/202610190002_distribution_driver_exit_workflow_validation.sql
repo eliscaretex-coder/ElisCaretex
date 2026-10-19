@@ -1,0 +1,13 @@
+begin;
+select plan(9);
+select has_column('public','distribution_drivers','deactivation_reason','driver exit reason column exists');
+select has_function('public','remove_distribution_driver',array['uuid','integer','date','text'],'driver remove RPC exists');
+select has_function('public','reinstate_distribution_driver',array['uuid','integer','text'],'driver reinstate RPC exists');
+select ok(not has_function_privilege('anon','public.remove_distribution_driver(uuid,integer,date,text)','execute'),'anon cannot remove drivers');
+select ok(not has_function_privilege('anon','public.reinstate_distribution_driver(uuid,integer,text)','execute'),'anon cannot reinstate drivers');
+select ok(not has_function_privilege('authenticated','public.process_scheduled_driver_exits()','execute'),'scheduled exit job is not callable by users');
+select ok(pg_get_functiondef('public.remove_distribution_driver(uuid,integer,date,text)'::regprocedure) like '%require_distribution_master_access%','remove requires Distribution master access');
+select ok(pg_get_functiondef('public.save_distribution_driver(jsonb)'::regprocedure) like '%Use Remove to record when a driver leaves%','edit cannot set a driver inactive');
+select results_eq($$select count(*)::integer from cron.job where jobname='distribution-driver-scheduled-exit'$$,array[1],'daily scheduled exit job exists');
+select * from finish();
+rollback;

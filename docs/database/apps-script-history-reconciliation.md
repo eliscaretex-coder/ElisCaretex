@@ -6,10 +6,10 @@ The historical import of 2026-09-26 loaded six Apps Script exports into
 `staging.apps_script_*` tables and promoted the approved rows into the
 operational tables (`source_application = 'APPS_SCRIPT_IMPORT'`). Those staging
 tables were created directly in the database; migration
-`202610190001_capture_apps_script_history_staging.sql` now records their
+`202610190003_capture_apps_script_history_staging.sql` now records their
 definition. The promotion SQL itself was not saved.
 
-Validation: `supabase/tests/202610190001_apps_script_history_reconciliation_validation.sql`.
+Validation: `supabase/tests/202610190003_apps_script_history_reconciliation_validation.sql`.
 
 ## Sources and batches
 
