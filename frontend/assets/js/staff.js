@@ -807,21 +807,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<option value="${escapeHtml(value)}"${value === selectedValue ? " selected" : ""}>${escapeHtml(label)}</option>`;
   }
 
-  function populateStationOptions(selectedCode = "") {
+  // Areas that are application modules, not places where staff work.
+  const NON_WORK_AREA_CODES = ["ADMIN", "REPORTS", "ROSTER"];
+
+  function populateStationOptions(selectedCode = "", autoSelectSingle = false) {
     const selectedAreaCode = elements.defaultArea.value;
     const area = (state.reference?.areas || []).find((item) => item.area_code === selectedAreaCode);
-    const stations = (state.reference?.stations || []).filter((item) => !area || item.area_id === area.area_id);
-    elements.defaultStation.innerHTML = option("", "No default station", selectedCode) + stations.map((station) => option(station.station_code, station.station_name, selectedCode)).join("");
+    const stations = area ? (state.reference?.stations || []).filter((item) => item.area_id === area.area_id) : [];
+    const selected = selectedCode || (autoSelectSingle && stations.length === 1 ? stations[0].station_code : "");
+    const emptyLabel = !area ? "Select an area first" : stations.length ? "No default station" : "No stations in this area";
+    elements.defaultStation.innerHTML = option("", emptyLabel, selected) + stations.map((station) => option(station.station_code, station.station_name, selected)).join("");
+    elements.defaultStation.disabled = !stations.length;
   }
 
   function populateEditorReference(record = {}) {
     const shifts = state.reference?.shifts || [];
-    const primaryRoles = (state.reference?.operational_roles || []).filter((role) => role.allow_as_primary);
-    const coverRoles = (state.reference?.operational_roles || []).filter((role) => role.allow_as_cover);
-    const areas = state.reference?.areas || [];
+    const allRoles = state.reference?.operational_roles || [];
+    // A legacy role that is no longer allowed as primary stays visible on the record until it is corrected.
+    const primaryRoles = allRoles.filter((role) => role.allow_as_primary || role.role_code === record.primary_role_code);
+    const coverRoles = allRoles.filter((role) => role.allow_as_cover);
+    const areas = (state.reference?.areas || []).filter((area) => !NON_WORK_AREA_CODES.includes(area.area_code) || area.area_code === record.default_area_code);
 
     elements.defaultShift.innerHTML = option("", "No default shift", record.default_shift_code || "") + shifts.map((shift) => option(shift.shift_code, shift.shift_name, record.default_shift_code || "")).join("");
-    elements.primaryRole.innerHTML = option("", "Select role", record.primary_role_code || "") + primaryRoles.map((role) => option(role.role_code, role.role_name, record.primary_role_code || "")).join("");
+    elements.primaryRole.innerHTML = option("", "Select role", record.primary_role_code || "") + primaryRoles.map((role) => option(role.role_code, role.allow_as_primary ? role.role_name : `${role.role_name} (legacy, choose a function)`, record.primary_role_code || "")).join("");
     elements.defaultArea.innerHTML = option("", "No default area", record.default_area_code || "") + areas.map((area) => option(area.area_code, area.area_name, record.default_area_code || "")).join("");
     populateStationOptions(record.default_station_code || "");
 
@@ -958,7 +966,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function jobTitleForOperationalRole(roleCode) {
-    return ({SUPERVISOR:"PRODUCTION_SUPERVISOR",LABEL:"LABEL_OPERATIVE",TEAM_LEADER:"TEAM_LEADER",CLEANER:"CLEANER",SUPPORT_ROLE:"MAINTENANCE"})[roleCode] || "GENERAL_OPERATIVE";
+    return ({PRODUCTION_MANAGER:"PRODUCTION_MANAGER",SUPERVISOR:"PRODUCTION_SUPERVISOR",LABEL:"LABEL_OPERATIVE",TEAM_LEADER:"TEAM_LEADER",CLEANER:"CLEANER",MAINTENANCE:"MAINTENANCE",DRIVER:"DRIVER"})[roleCode] || "GENERAL_OPERATIVE";
   }
 
   function closeRosterRoleChoice(choice = null) {
@@ -1318,7 +1326,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  elements.defaultArea.addEventListener("change", () => populateStationOptions(""));
+  elements.defaultArea.addEventListener("change", () => populateStationOptions("", true));
   elements.primaryRole.addEventListener("change",()=>{
     if (!elements.editorId.value && elements.accountJobTitleForStaff.options.length>1) elements.accountJobTitleForStaff.value=jobTitleForOperationalRole(elements.primaryRole.value);
   });

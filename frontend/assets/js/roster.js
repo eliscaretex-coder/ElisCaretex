@@ -229,7 +229,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (DISPLAY_SECTIONS.some((item) => item.code === staff?.display_section_code)) return staff.display_section_code;
     const roleCode = staff?.primary_role_code || "SUPPORT_ROLE";
     if (["SUPERVISOR", "SORTING_AREA", "LABEL", "CLEANER", "SUPPORT_ROLE"].includes(roleCode)) return roleCode;
+    if (roleCode === "PRODUCTION_MANAGER") return "SUPERVISOR";
+    if (roleCode === "MAINTENANCE") return "SUPPORT_ROLE";
     const stationCode = String(staff?.default_station_code || "");
+    if (stationCode === "SORTING_MAIN" || String(staff?.default_area_code || "").toUpperCase() === "SORTING") return "SORTING_AREA";
     if (["FINISH_TABLE_1", "FINISH_TABLE_2", "FINISH_TABLE_3"].includes(stationCode)) return stationCode;
     return "FINISH_OTHER";
   }

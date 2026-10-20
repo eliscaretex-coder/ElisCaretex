@@ -152,6 +152,9 @@ function inferSection(entry) {
   if (SECTION_META[explicit]) return explicit;
   const role = String(entry.staff_primary_role_code || "").toUpperCase();
   if (["SUPERVISOR", "SORTING_AREA", "LABEL", "CLEANER", "SUPPORT_ROLE"].includes(role)) return role;
+  if (role === "PRODUCTION_MANAGER") return "SUPERVISOR";
+  if (role === "MAINTENANCE") return "SUPPORT_ROLE";
+  if (String(entry.staff_default_station_code || "").toUpperCase() === "SORTING_MAIN") return "SORTING_AREA";
   const table = compactStation(entry, true).match(/^T([123])$/);
   return table ? `FINISH_TABLE_${table[1]}` : "FINISH_OTHER";
 }
