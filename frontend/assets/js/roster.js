@@ -902,6 +902,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     </div>`;
   }
 
+  const SORTING_MOP_MAX_STAFF = 2;
+
   function sortingMopForDay(day) {
     const sorting = state.staff
       .map((staff) => ({ staff, entry: state.entries.get(entryKey(staff.staff_id, day)) }))
@@ -909,14 +911,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const mop = sorting.filter((item) => normalizedSortingWorkMode(item.entry) === "MOP");
     const nullModes = sorting.filter((item) => normalizedSortingWorkMode(item.entry) === null);
     const noDedicated = sorting.length > 0 && nullModes.length === sorting.length;
-    const dedicated = mop.length === 1 && nullModes.length === 0;
+    const dedicated = mop.length >= 1 && mop.length <= SORTING_MOP_MAX_STAFF && nullModes.length === 0;
     return {
       sorting,
       mop,
       nullModes,
       noDedicated,
       dedicated,
-      selected: dedicated ? mop[0].staff : null
+      selected: dedicated ? mop.map((item) => item.staff) : []
     };
   }
 
@@ -925,15 +927,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       const info = sortingMopForDay(day);
       if (!info.sorting.length) continue;
       if (!info.dedicated && !info.noDedicated) {
-        return `Choose the MOP coverage for Sorting on ${formatDate(day)}: select one dedicated MOP staff member or choose No dedicated MOP.`;
+        return `Choose the MOP coverage for Sorting on ${formatDate(day)}: select one or two dedicated MOP staff members or choose No dedicated MOP.`;
       }
     }
     return "";
   }
 
-  function setSortingMopDecision(day, value) {
+  function setSortingMopDecision(day, value, slot = 0) {
     const info = sortingMopForDay(day);
     if (!info.sorting.length) return;
+    const current = info.selected.map((staff) => staff.staff_id);
+
+    if (slot === 1) {
+      if (!current.length) return;
+      const mopIds = value && value !== current[0] ? [current[0], value] : [current[0]];
+      info.sorting.forEach(({ staff, entry }) => {
+        state.entries.set(entryKey(staff.staff_id, day), {
+          ...entry,
+          sorting_work_mode: mopIds.includes(staff.staff_id) ? "MOP" : "CLOTHES"
+        });
+      });
+      setDirty(true);
+      renderGrid();
+      const names = info.sorting.filter(({ staff }) => mopIds.includes(staff.staff_id)).map(({ staff }) => staff.display_name);
+      setMessage(`${formatDate(day)} · MOP: ${names.join(" & ")}.`, "success");
+      return;
+    }
 
     if (value === "NO_DEDICATED_MOP") {
       info.sorting.forEach(({ staff, entry }) => {
@@ -948,10 +967,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selected = info.sorting.find(({ staff }) => staff.staff_id === value);
     if (!selected) return;
 
+    // Keep an existing second MOP when the first MOP person is changed.
+    const second = current.find((staffId, index) => index > 0 && staffId !== value);
+    const mopIds = second ? [value, second] : [value];
     info.sorting.forEach(({ staff, entry }) => {
       state.entries.set(entryKey(staff.staff_id, day), {
         ...entry,
-        sorting_work_mode: staff.staff_id === value ? "MOP" : "CLOTHES"
+        sorting_work_mode: mopIds.includes(staff.staff_id) ? "MOP" : "CLOTHES"
       });
     });
     setDirty(true);
@@ -965,23 +987,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         <strong>MOP coverage</strong>
         <span>Decision required each Working day</span>
       </div>
-      <div class="roster-cell roster-mop-summary-help">Choose a dedicated MOP person or No dedicated MOP</div>
+      <div class="roster-cell roster-mop-summary-help">Choose up to two MOP staff or No dedicated MOP</div>
       <div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">
         ${days.map((day) => {
           const info = sortingMopForDay(day);
           if (!info.sorting.length) return '<div class="roster-mop-summary-day none">—</div>';
           if (!isEditable()) {
-            if (info.selected) return `<div class="roster-mop-summary-day ok"><strong>MOP</strong><span>${escapeHtml(info.selected.display_name)}</span></div>`;
+            if (info.selected.length) return `<div class="roster-mop-summary-day ok"><strong>MOP${info.selected.length > 1 ? ` ×${info.selected.length}` : ""}</strong>${info.selected.map((staff) => `<span>${escapeHtml(staff.display_name)}</span>`).join("")}</div>`;
             if (info.noDedicated) return '<div class="roster-mop-summary-day shared"><strong>SHARED</strong><span>No dedicated MOP</span></div>';
             return '<div class="roster-mop-summary-day missing"><strong>UNSET</strong><span>MOP decision</span></div>';
           }
-          const current = info.selected ? info.selected.staff_id : info.noDedicated ? "NO_DEDICATED_MOP" : "";
-          return `<div class="roster-mop-summary-day ${info.selected ? "ok" : info.noDedicated ? "shared" : "missing"}">
+          const first = info.selected[0] || null;
+          const second = info.selected[1] || null;
+          const current = first ? first.staff_id : info.noDedicated ? "NO_DEDICATED_MOP" : "";
+          const secondChoices = first ? info.sorting.filter(({ staff }) => staff.staff_id !== first.staff_id) : [];
+          const secondSelect = secondChoices.length
+            ? `<select class="roster-mop-second" data-sorting-mop-decision="${escapeHtml(day)}" data-sorting-mop-slot="1" aria-label="Second Sorting MOP staff for ${escapeHtml(formatDate(day))}">
+              <option value=""${second ? "" : " selected"}>+ 2nd MOP: none</option>
+              ${secondChoices.map(({ staff }) => `<option value="${escapeHtml(staff.staff_id)}"${second?.staff_id === staff.staff_id ? " selected" : ""}>2nd MOP · ${escapeHtml(staff.display_name)}</option>`).join("")}
+            </select>`
+            : "";
+          return `<div class="roster-mop-summary-day ${first ? "ok" : info.noDedicated ? "shared" : "missing"}">
             <select data-sorting-mop-decision="${escapeHtml(day)}" aria-label="Sorting MOP coverage for ${escapeHtml(formatDate(day))}">
               <option value=""${current === "" ? " selected" : ""}>Choose…</option>
               <option value="NO_DEDICATED_MOP"${current === "NO_DEDICATED_MOP" ? " selected" : ""}>No dedicated MOP</option>
               ${info.sorting.map(({ staff }) => `<option value="${escapeHtml(staff.staff_id)}"${current === staff.staff_id ? " selected" : ""}>MOP · ${escapeHtml(staff.display_name)}</option>`).join("")}
             </select>
+            ${secondSelect}
           </div>`;
         }).join("")}
       </div>
@@ -2472,8 +2504,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? null
         : selectedMode;
       if (next.sorting_work_mode === "MOP") {
+        const otherMop = dayDecisionBeforeSave.mop.filter((item) => entryKey(item.staff.staff_id, workDate) !== state.editingKey);
+        if (otherMop.length >= SORTING_MOP_MAX_STAFF) {
+          elements.dayMessage.textContent = `Sorting already has two MOP staff on this day (${otherMop.map((item) => item.staff.display_name).join(" & ")}). Change one of them to Clothes first.`;
+          return;
+        }
+        // Other MOP staff stay MOP; undecided rows become Clothes.
         state.entries.forEach((other, key) => {
           if (key === state.editingKey || other.work_date !== workDate || !isSortingWorkingEntry(other)) return;
+          if (normalizedSortingWorkMode(other) === "MOP") return;
           state.entries.set(key, { ...other, sorting_work_mode: "CLOTHES" });
         });
       }
@@ -2590,7 +2629,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener("change", (event) => {
     const mopDecision = event.target.closest("[data-sorting-mop-decision]");
     if (mopDecision && isEditable()) {
-      setSortingMopDecision(mopDecision.dataset.sortingMopDecision, mopDecision.value);
+      setSortingMopDecision(mopDecision.dataset.sortingMopDecision, mopDecision.value, Number(mopDecision.dataset.sortingMopSlot || 0));
       return;
     }
     const selector = event.target.closest("[data-display-section-staff]");

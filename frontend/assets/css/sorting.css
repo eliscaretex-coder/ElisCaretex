@@ -4181,3 +4181,4 @@ body.sorting-page{background:#e7edf3;color:#111827}
 .sorting-today-status.other-service{background:#f59e0b}
 .sorting-today-item.wash-other-service{box-shadow:inset 4px 0 0 #f59e0b;background:#fff7ed}
 @media(max-width:760px){.sorting-reception-basket-item{grid-template-columns:1fr 1fr}.sorting-reception-basket-actions{grid-template-columns:1fr;display:grid}}
+.sorting-mop-staff-badge select{margin-left:4px;border:1px solid #7dd3fc;border-radius:999px;background:#fff;color:#075985;font:inherit;padding:1px 6px}
