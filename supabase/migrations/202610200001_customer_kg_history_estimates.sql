@@ -7,7 +7,8 @@
 --   * Service attribution: a production day is credited to the customer's scheduled production
 --     weekday on or up to two days before it, so work finished the next day (about 13% of
 --     customer days, Jun-Sep 2026) is added to the service it belongs to instead of being lost.
---   * Window: the latest 8 services for the same customer, product and weekday within 26 weeks.
+--   * Window: the latest 8 valid services for the same customer, product and weekday, with no
+--     date limit (owner decision 2026-10-20), so a customer that pauses keeps its last estimate.
 --   * Outliers: each service is capped between 0.4x and 2x the window median before averaging.
 --   * Ready after 3 services; older than 6 weeks is flagged STALE but still used.
 --   * Manual Expected KG (schedule) and Distribution estimated KG (customer) remain as fallback
@@ -46,7 +47,7 @@ as $$
   ), daily as (
     select a.customer_id,a.product_code,a.actual_date,sum(a.actual_kg)::numeric kg
     from public.production_official_actuals a
-    where a.actual_date>=p_reference_date-182 and a.actual_date<p_reference_date
+    where a.actual_date<p_reference_date
       and (p_customer_id is null or a.customer_id=p_customer_id)
     group by a.customer_id,a.product_code,a.actual_date
   ), attributed as (
@@ -72,7 +73,7 @@ $$;
 revoke all on function public.customer_kg_service_history(date,uuid) from public,anon,authenticated;
 
 comment on function public.customer_kg_service_history(date,uuid) is
-  'Internal. Official KG per customer service (Finish KG lines and MOP batches), credited to the scheduled production weekday on or up to two days before the production date. 26 weeks before the reference date.';
+  'Internal. Official KG per customer service (Finish KG lines and MOP batches), credited to the scheduled production weekday on or up to two days before the production date. All history before the reference date.';
 
 create or replace function public.customer_kg_estimates(
   p_reference_date date,
@@ -136,7 +137,7 @@ $$;
 revoke all on function public.customer_kg_estimates(date,uuid) from public,anon,authenticated;
 
 comment on function public.customer_kg_estimates(date,uuid) is
-  'Internal. Expected KG per current schedule slot (customer, product, production weekday): average of the latest 8 official services within 26 weeks, each capped at 0.4x-2x the median. Null until 3 services exist.';
+  'Internal. Expected KG per current schedule slot (customer, product, production weekday): average of the latest 8 official services (no date limit), each capped at 0.4x-2x the median. Null until 3 services exist.';
 
 create or replace function public.get_customer_kg_estimates(
   p_effective_date date default null,
@@ -163,7 +164,7 @@ begin
   select jsonb_build_object(
     'reference_date',v_date,
     'policy',jsonb_build_object(
-      'method','RECENT_SERVICES_CAPPED_AVERAGE','recent_services',8,'lookback_weeks',26,
+      'method','RECENT_SERVICES_CAPPED_AVERAGE','recent_services',8,'lookback_weeks',null,
       'minimum_services',3,'stale_after_days',42,'carry_over_days',2,'cap_low',0.4,'cap_high',2,
       'official_sources',jsonb_build_array('FINISH','MOP'),
       'message','Average of the latest 8 official services for the same customer, product and weekday. Production finished up to two days later counts towards the same service. Each service is capped at 0.4x-2x the median.'
