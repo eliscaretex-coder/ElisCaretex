@@ -306,6 +306,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     mopCancelSaving: false,
     mopSelectedFlowId: null,
     mopTrolleyCodes: [],
+    mopOperatorStaffId: null,
     mopTrolleyValidation: null,
     mopLateEntry: null,
     mopReconciliationFlowId: null,
@@ -696,11 +697,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const type=el.type.value;
     const staff=operatorStaff();
     const mop=staff.find(row=>row.work_mode==="MOP");
+    const currentIsMop=staff.some(row=>row.work_mode==="MOP"&&row.staff_id===el.operator.value);
+    if(type==="MOP"&&currentIsMop)return;
     if(type==="MOP"&&mop){
       el.operator.value=mop.staff_id;
       return;
     }
-    if(type==="CLOTHES"&&mop&&el.operator.value===mop.staff_id){
+    if(type==="CLOTHES"&&currentIsMop){
       el.operator.value="";
     }
   }
@@ -1642,7 +1645,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "Published weekly schedule is the standard time reference.";
       const mopCoverage=state.staffWork?.operational_mop_coverage;
       const mopText=mopCoverage==="DEDICATED"
-        ? ` Actual MOP: ${state.staffWork?.operational_mop_staff_name||"Assigned"}.`
+        ? ` Actual MOP: ${state.staffWork?.operational_mop_staff_names||state.staffWork?.operational_mop_staff_name||"Assigned"}.`
         : mopCoverage==="UNRESOLVED_ABSENT_MOP"
           ? " Planned MOP is unavailable in Sorting. Choose another MOP or operate with no dedicated MOP."
           : mopCoverage==="NO_DEDICATED_MOP"
@@ -2176,7 +2179,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!row)return;
     const isMop=workMode==="MOP";
     const promptText=isMop
-      ? `Why is ${row.display_name} changing to MOP? The current Actual MOP, if any, will automatically change to Clothes.`
+      ? `Why is ${row.display_name} changing to MOP? Sorting can have up to two Actual MOP staff; if two are already MOP, change one of them to Clothes first.`
       : `Why is ${row.display_name} changing from MOP to Clothes? This may leave the shift with no dedicated Actual MOP.`;
     const reason=prompt(promptText);
     if(reason===null)return;
@@ -3857,9 +3860,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     setMopSaveMessage("");
     el.mopEmptySelection.hidden=Boolean(row);
     el.mopForm.hidden=!row;
-    const staffName=state.mop?.operational_mop_staff_name||"Not assigned";
-    el.mopStaffBadge.textContent=`MOP staff: ${staffName}`;
-    el.mopStaffBadge.classList.toggle("missing",!state.mop?.operational_mop_staff_id);
+    const mopStaff=mopOperatorChoices();
+    const operatorId=mopOperatorId();
+    if(mopStaff.length>1){
+      el.mopStaffBadge.innerHTML=`<label>MOP staff: <select data-mop-operator aria-label="MOP staff recording this production">${mopStaff.map(staff=>`<option value="${esc(staff.staff_id)}"${staff.staff_id===operatorId?" selected":""}>${esc(staff.display_name)}</option>`).join("")}</select></label>`;
+    }else{
+      el.mopStaffBadge.textContent=`MOP staff: ${state.mop?.operational_mop_staff_name||"Not assigned"}`;
+    }
+    el.mopStaffBadge.classList.toggle("missing",!operatorId);
     if(!row){el.mopSave.textContent="Save MOP production";if(el.mopLateCompletionBanner)el.mopLateCompletionBanner.hidden=true;const reportButton=$("sortingMopTrolleyReportButton");if(reportButton)reportButton.disabled=true;return;}
     const late=state.mopLateEntry;
     const lateText=late?`<p class="sorting-mop-late-mode"><strong>MISSED ENTRY</strong> Physically processed ${esc(fullDayDate(late.processedOn))}${late.processedTime?` at ${esc(late.processedTime)}`:" · time unknown"}${late.trolleyUnknown?" · trolley number unavailable":""}</p>`:"";
@@ -4127,6 +4135,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     finally{state.mopCancelSaving=false;el.mopCancelSave.disabled=false;}
   }
 
+  // Sorting can run with two Actual MOP staff: production is recorded for the one chosen in the badge.
+  function mopOperatorChoices(){
+    const list=Array.isArray(state.mop?.operational_mop_staff)?state.mop.operational_mop_staff.filter(staff=>staff?.staff_id):[];
+    if(list.length)return list;
+    return state.mop?.operational_mop_staff_id?[{staff_id:state.mop.operational_mop_staff_id,display_name:state.mop.operational_mop_staff_name}]:[];
+  }
+
+  function mopOperatorId(){
+    const choices=mopOperatorChoices();
+    return choices.find(staff=>staff.staff_id===state.mopOperatorStaffId)?.staff_id||choices[0]?.staff_id||null;
+  }
+
   function renderMop(){renderMopDueBanner();renderMopQueue();renderMopForm();renderMopRecent();}
 
   async function loadMop(){
@@ -4140,7 +4160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const businessDate=String(mopContext?.business_date||"").slice(0,10);
         if(el.businessDate)el.businessDate.textContent=businessDate?fmtDate(businessDate):"—";
         if(el.sidebarDate)el.sidebarDate.textContent=businessDate?fmtDate(businessDate):"—";
-        if(el.rosterSource)el.rosterSource.textContent=mopContext?.operational_mop_staff_name||"No dedicated MOP staff";
+        if(el.rosterSource)el.rosterSource.textContent=mopContext?.operational_mop_staff_names||mopContext?.operational_mop_staff_name||"No dedicated MOP staff";
         if(el.plannedCount)el.plannedCount.textContent=titleCode(mopContext?.operational_mop_coverage||"UNRESOLVED");
         if(el.sessionName)el.sessionName.textContent="MOP Production";
         if(el.businessDateStatus){el.businessDateStatus.textContent="Shared operational Business Date";el.businessDateStatus.className="sorting-business-date-status";}
@@ -4211,7 +4231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function saveMopProduction(){
     const row=mopSelected();
     if(!row){setMopSaveMessage("Select a MOP customer before saving.","warning");return;}
-    const staffId=state.mop?.operational_mop_staff_id;
+    const staffId=mopOperatorId();
     if(!staffId){
       const message="No Actual MOP staff is available for this Shift. Set one available staff member as Actual MOP in Staff before saving.";
       setMopSaveMessage(message,"warning");setMessage(message,"warning");return;
@@ -4329,7 +4349,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const row=reconciliationRow();if(!row)return;
     const reason=el.mopNotProcessedReason.value.trim();
     if(reason.length<3){el.mopReconciliationMessage.textContent="Enter a short reason.";return;}
-    const staffId=state.mop?.operational_mop_staff_id;
+    const staffId=mopOperatorId();
     if(!staffId){el.mopReconciliationMessage.textContent="Set an available Actual MOP staff member first.";return;}
     el.mopNotProcessedSave.disabled=true;
     try{
@@ -5019,6 +5039,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   el.noTrolleyArrivalSave?.addEventListener("click",saveNoTrolleyArrival);
   el.mopTypesButton?.addEventListener("click",openMopTypes);
+  el.mopStaffBadge?.addEventListener("change",event=>{
+    const select=event.target.closest("[data-mop-operator]");
+    if(select)state.mopOperatorStaffId=select.value||null;
+  });
   el.mopTypesClose?.addEventListener("click",closeMopTypes);
   el.mopTypesDialog?.addEventListener("cancel",e=>{if(state.mopTypeSaving){e.preventDefault();el.mopTypesMessage.textContent='Wait for the current MOP Type save to finish.';return;}if(state.mopTypeDirty&&!window.confirm('Discard unsaved MOP Type changes?')){e.preventDefault();return;}resetMopTypeEditState();});
   el.mopTypeNewButton?.addEventListener("click",startNewMopType);

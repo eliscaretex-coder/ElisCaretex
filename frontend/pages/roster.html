@@ -6,7 +6,7 @@
   <title>Production Roster | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/roster.css?v=20261020-2">
+  <link rel="stylesheet" href="../assets/css/roster.css?v=20261020-3">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261020-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
@@ -14,7 +14,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261020-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261020-1" defer></script>
-  <script src="../assets/js/roster.js?v=20261020-2" defer></script>
+  <script src="../assets/js/roster.js?v=20261020-3" defer></script>
 </head>
 <body class="roster-page">
   <div class="roster-page-shell" data-operational-shell-root>
@@ -146,7 +146,7 @@
             <button type="button" data-sorting-work-mode="MOP">MOP</button>
           </div>
           <select id="rosterSortingWorkMode" class="roster-visually-hidden" tabindex="-1" aria-hidden="true"><option value="CLOTHES">CLOTHES</option><option value="MOP">MOP</option></select>
-          <small>Exactly one Working Sorting staff member must be MOP for each day.</small>
+          <small>Each Working day needs one or two MOP staff in Sorting, or No dedicated MOP.</small>
         </fieldset>
         <label><span>Note</span><textarea id="rosterDayNote" rows="3" placeholder="Optional"></textarea></label>
         <p id="rosterDayMessage" class="roster-form-message"></p>

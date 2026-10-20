@@ -298,6 +298,7 @@ body.roster-print-fit .roster-leave-planning-banner,body.roster-print-fit .roste
 }
 .roster-mop-summary-day.missing select{border-color:#f59e0b;background:#fffbeb;color:#92400e}
 .roster-mop-summary-day.shared select{border-color:#38bdf8;background:#f0f9ff;color:#075985}
+.roster-mop-summary-day select.roster-mop-second{min-height:26px;margin-top:3px;border-style:dashed}
 @media print{.roster-mop-summary-day select{border:0;background:transparent;padding:0}}
 
 .roster-target-provisional{
