@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const state = {
     reference: null, data: null, staff: [], staffPool: [], entries: new Map(), layouts: new Map(), leaveLocks: new Map(), leavePending: new Map(), leaveDashboard: null, leaveScope: "ACTION", leaveSettingsValue: null,
     accessProfile: null, canEditRoster: false, canApproveLeave: false, canManageRoster: false, leaveCalendarData: null,
-    operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, customerKg: null, dirty: false,
+    operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, customerKg: null, otherShift: null, dirty: false,
     editingKey: "", quickKey: "", staffPickerSelectedId: "", historyVersionId: null, loading: false,
     loadedWeekStart: "", loadedShiftCode: "", suspiciousShiftDraft: null, shiftIntegrity: null
   };
@@ -1013,9 +1013,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     return (state.operationalSettings?.bank_holidays || []).some((item) => item.work_date === workDate && item.use_saturday_profile !== false);
   }
 
-  function workProfileForDay(workDate) {
+  function workProfileForDay(workDate, forShiftCode = null) {
     const profiles = Array.isArray(state.operationalSettings?.work_profiles) ? state.operationalSettings.work_profiles : [];
-    const shiftCode = String(state.data?.shift?.shift_code || elements.shift.value || "").toUpperCase();
+    const shiftCode = String(forShiftCode || state.data?.shift?.shift_code || elements.shift.value || "").toUpperCase();
     const isoDay = new Date(`${workDate}T00:00:00Z`).getUTCDay() || 7;
     if (isoDay === 1 && isConfiguredBankHoliday(workDate)) {
       return profiles.find((profile) => profile.shift_code === shiftCode && profile.applies_to_bank_holiday) || null;
@@ -1078,14 +1078,74 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<div class="roster-capacity-day${bank ? " is-bank-holiday" : ""}" data-capacity-day data-base-kg="${value.baseKg.toFixed(6)}" data-capacity-staff="${value.staff}" data-capacity-net-minutes="${value.netMinutes}" data-capacity-target="${value.target.toFixed(6)}" data-capacity-bank="${bank ? "1" : "0"}" title="${escapeHtml(formula)}"><strong data-capacity-kg>${formatCapacityKg(value.kg)} kg</strong><span data-capacity-meta>${escapeHtml(meta)}</span></div>`;
   }
 
-  // Scheduled customer KG for the whole production day (automatic Expected KG), both shifts together.
+  // The other shift's saved roster (draft or published), used only for the both-shifts capacity.
+  async function loadOtherShiftRoster(weekStart, shiftCode, canManage) {
+    const otherShift = (state.reference?.shifts || []).find((shift) => String(shift.shift_code).toUpperCase() !== String(shiftCode).toUpperCase());
+    if (!otherShift) return null;
+    try {
+      const [data, approvedLeave] = await Promise.all([
+        rpc("get_production_roster_week", { p_week_start: weekStart, p_shift_code: otherShift.shift_code, p_roster_version_id: null }),
+        canManage ? rpc("get_production_roster_approved_leave", { p_week_start: weekStart, p_shift_code: otherShift.shift_code }).catch(() => []) : Promise.resolve([])
+      ]);
+      const entries = new Map();
+      (Array.isArray(data?.entries) ? data.entries : []).forEach((entry) => entries.set(entryKey(entry.staff_id, entry.work_date), entry));
+      const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+      (Array.isArray(data?.staff) ? data.staff : []).forEach((staff) => days.forEach((day) => {
+        const key = entryKey(staff.staff_id, day);
+        if (!entries.has(key)) entries.set(key, defaultEntry(staff, day));
+      }));
+      (Array.isArray(approvedLeave) ? approvedLeave : []).forEach((item) => {
+        const key = entryKey(item.staff_id, item.work_date);
+        if (entries.has(key)) entries.set(key, { ...entries.get(key), day_status: approvedLeaveStatus(item.request_type), station_code: null });
+      });
+      return { shiftCode: String(otherShift.shift_code).toUpperCase(), shiftName: otherShift.shift_name || otherShift.shift_code, entries };
+    } catch (error) {
+      console.warn("The other shift roster is unavailable for the both-shifts capacity.", error);
+      return null;
+    }
+  }
+
+  function otherShiftCapacityForDay(workDate) {
+    const other = state.otherShift;
+    const target = finishTarget();
+    const profile = other ? workProfileForDay(workDate, other.shiftCode) : null;
+    if (!other || !target || !profile) return { staff: 0, baseKg: 0, netMinutes: 0, available: false };
+    let staffCount = 0;
+    other.entries.forEach((entry) => {
+      if (entry.work_date === workDate && ["FINISH_TABLE_1", "FINISH_TABLE_2", "FINISH_TABLE_3"].some((code) => countsForFinishCapacity(entry, code))) staffCount += 1;
+    });
+    const netMinutes = Number(profile.net_minutes || 0);
+    return { staff: staffCount, baseKg: staffCount * Number(target.target_value || 0) * (netMinutes / 60), netMinutes, available: true };
+  }
+
+  // Finish capacity of both shifts at the current simulation: this shift (live edits) + the other shift (saved).
+  function bothShiftsCapacityKg(workDate) {
+    const percent = capacitySimulationPercent();
+    return finishCapacityForDay(workDate).kg + otherShiftCapacityForDay(workDate).baseKg * percent / 100;
+  }
+
+  function bothShiftsDayCell(workDate) {
+    const current = finishCapacityForDay(workDate);
+    const other = otherShiftCapacityForDay(workDate);
+    if (!current.profile && !other.available) return `<div class="roster-capacity-day is-unavailable"><strong>—</strong><span>No work profile</span></div>`;
+    const percent = capacitySimulationPercent();
+    const currentName = state.data?.shift?.shift_name || "This shift";
+    const otherName = state.otherShift?.shiftName || "Other shift";
+    const otherKg = other.baseKg * percent / 100;
+    const title = `${currentName}: ${current.staff} staff, ${formatCapacityKg(current.kg)} kg. ${otherName}: ${other.available ? `${other.staff} staff, ${formatCapacityKg(otherKg)} kg (saved roster)` : "not available"}.`;
+    return `<div class="roster-capacity-day" data-both-shifts-date="${escapeHtml(workDate)}" title="${escapeHtml(title)}"><strong data-both-shifts-kg>${formatCapacityKg(current.kg + otherKg)} kg</strong><span data-both-shifts-meta>${current.staff + other.staff} staff</span></div>`;
+  }
+
+  // Scheduled customer KG for the whole production day (automatic Expected KG), compared with both shifts.
   function customerKgDayCell(workDate) {
     const day = state.customerKg?.get(workDate);
     if (!day) return `<div class="roster-capacity-day is-unavailable"><strong>—</strong><span>No KG data</span></div>`;
     if (!day.customer_count) return `<div class="roster-capacity-day is-unavailable"><strong>—</strong><span>No customers</span></div>`;
     const learning = Number(day.clothes_learning || 0) + Number(day.mop_learning || 0);
-    const title = `${day.customer_count} customers scheduled. Clothes + other: ${formatCapacityKg(day.clothes_kg)} kg. MOP: ${formatCapacityKg(day.mop_kg)} kg. Automatic KG from the last 8 services of each customer and weekday.${learning ? ` ${learning} product slot(s) still learning have no KG yet.` : ""}`;
-    return `<div class="roster-capacity-day roster-customer-kg-day" title="${escapeHtml(title)}"><strong>${formatCapacityKg(day.clothes_kg)} kg</strong><span>MOP ${formatCapacityKg(day.mop_kg)} kg</span><span>${day.customer_count} cust.${learning ? ` · ${learning} no KG` : ""}</span></div>`;
+    const capacity = bothShiftsCapacityKg(workDate);
+    const over = Number(day.clothes_kg || 0) > capacity;
+    const title = `${day.customer_count} customers scheduled.${over ? ` Clothes + other is ${formatCapacityKg(Number(day.clothes_kg) - capacity)} kg above the Finish capacity of both shifts.` : ""} Clothes + other: ${formatCapacityKg(day.clothes_kg)} kg. MOP: ${formatCapacityKg(day.mop_kg)} kg. Automatic KG from the last 8 services of each customer and weekday.${learning ? ` ${learning} product slot(s) still learning have no KG yet.` : ""}`;
+    return `<div class="roster-capacity-day roster-customer-kg-day${over ? " is-over-capacity" : ""}" data-customer-kg-date="${escapeHtml(workDate)}" data-clothes-kg="${Number(day.clothes_kg || 0)}" title="${escapeHtml(title)}"><strong>${formatCapacityKg(day.clothes_kg)} kg</strong><span>MOP ${formatCapacityKg(day.mop_kg)} kg</span><span>${day.customer_count} cust.${learning ? ` · ${learning} no KG` : ""}</span></div>`;
   }
 
   function updateCapacitySimulationDom() {
@@ -1109,6 +1169,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (metaNode) metaNode.textContent = `${percent === 100 ? "" : `${percent}% · `}${staff} staff · ${formatNetHours(netMinutes)}${bank ? " · BH" : ""}`;
       cell.title = `${staff} staff × ${targetValue.toFixed(1)} kg/hr × ${percent}% × ${formatNetHours(netMinutes)} = ${formatCapacityKg(scenarioKg)} kg. 100% target capacity: ${formatCapacityKg(baseKg)} kg.`;
     });
+    document.querySelectorAll("[data-both-shifts-date]").forEach((cell) => {
+      const kgNode = cell.querySelector("[data-both-shifts-kg]");
+      if (kgNode) kgNode.textContent = `${formatCapacityKg(bothShiftsCapacityKg(cell.dataset.bothShiftsDate))} kg`;
+    });
+    document.querySelectorAll("[data-customer-kg-date]").forEach((cell) => {
+      cell.classList.toggle("is-over-capacity", Number(cell.dataset.clothesKg || 0) > bothShiftsCapacityKg(cell.dataset.customerKgDate));
+    });
   }
 
   function capacityPanelHtml(days) {
@@ -1121,7 +1188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["FINISH_TABLE_2", "T2", "Table 2"],
       ["FINISH_TABLE_3", "T3", "Table 3"],
     ];
-    const body = state.capacityCollapsed ? "" : rows.map(([code, short, label]) => `<div class="roster-capacity-row"><div class="roster-capacity-name"><span>${short}</span><strong>${label}</strong></div><div class="roster-capacity-rule">Scenario capacity</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day, code)).join("")}</div></div>`).join("") + `<div class="roster-capacity-row is-total"><div class="roster-capacity-name"><span>Σ</span><strong>Finish total</strong></div><div class="roster-capacity-rule">Tables 1 + 2 + 3</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day)).join("")}</div></div>` + `<div class="roster-capacity-row is-customer-kg"><div class="roster-capacity-name"><span>KG</span><strong>Customers scheduled</strong></div><div class="roster-capacity-rule">Whole day · Clothes + other, MOP</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => customerKgDayCell(day)).join("")}</div></div>`;
+    const body = state.capacityCollapsed ? "" : rows.map(([code, short, label]) => `<div class="roster-capacity-row"><div class="roster-capacity-name"><span>${short}</span><strong>${label}</strong></div><div class="roster-capacity-rule">Scenario capacity</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day, code)).join("")}</div></div>`).join("") + `<div class="roster-capacity-row is-total"><div class="roster-capacity-name"><span>Σ</span><strong>Finish total</strong></div><div class="roster-capacity-rule">Tables 1 + 2 + 3</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day)).join("")}</div></div>` + `<div class="roster-capacity-row is-both-shifts"><div class="roster-capacity-name"><span>2×</span><strong>Both shifts</strong></div><div class="roster-capacity-rule">This shift + ${escapeHtml(state.otherShift?.shiftName || "other shift")} (saved)</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => bothShiftsDayCell(day)).join("")}</div></div>` + `<div class="roster-capacity-row is-customer-kg"><div class="roster-capacity-name"><span>KG</span><strong>Customers scheduled</strong></div><div class="roster-capacity-rule">Whole day · red above both shifts</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => customerKgDayCell(day)).join("")}</div></div>`;
     return `<section class="roster-capacity-block"><div class="roster-capacity-header"><div class="roster-capacity-heading"><strong>Finish capacity</strong><span>What-if simulation only. The official production target is never changed here.</span></div><div class="roster-capacity-target"><small>Official target</small><strong>${Number(target.target_value).toFixed(1)} kg / staff hr</strong></div><div class="roster-capacity-simulation"><div class="roster-capacity-simulation-top"><span><small>Simulation</small><strong data-capacity-simulation-percent>${percent}%</strong></span><span class="roster-capacity-effective" data-capacity-effective-target>${effectiveTarget.toFixed(2)} kg / staff hr</span></div><div class="roster-capacity-simulation-controls"><input type="range" min="50" max="120" step="1" value="${percent}" data-capacity-simulation-range aria-label="Finish capacity simulation percentage"><label><input type="number" min="50" max="120" step="1" value="${percent}" data-capacity-simulation-input aria-label="Finish capacity simulation percentage"><span>%</span></label><button type="button" data-capacity-simulation-reset title="Reset simulation to 100 percent">100%</button></div></div><button class="roster-capacity-toggle" type="button" data-capacity-toggle aria-expanded="${String(!state.capacityCollapsed)}">${state.capacityCollapsed ? "Show" : "Hide"}</button></div>${body}</section>`;
   }
 
@@ -1314,6 +1381,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         rpc("get_production_roster_customer_kg", { p_from_date: weekStart, p_to_date: addDays(weekStart, 6) }).catch((error) => { console.warn("Scheduled customer KG is unavailable.", error); return null; })
       ]);
       state.customerKg = new Map((Array.isArray(customerKg?.days) ? customerKg.days : []).map((day) => [day.work_date, day]));
+      state.otherShift = await loadOtherShiftRoster(weekStart, shiftCode, Boolean(data?.can_manage));
       state.data = data || {};
       if ((state.accessProfile?.permissions||[]).length) state.data.can_manage=state.canEditRoster;
       state.operationalSettings = operationalSettings || { targets: [], work_profiles: [], bank_holidays: [] };

@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-20 — Claude — Production Roster: Finish capacity of both shifts
+
+- Branch / commits: `claude/roster-both-shifts-capacity`, Pull Request into `master`.
+- Changed: new "Both shifts" row in the Roster Finish capacity block (this shift with its live,
+  unsaved edits + the other shift's saved roster, approved leave applied, same simulation %).
+  "Customers scheduled" is now red only when Clothes + other is above the both-shifts capacity,
+  as requested by the owner. Frontend only (`roster.js`, `roster.css`, cache versions).
+- Database: none (reuses `get_production_roster_week` and `get_production_roster_approved_leave`).
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright with a stubbed client and
+  two shifts (10 staff each, 7.5 h and 8 h): Both shifts 3,643 kg, 4,371 kg at 120%; red only on
+  the days above it.
+- Open / next: owner acceptance after merge. The other shift counts only what is saved.
+
 ## 2026-10-20 — Claude — Production Roster: scheduled customer KG per day
 
 - Branch / commits: `claude/roster-daily-customer-kg`, Pull Request into `master`.
