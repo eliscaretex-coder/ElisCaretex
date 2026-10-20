@@ -80,6 +80,28 @@ Entry format:
 
 ---
 
+## 2026-10-20 — Claude — Customer Expected KG calculated from production history
+
+- Branch / commits: `claude/customer-kg-history-estimates`, Pull Request into `master`.
+- Changed: Expected KG per customer, product and weekday is now calculated from official
+  production (latest 8 services, finished-next-day production credited to the scheduled day,
+  outliers capped at 0.4x-2x the median, ready after 3 services). Manual KG stays only as a
+  fallback while learning. Customer Weekly Planner and list show the value with an Auto/Manual/
+  Stale tag and a tooltip with the evidence; the schedule editor shows the automatic value
+  instead of a "Use" button; Distribution Route customers, route stops, Forward capacity and the
+  leave capacity calendar use the same model. Customer form label is now "Fallback KG per delivery".
+- Database: `202610200001_customer_kg_history_estimates.sql` — **prepared, not applied** (waiting
+  for owner approval). Test: `supabase/tests/202610200001_customer_kg_history_estimates_validation.sql`.
+- Validation: model queries run read-only against live data (pg_temp copies, nothing changed):
+  460 of 505 current slots ready, 20 stale, 25 learning; ~29,400 kg per week. Backtest on
+  3,643 Jul-Sep services: slot WAPE 28.0% -> 25.2%, total bias -7.4% -> -1.5%, daily total
+  error 7.4%. `node scripts/validate-repository.mjs` passed. Playwright with a stubbed Supabase
+  client: planner, list and Route customers at 1440 px. Not checked with real accounts.
+- Open / next: apply the migration, run the test file and advisors. Official production data
+  in the database ends 2026-09-26; if no newer data arrives, slots turn STALE from early November.
+
+---
+
 ## 2026-10-20 — Claude — Shared page standard for every workspace
 
 - Branch / commits: `claude/ui-visual-standard`, Pull Request stacked on the sidebar PR.

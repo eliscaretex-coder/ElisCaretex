@@ -265,3 +265,7 @@
 @media (max-width: 620px) { .distribution-vehicle-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 851px) { .distribution-fleet-list .distribution-master-row { grid-template-columns: minmax(190px, 1.2fr) repeat(3, minmax(110px, .7fr)) 350px; }.distribution-fleet-list .distribution-card-actions { justify-content: flex-end; flex-wrap: nowrap; } }
 .distribution-form-grid label:has(> input[type="hidden"]) { display: none; }
+
+/* Route customers KG: automatic from history unless tagged Manual. */
+.distribution-kg-cell { white-space: nowrap; }
+.distribution-route-customers-table td .distribution-kg-source, .distribution-kg-source { display: inline-block; margin: 0 0 0 4px; padding: 0 5px; border-radius: 999px; background: var(--ec-info-soft, #e9f2fb); color: var(--ec-info, #1d5fa7); font-size: .62rem; font-weight: 800; vertical-align: middle; }

@@ -570,26 +570,94 @@ document.addEventListener("DOMContentLoaded", () => {
         ? "get_mop_weekly_planner"
         : "get_clothes_weekly_planner";
 
-    const payload = await rpc(functionName, {
-      p_effective_date: effectiveDateInput.value,
-      p_production_weekday: null,
-      p_search: state.schedule.search || null
-    });
+    const [payload, kgEstimates] = await Promise.all([
+      rpc(functionName, {
+        p_effective_date: effectiveDateInput.value,
+        p_production_weekday: null,
+        p_search: state.schedule.search || null
+      }),
+      loadKgEstimates(effectiveDateInput.value)
+    ]);
 
     if (requestId !== state.requestId) {
       return;
     }
 
-    state.schedule.items = Array.isArray(payload?.items) ? payload.items : [];
+    state.schedule.items = applyKgEstimates(
+      Array.isArray(payload?.items) ? payload.items : [],
+      kgEstimates,
+      state.schedule.service === "mop" ? "MOP" : "CLOTHES"
+    );
     renderSchedulePlanner(payload);
+  }
+
+  async function loadKgEstimates(effectiveDate) {
+    try {
+      const payload = await rpc("get_customer_kg_estimates", {
+        p_effective_date: effectiveDate || null,
+        p_customer_id: null
+      });
+      return Array.isArray(payload?.items) ? payload.items : [];
+    } catch (error) {
+      console.warn("Automatic KG estimates were not loaded:", error);
+      return [];
+    }
+  }
+
+  // Planned KG: the automatic history estimate first, the manually typed Expected KG while learning.
+  function applyKgEstimates(items, estimates, productCode) {
+    const byKey = new Map(
+      estimates
+        .filter((estimate) => estimate.product_code === productCode)
+        .map((estimate) => [`${estimate.customer_id}|${estimate.production_weekday}`, estimate])
+    );
+
+    return items.map((item) => {
+      const estimate = byKey.get(`${item.customer_id}|${item.production_weekday}`) || null;
+      const historyKg = Number(estimate?.estimated_kg) > 0 ? Number(estimate.estimated_kg) : null;
+      const manualKg = Number(item.expected_kg) > 0 ? Number(item.expected_kg) : null;
+
+      return {
+        ...item,
+        kg_estimate: estimate,
+        planned_kg: historyKg ?? manualKg,
+        planned_kg_source: historyKg !== null ? "HISTORY" : manualKg !== null ? "MANUAL" : "NONE"
+      };
+    });
+  }
+
+  function plannedKgTitle(item) {
+    const estimate = item.kg_estimate;
+
+    if (item.planned_kg_source === "HISTORY") {
+      return [
+        `Automatic: average of the last ${estimate.history_points} services`,
+        `range ${formatNumber(estimate.minimum_kg, "0.0")}–${formatNumber(estimate.maximum_kg, "0.0")} kg`,
+        `last ${formatDate(estimate.last_service_date)} (${formatNumber(estimate.last_service_kg, "0.0")} kg)`,
+        estimate.status === "STALE" ? "no service in the last 6 weeks" : ""
+      ].filter(Boolean).join(" · ");
+    }
+
+    const points = Number(estimate?.history_points || 0);
+    return item.planned_kg_source === "MANUAL"
+      ? `Manual Expected KG. Automatic KG starts after 3 services (${points}/3).`
+      : `No KG yet. Automatic KG starts after 3 services (${points}/3).`;
+  }
+
+  function plannedKgSourceLabel(item) {
+    if (item.planned_kg_source === "HISTORY") {
+      return item.kg_estimate?.status === "STALE" ? "Stale" : "Auto";
+    }
+    return item.planned_kg_source === "MANUAL" ? "Manual" : "";
   }
 
   function renderSchedulePlanner(payload) {
     const label = state.schedule.service === "mop" ? "MOP" : "Clothes";
-    const kgRows = state.schedule.items.filter((item) => Number(item.expected_kg) > 0);
+    const kgRows = state.schedule.items.filter((item) => item.planned_kg !== null);
+    const historyRows = kgRows.filter((item) => item.planned_kg_source === "HISTORY").length;
     const missingKgRows = state.schedule.items.length - kgRows.length;
     const kgCoverage = state.schedule.items.length ? Math.round(kgRows.length / state.schedule.items.length * 100) : 0;
-    const weeklyKg = kgRows.reduce((total, item) => total + Number(item.expected_kg || 0), 0);
+    const weeklyKg = kgRows.reduce((total, item) => total + Number(item.planned_kg || 0), 0);
 
     mainPanel.innerHTML = `
       <div class="customers-panel-title">
@@ -701,9 +769,9 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
 
       <section class="customers-kg-coverage${missingKgRows ? " has-missing" : " complete"}">
-        <div><small>PLANNING DATA</small><strong>${escapeHtml(formatNumber(weeklyKg, "0.0"))} kg</strong><span>Expected weekly ${escapeHtml(label)} load</span><span>To enter KG, click Set KG, choose Edit Schedule, then complete Expected KG inside the scheduled day.</span></div>
-        <div><strong>${kgCoverage}%</strong><span>KG coverage · ${kgRows.length} of ${state.schedule.items.length} schedule rows</span></div>
-        <button id="scheduleMissingKgButton" class="customers-secondary-button${state.schedule.missingKgOnly ? " active" : ""}" type="button" ${missingKgRows ? "" : "disabled"}>${state.schedule.missingKgOnly ? "Show all rows" : `Review ${missingKgRows} missing KG`}</button>
+        <div><small>PLANNING DATA</small><strong>${escapeHtml(formatNumber(weeklyKg, "0.0"))} kg</strong><span>Expected weekly ${escapeHtml(label)} load</span><span>Calculated automatically from the last 8 official services of each customer and weekday. Manual Expected KG is used only while a customer is still learning.</span></div>
+        <div><strong>${kgCoverage}%</strong><span>KG coverage · ${kgRows.length} of ${state.schedule.items.length} schedule rows · ${historyRows} automatic</span></div>
+        <button id="scheduleMissingKgButton" class="customers-secondary-button${state.schedule.missingKgOnly ? " active" : ""}" type="button" ${missingKgRows ? "" : "disabled"}>${state.schedule.missingKgOnly ? "Show all rows" : `Review ${missingKgRows} without KG`}</button>
       </section>
 
       <div id="scheduleDisplay"></div>
@@ -740,7 +808,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function visibleScheduleItems() {
     return state.schedule.missingKgOnly
-      ? state.schedule.items.filter((item) => !(Number(item.expected_kg) > 0))
+      ? state.schedule.items.filter((item) => item.planned_kg === null)
       : state.schedule.items;
   }
 
@@ -1377,10 +1445,10 @@ document.addEventListener("DOMContentLoaded", () => {
               </button>
             </div>
           </td>
-          <td class="customers-planner-value-cell customers-route-cell${Number(item.expected_kg) > 0 ? "" : " is-missing-kg"}" style="${routeStyle}" title="${escapeHtml(item.trolley_summary || "No planned trolley")}">
-            ${Number(item.expected_kg) > 0
-              ? `<strong class="customers-planner-kg">${escapeHtml(formatNumber(item.expected_kg, "0.0"))} kg</strong>`
-              : `<button class="customers-planner-set-kg" type="button" data-open-schedule data-customer-id="${escapeHtml(item.customer_id)}" data-customer-code="${escapeHtml(item.customer_code)}" data-customer-name="${escapeHtml(item.customer_name)}" title="Open this customer's schedule and enter Expected KG">Set KG</button>`}
+          <td class="customers-planner-value-cell customers-route-cell${item.planned_kg !== null ? "" : " is-missing-kg"}" style="${routeStyle}" title="${escapeHtml(item.trolley_summary || "No planned trolley")}">
+            ${item.planned_kg !== null
+              ? `<strong class="customers-planner-kg" title="${escapeHtml(plannedKgTitle(item))}">${escapeHtml(formatNumber(item.planned_kg, "0.0"))} kg <small class="customers-kg-source is-${escapeHtml(plannedKgSourceLabel(item).toLowerCase())}">${escapeHtml(plannedKgSourceLabel(item))}</small></strong>`
+              : `<button class="customers-planner-set-kg" type="button" data-open-schedule data-customer-id="${escapeHtml(item.customer_id)}" data-customer-code="${escapeHtml(item.customer_code)}" data-customer-name="${escapeHtml(item.customer_name)}" title="${escapeHtml(plannedKgTitle(item))} Open the schedule to enter a manual KG.">Learning</button>`}
             <span>${escapeHtml(item.trolley_summary || "—")}</span>
           </td>
         `;
@@ -1467,7 +1535,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         ? `<td>${escapeHtml((item.mop_products || []).join(", ") || "—")}</td>`
                         : ""
                     }
-                    <td><strong class="customers-list-kg${Number(item.expected_kg) > 0 ? "" : " missing"}">${Number(item.expected_kg) > 0 ? `${escapeHtml(formatNumber(item.expected_kg, "0.0"))} kg` : "Missing"}</strong></td>
+                    <td><strong class="customers-list-kg${item.planned_kg !== null ? "" : " missing"}" title="${escapeHtml(plannedKgTitle(item))}">${item.planned_kg !== null ? `${escapeHtml(formatNumber(item.planned_kg, "0.0"))} kg <small class="customers-kg-source is-${escapeHtml(plannedKgSourceLabel(item).toLowerCase())}">${escapeHtml(plannedKgSourceLabel(item))}</small>` : "Learning"}</strong></td>
                     <td>${escapeHtml(item.trolley_summary || "—")}</td>
                     <td>${escapeHtml(instructions || "—")}</td>
                     <td>
@@ -2171,7 +2239,7 @@ document.addEventListener("DOMContentLoaded", () => {
         p_customer_id: customerId,
         p_from_date: null,
         p_to_date: state.capabilities?.business_date || null,
-        p_recent_limit: 3
+        p_recent_limit: 8
       });
     } catch (error) {
       console.warn("Customer KG history could not be loaded:", error);
@@ -3666,21 +3734,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const points = Number(suggestion?.history_points || 0);
     const records = Array.isArray(suggestion?.recent_records) ? suggestion.recent_records : [];
     const evidence = records.map((record) =>
-      `${formatDate(record.actual_date)}: ${formatNumber(record.actual_kg, "0.0")} kg`
+      `${formatDate(record.actual_date)}: ${formatNumber(record.actual_kg, "0.0")} kg${record.carried_over ? " (finished later)" : ""}`
     ).join(" · ");
 
     return `
       <div class="customers-studio-field customers-studio-expected-kg">
         <label>
-          <span>Expected KG</span>
+          <span>${ready ? "Manual KG (not used)" : "Manual KG"}</span>
           <input type="number" value="${escapeHtml(product.expected_kg ?? "")}" min="0" step="0.01" data-product-field="expected_kg">
         </label>
         ${ready
           ? `<div class="customers-studio-kg-suggestion" title="${escapeHtml(evidence)}">
-              <span>3-day avg. <strong>${escapeHtml(formatNumber(suggestion.suggested_kg, "0.0"))} kg</strong></span>
-              <button type="button" data-apply-kg-suggestion="${escapeHtml(suggestion.suggested_kg)}">Use</button>
+              <span>Automatic <strong>${escapeHtml(formatNumber(suggestion.suggested_kg, "0.0"))} kg</strong> · last ${points} services${suggestion.estimate_status === "STALE" ? " · stale" : ""}</span>
             </div>`
-          : `<small class="customers-studio-kg-learning">Learning · ${points}/3 matching days</small>`}
+          : `<small class="customers-studio-kg-learning">Learning · ${points}/3 services. Manual KG is used until then.</small>`}
       </div>
     `;
   }
@@ -3819,18 +3886,6 @@ document.addEventListener("DOMContentLoaded", () => {
             actionButton.disabled = false;
           }
         });
-        return;
-      }
-
-      const kgSuggestionButton = event.target.closest("[data-apply-kg-suggestion]");
-
-      if (kgSuggestionButton) {
-        const product = productDocumentByElement(kgSuggestionButton);
-        if (product) {
-          product.expected_kg = kgSuggestionButton.dataset.applyKgSuggestion;
-          markStudioDirty();
-          rerenderScheduleManagement();
-        }
         return;
       }
 
@@ -4844,7 +4899,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    state.distribution.items = Array.isArray(payload?.items) ? payload.items : [];
+    state.distribution.items = (Array.isArray(payload?.items) ? payload.items : []).map((item) => ({
+      ...item,
+      expected_kg: item.expected_kg ?? item.distribution_estimated_kg
+    }));
     state.distribution.payload = payload;
     renderDistributionContent();
   }
@@ -4934,7 +4992,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ).size;
         group.kgTotal = sumDistributionField(
           group.items,
-          "distribution_estimated_kg"
+          "expected_kg"
         );
         group.stopTotal = sumDistributionField(
           group.items,
@@ -5022,7 +5080,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const groups = buildDistributionGroups(filteredItems);
     const totalKg = sumDistributionField(
       filteredItems,
-      "distribution_estimated_kg"
+      "expected_kg"
     );
     const totalTrolleys = sumDistributionField(
       filteredItems,
@@ -5231,7 +5289,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${escapeHtml(distributionTimeLabel(item))}</td>
         <td>${escapeHtml(item.eircode || "—")}</td>
         <td>${escapeHtml(products || "—")}</td>
-        <td>${escapeHtml(formatNumber(item.distribution_estimated_kg))}</td>
+        <td title="${escapeHtml(item.expected_kg_source === "HISTORY" ? "Automatic: average of the last services of each product" : item.expected_kg_source === "MANUAL" ? "Manual estimate (customer is still learning)" : "")}">${escapeHtml(formatNumber(item.expected_kg))}${item.expected_kg_source === "MANUAL" ? ' <small class="customers-kg-source is-manual">Manual</small>' : ""}</td>
         <td>${escapeHtml(formatNumber(item.distribution_stop_count))}</td>
         <td class="customers-distribution-trolley-cell">
           <strong>${escapeHtml(formatNumber(item.planned_trolley_total, "0"))}</strong>
