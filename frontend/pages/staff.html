@@ -8,7 +8,7 @@
 
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css?v=20261017-1">
-  <link rel="stylesheet" href="../assets/css/staff.css?v=20260925-3">
+  <link rel="stylesheet" href="../assets/css/staff.css?v=20261020-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261020-1">
 
@@ -17,7 +17,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261020-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261020-1" defer></script>
-  <script src="../assets/js/staff.js?v=20260925-6" defer></script>
+  <script src="../assets/js/staff.js?v=20261020-1" defer></script>
 </head>
 
 <body class="staff-page">
@@ -118,23 +118,26 @@
         <section class="staff-form-section">
           <div class="staff-form-section-heading">
             <h3>Primary work assignment</h3>
-            <p>This remains the staff member's original function even when they work as COVER.</p>
+            <p>What the person does and where they normally work. It stays the same when they work as COVER.</p>
           </div>
 
           <div class="staff-form-grid three-columns">
             <label class="staff-field">
               <span>Primary role *</span>
               <select id="staffPrimaryRole" required></select>
+              <small>The job function, for example General Operative or Team Leader.</small>
             </label>
 
             <label class="staff-field">
               <span>Default area</span>
               <select id="staffDefaultArea"></select>
+              <small>Where they normally work. Decides the Production Roster section.</small>
             </label>
 
             <label class="staff-field">
               <span>Default table / station</span>
               <select id="staffDefaultStation"></select>
+              <small>Only for areas with tables or stations.</small>
             </label>
           </div>
           <div class="staff-form-actions">

@@ -125,6 +125,8 @@ body.staff-page {
 .staff-field > span { color: #334155; font-size: 12px; font-weight: 800; }
 .staff-field input, .staff-field select { height: 42px; padding: 0 11px; }
 .staff-field textarea { resize: vertical; padding: 10px 11px; }
+.staff-field > small { color: var(--staff-muted); font-size: 11px; line-height: 1.35; }
+.staff-field select:disabled { background: #f1f5f9; color: var(--staff-muted); cursor: not-allowed; }
 .staff-toggle-field, .staff-check-card { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid var(--staff-line); border-radius: 11px; background: #f8fafc; cursor: pointer; }
 .staff-toggle-field input, .staff-check-card input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--staff-brand); }
 .staff-toggle-field span, .staff-check-card span { display: grid; gap: 2px; }
