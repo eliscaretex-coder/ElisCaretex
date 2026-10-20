@@ -1,6 +1,6 @@
 -- =====================================================================
 -- ElisCaretex V2
--- Migration: 202610200003_sorting_mop_two_staff
+-- Migration: 202610200004_sorting_mop_two_staff
 --
 -- Owner request (2026-10-20): Sorting MOP can be staffed by up to two people.
 --

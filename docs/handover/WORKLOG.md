@@ -89,11 +89,11 @@ Entry format:
   the other MOP to Clothes (a third is refused); the MOP Production badge becomes a selector when
   two MOP staff are on shift, and the batch is recorded for the chosen one. MOP KG targets stay
   per staff hour, so no capacity formula changed.
-- Database: `202610200003_sorting_mop_two_staff.sql` — **prepared, not applied** (needs owner
+- Database: `202610200004_sorting_mop_two_staff.sql` — **prepared, not applied** (needs owner
   approval). Replaces `production_roster_assert_operational_rules`, `get_sorting_staff_work_context_v2`,
   `set_sorting_staff_work_mode`, `get_sorting_staff_dashboard_context_v2` and
   `get_sorting_mop_production_context`; four were rebuilt from the committed bodies, verified equal
-  to live by md5 before editing. Test: `supabase/tests/202610200003_sorting_mop_two_staff_validation.sql`.
+  to live by md5 before editing. Test: `supabase/tests/202610200004_sorting_mop_two_staff_validation.sql`.
 - Validation: `node scripts/validate-repository.mjs` passed. Playwright with a stubbed client:
   two MOP on one day, swap of the first keeps the second, third MOP refused in the day editor.
   Until the migration is applied, saving a roster with two MOP is refused by the database.
