@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-20 — Claude — Shared page standard for every workspace
+
+- Branch / commits: `claude/ui-visual-standard`, Pull Request stacked on the sidebar PR.
+- Changed: one page frame for all workspaces (12/16 px gutters, header banner in the same
+  position and size on every page; before, each page used its own 0-18 px padding);
+  page-level errors and warnings shown as the same red/amber box, confirmations as a
+  short green line, empty messages take no space; My Roster, My Driver Roster,
+  Notifications and Customer guides use the same banner shape (shift colours kept) and
+  drop their Back links and duplicate logo; Distribution's Customer guides link looks like
+  the other tabs. Removed unused `enterprise-ui_old.css`, `enterprise-ui_old2.css` and
+  `finish-production.css.before-visual-refresh-20260923.bak`. CSS only, no logic changed.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright with a stubbed
+  Supabase client measured the header box on 13 pages (all at the same x/y/width) and
+  screenshots at 1440 px and 390 px. Not checked with real data.
+- Open / next: owner acceptance on the live site.
+
 ## 2026-10-20 — Claude — Sidebar navigation: full coverage, sections, mobile drawer, one Home
 
 - Branch / commits: `claude/ui-consistency-sidebar`, Pull Request into `master`.
