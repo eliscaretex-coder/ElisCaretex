@@ -583,6 +583,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190007_roster_keeps_published_vehicle.sql               (applied 2026-10-20)
 202610190008_roster_publish_clears_removed_runs.sql           (applied 2026-10-20)
 202610200001_customer_kg_history_estimates.sql                (applied 2026-10-20, owner approved)
+202610200002_production_roster_customer_kg.sql               (applied 2026-10-20, owner approved)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
