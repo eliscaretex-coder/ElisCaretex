@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-20 — Claude — Production Roster: scheduled customer KG per day
+
+- Branch / commits: `claude/roster-daily-customer-kg`, Pull Request into `master`.
+- Changed: new "Customers scheduled" row under Finish total in the Roster Finish capacity block:
+  per production day, the sum of the automatic Expected KG of all scheduled customers, Clothes +
+  other products in bold and MOP below, with the customer count and slots without KG. The value
+  is for the whole day (both shifts), so it is not coloured against the single-shift capacity.
+  New RPC `get_production_roster_customer_kg(date,date)` (roster read access).
+- Database: `202610200002_production_roster_customer_kg.sql` — **prepared, not applied** (waiting
+  for owner approval). Test: `supabase/tests/202610200002_production_roster_customer_kg_validation.sql`.
+- Validation: the RPC query ran read-only on live data for week 2026-10-19 (Mon 3,076 + 654 MOP kg,
+  Tue 5,712 + 1,050 ...). `node scripts/validate-repository.mjs` passed. Playwright with a stubbed
+  Supabase client at 1440 px. The page shows "No KG data" until the migration is applied.
+- Open / next: apply the migration; owner acceptance.
+
 ## 2026-10-20 — Claude — Customer Expected KG calculated from production history
 
 - Branch / commits: `claude/customer-kg-history-estimates`, Pull Request into `master`.
