@@ -239,27 +239,6 @@ body.elis-operational-tool-page {
   background: var(--ec-canvas);
 }
 
-.operational-shell {
-  --operational-sidebar-width: 72px;
-  background: var(--ec-canvas);
-}
-
-.operational-shell.sidebar-expanded,
-.operational-shell.sidebar-hover-expanded {
-  --operational-sidebar-width: 256px;
-}
-
-.operational-sidebar {
-  border-right-color: #cfd9e2;
-  background: #fbfcfd;
-  box-shadow: none;
-}
-
-.operational-sidebar-brand {
-  min-height: 68px;
-  border-bottom-color: var(--ec-line);
-}
-
 .operational-brand-copy strong,
 .operational-topbar-title p {
   color: var(--ec-primary);
@@ -270,43 +249,6 @@ body.elis-operational-tool-page {
   border-color: var(--ec-line-strong);
   border-radius: var(--ec-radius-sm);
   background: var(--ec-surface);
-}
-
-.operational-nav {
-  padding: 8px 10px 14px;
-}
-
-.operational-nav-item {
-  min-height: 44px;
-  border-radius: var(--ec-radius-sm);
-  color: var(--ec-ink-muted);
-}
-
-.operational-nav-item:hover,
-.operational-nav-item:focus-visible {
-  background: var(--ec-primary-soft);
-  color: var(--ec-primary-strong);
-}
-
-.operational-nav-item.active {
-  background: var(--ec-primary-soft);
-  color: var(--ec-primary-strong);
-}
-
-.operational-nav-item.active::before {
-  top: 8px;
-  bottom: 8px;
-  background: var(--ec-primary);
-}
-
-.operational-user-mini {
-  border-color: var(--ec-line);
-  border-radius: var(--ec-radius);
-}
-
-.operational-user-avatar {
-  border-radius: var(--ec-radius-sm);
-  background: var(--ec-primary);
 }
 
 .operational-topbar {
@@ -321,9 +263,6 @@ body.elis-operational-tool-page {
 }
 
 /* Tool pages deliberately use a quiet, dense work surface. */
-body.elis-operational-tool-page .operational-shell {
-  grid-template-columns: var(--operational-sidebar-width) minmax(0, 1fr);
-}
 
 body.elis-operational-tool-page .operational-page-header,
 .customers-header,

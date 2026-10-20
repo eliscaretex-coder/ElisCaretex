@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-20 — Claude — Sidebar navigation: full coverage, sections, mobile drawer, one Home
+
+- Branch / commits: `claude/ui-consistency-sidebar`, Pull Request into `master`.
+- Changed: the sidebar now appears on every signed-in page, including Home (the separate
+  administrative Home without sidebar is gone), My Roster, My Driver Roster, Notifications
+  and Customer guides. New sections (Home, My work, Planning, Production, Logistics,
+  Management) with distinct icons; Distribution lists Leave calendar and Customer guides;
+  the current sub-page follows in-page tab changes; Notifications shows an attention badge.
+  Mobile (<= 700 px) uses a top bar and a navigation drawer instead of the icon strip.
+  Sidebar CSS moved to `frontend/assets/css/navigation.css`; `app-shell-policy.js` gained
+  `NAVIGATION_GROUPS` and `PAGE_MODULES`. Home shows `?access=denied` as a message.
+  Removed the unused `sorting-area-navigation.js`. Docs: `docs/NAVIGATION-ACCESS-MODEL.md`.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Browser check with Playwright
+  against a local server and a stubbed Supabase client (no real login, no data): every
+  page at 1440 px and 390 px, sidebar collapsed, hover-open and mobile drawer, ADMIN and
+  FINISH_OPERATOR navigation, roster token link without session (sidebar removed).
+  Not checked with real accounts or data.
+- Open / next: owner acceptance on the live site. Permissions are unchanged (navigation
+  is guidance only; RPCs still enforce access).
+
 ## 2026-10-19 — Claude — Distribution review after the Fleet and roster changes
 
 - Branch / commits: `claude/roster-review-fixes`, Pull Request.
