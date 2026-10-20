@@ -89,15 +89,35 @@ Entry format:
   the other MOP to Clothes (a third is refused); the MOP Production badge becomes a selector when
   two MOP staff are on shift, and the batch is recorded for the chosen one. MOP KG targets stay
   per staff hour, so no capacity formula changed.
-- Database: `202610200004_sorting_mop_two_staff.sql` — **prepared, not applied** (needs owner
-  approval). Replaces `production_roster_assert_operational_rules`, `get_sorting_staff_work_context_v2`,
+- Database: `202610200004_sorting_mop_two_staff.sql` — **applied 2026-10-20** on the owner's
+  approval (renumbered from 0003, which PR #25 uses; the two change different functions). Replaces `production_roster_assert_operational_rules`, `get_sorting_staff_work_context_v2`,
   `set_sorting_staff_work_mode`, `get_sorting_staff_dashboard_context_v2` and
   `get_sorting_mop_production_context`; four were rebuilt from the committed bodies, verified equal
   to live by md5 before editing. Test: `supabase/tests/202610200004_sorting_mop_two_staff_validation.sql`.
 - Validation: `node scripts/validate-repository.mjs` passed. Playwright with a stubbed client:
   two MOP on one day, swap of the first keeps the second, third MOP refused in the day editor.
-  Until the migration is applied, saving a roster with two MOP is refused by the database.
-- Open / next: owner approval to apply the migration, then a real check on the Sorting workstation.
+  After applying: all five live bodies match the file (md5) and the pgTAP checks pass.
+- Open / next: a real check on the Sorting workstation and MOP Production with two MOP staff.
+
+## 2026-10-20 — Claude — Staff Master: primary role is the job function, area is where they work
+
+- Branch / commits: `claude/staff-primary-role-function`, Pull Request into `master`.
+- Changed: "Sorting Area" is no longer offered as a Primary role (it was an area used as a role).
+  Sorting staff become General Operative with Sorting as default area. New primary roles
+  Production Manager and Maintenance; "Label" renamed "Label Operative". The Staff editor hides
+  module "areas" (Administration, Reports, Roster), lists only the stations of the chosen area
+  and pre-selects the area's only station. Production Roster (`roster.js`, `roster-view.js`) and
+  `production_roster_default_display_section` place a General Operative with station
+  SORTING_MAIN in the Sorting section, Production Manager with Supervisors and Maintenance in
+  Support Role. SORTING_AREA stays as roster position and COVER capability.
+- Database: `202610200003_staff_primary_role_separated_from_area.sql` — PREPARED, waiting for the
+  owner's authorisation. Moves the 13 SORTING_AREA staff to GENERAL_OPERATIVE (audit_log rows
+  `STAFF_PRIMARY_ROLE_CORRECTED`), updates the primary-role snapshot in current and future
+  DRAFT rosters only; published rosters and roster positions are unchanged.
+- Validation: migration dry-run inside a rolled-back transaction on ElisCaretex-dev (0 staff left
+  on SORTING_AREA, display sections as expected); `node scripts/validate-repository.mjs`.
+  Test file `supabase/tests/202610200003_staff_primary_role_separated_from_area_validation.sql`.
+- Open / next: apply the migration together with the merge. Support Role (4 inactive staff) kept.
 
 ## 2026-10-20 — Claude — Production Roster: Finish capacity of both shifts
 
