@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./assets/css/app-shell.css">
   <link rel="stylesheet" href="./assets/css/home.css">
   <link rel="stylesheet" href="./assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="./assets/css/navigation.css?v=20261020-1">
 
   <!-- Official Supabase browser library -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
@@ -17,8 +18,9 @@
   <!-- File order is important -->
   <script src="./assets/js/config.js" defer></script>
   <script src="./assets/js/supabase-client.js" defer></script>
-  <script src="./assets/js/app-shell-policy.js?v=20260924-2" defer></script>
-  <script src="./assets/js/app.js?v=20261016-1" defer></script>
+  <script src="./assets/js/app-shell-policy.js?v=20261020-1" defer></script>
+  <script src="./assets/js/operational-page-nav.js?v=20261020-1" defer></script>
+  <script src="./assets/js/app.js?v=20261020-1" defer></script>
 </head>
 
 <body>
@@ -84,161 +86,15 @@
     <!-- Authenticated application view -->
     <section id="appView" class="hidden">
 
-      <!-- Administrative shell -->
-      <div id="administrativeShell" class="app-shell hidden">
-        <header class="topbar">
-          <div>
-            <p class="environment-label">ElisCaretex-dev</p>
-            <h1>Home</h1>
-          </div>
-
-          <button id="adminLogoutButton" class="secondary-button" type="button">
-            Sign out
-          </button>
-        </header>
-
-        <section class="profile-card">
-          <div>
-            <p class="eyebrow">Signed-in user</p>
-            <h2 id="adminProfileName">Loading...</h2>
-            <p id="adminProfileEmail" class="muted"></p>
-          </div>
-
-          <div>
-            <p class="eyebrow">Employee code</p>
-            <p id="adminEmployeeCode">—</p>
-          </div>
-
-          <div>
-            <p class="eyebrow">Roles</p>
-            <div id="adminRoleList" class="role-list"></div>
-          </div>
-        </section>
-
-        <p id="adminAppMessage" class="message" aria-live="polite"></p>
-
-        <section class="module-grid" aria-label="System modules">
-          <a id="adminMyRosterModule" class="module-card module-card-active" href="./pages/roster-view.html">
-            <strong>My Roster</strong>
-            <span>My published schedule and leave requests</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminMyDriverRosterModule" class="module-card module-card-active" href="./pages/driver-roster.html">
-            <strong>My Driver Roster</strong><span>My routes, vehicles, customer stops and leave requests</span><small>Open module</small>
-          </a>
-
-          <a id="adminNotificationsModule" class="module-card module-card-active notification-home-card" href="./pages/notifications.html">
-            <b id="adminNotificationBadge" class="notification-home-badge hidden">0</b><strong>Notifications</strong><span id="adminNotificationSummary">Requests, decisions and updates requiring attention</span><small>Open module</small>
-          </a>
-
-          <a id="adminCustomersModule" class="module-card module-card-active" href="./pages/customers.html">
-            <strong>Customers</strong>
-            <span>Customer records and production schedules</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminTrolleysModule" class="module-card module-card-active" href="./pages/trolleys.html">
-            <strong>Trolleys</strong>
-            <span>Current locations, customer days and Trolley Master</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminStaffModule" class="module-card module-card-active" href="./pages/staff.html">
-            <strong>Staff Master</strong>
-            <span>Operational staff, work roles and roster eligibility</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminSortingModule" class="module-card module-card-active" href="./pages/sorting.html">
-            <strong>Sorting</strong>
-            <span>Roster-led trolley receipt and washing preparation</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminProductionTrackerModule" class="module-card module-card-active" href="./pages/production-tracker.html">
-            <strong>Production Tracker</strong>
-            <span>Shared Clothes and MOP production status across operational areas</span>
-            <small>Open module</small>
-          </a>
-          <a id="adminDistributionModule" class="module-card module-card-active" href="./pages/distribution.html">
-            <strong>Distribution</strong>
-            <span>Daily dispatch, drivers, fleet and delivery routes</span>
-            <small>Open module</small>
-          </a>
-          <a id="adminFinishModule" class="module-card module-card-active" href="./pages/finish-production.html">
-            <strong>Finish</strong>
-            <span>Finish Area production by table and shift</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminMopModule" class="module-card module-card-active" href="./pages/mop-production.html">
-            <strong>Mop Production</strong>
-            <span>Mop production, trolley evidence and ABS trace</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminRosterModule" class="module-card module-card-active" href="./pages/roster.html">
-            <strong>Production Roster</strong>
-            <span>Weekly production staffing, publication and history</span>
-            <small>Open module</small>
-          </a>
-
-          <a id="adminProductionInsightsModule" class="module-card module-card-active" href="./pages/production-insights.html">
-            <strong>Production Intelligence</strong>
-            <span>Official production history, weekly demand and management indicators</span>
-            <small>Open module</small>
-          </a>
-        </section>
-      </div>
-
       <!-- Operational shell -->
-      <div id="operationalShell" class="operational-shell hidden">
-        <aside class="operational-sidebar" aria-label="Operational navigation">
-          <div class="operational-sidebar-brand">
-            <img
-              class="operational-sidebar-logo"
-              src="./assets/img/elis-logo.svg"
-              alt="Elis"
-            >
-            <div class="operational-brand-copy">
-              <strong>ElisCaretex</strong>
-              <span>Operational workspace</span>
-            </div>
-          </div>
-
-          <button
-            id="operationalSidebarToggle"
-            class="operational-sidebar-toggle"
-            type="button"
-            aria-label="Expand navigation"
-            aria-expanded="false"
-            title="Expand navigation"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m9 5 7 7-7 7"></path>
-            </svg>
-          </button>
-
-          <nav id="operationalNav" class="operational-nav"></nav>
-
-          <div class="operational-sidebar-footer">
-            <div class="operational-user-mini" title="Signed-in staff member">
-              <span id="operationalUserAvatar" class="operational-user-avatar">—</span>
-              <div class="operational-user-copy">
-                <strong id="operationalSidebarUserName">Loading...</strong>
-                <span id="operationalSidebarUserRole">Operational User</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+      <div id="operationalShell" class="operational-shell hidden" data-operational-shell-root data-shell-manual>
 
         <div class="operational-main">
           <header class="operational-topbar">
             <div class="operational-topbar-left">
               <div class="operational-topbar-title">
-                <p id="operationalAreaCode">Operations</p>
-                <h1 id="operationalAreaName">Operational Home</h1>
+                <p id="operationalAreaCode">ElisCaretex</p>
+                <h1 id="operationalAreaName">Home</h1>
               </div>
             </div>
 
@@ -247,14 +103,6 @@
                 <strong id="operationalDate">—</strong>
                 <span id="operationalEnvironment">ElisCaretex-dev</span>
               </div>
-
-              <button
-                id="operationalLogoutButton"
-                class="operational-signout"
-                type="button"
-                aria-label="Sign out"
-                title="Sign out"
-              ></button>
             </div>
           </header>
 
@@ -270,10 +118,7 @@
               </article>
 
               <aside class="operational-context-card">
-                <h2>Work context</h2>
-                <p>
-                  This screen shows operational tools only. Administrative modules are not part of this workspace.
-                </p>
+                <h2>Your account</h2>
 
                 <div class="operational-context-list">
                   <div class="operational-context-row">
@@ -294,8 +139,8 @@
 
             <div class="operational-section-heading">
               <div>
-                <h2>Available tools</h2>
-                <p>Only tools relevant to the active operational role are shown.</p>
+                <h2>Your workspaces</h2>
+                <p>Only workspaces available to your account are shown. The same list is in the side menu.</p>
               </div>
             </div>
 

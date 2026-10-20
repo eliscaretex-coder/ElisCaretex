@@ -69,6 +69,13 @@
     mop: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 3-3 9"/><path d="M9 12h6l3 8H6z"/><path d="M10 16h4"/></svg>',
     distribution: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h12v11H3z"/><path d="M15 9h4l2 3v5h-6z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
     trolley: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h2l2 10h9l2-7H7"/><circle cx="10" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>',
+    myRoster: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9h18"/><circle cx="12" cy="13.5" r="2"/><path d="M8.5 19a3.5 3.5 0 0 1 7 0"/></svg>',
+    route: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H16a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h7.5"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>',
+    roster: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9h18"/><path d="M7 13h3M14 13h3M7 17h3M14 17h3"/></svg>',
+    insights: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5h18"/><path d="m4 16 5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg>',
+    checklist: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="m8.5 12 1.5 1.5 3-3M8.5 17h7"/></svg>',
+    menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
     user: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
     signout: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"/><path d="m14 8 4 4-4 4M18 12H9"/></svg>'
   };
@@ -160,23 +167,23 @@
     },
     {
       id: "my-roster", label: "My Roster", description: "My published schedule and leave requests",
-      href: "./pages/roster-view.html", icon: "schedule", group: "Self service",
+      href: "./pages/roster-view.html", icon: "myRoster", group: "My work",
       permission: NAVIGATION_PERMISSIONS.MY_ROSTER
     },
     {
       id: "my-driver-roster", label: "My Driver Roster", description: "My routes, customers and leave requests",
-      href: "./pages/driver-roster.html", icon: "distribution", group: "Self service",
+      href: "./pages/driver-roster.html", icon: "route", group: "My work",
       permission: NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER
     },
     {
       id: "notifications", label: "Notifications", description: "Requests, decisions and updates",
-      href: "./pages/notifications.html", icon: "schedule", group: "Self service",
+      href: "./pages/notifications.html", icon: "bell", group: "My work",
       permission: NAVIGATION_PERMISSIONS.NOTIFICATIONS
     },
     {
       id: "customer-workspace", label: "Customer Workspace",
       description: "Customers, weekly planner and distribution routes",
-      href: "./pages/customers.html", icon: "customers", group: "Customer Planning",
+      href: "./pages/customers.html", icon: "customers", group: "Planning",
       permission: NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE,
       children: [
         { id:"customer-workspace-schedule", label:"Schedule Planner", href:"./pages/customers.html?view=schedule" },
@@ -187,13 +194,13 @@
     {
       id: "production-roster", label: "Production Roster",
       description: "Published and planned production staffing",
-      href: "./pages/roster.html", icon: "schedule", group: "Customer Planning",
+      href: "./pages/roster.html", icon: "roster", group: "Planning",
       permission: NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER
     },
     {
       id: "sorting", label: "Sorting",
       description: "Roster-led trolley receipt and washing preparation",
-      href: "./pages/sorting.html", icon: "sorting", group: "Operations",
+      href: "./pages/sorting.html", icon: "sorting", group: "Production",
       permission: NAVIGATION_PERMISSIONS.SORTING,
       children: [
         { id:"sorting-washing", label:"Washing", href:"./pages/sorting.html#washing" },
@@ -205,7 +212,7 @@
     {
       id: "finish", label: "Finish",
       description: "Finish production by table and shift",
-      href: "./pages/finish-production.html", icon: "finish", group: "Operations",
+      href: "./pages/finish-production.html", icon: "finish", group: "Production",
       permission: NAVIGATION_PERMISSIONS.FINISH,
       children: [
         { id:"finish-production", label:"Production", href:"./pages/finish-production.html" },
@@ -215,35 +222,37 @@
     {
       id: "finish-results", label: "Finish Results",
       description: "Daily Finish performance by table and shift",
-      href: "./pages/finish-results.html", icon: "results", group: "Operations",
+      href: "./pages/finish-results.html", icon: "checklist", group: "Production",
       permission: NAVIGATION_PERMISSIONS.FINISH_RESULTS
     },
     {
       id: "mop-production", label: "MOP Production",
       description: "MOP production recording",
-      href: "./pages/mop-production.html", icon: "mop", group: "Operations",
+      href: "./pages/mop-production.html", icon: "mop", group: "Production",
       permission: NAVIGATION_PERMISSIONS.MOP_PRODUCTION
     },
     {
       id: "distribution", label: "Distribution",
       description: "Daily routes, drivers, fleet and delivery execution",
-      href: "./pages/distribution.html", icon: "distribution", group: "Operations",
+      href: "./pages/distribution.html", icon: "distribution", group: "Logistics",
       permission: NAVIGATION_PERMISSIONS.DISTRIBUTION,
       children: [
         { id:"distribution-board", label:"Daily board", href:"./pages/distribution.html#board" },
         { id:"distribution-customers", label:"Route customers", href:"./pages/distribution.html#customers" },
         { id:"distribution-roster", label:"Weekly roster", href:"./pages/distribution.html#roster" },
+        { id:"distribution-leave", label:"Leave calendar", href:"./pages/distribution.html#leave" },
         { id:"distribution-actuals", label:"Actuals", href:"./pages/distribution.html#actuals" },
         { id:"distribution-drivers", label:"Drivers", href:"./pages/distribution.html#drivers" },
         { id:"distribution-fleet", label:"Fleet", href:"./pages/distribution.html#fleet" },
         { id:"distribution-routes", label:"Routes", href:"./pages/distribution.html#routes" },
-        { id:"distribution-history", label:"History", href:"./pages/distribution.html#history" }
+        { id:"distribution-history", label:"History", href:"./pages/distribution.html#history" },
+        { id:"distribution-guides", label:"Customer guides", href:"./pages/driver-guides.html" }
       ]
     },
     {
       id: "production-tracker", label: "Production Tracker",
       description: "Shared Clothes and MOP production trace",
-      href: "./pages/production-tracker.html", icon: "tracker", group: "Operations",
+      href: "./pages/production-tracker.html", icon: "tracker", group: "Production",
       permission: NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER,
       children: [
         { id:"production-tracker-board", label:"Route board", href:"./pages/production-tracker.html?view=board" },
@@ -253,7 +262,7 @@
     {
       id: "trolleys", label: "Trolleys",
       description: "Current trolley locations and custody history",
-      href: "./pages/trolleys.html", icon: "trolley", group: "Operations",
+      href: "./pages/trolleys.html", icon: "trolley", group: "Logistics",
       permission: NAVIGATION_PERMISSIONS.TROLLEYS,
       children: [
         { id:"trolleys-locations", label:"Locations", href:"./pages/trolleys.html#locations" },
@@ -264,13 +273,13 @@
     {
       id: "production-insights", label: "Production Intelligence",
       description: "Official production history, demand learning and management indicators",
-      href: "./pages/production-insights.html", icon: "results", group: "Management",
+      href: "./pages/production-insights.html", icon: "insights", group: "Management",
       permission: NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS
     },
     {
       id: "staff-master", label: "Staff Master",
       description: "Operational staff and work roles",
-      href: "./pages/staff.html", icon: "user", group: "Administration",
+      href: "./pages/staff.html", icon: "user", group: "Management",
       permission: NAVIGATION_PERMISSIONS.STAFF_MASTER,
       children: [
         { id:"staff-master-directory", label:"Staff directory", href:"./pages/staff.html" },
@@ -278,6 +287,30 @@
       ]
     }
   ]);
+
+  // Sidebar sections, in display order. Every module group must be listed here.
+  const NAVIGATION_GROUPS = Object.freeze(["Home", "My work", "Planning", "Production", "Logistics", "Management"]);
+
+  // Which sidebar workspace owns each page. Pages not listed (sign-in, password
+  // recovery, privacy, token review links) render without the sidebar.
+  const PAGE_MODULES = Object.freeze({
+    "index.html": "home",
+    "roster-view.html": "my-roster",
+    "driver-roster.html": "my-driver-roster",
+    "notifications.html": "notifications",
+    "customers.html": "customer-workspace",
+    "roster.html": "production-roster",
+    "sorting.html": "sorting",
+    "mop-production.html": "sorting",
+    "finish-production.html": "finish",
+    "finish-results.html": "finish-results",
+    "production-tracker.html": "production-tracker",
+    "trolleys.html": "trolleys",
+    "distribution.html": "distribution",
+    "driver-guides.html": "distribution",
+    "production-insights.html": "production-insights",
+    "staff.html": "staff-master"
+  });
 
   const ROLE_NAVIGATION_PERMISSIONS = Object.freeze({
     ADMIN: ["*"],
@@ -410,6 +443,8 @@
     ICONS,
     NAVIGATION_PERMISSIONS,
     NAVIGATION_MODULES,
+    NAVIGATION_GROUPS,
+    PAGE_MODULES,
     ROLE_NAVIGATION_PERMISSIONS,
     MODULE_NAVIGATION_PERMISSIONS,
     resolveShell,

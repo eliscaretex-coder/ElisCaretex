@@ -3,56 +3,15 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const loginView = document.getElementById("loginView");
   const appView = document.getElementById("appView");
-  const administrativeShell = document.getElementById("administrativeShell");
   const operationalShell = document.getElementById("operationalShell");
 
   const loginForm = document.getElementById("loginForm");
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
   const loginButton = document.getElementById("loginButton");
-  const adminLogoutButton = document.getElementById("adminLogoutButton");
-  const operationalLogoutButton = document.getElementById("operationalLogoutButton");
-
   const loginMessage = document.getElementById("loginMessage");
-  const adminAppMessage = document.getElementById("adminAppMessage");
   const operationalAppMessage = document.getElementById("operationalAppMessage");
 
-  const adminProfileName = document.getElementById("adminProfileName");
-  const adminProfileEmail = document.getElementById("adminProfileEmail");
-  const adminEmployeeCode = document.getElementById("adminEmployeeCode");
-  const adminRoleList = document.getElementById("adminRoleList");
-  const adminCustomersModule = document.getElementById("adminCustomersModule");
-  const adminTrolleysModule = document.getElementById("adminTrolleysModule");
-  const adminSortingModule = document.getElementById("adminSortingModule");
-  const adminProductionTrackerModule = document.getElementById("adminProductionTrackerModule");
-  const adminDistributionModule = document.getElementById("adminDistributionModule");
-  const adminMopModule = document.getElementById("adminMopModule");
-  const adminFinishModule = document.getElementById("adminFinishModule");
-  const adminStaffModule = document.getElementById("adminStaffModule");
-  const adminRosterModule = document.getElementById("adminRosterModule");
-  const adminMyRosterModule = document.getElementById("adminMyRosterModule");
-  const adminMyDriverRosterModule = document.getElementById("adminMyDriverRosterModule");
-  const adminProductionInsightsModule = document.getElementById("adminProductionInsightsModule");
-
-  const operationalSidebarToggle = document.getElementById("operationalSidebarToggle");
-  const operationalNav = document.getElementById("operationalNav");
-  const sidebarPreferenceKey = "elis.operational.sidebar.expanded";
-
-  function savedSidebarPreference() {
-    try {
-      return window.sessionStorage.getItem(sidebarPreferenceKey) === "true";
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function saveSidebarPreference(expanded) {
-    try {
-      window.sessionStorage.setItem(sidebarPreferenceKey, String(expanded));
-    } catch (_) {
-      // Navigation remains functional without browser storage.
-    }
-  }
   const operationalModuleGrid = document.getElementById("operationalModuleGrid");
   const operationalPrimaryAction = document.getElementById("operationalPrimaryAction");
   const operationalAreaCode = document.getElementById("operationalAreaCode");
@@ -63,13 +22,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const operationalProfileName = document.getElementById("operationalProfileName");
   const operationalEmployeeCode = document.getElementById("operationalEmployeeCode");
   const operationalRoleName = document.getElementById("operationalRoleName");
-  const operationalUserAvatar = document.getElementById("operationalUserAvatar");
-  const operationalSidebarUserName = document.getElementById("operationalSidebarUserName");
-  const operationalSidebarUserRole = document.getElementById("operationalSidebarUserRole");
-
   const client = window.elisSupabase;
   const shellPolicy = window.ELIS_APP_SHELL_POLICY;
-  let activeShell = "";
 
   function setMessage(element, text = "", type = "") {
     if (!element) {
@@ -86,48 +40,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function resetShellClasses() {
-    document.body.classList.remove(
-      "elis-administrative-mode",
-      "elis-operational-mode"
-    );
-  }
-
   function showLogin() {
-    activeShell = "";
-    resetShellClasses();
-
+    window.ELIS_OPERATIONAL_NAV?.unmount();
+    document.body.classList.remove("elis-operational-mode");
     appView.classList.add("hidden");
-    administrativeShell.classList.add("hidden");
     operationalShell.classList.add("hidden");
     loginView.classList.remove("hidden");
-
-    adminProfileName.textContent = "";
-    adminProfileEmail.textContent = "";
-    adminEmployeeCode.textContent = "—";
-    adminRoleList.replaceChildren();
-    operationalNav.replaceChildren();
     operationalModuleGrid.replaceChildren();
   }
 
-  function showAdministrativeShell() {
-    activeShell = "administrative";
-    resetShellClasses();
-    document.body.classList.add("elis-administrative-mode");
-
-    loginView.classList.add("hidden");
-    operationalShell.classList.add("hidden");
-    administrativeShell.classList.remove("hidden");
-    appView.classList.remove("hidden");
-  }
-
-  function showOperationalShell() {
-    activeShell = "operational";
-    resetShellClasses();
+  function showHome() {
     document.body.classList.add("elis-operational-mode");
-
     loginView.classList.add("hidden");
-    administrativeShell.classList.add("hidden");
     operationalShell.classList.remove("hidden");
     appView.classList.remove("hidden");
   }
@@ -163,39 +87,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   }
 
-  function renderAdministrativeRoles(roles) {
-    adminRoleList.replaceChildren();
-
-    if (roles.length === 0) {
-      const empty = document.createElement("span");
-      empty.textContent = "No active roles";
-      empty.className = "muted";
-      adminRoleList.appendChild(empty);
-      return;
-    }
-
-    roles.forEach((role) => {
-      const badge = document.createElement("span");
-      badge.className = "role-badge";
-      badge.textContent = role.role_code;
-      badge.title = role.role_name;
-      adminRoleList.appendChild(badge);
-    });
-  }
-
-  function initials(value) {
-    const words = String(value || "")
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-
-    if (words.length === 0) {
-      return "—";
-    }
-
-    return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
-  }
-
   function createModuleIcon(iconName) {
     const icon = document.createElement("span");
     icon.className = "operational-module-card-icon";
@@ -204,122 +95,77 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function createOperationalModuleCard(module) {
-    const element = module.status === "available"
-      ? document.createElement("a")
-      : document.createElement("div");
-
-    element.className = `operational-module-card ${module.status}`;
-
-    if (module.status === "available") {
-      element.href = module.href;
-    } else {
-      element.setAttribute("aria-disabled", "true");
-    }
-
+    const element = document.createElement("a");
+    element.className = "operational-module-card available";
+    element.href = module.href;
+    element.dataset.moduleId = module.id;
     element.appendChild(createModuleIcon(module.icon));
 
     const copy = document.createElement("div");
     copy.className = "operational-module-card-copy";
-
     const title = document.createElement("strong");
     title.textContent = module.label;
-
     const description = document.createElement("span");
     description.textContent = module.description;
-
     const status = document.createElement("small");
-    status.textContent = module.status === "available" ? "Open tool" : "Planned";
-
+    status.textContent = "Open";
     copy.append(title, description, status);
     element.appendChild(copy);
-
     return element;
   }
 
-  function createOperationalNavItem(module) {
-    const element = module.status === "available"
-      ? document.createElement("a")
-      : document.createElement("button");
-
-    element.className = `operational-nav-item ${module.status}`;
-    element.title = module.label;
-
-    if (module.id === "home") {
-      element.classList.add("active");
-      element.setAttribute("aria-current", "page");
-    }
-
-    if (module.status === "available") {
-      element.href = module.href;
-    } else {
-      element.type = "button";
-      element.disabled = true;
-    }
-
-    const icon = document.createElement("span");
-    icon.className = "operational-nav-icon";
-    icon.innerHTML = shellPolicy.ICONS[module.icon] || shellPolicy.ICONS.home;
-
-    const copy = document.createElement("span");
-    copy.className = "operational-nav-copy";
-
-    const label = document.createElement("strong");
-    label.textContent = module.label;
-
-    const description = document.createElement("small");
-    description.textContent = module.description;
-
-    copy.append(label, description);
-    element.append(icon, copy);
-
-    if (module.status !== "available") {
-      const status = document.createElement("span");
-      status.className = "operational-nav-status";
-      status.textContent = "Planned";
-      element.appendChild(status);
-    }
-
-    return element;
+  // Home cards follow the same sections and order as the side menu.
+  function renderModuleGroups(modules) {
+    const sections = shellPolicy.NAVIGATION_GROUPS
+      .map((group) => ({ group, items: modules.filter((module) => module.group === group) }))
+      .filter(({ items }) => items.length)
+      .map(({ group, items }) => {
+        const section = document.createElement("section");
+        section.className = "operational-module-group";
+        const heading = document.createElement("h3");
+        heading.textContent = group;
+        const grid = document.createElement("div");
+        grid.className = "operational-module-group-grid";
+        grid.append(...items.map(createOperationalModuleCard));
+        section.append(heading, grid);
+        return section;
+      });
+    operationalModuleGrid.replaceChildren(...sections);
   }
 
   function renderOperationalPrimaryAction(primaryModule) {
     operationalPrimaryAction.replaceChildren();
-
-    if (!primaryModule) {
-      const note = document.createElement("span");
-      note.className = "operational-primary-action";
-      note.textContent = "Operational module is being prepared";
-      operationalPrimaryAction.appendChild(note);
-      return;
-    }
+    if (!primaryModule) return;
 
     const link = document.createElement("a");
     link.className = "operational-primary-action";
     link.href = primaryModule.href;
-    link.innerHTML = `${shellPolicy.ICONS[primaryModule.icon] || shellPolicy.ICONS.schedule}<span>Open ${primaryModule.label}</span>`;
+    link.innerHTML = `${shellPolicy.ICONS[primaryModule.icon] || shellPolicy.ICONS.schedule}<span></span>`;
+    link.querySelector("span").textContent = `Open ${primaryModule.label}`;
     operationalPrimaryAction.appendChild(link);
   }
 
-  function renderOperationalShell(profile, roleCodes) {
-    const sidebarExpanded = savedSidebarPreference();
-    operationalShell.classList.toggle("sidebar-expanded", sidebarExpanded);
-    operationalSidebarToggle.setAttribute("aria-expanded", String(sidebarExpanded));
+  function renderHome(profile, roleCodes) {
+    const administrative = shellPolicy.resolveAccountShell(profile, roleCodes) === "administrative";
     const context = shellPolicy.operationalContext(roleCodes);
     const permissionOverrides = shellPolicy.permissionOverrides(profile);
-    const modules = shellPolicy.operationalModules(roleCodes,permissionOverrides);
-    const primaryModule = shellPolicy.primaryOperationalModule(roleCodes,permissionOverrides);
-    const visibleModules = modules.filter((module) => module.id !== "home");
+    const modules = shellPolicy.operationalModules(roleCodes, permissionOverrides)
+      .filter((module) => module.id !== "home");
+    const roleName = administrative
+      ? (shellPolicy.ROLE_LABELS[roleCodes[0]] || context.roleName)
+      : context.roleName;
 
-    operationalAreaCode.textContent = context.areaCode;
-    operationalAreaName.textContent = context.areaName;
-    operationalGreeting.textContent = `Welcome, ${profile.display_name}`;
-    operationalIntroduction.textContent = context.introduction;
-    operationalProfileName.textContent = profile.display_name;
+    window.ELIS_OPERATIONAL_NAV?.mount(operationalShell, profile, roleCodes);
+
+    operationalAreaCode.textContent = administrative ? "ElisCaretex" : context.areaName;
+    operationalAreaName.textContent = "Home";
+    operationalGreeting.textContent = `Welcome, ${profile.display_name || ""}`.trim();
+    operationalIntroduction.textContent = administrative
+      ? "Choose a workspace below or from the side menu."
+      : context.introduction;
+    operationalProfileName.textContent = profile.display_name || "—";
     operationalEmployeeCode.textContent = profile.employee_code || "Not provided";
-    operationalRoleName.textContent = context.roleName;
-    operationalUserAvatar.textContent = initials(profile.display_name);
-    operationalSidebarUserName.textContent = profile.display_name;
-    operationalSidebarUserRole.textContent = context.roleName;
+    operationalRoleName.textContent = roleName || "—";
     operationalDate.textContent = new Intl.DateTimeFormat("en-IE", {
       weekday: "long",
       day: "2-digit",
@@ -327,150 +173,49 @@ document.addEventListener("DOMContentLoaded", async () => {
       year: "numeric"
     }).format(new Date());
 
-    operationalLogoutButton.innerHTML = shellPolicy.ICONS.signout;
-
-    operationalNav.replaceChildren(
-      ...modules.map(createOperationalNavItem)
+    renderModuleGroups(modules);
+    renderOperationalPrimaryAction(
+      administrative ? null : shellPolicy.primaryOperationalModule(roleCodes, permissionOverrides)
     );
 
-    operationalModuleGrid.replaceChildren(
-      ...visibleModules.map(createOperationalModuleCard)
-    );
-
-    renderOperationalPrimaryAction(primaryModule);
-    setMessage(operationalAppMessage, "Sign-in confirmed.", "success");
-  }
-
-  function renderAdministrativeShell(profile, user) {
-    const roles = activeRoles(profile);
-    const roleCodes = new Set(roles.map((role) => role.role_code));
-    const access = shellPolicy.navigationAccess([...roleCodes],shellPolicy.permissionOverrides(profile));
-
-    if (adminCustomersModule) {
-      adminCustomersModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE)
-      );
+    const access = new URLSearchParams(location.search).get("access");
+    if (access === "denied") {
+      setMessage(operationalAppMessage, "Your account does not have access to that workspace.", "error");
+    } else {
+      setMessage(operationalAppMessage, "");
     }
-
-    if (adminTrolleysModule) {
-      adminTrolleysModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.TROLLEYS)
-      );
-    }
-
-    if (adminSortingModule) {
-      adminSortingModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.SORTING)
-      );
-    }
-
-    if (adminProductionTrackerModule) {
-      adminProductionTrackerModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER)
-      );
-    }
-
-    if (adminDistributionModule) {
-      adminDistributionModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.DISTRIBUTION)
-      );
-    }
-
-    if (adminMopModule) {
-      adminMopModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.MOP_PRODUCTION)
-      );
-    }
-
-    if (adminFinishModule) {
-      adminFinishModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.FINISH)
-      );
-    }
-
-    if (adminStaffModule) {
-      adminStaffModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.STAFF_MASTER)
-      );
-    }
-
-    if (adminRosterModule) {
-      adminRosterModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER)
-      );
-    }
-
-    if (adminMyRosterModule) {
-      adminMyRosterModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.MY_ROSTER)
-      );
-    }
-
-    if (adminMyDriverRosterModule) adminMyDriverRosterModule.classList.toggle("hidden",!access.can(shellPolicy.NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER));
-
-    if (adminProductionInsightsModule) {
-      adminProductionInsightsModule.classList.toggle(
-        "hidden",
-        !access.can(shellPolicy.NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS)
-      );
-    }
-
-    const adminNotificationsModule = document.getElementById("adminNotificationsModule");
-    if (adminNotificationsModule) adminNotificationsModule.classList.toggle("hidden",!access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS));
-
-    adminProfileName.textContent = profile.display_name;
-    adminProfileEmail.textContent = user.email || "";
-    adminEmployeeCode.textContent = profile.employee_code || "Not provided";
-    renderAdministrativeRoles(roles);
-    setMessage(adminAppMessage, "Sign-in confirmed.", "success");
   }
 
   async function renderNotificationAttention(canViewNotifications) {
     if (!canViewNotifications) return;
+
     try {
       const { data, error } = await client.rpc("get_my_notification_summary");
       if (error) throw error;
       const count = Number(data?.attention_count || 0);
-      const adminCard = document.getElementById("adminNotificationsModule");
-      const adminBadge = document.getElementById("adminNotificationBadge");
-      const adminSummary = document.getElementById("adminNotificationSummary");
-      if (adminCard && adminBadge) {
-        adminBadge.textContent = count > 99 ? "99+" : String(count);
-        adminBadge.classList.toggle("hidden", count === 0);
-        adminCard.classList.toggle("has-attention", count > 0);
-        if (adminSummary && count > 0) adminSummary.textContent = `${count} notification${count === 1 ? "" : "s"} need your attention`;
+      const card = operationalModuleGrid.querySelector('[data-module-id="notifications"]');
+      if (!card) return;
+      card.classList.toggle("has-attention", count > 0);
+      let badge = card.querySelector(".notification-home-badge");
+      if (!badge && count > 0) {
+        badge = document.createElement("b");
+        badge.className = "notification-home-badge";
+        card.appendChild(badge);
       }
-      document.querySelectorAll('a[href$="notifications.html"]').forEach((link) => {
-        if (link.id === "adminNotificationsModule") return;
-        link.classList.toggle("has-notification-attention", count > 0);
-        let badge = link.querySelector(".shell-notification-badge");
-        if (!badge && count > 0) {
-          badge = document.createElement("b");
-          badge.className = "shell-notification-badge";
-          link.appendChild(badge);
-        }
-        if (badge) {
-          badge.textContent = count > 99 ? "99+" : String(count);
-          badge.classList.toggle("hidden", count === 0);
-        }
-      });
+      if (badge) {
+        badge.textContent = count > 99 ? "99+" : String(count);
+        badge.classList.toggle("hidden", count === 0);
+      }
+      if (count > 0) {
+        card.querySelector(".operational-module-card-copy span").textContent =
+          `${count} notification${count === 1 ? "" : "s"} need your attention`;
+      }
     } catch (error) {
       console.warn("Notification summary could not be loaded:", error);
     }
   }
 
-  async function loadAuthenticatedProfile(user) {
-    setMessage(adminAppMessage, "Loading account access...");
+  async function loadAuthenticatedProfile() {
     setMessage(operationalAppMessage, "Loading account access...");
 
     const { data: profile, error } = await client.rpc("get_current_account_access");
@@ -503,58 +248,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error("This account has no active access permission.");
     }
 
-    const shell = shellPolicy.resolveAccountShell(profile,roleCodes);
-
-    if (shell === "administrative") {
-      renderAdministrativeShell(profile, user);
-      showAdministrativeShell();
-    } else {
-      renderOperationalShell(profile, roleCodes);
-      showOperationalShell();
-    }
+    renderHome(profile, roleCodes);
+    showHome();
     await renderNotificationAttention(
       access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS)
     );
-  }
-
-  async function signOut(button) {
-    const originalLabel = button.getAttribute("aria-label") || button.textContent;
-    button.disabled = true;
-
-    if (button === adminLogoutButton) {
-      button.textContent = "Signing out...";
-    } else {
-      button.setAttribute("aria-label", "Signing out");
-    }
-
-    try {
-      const { error } = await client.auth.signOut();
-
-      if (error) {
-        throw error;
-      }
-
-      emailInput.value = "";
-      passwordInput.value = "";
-      setMessage(loginMessage, "You have signed out.", "success");
-      showLogin();
-    } catch (error) {
-      console.error("Sign-out failed:", error);
-
-      const target = activeShell === "operational"
-        ? operationalAppMessage
-        : adminAppMessage;
-      setMessage(target, "The session could not be closed.", "error");
-    } finally {
-      button.disabled = false;
-
-      if (button === adminLogoutButton) {
-        button.textContent = "Sign out";
-      } else {
-        button.setAttribute("aria-label", originalLabel);
-        button.innerHTML = shellPolicy.ICONS.signout;
-      }
-    }
   }
 
   if (window.ELIS_SUPABASE_ERROR || !client || !shellPolicy) {
@@ -582,7 +280,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (session?.user) {
-      await loadAuthenticatedProfile(session.user);
+      await loadAuthenticatedProfile();
     } else {
       showLogin();
     }
@@ -626,7 +324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error("Supabase did not return the authenticated user.");
       }
 
-      await loadAuthenticatedProfile(data.user);
+      await loadAuthenticatedProfile();
       passwordInput.value = "";
     } catch (error) {
       console.error("Sign-in failed:", error);
@@ -642,26 +340,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       loginButton.disabled = false;
       loginButton.textContent = "Sign in";
     }
-  });
-
-  adminLogoutButton.addEventListener("click", () => signOut(adminLogoutButton));
-  operationalLogoutButton.addEventListener("click", () => signOut(operationalLogoutButton));
-
-  operationalSidebarToggle.addEventListener("click", () => {
-    const expanded = operationalShell.classList.toggle("sidebar-expanded");
-    saveSidebarPreference(expanded);
-    operationalSidebarToggle.setAttribute("aria-expanded", String(expanded));
-    operationalSidebarToggle.setAttribute(
-      "aria-label",
-      expanded ? "Collapse navigation" : "Expand navigation"
-    );
-    operationalSidebarToggle.title = expanded
-      ? "Collapse navigation"
-      : "Expand navigation";
-  });
-
-  operationalNav.addEventListener("click", () => {
-    saveSidebarPreference(operationalShell.classList.contains("sidebar-expanded"));
   });
 
   client.auth.onAuthStateChange((event) => {
