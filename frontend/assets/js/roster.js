@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const state = {
     reference: null, data: null, staff: [], staffPool: [], entries: new Map(), layouts: new Map(), leaveLocks: new Map(), leavePending: new Map(), leaveDashboard: null, leaveScope: "ACTION", leaveSettingsValue: null,
     accessProfile: null, canEditRoster: false, canApproveLeave: false, canManageRoster: false, leaveCalendarData: null,
-    operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, dirty: false,
+    operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, customerKg: null, dirty: false,
     editingKey: "", quickKey: "", staffPickerSelectedId: "", historyVersionId: null, loading: false,
     loadedWeekStart: "", loadedShiftCode: "", suspiciousShiftDraft: null, shiftIntegrity: null
   };
@@ -1078,6 +1078,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<div class="roster-capacity-day${bank ? " is-bank-holiday" : ""}" data-capacity-day data-base-kg="${value.baseKg.toFixed(6)}" data-capacity-staff="${value.staff}" data-capacity-net-minutes="${value.netMinutes}" data-capacity-target="${value.target.toFixed(6)}" data-capacity-bank="${bank ? "1" : "0"}" title="${escapeHtml(formula)}"><strong data-capacity-kg>${formatCapacityKg(value.kg)} kg</strong><span data-capacity-meta>${escapeHtml(meta)}</span></div>`;
   }
 
+  // Scheduled customer KG for the whole production day (automatic Expected KG), both shifts together.
+  function customerKgDayCell(workDate) {
+    const day = state.customerKg?.get(workDate);
+    if (!day) return `<div class="roster-capacity-day is-unavailable"><strong>—</strong><span>No KG data</span></div>`;
+    if (!day.customer_count) return `<div class="roster-capacity-day is-unavailable"><strong>—</strong><span>No customers</span></div>`;
+    const learning = Number(day.clothes_learning || 0) + Number(day.mop_learning || 0);
+    const title = `${day.customer_count} customers scheduled. Clothes + other: ${formatCapacityKg(day.clothes_kg)} kg. MOP: ${formatCapacityKg(day.mop_kg)} kg. Automatic KG from the last 8 services of each customer and weekday.${learning ? ` ${learning} product slot(s) still learning have no KG yet.` : ""}`;
+    return `<div class="roster-capacity-day roster-customer-kg-day" title="${escapeHtml(title)}"><strong>${formatCapacityKg(day.clothes_kg)} kg</strong><span>MOP ${formatCapacityKg(day.mop_kg)} kg</span><span>${day.customer_count} cust.${learning ? ` · ${learning} no KG` : ""}</span></div>`;
+  }
+
   function updateCapacitySimulationDom() {
     const target = finishTarget();
     if (!target) return;
@@ -1111,7 +1121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["FINISH_TABLE_2", "T2", "Table 2"],
       ["FINISH_TABLE_3", "T3", "Table 3"],
     ];
-    const body = state.capacityCollapsed ? "" : rows.map(([code, short, label]) => `<div class="roster-capacity-row"><div class="roster-capacity-name"><span>${short}</span><strong>${label}</strong></div><div class="roster-capacity-rule">Scenario capacity</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day, code)).join("")}</div></div>`).join("") + `<div class="roster-capacity-row is-total"><div class="roster-capacity-name"><span>Σ</span><strong>Finish total</strong></div><div class="roster-capacity-rule">Tables 1 + 2 + 3</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day)).join("")}</div></div>`;
+    const body = state.capacityCollapsed ? "" : rows.map(([code, short, label]) => `<div class="roster-capacity-row"><div class="roster-capacity-name"><span>${short}</span><strong>${label}</strong></div><div class="roster-capacity-rule">Scenario capacity</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day, code)).join("")}</div></div>`).join("") + `<div class="roster-capacity-row is-total"><div class="roster-capacity-name"><span>Σ</span><strong>Finish total</strong></div><div class="roster-capacity-rule">Tables 1 + 2 + 3</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => capacityDayCell(day)).join("")}</div></div>` + `<div class="roster-capacity-row is-customer-kg"><div class="roster-capacity-name"><span>KG</span><strong>Customers scheduled</strong></div><div class="roster-capacity-rule">Whole day · Clothes + other, MOP</div><div class="roster-row-days" style="grid-template-columns:repeat(${days.length},minmax(var(--day-min),1fr))">${days.map((day) => customerKgDayCell(day)).join("")}</div></div>`;
     return `<section class="roster-capacity-block"><div class="roster-capacity-header"><div class="roster-capacity-heading"><strong>Finish capacity</strong><span>What-if simulation only. The official production target is never changed here.</span></div><div class="roster-capacity-target"><small>Official target</small><strong>${Number(target.target_value).toFixed(1)} kg / staff hr</strong></div><div class="roster-capacity-simulation"><div class="roster-capacity-simulation-top"><span><small>Simulation</small><strong data-capacity-simulation-percent>${percent}%</strong></span><span class="roster-capacity-effective" data-capacity-effective-target>${effectiveTarget.toFixed(2)} kg / staff hr</span></div><div class="roster-capacity-simulation-controls"><input type="range" min="50" max="120" step="1" value="${percent}" data-capacity-simulation-range aria-label="Finish capacity simulation percentage"><label><input type="number" min="50" max="120" step="1" value="${percent}" data-capacity-simulation-input aria-label="Finish capacity simulation percentage"><span>%</span></label><button type="button" data-capacity-simulation-reset title="Reset simulation to 100 percent">100%</button></div></div><button class="roster-capacity-toggle" type="button" data-capacity-toggle aria-expanded="${String(!state.capacityCollapsed)}">${state.capacityCollapsed ? "Show" : "Hide"}</button></div>${body}</section>`;
   }
 
@@ -1297,11 +1307,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const weekStart = requested.weekStart;
       const shiftCode = requested.shiftCode;
-      const [data, poolData, operationalSettings] = await Promise.all([
+      const [data, poolData, operationalSettings, customerKg] = await Promise.all([
         rpc("get_production_roster_week", { p_week_start: weekStart, p_shift_code: shiftCode, p_roster_version_id: state.historyVersionId }),
         rpc("get_production_roster_staff_pool", { p_week_start: weekStart, p_shift_code: shiftCode, p_roster_version_id: state.historyVersionId }),
-        rpc("get_production_roster_operational_settings", { p_from_date: weekStart, p_to_date: addDays(weekStart, 6) })
+        rpc("get_production_roster_operational_settings", { p_from_date: weekStart, p_to_date: addDays(weekStart, 6) }),
+        rpc("get_production_roster_customer_kg", { p_from_date: weekStart, p_to_date: addDays(weekStart, 6) }).catch((error) => { console.warn("Scheduled customer KG is unavailable.", error); return null; })
       ]);
+      state.customerKg = new Map((Array.isArray(customerKg?.days) ? customerKg.days : []).map((day) => [day.work_date, day]));
       state.data = data || {};
       if ((state.accessProfile?.permissions||[]).length) state.data.can_manage=state.canEditRoster;
       state.operationalSettings = operationalSettings || { targets: [], work_profiles: [], bank_holidays: [] };
