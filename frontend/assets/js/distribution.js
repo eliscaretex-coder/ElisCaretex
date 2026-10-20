@@ -287,6 +287,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     return [...options.values()].sort((left, right) => String(left.code).localeCompare(String(right.code), undefined, { numeric: true }));
   }
 
+  // Expected KG per delivery: automatic from production history, manual customer KG only while learning.
+  function routeCustomerKg(item) {
+    const value = item.expected_kg ?? item.distribution_estimated_kg;
+    return value === null || value === undefined || value === "" ? null : Number(value);
+  }
+
+  function routeCustomerKgCell(item) {
+    const kg = routeCustomerKg(item);
+    if (kg === null) return `<td class="distribution-kg-cell" title="No KG yet: automatic KG starts after 3 official services.">–</td>`;
+    const source = item.expected_kg_source || "MANUAL";
+    const breakdown = (Array.isArray(item.expected_kg_breakdown) ? item.expected_kg_breakdown : []).map((part) => part.estimated_kg !== null && part.estimated_kg !== undefined
+      ? `${part.product_code}: ${fmtNumber(part.estimated_kg, 1)} kg, average of the last ${part.history_points} services${part.status === "STALE" ? " (stale)" : ""}`
+      : `${part.product_code}: learning (${part.history_points}/3 services)${part.manual_kg ? `, manual ${fmtNumber(part.manual_kg, 1)} kg` : ""}`);
+    const title = source === "HISTORY" ? breakdown.join("\n") : "Manual estimate: automatic KG starts after 3 official services.";
+    const tag = source === "HISTORY" ? "" : `<small class="distribution-kg-source">Manual</small>`;
+    return `<td class="distribution-kg-cell" title="${esc(title)}">${esc(fmtNumber(kg, 1))} kg${tag}</td>`;
+  }
+
   function renderRouteCustomers() {
     const sourceItems = Array.isArray(state.routeCustomersWeekly?.items) ? state.routeCustomersWeekly.items : [];
     if (!state.routeCustomersWeekly) {
@@ -305,16 +323,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const groups = routeCustomerGroups(items);
     const customerTotal = items.length;
     const trolleyTotal = items.reduce((total, item) => total + Number(item.planned_trolley_total || 0), 0);
-    const kgTotal = items.reduce((total, item) => total + Number(item.distribution_estimated_kg || 0), 0);
+    const kgTotal = items.reduce((total, item) => total + Number(routeCustomerKg(item) || 0), 0);
     const cards = groups.map((group) => {
       const key = routeCustomerKey(group);
       const collapsed = state.routeCustomersCollapsed.has(key);
-      const routeKg = group.items.reduce((sum, item) => sum + Number(item.distribution_estimated_kg || 0), 0);
+      const routeKg = group.items.reduce((sum, item) => sum + Number(routeCustomerKg(item) || 0), 0);
       const routeTrolleys = group.items.reduce((sum, item) => sum + Number(item.planned_trolley_total || 0), 0);
       const rows = group.items.map((item, index) => {
         const products = Array.isArray(item.scheduled_products) ? item.scheduled_products.join(", ") : String(item.scheduled_products || "");
         const order = item.delivery_order ?? index + 1;
-        return `<tr><td><span class="distribution-route-customer-order">${esc(order)}</span></td><td><strong>${esc(item.customer_name || "Customer")}</strong><small>${esc(item.customer_code || "")}</small></td><td>${esc(deliveryWindow(item))}</td><td>${esc(products || "Not set")}</td><td>${esc(item.eircode || "Not set")}</td><td>${esc(fmtNumber(item.distribution_estimated_kg, 1))} kg</td><td>${esc(fmtNumber(item.distribution_stop_count))}</td><td><strong>${esc(fmtNumber(item.planned_trolley_total))}</strong><small>${esc(item.trolley_summary || "")}</small></td><td>${esc(routeCustomerInstructions(item))}</td></tr>`;
+        return `<tr><td><span class="distribution-route-customer-order">${esc(order)}</span></td><td><strong>${esc(item.customer_name || "Customer")}</strong><small>${esc(item.customer_code || "")}</small></td><td>${esc(deliveryWindow(item))}</td><td>${esc(products || "Not set")}</td><td>${esc(item.eircode || "Not set")}</td>${routeCustomerKgCell(item)}<td>${esc(fmtNumber(item.distribution_stop_count))}</td><td><strong>${esc(fmtNumber(item.planned_trolley_total))}</strong><small>${esc(item.trolley_summary || "")}</small></td><td>${esc(routeCustomerInstructions(item))}</td></tr>`;
       }).join("");
       const colour = group.routeColor;
       return `<article class="distribution-route-customers-card" style="--route-color:${colour};--route-text:${routeTextColor(colour)}"><button class="distribution-route-customers-head" type="button" data-route-customers-toggle="${esc(key)}" aria-expanded="${String(!collapsed)}"><span class="distribution-route-code">${esc(group.routeCode)}</span><span class="distribution-route-customers-title"><strong>${esc(group.routeName)}</strong><small>Route ${esc(group.routeCode)} - ${esc(group.deliveryDay)}</small></span><span class="distribution-route-customers-metrics"><span><b>${esc(fmtNumber(group.items.length))}</b> stops</span><span><b>${esc(fmtNumber(routeKg, 1))}</b> kg</span><span><b>${esc(fmtNumber(routeTrolleys))}</b> trolleys</span></span><span class="distribution-route-customers-chevron" aria-hidden="true">${collapsed ? "+" : "-"}</span></button><div class="distribution-route-customers-body" ${collapsed ? "hidden" : ""}><div class="distribution-table-wrap"><table class="distribution-table distribution-route-customers-table"><thead><tr><th>#</th><th>Customer / delivery stop</th><th>Delivery window</th><th>Products</th><th>Eircode</th><th>Expected kg</th><th>Stops</th><th>Trolleys</th><th>Instructions</th></tr></thead><tbody>${rows}</tbody></table></div></div></article>`;

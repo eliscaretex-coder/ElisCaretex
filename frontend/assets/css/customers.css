@@ -4578,3 +4578,9 @@ body.customers-modal-open {
     grid-column: 1 / -1;
   }
 }
+
+/* KG source tag: Auto (from production history), Manual (fallback while learning), Stale. */
+.customers-kg-source{display:inline-block;margin-left:3px;padding:0 4px;border-radius:999px;font-size:8px;font-weight:800;letter-spacing:.02em;vertical-align:middle;background:var(--ec-primary-soft,#ddf5f4);color:var(--ec-primary-strong,#087678)}
+.customers-kg-source:empty{display:none}
+.customers-kg-source.is-manual{background:var(--ec-info-soft,#e9f2fb);color:var(--ec-info,#1d5fa7)}
+.customers-kg-source.is-stale{background:var(--ec-warning-soft,#fff4df);color:var(--ec-warning,#a56000)}

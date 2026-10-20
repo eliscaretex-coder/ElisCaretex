@@ -505,6 +505,18 @@ production_intelligence_forward_capacity_final_states
 
 Their final function definition is consolidated in local migration `202609260005_production_intelligence_forward_capacity.sql`. Do not reintroduce the earlier uncompact payload or zero-as-missing capacity behaviour.
 
+**Automatic customer Expected KG (Applied and Validated 2026-10-20, `202610200001`).** One shared model,
+`customer_kg_estimates(date,uuid)`, replaces typed Expected KG in planning: average of the latest
+8 official services (Finish KG lines, MOP batches) per customer, product and scheduled
+production weekday, with no date limit (owner decision: last 8 valid services, not a fixed
+number of weeks); production finished up to two days after the scheduled day
+counts towards that service; each service capped at 0.4x-2x the median; ready after 3 services,
+flagged STALE after 6 weeks without a service. Manual schedule Expected KG, then the customer's
+Distribution KG, are fallbacks while a slot is learning. Used by the Customer Weekly Planner,
+the schedule editor, Distribution Route customers and stops, Forward capacity and the leave
+capacity calendar. Backtest Jul-Sep 2026: slot WAPE 28.0% -> 25.2%, bias -7.4% -> -1.5%,
+daily total error 7.4%.
+
 ## 13. Historical Apps Script data import
 
 The owner has thousands of historical Apps Script records to import after source conversion. The complete contract is:
@@ -570,6 +582,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190006_fleet_temporary_vehicles.sql                     (applied 2026-10-19)
 202610190007_roster_keeps_published_vehicle.sql               (applied 2026-10-20)
 202610190008_roster_publish_clears_removed_runs.sql           (applied 2026-10-20)
+202610200001_customer_kg_history_estimates.sql                (applied 2026-10-20, owner approved)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,

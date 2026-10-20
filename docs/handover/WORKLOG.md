@@ -80,6 +80,32 @@ Entry format:
 
 ---
 
+## 2026-10-20 — Claude — Customer Expected KG calculated from production history
+
+- Branch / commits: `claude/customer-kg-history-estimates`, Pull Request into `master`.
+- Changed: Expected KG per customer, product and weekday is now calculated from official
+  production (latest 8 valid services with no date limit, owner decision, finished-next-day production credited to the scheduled day,
+  outliers capped at 0.4x-2x the median, ready after 3 services). Manual KG stays only as a
+  fallback while learning. Customer Weekly Planner and list show the value with an Auto/Manual/
+  Stale tag and a tooltip with the evidence; the schedule editor shows the automatic value
+  instead of a "Use" button; Distribution Route customers, route stops, Forward capacity and the
+  leave capacity calendar use the same model. Customer form label is now "Fallback KG per delivery".
+- Database: `202610200001_customer_kg_history_estimates.sql` — **applied 2026-10-20** on the owner's
+  approval (live history name `customer_kg_history_estimates`). Live function bodies match the file
+  (md5 compared for all 8 functions). Test: `supabase/tests/202610200001_customer_kg_history_estimates_validation.sql`.
+- Validation: after applying, the test assertions passed when run as SQL (grants, weekday
+  attribution, minimum 3 services, average within observed range, max 8 services); every changed
+  RPC ran as an ADMIN identity; a call without an account was refused (42501). Security advisors:
+  no new anon exposure. Live: 461 of 505 slots ready, 22 stale, 22 learning; ~29,450 kg per week;
+  Wednesday 2026-10-21 Distribution stops 87 / 6,762 kg. Backtest on
+  3,643 Jul-Sep services: slot WAPE 28.0% -> 25.2%, total bias -7.4% -> -1.5%, daily total
+  error 7.4%. `node scripts/validate-repository.mjs` passed. Playwright with a stubbed Supabase
+  client: planner, list and Route customers at 1440 px. Not checked with real accounts.
+- Open / next: owner acceptance on the live site after merge. Official production data
+  in the database ends 2026-09-26; if no newer data arrives, slots turn STALE from early November.
+
+---
+
 ## 2026-10-20 — Claude — Shared page standard for every workspace
 
 - Branch / commits: `claude/ui-visual-standard`, Pull Request stacked on the sidebar PR.
