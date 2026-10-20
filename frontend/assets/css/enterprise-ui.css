@@ -1301,3 +1301,235 @@ body.elis-operational-tool-page .finish-context-strip>div{
     padding:5px 7px 18px;
   }
 }
+
+/* ------------------------------------------------------------------------
+   2026-10-20 - shared page standard.
+   Every workspace uses the same page frame: 12px/16px gutters, the teal
+   header banner with 12px below it, and page messages in the same place.
+   Self-service pages keep their shift colours but share the banner shape.
+   ------------------------------------------------------------------------ */
+
+/* Page frame: one gutter for every workspace. */
+body.elis-operational-tool-page :is(
+  .customers-shell,
+  .distribution-shell,
+  .roster-app-content,
+  .sorting-content,
+  .finish-content,
+  .finish-results-content,
+  .production-tracker-shell,
+  .trolleys-shell,
+  .production-insights-content,
+  .staff-shell
+) {
+  padding: 12px 16px 28px !important;
+}
+
+body.elis-operational-tool-page .staff-shell {
+  width: auto;
+  margin: 0;
+}
+
+/* Inner panels that used to supply their own side gutter. */
+body.elis-operational-tool-page :is(
+  .roster-scope,
+  .production-tracker-main,
+  .trolleys-main-panel,
+  .staff-main-panel
+) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+body.elis-operational-tool-page .operational-page-header {
+  margin: 0 0 12px !important;
+}
+
+/* Page-level messages: errors and warnings are boxed, confirmations are a
+   short line, and an empty message takes no space. */
+body.elis-operational-tool-page :is(
+  .customers-page-message,
+  .distribution-message,
+  .roster-page-message,
+  .sorting-message,
+  .finish-message,
+  .finish-results-message,
+  .production-tracker-message,
+  .trolleys-page-message,
+  .production-insights-message,
+  .staff-page-message
+) {
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+body.elis-operational-tool-page :is(
+  .customers-page-message,
+  .distribution-message,
+  .roster-page-message,
+  .sorting-message,
+  .finish-message,
+  .finish-results-message,
+  .production-tracker-message,
+  .trolleys-page-message,
+  .production-insights-message,
+  .staff-page-message
+):empty {
+  display: none;
+}
+
+body.elis-operational-tool-page :is(
+  .customers-page-message,
+  .distribution-message,
+  .roster-page-message,
+  .sorting-message,
+  .finish-message,
+  .finish-results-message,
+  .production-tracker-message,
+  .trolleys-page-message,
+  .production-insights-message,
+  .staff-page-message
+):is(.error, .warning) {
+  padding: 10px 14px !important;
+  border: 1px solid #f3b8b2;
+  border-left: 4px solid var(--ec-danger);
+  border-radius: var(--ec-radius-sm);
+  background: var(--ec-danger-soft);
+  color: var(--ec-danger);
+}
+
+body.elis-operational-tool-page :is(
+  .customers-page-message,
+  .distribution-message,
+  .roster-page-message,
+  .sorting-message,
+  .finish-message,
+  .finish-results-message,
+  .production-tracker-message,
+  .trolleys-page-message,
+  .production-insights-message,
+  .staff-page-message
+).warning {
+  border-color: #f2d29a;
+  border-left-color: var(--ec-warning);
+  background: var(--ec-warning-soft);
+  color: var(--ec-warning);
+}
+
+body.elis-operational-tool-page :is(
+  .customers-page-message,
+  .distribution-message,
+  .roster-page-message,
+  .sorting-message,
+  .finish-message,
+  .finish-results-message,
+  .production-tracker-message,
+  .trolleys-page-message,
+  .production-insights-message,
+  .staff-page-message
+).success {
+  color: var(--ec-success);
+}
+
+/* Distribution: the Customer guides link is a tab like its neighbours. */
+body.elis-operational-tool-page a.distribution-tab {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* Self-service pages inside the shared shell ---------------------------- */
+
+.shell-page {
+  min-width: 0;
+  min-height: 100vh;
+  background: var(--ec-canvas);
+}
+
+/* The sidebar replaces the old Back links and the duplicate logo. */
+.operational-shell .shell-page :is(.rv-back, .rv-logo, .notify-head > a, .dg-header > a) {
+  display: none !important;
+}
+
+/* My Roster and My Driver Roster keep their shift colours (morning, evening,
+   preview) in a banner shaped like every other workspace header. */
+.operational-shell .shell-page .rv-header {
+  position: relative;
+  top: auto;
+  margin: 12px 16px;
+  padding: 14px 20px;
+  border-radius: 11px;
+  box-shadow: 0 4px 14px rgba(23, 49, 75, 0.12);
+}
+
+.operational-shell .shell-page .rv-header h1 {
+  font-size: 1.25rem;
+}
+
+/* Notifications and Customer guides use the standard teal banner. */
+.operational-shell .shell-page .notify-shell {
+  max-width: none;
+  padding: 12px 16px 28px;
+}
+
+.operational-shell .shell-page .notify-head {
+  min-height: 56px;
+  margin-bottom: 12px;
+  padding: 12px 20px;
+  border-radius: 11px;
+}
+
+/* Same compact banner as the workspaces: title only, no eyebrow or summary. */
+.operational-shell .shell-page :is(.notify-head, .dg-header) :is(span, small, p) {
+  display: none;
+}
+
+.operational-shell .shell-page .notify-head h1,
+.operational-shell .shell-page .dg-header h1 {
+  margin: 2px 0;
+  font-size: 1.25rem;
+}
+
+.operational-shell .shell-page .dg-header {
+  margin: 12px 16px;
+  padding: 12px 20px;
+  border-radius: 11px;
+  background: linear-gradient(120deg, #0d999a, #087678);
+  box-shadow: 0 4px 14px rgba(23, 49, 75, 0.12);
+}
+
+.operational-shell .shell-page .dg-header + main {
+  max-width: none;
+  margin: 0;
+  padding: 0 16px 28px;
+}
+
+@media (max-width: 700px) {
+  .operational-shell .shell-page .rv-header,
+  .operational-shell .shell-page .dg-header {
+    margin: 8px;
+    padding: 12px 14px;
+  }
+
+  .operational-shell .shell-page .notify-shell {
+    padding: 8px;
+  }
+
+  body.elis-operational-tool-page :is(
+    .customers-shell,
+    .distribution-shell,
+    .roster-app-content,
+    .sorting-content,
+    .finish-content,
+    .finish-results-content,
+    .production-tracker-shell,
+    .trolleys-shell,
+    .production-insights-content,
+    .staff-shell
+  ) {
+    padding: 8px 8px 24px !important;
+  }
+}
