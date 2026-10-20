@@ -89,8 +89,8 @@ Entry format:
 - Found and fixed:
   - Republishing a week (now possible) left daily routes the new version no longer plans
     as READY with the old driver and vehicle, so a driver set to Off still showed on the
-    Daily board. `202610190008_roster_publish_clears_removed_runs.sql` (**not applied**,
-    Prepared) returns such DRAFT/READY routes from today onwards to DRAFT with no driver
+    Daily board. `202610190008_roster_publish_clears_removed_runs.sql` (**Applied
+    2026-10-20** on the owner's request; test file 3/3, no new advisor finding) returns such DRAFT/READY routes from today onwards to DRAFT with no driver
     or vehicle and logs `ROSTER_REMOVED`; dispatched or finished routes are untouched.
     Reproduced as the owner's account (Alex Off on Wed 21 Oct: route 612 stayed READY with
     Alex) and verified the fix in a rolled-back transaction (612 back to DRAFT, 42 READY
@@ -98,8 +98,7 @@ Entry format:
   - The Edit route dialog disabled the route's own vehicle when it is off road today, so
     the dialog could not be saved without changing it. The current vehicle stays
     selectable (with `202610190007` the server accepts keeping it).
-- Still open: `202610190007` and `202610190008` need the owner's authorization to apply.
-  The 231D45366 Engine defect (off road since 15 Jul) is probably stale: Return to service
+- Still open: the 231D45366 Engine defect (off road since 15 Jul) is probably stale: Return to service
   clears it if the truck is running.
 
 ## 2026-10-19 — Claude — Roster: Edit roster on a published week
@@ -126,13 +125,16 @@ Entry format:
 - Changed: a blocked vehicle still cannot be newly chosen, but a day already published with
   it is kept and only flagged (⚠) in the roster; the same applies to the vehicle a daily
   route already has. The roster dialog lets a cell keep its current vehicle.
-- Database: `202610190007_roster_keeps_published_vehicle.sql`, **not applied** (Prepared).
+- Database: `202610190007_roster_keeps_published_vehicle.sql`, **Applied 2026-10-20** on the
+  owner's explicit request.
   Replaces `validate_distribution_roster_version` and `save_distribution_route_run`.
 - Validation: reproduced the failure as the owner's account (saving the published week
   unchanged returned "Vehicle 231D45366 cannot be used on Mon 19 Oct"); with the new
   function, inside a rolled-back transaction, the same save succeeded and moving 231D45366
   to another route was still refused. `node scripts/validate-repository.mjs` passed.
-- Open / next: apply the migration (owner), run the test file and the security advisors.
+- After applying (2026-10-20): the test file passed 3/3, saving the published week
+  2026-10-19 unchanged as the owner's account succeeded (rolled back), and the security
+  advisors showed no new finding.
 
 ## 2026-10-19 — Claude — Fleet: temporary (short hire) vehicles
 
