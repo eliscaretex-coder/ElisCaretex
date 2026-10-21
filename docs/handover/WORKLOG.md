@@ -100,6 +100,34 @@ Entry format:
 - Open / next: covering as Team Leader or Supervisor has no Actual record in the database
   yet; it needs a migration and owner approval.
 
+## 2026-10-21 — Claude — Urgent trolley checks for Managers and Distribution
+
+- Branch / commits: `claude/trolley-check-urgent-alert`, Pull Request into `master`.
+- Changed: owner request — a trolley quantity check reported by Production ("Report trolley
+  plan" in Finish and MOP, table `operational_data_reports`) is urgent and must not be
+  forgotten. Before, only Customer Schedule editors saw it inside the Customers page. Now
+  ADMIN, MANAGER, PLANNER and DISTRIBUTION_OPERATOR accounts, accounts with a Distribution edit
+  grant and staff whose primary role is Production Manager see a non-dismissable alert at the
+  top of every page (`operational-page-nav.js`, refreshed every 5 minutes; amber, red after 4 h,
+  pulsing "overdue" after 24 h), an "Needs action" item in Notifications and the count in the
+  notification badge. "Review now" opens a dialog with plan vs reported, reason and scans; each
+  check closes only with a note as "Plan corrected" (RESOLVED) or "Plan was right" (REJECTED),
+  which records who and when (existing columns and audit_log).
+- Database: `202610210001_trolley_check_urgent_alert.sql` — **prepared, not applied** (needs the
+  owner's authorisation). New `can_handle_trolley_plan_checks`, `get_open_trolley_checks`;
+  replaces `review_operational_schedule_report` (audience widened),
+  `get_my_notification_summary` and `get_my_notification_inbox` (repo bodies verified equal to
+  live before editing; the inbox's live "Â·" mojibake becomes "·"). No table change.
+  Test: `supabase/tests/202610210001_trolley_check_urgent_alert_validation.sql`.
+- Validation: `node scripts/validate-repository.mjs` passed. Dry-run on ElisCaretex-dev inside a
+  rolled-back transaction: a 30-hour-old test report is listed for the ADMIN account, counted in
+  the summary and the inbox, resolved by ADMIN; a Finish operator gets an empty list and is
+  refused. Live objects confirmed unchanged afterwards. Playwright with a stubbed client:
+  alert on Notifications and Distribution (desktop and 390 px), dialog, required note, resolve
+  removes the check, `?trolleyChecks=open` opens the dialog.
+- Open / next: apply the migration after the owner's approval, then run the test file. No
+  report has ever been filed (0 rows), so a real check from Finish confirms the flow end to end.
+
 ## 2026-10-21 — Claude — My Roster renamed to My Production Roster
 
 - Branch / commits: `claude/my-production-roster-name`, Pull Request into `master`

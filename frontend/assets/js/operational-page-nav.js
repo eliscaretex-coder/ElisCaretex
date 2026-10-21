@@ -422,6 +422,192 @@
     }
   }
 
+  // Trolley plan checks reported by Finish or MOP. Managers and Distribution see an
+  // alert on every page until someone resolves each check; it cannot be dismissed.
+  const trolleyChecks = { client: null, canHandle: false, items: [], timer: 0, saving: false, onChange: null };
+
+  function trolleyCheckAge(hours) {
+    const value = Number(hours || 0);
+    if (value < 1) return "less than 1 hour";
+    if (value < 24) return `${Math.floor(value)} hour${Math.floor(value) === 1 ? "" : "s"}`;
+    const days = Math.floor(value / 24);
+    return `${days} day${days === 1 ? "" : "s"}`;
+  }
+
+  function trolleyCheckLevel(hours) {
+    const value = Number(hours || 0);
+    return value >= 24 ? "overdue" : value >= 4 ? "late" : "urgent";
+  }
+
+  function trolleyRequirementText(snapshot) {
+    const requirements = Array.isArray(snapshot?.requirements) ? snapshot.requirements : [];
+    if (!requirements.length) return "No trolley";
+    return requirements.map((item) => `${Number(item.quantity || 0)} × ${item.display_code || item.trolley_type_name || item.trolley_type_code || "Trolley"}`).join(" · ");
+  }
+
+  function trolleyCheckDate(value, withTime) {
+    if (!value) return "—";
+    const date = withTime ? new Date(value) : new Date(`${value}T12:00:00`);
+    return new Intl.DateTimeFormat("en-IE", withTime ? { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" } : { weekday: "short", day: "2-digit", month: "short" }).format(date);
+  }
+
+  function trolleyCheckContentHost() {
+    const root = document.querySelector("[data-operational-shell-root]");
+    return root?.querySelector(":scope > :not(.operational-sidebar):not(.operational-mobile-bar):not(.operational-nav-backdrop)") || null;
+  }
+
+  function renderTrolleyCheckBanner() {
+    let banner = document.getElementById("trolleyCheckAlert");
+    const items = trolleyChecks.items;
+    if (!items.length) {
+      banner?.remove();
+      return;
+    }
+    const host = trolleyCheckContentHost();
+    if (!host) return;
+    if (!banner) {
+      banner = document.createElement("section");
+      banner.id = "trolleyCheckAlert";
+      banner.setAttribute("role", "alert");
+      banner.addEventListener("click", (event) => {
+        if (event.target.closest("[data-trolley-check-open]")) openTrolleyCheckDialog();
+      });
+    }
+    if (banner.parentElement !== host || host.firstElementChild !== banner) host.prepend(banner);
+    const oldest = items[0];
+    const level = trolleyCheckLevel(oldest.open_hours);
+    const customers = items.slice(0, 3).map((item) => escapeHtml(item.customer_name)).join(", ") + (items.length > 3 ? ` +${items.length - 3}` : "");
+    banner.className = `trolley-check-alert ${level}`;
+    banner.innerHTML = `
+      <span class="trolley-check-alert-icon" aria-hidden="true">!</span>
+      <span class="trolley-check-alert-copy">
+        <strong>${items.length === 1 ? "Trolley check needed" : `${items.length} trolley checks needed`} · ${level === "overdue" ? "overdue" : "urgent"}</strong>
+        <span>Production reported a trolley quantity to check: ${customers}. Oldest open for ${escapeHtml(trolleyCheckAge(oldest.open_hours))}.</span>
+      </span>
+      <button type="button" data-trolley-check-open>Review now</button>`;
+  }
+
+  function ensureTrolleyCheckDialog() {
+    let dialog = document.getElementById("trolleyCheckDialog");
+    if (dialog) return dialog;
+    dialog = document.createElement("dialog");
+    dialog.id = "trolleyCheckDialog";
+    dialog.className = "trolley-check-dialog";
+    dialog.innerHTML = `
+      <div class="trolley-check-dialog-head">
+        <div><p>Urgent · from Production</p><h2>Trolley checks</h2><span>Check the quantity with the customer plan, then record what you did. The alert stays for everyone until each check is resolved.</span></div>
+        <button type="button" class="trolley-check-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="trolley-check-list"></div>`;
+    document.body.append(dialog);
+    dialog.querySelector(".trolley-check-close").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+      const button = event.target.closest("[data-trolley-check-action]");
+      if (button) reviewTrolleyCheck(button.dataset.trolleyCheckId, button.dataset.trolleyCheckAction);
+    });
+    return dialog;
+  }
+
+  function renderTrolleyCheckDialog() {
+    const dialog = document.getElementById("trolleyCheckDialog");
+    if (!dialog) return;
+    const list = dialog.querySelector(".trolley-check-list");
+    if (!trolleyChecks.items.length) {
+      list.innerHTML = '<p class="trolley-check-empty">All trolley checks are resolved.</p>';
+      return;
+    }
+    list.innerHTML = trolleyChecks.items.map((item) => {
+      const id = escapeHtml(item.operational_report_id);
+      const scanned = Array.isArray(item.observed_snapshot?.trolleys) ? item.observed_snapshot.trolleys.map((t) => t.trolley_code).filter(Boolean) : [];
+      return `
+        <article class="trolley-check-item ${trolleyCheckLevel(item.open_hours)}" data-trolley-check-item="${id}">
+          <header>
+            <div><strong>${escapeHtml(item.customer_name)}</strong><span>${escapeHtml([item.route_display_name || item.route_code, item.product_code === "MOP" ? "MOP" : "Clothes", trolleyCheckDate(item.business_date, false)].filter(Boolean).join(" · "))}</span></div>
+            <em>Open ${escapeHtml(trolleyCheckAge(item.open_hours))}</em>
+          </header>
+          <div class="trolley-check-compare">
+            <div><span>Customer plan</span><strong>${escapeHtml(trolleyRequirementText(item.planned_snapshot))}</strong></div>
+            <div class="reported"><span>${escapeHtml(item.source_area_code === "MOP" ? "MOP" : "Finish")} says it should be</span><strong>${escapeHtml(trolleyRequirementText(item.reported_snapshot))}</strong></div>
+          </div>
+          <p class="trolley-check-reason"><strong>${escapeHtml(item.reported_by || "Production")}</strong> · ${escapeHtml(trolleyCheckDate(item.reported_at, true))}: ${escapeHtml(item.reason)}${scanned.length ? ` <small>Scanned: ${escapeHtml(scanned.join(", "))}</small>` : ""}</p>
+          <label class="trolley-check-note"><span>What did you do? (required)</span><textarea rows="2" maxlength="1000" data-trolley-check-note="${id}" placeholder="For example: customer plan updated to 3 large trolleys"></textarea></label>
+          <p class="trolley-check-message" data-trolley-check-message="${id}" hidden></p>
+          <footer>
+            <button type="button" class="secondary" data-trolley-check-action="REJECTED" data-trolley-check-id="${id}">Plan was right</button>
+            <button type="button" data-trolley-check-action="RESOLVED" data-trolley-check-id="${id}">Plan corrected</button>
+          </footer>
+        </article>`;
+    }).join("");
+  }
+
+  function openTrolleyCheckDialog() {
+    const dialog = ensureTrolleyCheckDialog();
+    renderTrolleyCheckDialog();
+    if (!dialog.open) dialog.showModal();
+  }
+
+  async function reviewTrolleyCheck(id, action) {
+    if (trolleyChecks.saving || !trolleyChecks.client) return;
+    const dialog = document.getElementById("trolleyCheckDialog");
+    const note = dialog.querySelector(`[data-trolley-check-note="${CSS.escape(id)}"]`);
+    const message = dialog.querySelector(`[data-trolley-check-message="${CSS.escape(id)}"]`);
+    const text = note?.value.trim() || "";
+    if (!text) {
+      message.hidden = false;
+      message.textContent = "Write what you checked or changed before closing this check.";
+      note?.focus();
+      return;
+    }
+    const buttons = dialog.querySelectorAll(`[data-trolley-check-id="${CSS.escape(id)}"]`);
+    trolleyChecks.saving = true;
+    buttons.forEach((button) => { button.disabled = true; });
+    try {
+      const { error } = await trolleyChecks.client.rpc("review_operational_schedule_report", { p_operational_report_id: id, p_action: action, p_notes: text });
+      if (error) throw error;
+      trolleyChecks.saving = false;
+      await loadTrolleyChecks();
+      trolleyChecks.onChange?.();
+      document.dispatchEvent(new CustomEvent("elis:trolley-checks-changed"));
+    } catch (error) {
+      message.hidden = false;
+      message.textContent = error.message || "The check could not be saved. Try again.";
+      buttons.forEach((button) => { button.disabled = false; });
+    } finally {
+      trolleyChecks.saving = false;
+    }
+  }
+
+  async function loadTrolleyChecks() {
+    if (!trolleyChecks.client) return;
+    try {
+      const { data, error } = await trolleyChecks.client.rpc("get_open_trolley_checks");
+      if (error) throw error;
+      trolleyChecks.canHandle = Boolean(data?.can_handle);
+      trolleyChecks.items = trolleyChecks.canHandle && Array.isArray(data.items) ? data.items : [];
+    } catch (error) {
+      console.warn("Trolley checks could not be loaded.", error);
+      return;
+    }
+    renderTrolleyCheckBanner();
+    if (document.getElementById("trolleyCheckDialog")?.open && !trolleyChecks.saving) renderTrolleyCheckDialog();
+  }
+
+  async function startTrolleyChecks(client, onChange) {
+    trolleyChecks.client = client;
+    trolleyChecks.onChange = onChange;
+    window.clearInterval(trolleyChecks.timer);
+    await loadTrolleyChecks();
+    if (!trolleyChecks.canHandle) return;
+    // Pages such as Distribution stay open all day; keep the alert current.
+    trolleyChecks.timer = window.setInterval(loadTrolleyChecks, 5 * 60 * 1000);
+    if (new URLSearchParams(location.search).get("trolleyChecks") === "open" && trolleyChecks.items.length) openTrolleyCheckDialog();
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && trolleyChecks.canHandle) loadTrolleyChecks();
+  });
+
   // Renders the navigation for a loaded account profile. index.html calls this
   // after sign-in; other pages call it from start() below.
   function renderProfile(profile, roleCodes) {
@@ -434,7 +620,10 @@
     shell.renderNavigation(policy.operationalModules(codes, overrides));
     shell.renderUser(profile.display_name, policy.operationalContext(codes).roleName);
     cacheNavigationProfile(profile, codes);
-    if (client) loadNotificationCount(client, policy, access);
+    if (client) {
+      loadNotificationCount(client, policy, access);
+      startTrolleyChecks(client, () => loadNotificationCount(client, policy, access));
+    }
     return access;
   }
 
