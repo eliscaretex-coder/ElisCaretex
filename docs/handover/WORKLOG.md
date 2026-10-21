@@ -93,8 +93,8 @@ Entry format:
   notification badge. "Review now" opens a dialog with plan vs reported, reason and scans; each
   check closes only with a note as "Plan corrected" (RESOLVED) or "Plan was right" (REJECTED),
   which records who and when (existing columns and audit_log).
-- Database: `202610210001_trolley_check_urgent_alert.sql` — **prepared, not applied** (needs the
-  owner's authorisation). New `can_handle_trolley_plan_checks`, `get_open_trolley_checks`;
+- Database: `202610210001_trolley_check_urgent_alert.sql` — **applied 2026-10-21** on the owner's
+  approval. New `can_handle_trolley_plan_checks`, `get_open_trolley_checks`;
   replaces `review_operational_schedule_report` (audience widened),
   `get_my_notification_summary` and `get_my_notification_inbox` (repo bodies verified equal to
   live before editing; the inbox's live "Â·" mojibake becomes "·"). No table change.
@@ -105,8 +105,11 @@ Entry format:
   refused. Live objects confirmed unchanged afterwards. Playwright with a stubbed client:
   alert on Notifications and Distribution (desktop and 390 px), dialog, required note, resolve
   removes the check, `?trolleyChecks=open` opens the dialog.
-- Open / next: apply the migration after the owner's approval, then run the test file. No
-  report has ever been filed (0 rows), so a real check from Finish confirms the flow end to end.
+- After applying: the 9 static checks of the test file pass (run as plain queries); an unknown
+  account gets `can_handle=false` and is refused review (42501), the ADMIN account gets
+  `can_handle=true`; the inbox "Â·" mojibake is gone. Security advisors: no new finding
+  categories, and none of the new functions is executable by `anon`.
+- Open / next: no report has ever been filed (0 rows), so a real check from Finish confirms the flow end to end.
 
 ## 2026-10-21 — Claude — My Roster renamed to My Production Roster
 
