@@ -649,3 +649,296 @@ body.elis-operational-mode .operational-sidebar {
     transition: none;
   }
 }
+
+/* Urgent trolley checks from Production ----------------------------------- */
+/* Shown to Managers and Distribution on every page until each check is resolved. */
+
+.trolley-check-alert {
+  margin: 12px 16px 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #f5b54a;
+  border-left-width: 6px;
+  border-radius: 10px;
+  background: #fff7e6;
+  color: var(--nav-ink);
+  font-family: var(--nav-font);
+}
+
+.trolley-check-alert.late,
+.trolley-check-alert.overdue {
+  border-color: #f0a29b;
+  background: #fff1f0;
+}
+
+.trolley-check-alert.overdue {
+  border-left-color: var(--nav-danger);
+  animation: trolley-check-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes trolley-check-pulse {
+  50% { box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.14); }
+}
+
+.trolley-check-alert-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d97706;
+  color: #fff;
+  font-weight: 800;
+}
+
+.trolley-check-alert:is(.late, .overdue) .trolley-check-alert-icon {
+  background: var(--nav-danger);
+}
+
+.trolley-check-alert-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.trolley-check-alert-copy strong {
+  font-size: 0.95rem;
+}
+
+.trolley-check-alert-copy span {
+  color: var(--nav-muted);
+  font-size: 0.85rem;
+}
+
+.trolley-check-alert button,
+.trolley-check-item footer button {
+  flex: none;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--nav-danger);
+  color: #fff;
+  font: 700 0.88rem var(--nav-font);
+  cursor: pointer;
+}
+
+.trolley-check-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  color: var(--nav-ink);
+  font-family: var(--nav-font);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+}
+
+.trolley-check-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.trolley-check-dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 18px 20px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid var(--nav-line);
+  background: #fff;
+}
+
+.trolley-check-dialog-head > div {
+  flex: 1;
+}
+
+.trolley-check-dialog-head p {
+  margin: 0;
+  color: var(--nav-danger);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trolley-check-dialog-head h2 {
+  margin: 2px 0 4px;
+  font-size: 1.3rem;
+}
+
+.trolley-check-dialog-head span {
+  color: var(--nav-muted);
+  font-size: 0.85rem;
+}
+
+.trolley-check-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--nav-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.trolley-check-list {
+  padding: 16px 20px 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.trolley-check-empty {
+  margin: 0;
+  color: var(--nav-muted);
+}
+
+.trolley-check-item {
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--nav-line);
+  border-left: 5px solid #d97706;
+  border-radius: 10px;
+}
+
+.trolley-check-item:is(.late, .overdue) {
+  border-left-color: var(--nav-danger);
+}
+
+.trolley-check-item header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.trolley-check-item header div {
+  display: grid;
+}
+
+.trolley-check-item header span,
+.trolley-check-reason small {
+  color: var(--nav-muted);
+  font-size: 0.82rem;
+}
+
+.trolley-check-item header em {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff1f0;
+  color: var(--nav-danger);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.trolley-check-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.trolley-check-compare div {
+  padding: 8px 10px;
+  display: grid;
+  border-radius: 8px;
+  background: #f3f6f9;
+}
+
+.trolley-check-compare div.reported {
+  background: #fff7e6;
+}
+
+.trolley-check-compare span,
+.trolley-check-note span {
+  color: var(--nav-muted);
+  font-size: 0.78rem;
+}
+
+.trolley-check-reason {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.trolley-check-reason small {
+  display: block;
+}
+
+.trolley-check-note {
+  display: grid;
+  gap: 4px;
+}
+
+.trolley-check-note textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--nav-line);
+  border-radius: 8px;
+  font: 0.9rem var(--nav-font);
+  resize: vertical;
+}
+
+.trolley-check-message {
+  margin: 0;
+  color: var(--nav-danger);
+  font-size: 0.85rem;
+}
+
+.trolley-check-item footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.trolley-check-item footer button {
+  background: var(--nav-primary);
+}
+
+.trolley-check-item footer button.secondary {
+  border: 1px solid var(--nav-line);
+  background: #fff;
+  color: var(--nav-ink);
+}
+
+.trolley-check-item footer button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (max-width: 700px) {
+  .trolley-check-alert {
+    margin: 10px 12px 0;
+    flex-wrap: wrap;
+  }
+
+  .trolley-check-alert button {
+    width: 100%;
+  }
+
+  .trolley-check-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .trolley-check-item footer button {
+    flex: 1;
+  }
+}
+
+@media print {
+  .trolley-check-alert {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trolley-check-alert.overdue {
+    animation: none;
+  }
+}
