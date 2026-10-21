@@ -401,6 +401,7 @@
       "customers.html": permissions.CUSTOMER_WORKSPACE,
       "roster.html": permissions.PRODUCTION_ROSTER,
       "sorting.html": permissions.SORTING,
+      "sorting-results.html": permissions.SORTING,
       "mop-production.html": permissions.MOP_PRODUCTION,
       "finish-production.html": permissions.FINISH,
       "finish-results.html": permissions.FINISH_RESULTS,

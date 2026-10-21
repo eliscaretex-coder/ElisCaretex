@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const $ = (id) => document.getElementById(id);
   const el = {
     date:$("finishResultsDate"), prev:$("finishResultsPrev"), next:$("finishResultsNext"), today:$("finishResultsToday"), refresh:$("finishResultsRefresh"),
-    message:$("finishResultsMessage"), totals:$("finishResultsTotals"), shifts:$("finishResultsShifts"), matrix:$("finishResultsMatrix"), entries:$("finishResultsEntries"), count:$("finishResultsEntryCount")
+    message:$("finishResultsMessage"), totals:$("finishResultsTotals"), shifts:$("finishResultsShifts"), matrix:$("finishResultsMatrix"), staff:$("finishResultsStaff"), staffCount:$("finishResultsStaffCount"), entries:$("finishResultsEntries"), count:$("finishResultsEntryCount")
   };
   const esc=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   const tableName=(code)=>({FINISH_TABLE_1:"Table 1",FINISH_TABLE_2:"Table 2",FINISH_TABLE_3:"Table 3"}[code]||code||"—");
@@ -43,6 +43,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.matrix.innerHTML=`<div class="finish-results-matrix-head"><span>Table</span><span>Shift</span><span>Produced</span><span>ReWash</span><span>Planned</span><span>Efficiency</span><span>Staff hours</span><span>Staff</span></div>${rows.map(r=>`<article class="finish-results-matrix-row ${efficiencyClass(r.efficiency_percent)}"><strong>${esc(r.table_name||tableName(r.table_code))}</strong><span>${esc(shiftName(r.shift_code))}</span><b>${num(r.produced_kg)} kg</b><span class="rewash">${num(r.rewash_kg)} kg</span><span>${num(r.planned_kg)} kg</span><b>${percent(r.efficiency_percent)}</b><span>${num(r.staff_hours,2)}</span><span>${Number(r.staff_count||0)}</span></article>`).join("")}`;
   }
 
+  // Every person and time slice behind the staff hours, so moves and table changes can be checked.
+  function renderStaff(data){
+    const rows=data.staff||[];
+    el.staffCount.textContent=String(new Set(rows.map(r=>`${r.shift_code}|${r.staff_id}`)).size);
+    if(!rows.length){el.staff.innerHTML='<div class="finish-results-empty">No Finish staff hours for this date.</div>';return;}
+    const sourceText=(r)=>r.hours_source==="PLANNED"?"Planned (no Actual)":r.session_source==="SORTING_TO_FINISH_TRANSFER"?"Moved from Sorting":r.session_source==="APPS_SCRIPT_IMPORT"?"Recorded":r.uses_planned_time?"Actual · planned time used":"Actual";
+    el.staff.innerHTML=`<div class="finish-results-staff-head"><span>Staff</span><span>Table / Shift</span><span>Time</span><span>Hours</span><span>Source</span></div>${rows.map(r=>`<article class="finish-results-staff-row ${r.hours_source==="PLANNED"?"planned":""}"><strong>${esc(r.display_name)}</strong><span>${esc(r.table_name||tableName(r.table_code))} · ${esc(shiftName(r.shift_code))}</span><span>${esc(r.start_time||"—")}–${esc(r.end_time||"—")}</span><b>${num(r.staff_hours,2)}</b><small>${esc(sourceText(r))}</small></article>`).join("")}`;
+  }
+
   function batchHtml(entry){
     if(String(entry?.entry_type||"").toUpperCase()==="REWASH")return (entry.lines||[]).map(line=>`<span class="finish-results-batch finish-results-rewash-line"><b>${esc(line.customer_name||"Customer")}</b><em>${esc(line.batch_reference||"No batch")} · ${Number(line.quantity||0).toFixed(1)} kg</em></span>`).join("")||"—";
     const groups=new Map();(entry.lines||[]).forEach(line=>{const batch=String(line.batch_reference||"—");if(!groups.has(batch))groups.set(batch,{kg:0,units:0});const g=groups.get(batch),n=Number(line.quantity||0);if(line.unit_code==="KG")g.kg+=n;else if(line.unit_code==="UNIT")g.units+=n;});
@@ -60,7 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(data?.schema_version!=="FINISH_RESULTS_V2")throw new Error("Finish Results backend is out of date. Refresh after the latest update.");
     el.date.value=String(data.business_date||"").slice(0,10);
     document.title=`Finish Results · ${fmtDate(data.business_date)} | ElisCaretex`;
-    renderTotals(data);renderShifts(data);renderMatrix(data);renderEntries(data);
+    renderTotals(data);renderShifts(data);renderMatrix(data);renderStaff(data);renderEntries(data);
   }
 
   async function load(dateValue=null){

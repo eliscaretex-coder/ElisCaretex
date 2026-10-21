@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — Sorting Results screen; Finish Results hours follow staff moves
+
+- Branch / commits: `claude/sorting-results` (Pull Request into `master`).
+- Changed: new Sorting → Results page (`frontend/pages/sorting-results.html`), same look
+  as Finish Results: day totals, Morning/Evening cards, every staff member with status
+  (Actual, As planned, Part shift, Moved, Absent, No-show, No hours), hours, Clothes/MOP
+  kg, kg/h and efficiency, plus the list of washes. Efficiency = earned hours / worked
+  hours, earned = Clothes kg / 160 + MOP kg / 100 (OTHERS use the Clothes target).
+  Finish Results now lists the staff hours behind each Table.
+- Database: `202610210004_sorting_results_and_finish_results_staff_moves.sql`
+  (**Prepared, not applied** — waiting for the owner). Adds
+  `get_sorting_results_dashboard_v1(date)` and replaces
+  `get_finish_results_dashboard_normal_v1(date)`. The old Finish function read
+  `get_finish_staff_context_v2`, which keeps only the latest work session per person and
+  drops staff no longer active: on 2026-01-15 Morning Table 1 counted 7.25 staff hours
+  instead of 29.00 (efficiency 331%). It also ignored Finish absences and table segments.
+- Validation: `node scripts/validate-repository.mjs` passed. Both functions were run
+  against live data inside a rolled-back transaction (2026-09-25 Sorting, 2026-01-15 and
+  2026-09-25 Finish). Playwright screenshots with a stubbed client (desktop and 390 px).
+  pgTAP file `supabase/tests/202610210004_…_validation.sql` not yet run (needs the
+  migration applied).
+- Open / next: owner approval to apply the migration, then run the pgTAP test and the
+  advisors. The Finish operational screen still groups hours by current table.
+
 ## 2026-10-21 — Claude — Finish Staff tab: same plan-next-to-actual screen as Sorting
 
 - Branch / commits: `claude/finish-staff-quick-actions` (Pull Request into `master`).
