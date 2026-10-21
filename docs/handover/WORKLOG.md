@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — Sorting Staff: move to a Finish Table for part of the shift
+
+- Branch / commits: `claude/sorting-partial-move-to-finish` (Pull Request into `master`).
+- Changed: owner test found that "Went to a Finish table" saved the move but the Sorting
+  Staff list still showed the person in Sorting, and that the time must be split when
+  someone works in Sorting first. The move now asks "From what time?" (From now, From a
+  time, Whole shift). A partial move closes the Sorting session at that time (break split
+  by share of the shift) and opens a Finish session and table segment from that time; the
+  row shows "Moved · Finish Table 2 at 17:20" with the Sorting hours and output. Back to
+  Sorting cancels the Finish session and reopens the Sorting one.
+- Database: `202610210002_sorting_partial_move_to_finish.sql` — new
+  `move_sorting_staff_to_finish_table_v2`, `restore_sorting_staff_from_finish_table_v2`;
+  `get_sorting_staff_dashboard_context_v2` now recognises `SORTING_TO_FINISH_TRANSFER`
+  (pre-existing bug) and returns `partial_area_transfer` / `area_transfer_at`.
+  Test: `supabase/tests/202610210002_sorting_partial_move_to_finish_validation.sql`.
+  Status: prepared, not applied (waiting for owner approval).
+- Validation: `node scripts/validate-repository.mjs` passed; Playwright with a stubbed
+  Supabase client renders the partial-move row and sends the v2 call.
+- Open / next: apply after owner approval, run the test and advisors, then repeat the
+  owner's real test. Owner test data of 2026-10-21 (Ronaldo) to be cleaned afterwards.
+
 ## 2026-10-21 — Claude — Sorting Staff tab: plan next to actual, one-tap changes
 
 - Branch / commits: `claude/sorting-staff-quick-actions` (Pull Request into `master`).
