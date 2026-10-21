@@ -108,7 +108,7 @@ Entry format:
   hours, earned = Clothes kg / 160 + MOP kg / 100 (OTHERS use the Clothes target).
   Finish Results now lists the staff hours behind each Table.
 - Database: `202610210004_sorting_results_and_finish_results_staff_moves.sql`
-  (**Prepared, not applied** — waiting for the owner). Adds
+  (**Applied** 2026-10-21 18:45 UTC on the owner's approval, after PR #35 merged). Adds
   `get_sorting_results_dashboard_v1(date)` and replaces
   `get_finish_results_dashboard_normal_v1(date)`. The old Finish function read
   `get_finish_staff_context_v2`, which keeps only the latest work session per person and
@@ -117,10 +117,15 @@ Entry format:
 - Validation: `node scripts/validate-repository.mjs` passed. Both functions were run
   against live data inside a rolled-back transaction (2026-09-25 Sorting, 2026-01-15 and
   2026-09-25 Finish). Playwright screenshots with a stubbed client (desktop and 390 px).
-  pgTAP file `supabase/tests/202610210004_…_validation.sql` not yet run (needs the
-  migration applied).
-- Open / next: owner approval to apply the migration, then run the pgTAP test and the
-  advisors. The Finish operational screen still groups hours by current table.
+  After applying: pgTAP is not installed on the project, so the test file's assertions
+  were run as plain SQL and all held (function exists, anon refused, authenticated
+  granted, access guards present, table segments used, a caller without a role is
+  refused). Live call for 2026-10-21 as an admin: Finish Evening Table 1 = 35.87 staff
+  hours with Lena Banut split 4h32 Table 1 / 3h48 Table 2 (owner expected ~35h55; the
+  difference is her session's 0-minute break, fixed separately in PR #36). Security
+  advisors: only the expected "authenticated can execute SECURITY DEFINER" warning for
+  the two functions; nothing new otherwise.
+- Open / next: the Finish operational screen hours per table are fixed in PR #36.
 
 ## 2026-10-21 — Claude — Finish Staff tab: same plan-next-to-actual screen as Sorting
 
