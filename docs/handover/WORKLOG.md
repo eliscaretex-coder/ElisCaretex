@@ -80,6 +80,22 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — Staff tabs: "Covering a leader" saved as a note
+
+- Branch / commits: `claude/staff-cover-note` (Pull Request into `master`).
+- Changed: owner decision 2026-10-21 ("Só nota por enquanto"): covering as Team Leader or
+  Supervisor has no database column yet. The Sorting and Finish Staff tabs get a
+  "Covering a leader" choice (Team Leader or Supervisor, whole shift / from now / from a
+  time) that saves a standard note on today's work session, for example
+  "Covering as Supervisor from 18:30.". The row badge shows it, and later changes from
+  the same screen keep the note because the session notes are replaced on each save.
+- Database: none. No report reads the cover yet; a migration with its own column is
+  needed if the owner wants it reported.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright on Finish with a
+  stubbed client: the step renders, saving sends the note, and a later late-start change
+  keeps it. Sorting uses the same code path; not run in the browser.
+- Open / next: none.
+
 ## 2026-10-21 — Claude — Finish table hours count each table worked after a move
 
 - Branch / commits: `claude/finish-table-hours-after-move` (Pull Request into `master`).

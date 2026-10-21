@@ -1922,6 +1922,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(view.lateMinutes>0)notes.push(`Late ${shortDuration(view.lateMinutes)}`);
     if(view.earlyMinutes>0)notes.push(`Left early ${shortDuration(view.earlyMinutes)}`);
     else if(view.overtimeMinutes>0)notes.push(`Overtime +${shortDuration(view.overtimeMinutes)}`);
+    if(coverBadge(row.notes))notes.push(coverBadge(row.notes));
     if(notes.length)return {label:notes.join(" · "),tone:view.overtimeMinutes>0&&!view.lateMinutes?"overtime":"adjusted"};
     if(row.manual_position)return {label:"Added today",tone:"manual"};
     if(row.adjusted)return {label:"Changed",tone:"adjusted"};
@@ -1971,6 +1972,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).join("")}</div>`;
   }
 
+  // Covering a leader is kept as a standard note (owner decision 2026-10-21), so later changes carry it over.
+  const COVER_NOTE=/Covering as (Team Leader|Supervisor)(?: from \d{1,2}:\d{2})?\./;
+  function coverNote(text){return (COVER_NOTE.exec(String(text||""))||[])[0]||"";}
+  function coverBadge(text){const cover=coverNote(text);return cover?cover.replace("Covering as ","Covering ").replace(/\.$/,""):"";}
+
   const STAFF_CHANGE_ACTIONS=[
     {key:"late",icon:"⏰",title:"Arrived late",hint:"Set the real start time."},
     {key:"early",icon:"🚪",title:"Leaving early",hint:"Close the shift now or at a time."},
@@ -1980,6 +1986,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     {key:"finish",icon:"➜",title:"Went to a Finish table",hint:"Working on a table instead."},
     {key:"break",icon:"☕",title:"Different break",hint:"Longer or shorter break."},
     {key:"away",icon:"⏸",title:"Time away",hint:"Left the area during the shift."},
+    {key:"cover",icon:"★",title:"Covering a leader",hint:"Team Leader or Supervisor today."},
     {key:"full",icon:"✎",title:"Edit all times",hint:"Start, end and break together."}
   ];
 
@@ -2012,7 +2019,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     dialog.addEventListener("input",event=>{
       // Typing a move time means the move starts at that time.
-      if(state.staffChange?.step==="finish"&&event.target.matches('[data-change-field="time"]')){
+      if(["finish","cover"].includes(state.staffChange?.step)&&event.target.matches('[data-change-field="time"]')){
         dialog.querySelectorAll('[data-pick-group="move-from"] [data-staff-change-pick]').forEach(button=>button.classList.toggle("selected",button.dataset.staffChangePick==="TIME"));
         const field=dialog.querySelector('[data-change-field="move-from"]');
         if(field)field.value="TIME";
@@ -2083,6 +2090,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       html=`<h3>Which table is ${esc(row.display_name)} going to?</h3>${tables.length?pickButtons("table",tables.map(table=>({value:table.station_code,label:table.station_name})),""):'<p class="sorting-staff-change-message">No Finish tables are available.</p>'}<p class="sorting-staff-change-label">From what time?</p>${pickButtons("move-from",[{value:"NOW",label:"From now",hint:"Sorting counts until now"},{value:"TIME",label:"From a time",hint:"Choose below"},{value:"START",label:"Whole shift",hint:view.hasActualActivity?"Not possible: has Sorting work today":"Never worked in Sorting today",disabled:view.hasActualActivity}],"NOW")}<label class="sorting-staff-change-time">Moved at<input data-change-field="time" type="time" value="${esc(nowClock())}"></label>${footer("Move to table")}`;
     }else if(step==="break"){
       html=`<h3>How long was the break?</h3>${pickButtons("break",[0,15,30,45,60].map(m=>({value:String(m),label:`${m} min`})),String(view.breakMinutes))}<label class="sorting-staff-change-time">Other (minutes)<input data-change-field="break-other" type="number" min="0" max="240" step="5" placeholder="${esc(view.breakMinutes)}"></label>${footer("Save break")}`;
+    }else if(step==="cover"){
+      html=`<h3>Who is ${esc(row.display_name)} covering?</h3>${pickButtons("role",[{value:"Team Leader",label:"Team Leader"},{value:"Supervisor",label:"Supervisor"}],"Team Leader")}<p class="sorting-staff-change-label">From what time?</p>${pickButtons("move-from",[{value:"START",label:"Whole shift"},{value:"NOW",label:"From now"},{value:"TIME",label:"From a time",hint:"Choose below"}],"START")}<label class="sorting-staff-change-time">Started covering at<input data-change-field="time" type="time" value="${esc(nowClock())}"></label><p class="sorting-staff-change-help">Saved as a note on today's record. The Roster does not change.</p>${footer("Save cover")}`;
     }else if(step==="away"){
       html=`<h3>How long was ${esc(row.display_name)} away?</h3>${pickButtons("away",[15,30,45,60,90,120].map(m=>({value:String(m),label:minutesToLabel(m)})),view.away?String(view.away):"")}<p class="sorting-staff-change-label">Why?</p>${pickButtons("away-reason",[{value:"TRAINING",label:"Training"},{value:"PERSONAL",label:"Personal"},{value:"OTHER",label:"Other",hint:"Write a note"}],["TRAINING","PERSONAL","OTHER"].includes(row.adjustment_reason)?row.adjustment_reason:"")}<p class="sorting-staff-change-help">Not for late start or early leave: those have their own buttons.</p>${footer("Save time away")}`;
     }
@@ -2116,7 +2125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const view=staffDayView(row),step=state.staffChange.step,dialog=document.getElementById("sortingStaffChangeDialog");
     const note=staffChangeValue("note");
     const show=(message,type="error")=>{const target=dialog.querySelector("[data-staff-change-message]");if(target){target.textContent=message;target.className=`sorting-staff-change-message ${type}`;}};
-    const joinNote=(prefix)=>[prefix,note].filter(Boolean).join(" ");
+    const joinNote=(prefix)=>[prefix,coverNote(row.notes),note].filter(Boolean).join(" ");
     const keepAway={p_extra_non_work_minutes:view.away,p_adjustment_reason:view.away>0?String(row.adjustment_reason||"OTHER"):"NONE"};
     const saveTimes=(start,end,keepOpen,extra,notes)=>rpc("save_sorting_staff_actual_v3",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_actual_start_time:start,p_actual_end_time:end||null,p_keep_open:keepOpen,...extra,p_notes:notes||null});
     const checkLength=(start,end)=>{let gross=clockDiff(start,end);if(gross<0)gross+=1440;if(gross<=0)return "Leaving time must be after the start time.";if(gross>780)return "A shift cannot be longer than 13 hours.";return "";};
@@ -2158,6 +2167,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const other=staffChangeValue("break-other"),minutes=Number(other!==""?other:staffChangeValue("break"));
       if(!Number.isInteger(minutes)||minutes<0||minutes>240)return show("Break must be a whole number from 0 to 240 minutes.");
       action=()=>rpc("set_sorting_staff_break_v1",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_break_minutes:minutes});
+    }else if(step==="cover"){
+      const from=staffChangeValue("move-from"),time=from==="NOW"?nowClock():from==="TIME"?staffChangeValue("time"):"";
+      if(from==="TIME"&&!time)return show("Choose the time they started covering.");
+      const cover=`Covering as ${staffChangeValue("role")||"Team Leader"}${time?` from ${time}`:""}.`;
+      if(!view.start)return show("The start time is missing. Use Edit all times.");
+      action=()=>saveTimes(view.start,view.closed?view.end:null,!view.closed,keepAway,[cover,note].filter(Boolean).join(" "));
     }else if(step==="away"){
       const minutes=Number(staffChangeValue("away")),reason=staffChangeValue("away-reason");
       if(!minutes)return show("Choose how long they were away.");
