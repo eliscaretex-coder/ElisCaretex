@@ -80,6 +80,28 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — Finish Staff tab: same plan-next-to-actual screen as Sorting
+
+- Branch / commits: `claude/finish-staff-quick-actions` (Pull Request into `master`).
+- Changed: the owner asked for the Finish Staff tab to look and work like the Sorting
+  one. Each person shows Roster (table and times) next to Today (actual table and times)
+  and Worked, with late start, early leave, overtime, absence and table changes
+  highlighted. "What changed?" offers Arrived late, Leaving early, Staying later, Did not
+  come, Went to another table, Went to Sorting, Different break and Edit all times. Table
+  and Sorting moves ask "From what time?" so the hours split between tables. A locked
+  table (terminal or `?table=`) still shows only its own staff, plus people who moved
+  away from it ("Moved · Table 2 at 18:00") with their hours per table. People who came
+  from Sorting show "From Sorting at HH:MM" and, outside terminals, a Back to Sorting
+  button. Roster rows nobody confirmed are confirmed with the planned start before a
+  move, departure or break change, because those RPCs need a confirmed session.
+- Database: none. Uses the existing Finish RPCs (through their `terminal_*` wrappers)
+  and `restore_sorting_staff_from_finish_table_v2`.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright against a local
+  server with a stubbed Supabase client and the live Finish fixtures: desktop, table-locked
+  and 390 px layouts render; move, arrival, Sorting and break choices send the expected
+  RPCs and parameters. Not tested against the live database.
+- Open / next: the owner's real test on a Finish terminal.
+
 ## 2026-10-21 — Claude — Sorting Staff: move to a Finish Table for part of the shift
 
 - Branch / commits: `claude/sorting-partial-move-to-finish` (Pull Request into `master`).
