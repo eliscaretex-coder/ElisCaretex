@@ -565,6 +565,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(view.earlyMinutes>0)notes.push(`Left early ${shortDuration(view.earlyMinutes)}`);
     else if(view.overtimeMinutes>0)notes.push(`Overtime +${shortDuration(view.overtimeMinutes)}`);
     if(view.segments.length>1)notes.push("Changed table");
+    if(coverBadge(row.actual_notes))notes.push(coverBadge(row.actual_notes));
     if(notes.length)return {label:notes.join(" · "),tone:view.overtimeMinutes>0&&!view.lateMinutes?"overtime":"adjusted"};
     if(row.staff_state==="INCOMING_ACTUAL")return {label:"Added today",tone:"manual"};
     if(view.confirmed)return {label:"Confirmed",tone:"planned"};
@@ -617,6 +618,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).join("")}</div>`;
   }
 
+  // Covering a leader is kept as a standard note (owner decision 2026-10-21), so later changes carry it over.
+  const COVER_NOTE=/Covering as (Team Leader|Supervisor)(?: from \d{1,2}:\d{2})?\./;
+  function coverNote(text){return (COVER_NOTE.exec(String(text||""))||[])[0]||"";}
+  function coverBadge(text){const cover=coverNote(text);return cover?cover.replace("Covering as ","Covering ").replace(/\.$/,""):"";}
+
   const FINISH_STAFF_CHANGE_ACTIONS=[
     {key:"late",icon:"⏰",title:"Arrived late",hint:"Set the real start time."},
     {key:"early",icon:"🚪",title:"Leaving early",hint:"Close the shift now or at a time."},
@@ -625,6 +631,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     {key:"table",icon:"⇄",title:"Went to another table",hint:"Hours split between the tables."},
     {key:"sorting",icon:"➜",title:"Went to Sorting",hint:"Finish counts until the move."},
     {key:"break",icon:"☕",title:"Different break",hint:"Longer or shorter break."},
+    {key:"cover",icon:"★",title:"Covering a leader",hint:"Team Leader or Supervisor today."},
     {key:"full",icon:"✎",title:"Edit all times",hint:"Start, end and break together."}
   ];
 
@@ -657,7 +664,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     dialog.addEventListener("input",event=>{
       // Typing a move time means the move starts at that time.
-      if(["table","sorting"].includes(state.staffChange?.step)&&event.target.matches('[data-change-field="time"]')){
+      if(["table","sorting","cover"].includes(state.staffChange?.step)&&event.target.matches('[data-change-field="time"]')){
         dialog.querySelectorAll('[data-pick-group="move-from"] [data-staff-change-pick]').forEach(button=>button.classList.toggle("selected",button.dataset.staffChangePick==="TIME"));
         const field=dialog.querySelector('[data-change-field="move-from"]');
         if(field)field.value="TIME";
@@ -720,6 +727,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       html=`<h3>Which table is ${esc(row.display_name)} going to?</h3>${pickButtons("table",tables.map(code=>({value:code,label:tableName(code)})),tables.length===1?tables[0]:"")}${moveFrom(view.currentTable?`${tableName(view.currentTable)} counts until now`:"")}${footer("Move to table")}`;
     }else if(step==="sorting"){
       html=`<h3>When did ${esc(row.display_name)} go to Sorting?</h3>${moveFrom("Finish counts until now")}${footer("Move to Sorting")}`;
+    }else if(step==="cover"){
+      html=`<h3>Who is ${esc(row.display_name)} covering?</h3>${pickButtons("role",[{value:"Team Leader",label:"Team Leader"},{value:"Supervisor",label:"Supervisor"}],"Team Leader")}<p class="finish-staff-change-label">From what time?</p>${pickButtons("move-from",[{value:"START",label:"Whole shift"},{value:"NOW",label:"From now"},{value:"TIME",label:"From a time",hint:"Choose below"}],"START")}<label class="finish-staff-change-time">Started covering at<input data-change-field="time" type="time" value="${esc(now)}"></label><p class="finish-staff-change-help">Saved as a note on today's record. The Roster does not change.</p>${footer("Save cover")}`;
     }else if(step==="break"){
       html=`<h3>How long was the break?</h3>${pickButtons("break",[0,15,30,45,60].map(m=>({value:String(m),label:`${m} min`})),String(view.breakMinutes))}<label class="finish-staff-change-time">Other (minutes)<input data-change-field="break-other" type="number" min="0" max="240" step="5" placeholder="${esc(view.breakMinutes)}"></label>${footer("Save break")}`;
     }
@@ -753,7 +762,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const view=finishDayView(row),step=state.staffChange.step,dialog=document.getElementById("finishStaffChangeDialog");
     const note=staffChangeValue("note");
     const show=(message,type="error")=>{const target=dialog.querySelector("[data-staff-change-message]");if(target){target.textContent=message;target.className=`finish-staff-change-message ${type}`;}};
-    const joinNote=(prefix)=>[prefix,note].filter(Boolean).join(" ");
+    const joinNote=(prefix)=>[prefix,coverNote(row.actual_notes),note].filter(Boolean).join(" ");
     const table=view.currentTable||state.lockedTable||"";
     const base={p_staff_id:row.staff_id,p_shift_code:state.shift};
     const checkLength=(start,end)=>{const gross=shiftMinutes(start,end);if(!gross)return "Leaving time must be after the start time.";if(gross>780)return "A shift cannot be longer than 13 hours.";return "";};
@@ -800,6 +809,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const from=staffChangeValue("move-from"),time=moveTime();
       if(from==="TIME"&&!time)return show("Choose the time they moved.");
       action=async()=>{await ensureConfirmed();return rpc("move_finish_staff_to_sorting_v1",{...base,p_from_table_code:table,p_move_time:time,p_notes:note||null});};
+    }else if(step==="cover"){
+      const from=staffChangeValue("move-from"),time=from==="NOW"?localTimeNow():from==="TIME"?staffChangeValue("time"):"";
+      if(from==="TIME"&&!time)return show("Choose the time they started covering.");
+      const cover=`Covering as ${staffChangeValue("role")||"Team Leader"}${time?` from ${time}`:""}.`;
+      action=()=>saveTimes(view.start,view.closed?view.end:null,[cover,note].filter(Boolean).join(" "));
     }else if(step==="break"){
       const other=staffChangeValue("break-other"),minutes=Number(other!==""?other:staffChangeValue("break"));
       if(!Number.isInteger(minutes)||minutes<0||minutes>240)return show("Break must be a whole number from 0 to 240 minutes.");
