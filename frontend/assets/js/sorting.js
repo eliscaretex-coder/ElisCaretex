@@ -1884,6 +1884,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // One view of a Sorting staff row: what the Roster planned and what really happened today.
   function staffDayView(row){
     const movedOut=row.attendance_status==="MOVED"||row.actual_in_sorting===false;
+    const partialMove=movedOut&&Boolean(row.partial_area_transfer);
     const confirmedAbsent=row.attendance_status==="ABSENT";
     const autoAbsent=row.attendance_status==="AUTO_ABSENT";
     const absent=confirmedAbsent||autoAbsent;
@@ -1897,12 +1898,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const workMode=row.work_mode==="MOP"?"MOP":"CLOTHES";
     const perf=row.performance||{};
     return {
-      row,movedOut,confirmedAbsent,autoAbsent,absent,unavailable:absent||movedOut,
+      row,movedOut,partialMove,confirmedAbsent,autoAbsent,absent,unavailable:absent||(movedOut&&!partialMove),
       training:confirmedAbsent&&row.absence_reason==="TRAINING",
       plannedStart,plannedEnd,start,end,closed,workMode,
       plannedLabel:row.planned_schedule_label||(plannedStart&&plannedEnd?`${plannedStart}-${plannedEnd}`:"Published weekly schedule"),
       lateMinutes:plannedStart&&start?Math.max(0,clockDiff(plannedStart,start)):0,
-      earlyMinutes:closed&&plannedEnd?Math.max(0,clockDiff(recordedEnd,plannedEnd)):0,
+      earlyMinutes:closed&&plannedEnd&&!partialMove?Math.max(0,clockDiff(recordedEnd,plannedEnd)):0,
       overtimeMinutes:Math.max(0,Number(row.variance_minutes||0)),
       away:Number(row.extra_non_work_minutes||0),
       breakMinutes:Number(row.standard_break_minutes??state.staffWork?.work_profile?.break_minutes??0),
@@ -1913,7 +1914,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function staffDayStatus(view){
     const {row}=view;
-    if(view.movedOut)return {label:`Moved · ${row.actual_area_name||titleCode(row.actual_area_code)||"Other area"}`,tone:"moved"};
+    if(view.movedOut)return {label:`Moved · ${row.actual_area_name||titleCode(row.actual_area_code)||"Other area"}${row.area_transfer_at&&view.partialMove?` at ${row.area_transfer_at}`:""}`,tone:"moved"};
     if(view.training)return {label:"Training",tone:"absent"};
     if(view.confirmedAbsent)return {label:`Absent · ${titleCode(row.absence_reason||"OTHER")}`,tone:"absent"};
     if(view.autoAbsent)return {label:"No activity · check",tone:"absent"};
@@ -1945,7 +1946,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.staffWorkList.innerHTML=`<div class="sorting-staff-day-list">${rows.map(row=>{
       const view=staffDayView(row),status=staffDayStatus(view);
       const plannedPosition=plannedPositionLabel(row)||"Sorting Area";
-      const actualPosition=view.movedOut?(row.actual_area_name||titleCode(row.actual_area_code)||"Other area"):(view.workMode==="MOP"?"MOP":"Clothes");
+      const actualPosition=view.partialMove?`${view.workMode==="MOP"?"MOP":"Clothes"}, then ${row.actual_area_name||"Finish"}`:view.movedOut?(row.actual_area_name||titleCode(row.actual_area_code)||"Other area"):(view.workMode==="MOP"?"MOP":"Clothes");
       const positionChanged=view.movedOut||Boolean(row.manual_position)||Boolean(row.work_mode_changed);
       const startClass=view.lateMinutes>0?" changed":"";
       const endClass=view.earlyMinutes>0||view.overtimeMinutes>0?" changed":"";
@@ -2009,7 +2010,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const save=event.target.closest("[data-staff-change-save]");
       if(save&&!save.disabled)await saveStaffChange(save);
     });
-    dialog.addEventListener("input",updateStaffChangePreview);
+    dialog.addEventListener("input",event=>{
+      // Typing a move time means the move starts at that time.
+      if(state.staffChange?.step==="finish"&&event.target.matches('[data-change-field="time"]')){
+        dialog.querySelectorAll('[data-pick-group="move-from"] [data-staff-change-pick]').forEach(button=>button.classList.toggle("selected",button.dataset.staffChangePick==="TIME"));
+        const field=dialog.querySelector('[data-change-field="move-from"]');
+        if(field)field.value="TIME";
+      }
+      updateStaffChangePreview();
+    });
     dialog.addEventListener("close",()=>{state.staffChange=null;});
     return dialog;
   }
@@ -2071,7 +2080,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       try{const options=await loadNoWorkOptions();tables=Array.isArray(options?.finish_tables)?options.finish_tables:[];}
       catch(error){console.error(error);body.innerHTML=`<p class="sorting-staff-change-message">${esc(friendly(error))}</p><footer><button type="button" class="sorting-secondary-button" data-staff-change-back>Back</button></footer>`;return;}
       if(state.staffChange?.step!=="finish")return;
-      html=`<h3>Which table is ${esc(row.display_name)} going to?</h3>${tables.length?pickButtons("table",tables.map(table=>({value:table.station_code,label:table.station_name})),""):'<p class="sorting-staff-change-message">No Finish tables are available.</p>'}${footer("Move to table")}`;
+      html=`<h3>Which table is ${esc(row.display_name)} going to?</h3>${tables.length?pickButtons("table",tables.map(table=>({value:table.station_code,label:table.station_name})),""):'<p class="sorting-staff-change-message">No Finish tables are available.</p>'}<p class="sorting-staff-change-label">From what time?</p>${pickButtons("move-from",[{value:"NOW",label:"From now",hint:"Sorting counts until now"},{value:"TIME",label:"From a time",hint:"Choose below"},{value:"START",label:"Whole shift",hint:view.hasActualActivity?"Not possible: has Sorting work today":"Never worked in Sorting today",disabled:view.hasActualActivity}],"NOW")}<label class="sorting-staff-change-time">Moved at<input data-change-field="time" type="time" value="${esc(nowClock())}"></label>${footer("Move to table")}`;
     }else if(step==="break"){
       html=`<h3>How long was the break?</h3>${pickButtons("break",[0,15,30,45,60].map(m=>({value:String(m),label:`${m} min`})),String(view.breakMinutes))}<label class="sorting-staff-change-time">Other (minutes)<input data-change-field="break-other" type="number" min="0" max="240" step="5" placeholder="${esc(view.breakMinutes)}"></label>${footer("Save break")}`;
     }else if(step==="away"){
@@ -2094,6 +2103,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(step==="late"&&time&&view.plannedStart){const diff=clockDiff(view.plannedStart,time);text=diff>0?`Planned ${view.plannedStart}. Started ${shortDuration(diff)} late.`:`Planned ${view.plannedStart}. This is not a late start.`;}
     if(step==="early"&&time&&view.plannedEnd){const diff=clockDiff(time,view.plannedEnd);text=diff>0?`Planned until ${view.plannedEnd}. Leaving ${shortDuration(diff)} early.`:`Planned until ${view.plannedEnd}.`;}
     if(step==="overtime"&&time&&view.plannedEnd){const diff=clockDiff(view.plannedEnd,time);text=diff>0?`Planned until ${view.plannedEnd}. Overtime +${shortDuration(diff)}.`:`This is not later than the planned end (${view.plannedEnd}).`;}
+    if(step==="finish"){
+      const from=staffChangeValue("move-from"),moved=from==="NOW"?nowClock():from==="TIME"?time:"";
+      text=from==="START"?"The whole shift counts in Finish.":moved&&view.start?`Sorting counts ${view.start}–${moved}. Finish counts from ${moved}.`:"";
+    }
     preview.textContent=text;
   }
 
@@ -2136,9 +2149,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if(!reason)return show("Choose why the job changed.");
       action=()=>rpc("set_sorting_staff_work_mode",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_work_mode:mode,p_reason:reason});
     }else if(step==="finish"){
-      const table=staffChangeValue("table");
+      const table=staffChangeValue("table"),from=staffChangeValue("move-from");
       if(!table)return show("Choose the Finish table.");
-      action=()=>rpc("move_sorting_staff_to_finish_table_v1",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_target_table_code:table,p_notes:note||null});
+      const time=from==="NOW"?nowClock():from==="TIME"?staffChangeValue("time"):null;
+      if(from==="TIME"&&!time)return show("Choose the time they moved.");
+      action=()=>rpc("move_sorting_staff_to_finish_table_v2",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_target_table_code:table,p_move_time:time,p_notes:note||null});
     }else if(step==="break"){
       const other=staffChangeValue("break-other"),minutes=Number(other!==""?other:staffChangeValue("break"));
       if(!Number.isInteger(minutes)||minutes<0||minutes>240)return show("Break must be a whole number from 0 to 240 minutes.");
@@ -2408,7 +2423,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!accepted)return;
     try{
       const restoreRpc=String(row.actual_area_code||"").toUpperCase()==="FINISH"
-        ? "restore_sorting_staff_from_finish_table_v1"
+        ? "restore_sorting_staff_from_finish_table_v2"
         : "restore_sorting_staff_actual_area";
       const result=await rpc(restoreRpc,{
         p_shift_code:state.shift,
