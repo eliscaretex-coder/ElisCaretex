@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — Finish table hours count each table worked after a move
+
+- Branch / commits: `claude/finish-table-hours-after-move` (Pull Request into `master`).
+- Changed: owner test moved a person from Table 1 to Table 2 at 19:32; Table 1 showed
+  31.33 staff hours (only the four who stayed) and Table 2 counted the whole shift. The
+  main Finish screen now splits each person by `table_segments`, sharing the break by the
+  time on each table (same rule as Finish Results in PR #35 and the Sorting partial move),
+  and counts the Finish part of someone who moved to Sorting on their planned table.
+  Second fix: a Finish session created from the new Staff tab started with a 0 min break,
+  because `upsert_finish_staff_actual` does not set it; the planned break is now saved
+  right after.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright with the owner's
+  test data: before 31.33 h (Table 1) / 39.67 h (Table 2); after 35.87 h / 35.13 h with the
+  saved 0 min break, 35.59 h / 34.91 h with a 30 min break.
+- Open / next: Lena Banut's test session of 2026-10-21 has a 0 min break; it goes with the
+  test-data cleanup.
+
 ## 2026-10-21 — Claude — Finish Staff tab: same plan-next-to-actual screen as Sorting
 
 - Branch / commits: `claude/finish-staff-quick-actions` (Pull Request into `master`).

@@ -191,9 +191,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     rows.forEach(row=>{const full=staffFullHours(row);if(full<=0)return;const start=timeMinutes(row.effective_start_time),endRaw=timeMinutes(row.effective_end_time);if(start==null)return;if(endRaw==null){let nowRel=nowBase;if(nowRel<start)nowRel+=1440;const elapsed=Math.max(0,nowRel-start),br=Math.max(0,Number(row.break_minutes||0)+Number(row.extra_non_work_minutes||0));total+=Math.min(full,Math.max(0,elapsed-br)/60);return;}let end=endRaw;if(end<start)end+=1440;let nowRel=nowBase;if(end>=1440&&nowRel<(end-1440))nowRel+=1440;const span=Math.max(0,end-start);if(!span)return;const elapsed=Math.max(0,Math.min(span,nowRel-start));total+=full*(elapsed/span);});
     const cap=Number(fallbackFullHours||0);if(cap>0)total=Math.min(total,cap);return Number(total.toFixed(2));
   }
+  // Splits a staff row into one piece per table worked, so a timed move counts on both tables.
+  // The break is shared in proportion to the time on each table, as in the Sorting partial move.
+  function tableWorkPieces(row){
+    const piece=(table,start,end,share)=>({...row,table_code:table,effective_start_time:start,effective_end_time:end,break_minutes:Number(row.break_minutes||0)*share,extra_non_work_minutes:Number(row.extra_non_work_minutes||0)*share});
+    const total=shiftMinutes(row.effective_start_time,row.effective_end_time);
+    if(row.staff_state==="ACTUAL_ELSEWHERE"){
+      // Moved to Sorting: the Finish part runs from the shift start to the move.
+      const moved=timeText(row.actual_start_at),span=shiftMinutes(row.effective_start_time,moved);
+      if(row.attendance_status==="ABSENT"||!row.planned_table_code||!moved||!total||!span||span>=total)return [];
+      return [piece(row.planned_table_code,row.effective_start_time,moved,span/total)];
+    }
+    if(row.actual_in_finish===false||!row.effective_table_code)return [];
+    const segments=row.table_segments||[];
+    if(segments.length<2||!total)return [piece(row.effective_table_code,row.effective_start_time,row.effective_end_time,1)];
+    return segments.map((segment,index)=>{const start=index===0?row.effective_start_time:timeText(segment.started_at),end=segment.ended_at?timeText(segment.ended_at):row.effective_end_time,span=shiftMinutes(start,end)||0;return span?piece(segment.table_code,start,end,span/total):null;}).filter(Boolean);
+  }
   function calculateTableMetrics(){
-    state.tableMetrics.clear();const target=Number(state.staffData?.target_kg_per_staff_hour||23.5),businessDate=state.staffData?.business_date,staff=(state.staffData?.staff||[]).filter(s=>s.actual_in_finish!==false&&s.effective_table_code);
-    (state.staffData?.tables||[]).forEach(table=>{const rows=staff.filter(s=>s.effective_table_code===table.table_code),fullHours=rows.reduce((sum,row)=>sum+staffFullHours(row),0),nowHours=currentStaffHours(rows,businessDate,fullHours),produced=Number(table.produced_kg||0),planned=fullHours*target,targetNow=nowHours*target;state.tableMetrics.set(table.table_code,{...table,staff_count:rows.length,staff_hours:fullHours,current_staff_hours:nowHours,planned_kg:planned,target_now_kg:targetNow,difference_kg:produced-targetNow,efficiency_percent:planned>0?produced/planned*100:null,kg_per_staff_hour:fullHours>0?produced/fullHours:null,target_kg_per_staff_hour:target});});
+    state.tableMetrics.clear();const target=Number(state.staffData?.target_kg_per_staff_hour||23.5),businessDate=state.staffData?.business_date,pieces=(state.staffData?.staff||[]).flatMap(tableWorkPieces);
+    (state.staffData?.tables||[]).forEach(table=>{const rows=pieces.filter(s=>s.table_code===table.table_code),fullHours=rows.reduce((sum,row)=>sum+staffFullHours(row),0),nowHours=currentStaffHours(rows,businessDate,fullHours),produced=Number(table.produced_kg||0),planned=fullHours*target,targetNow=nowHours*target;state.tableMetrics.set(table.table_code,{...table,staff_count:new Set(rows.map(row=>row.staff_id)).size,staff_hours:fullHours,current_staff_hours:nowHours,planned_kg:planned,target_now_kg:targetNow,difference_kg:produced-targetNow,efficiency_percent:planned>0?produced/planned*100:null,kg_per_staff_hour:fullHours>0?produced/fullHours:null,target_kg_per_staff_hour:target});});
   }
   function renderMetrics(){
     calculateTableMetrics();
@@ -742,9 +758,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const base={p_staff_id:row.staff_id,p_shift_code:state.shift};
     const checkLength=(start,end)=>{const gross=shiftMinutes(start,end);if(!gross)return "Leaving time must be after the start time.";if(gross>780)return "A shift cannot be longer than 13 hours.";return "";};
     // Times after a table move go through the correction RPC so earlier table hours stay put.
-    const saveTimes=(start,end,reason)=>rpc(view.segments.length>1?"correct_finish_staff_time_v1":"upsert_finish_staff_actual",{...base,p_table_code:table,p_start_time:start,p_end_time:end||null,p_reason:reason||null});
+    // A new Finish session starts with a 0 min break, so the planned break is saved with it.
+    const createSession=async(tableCode,start,end,reason)=>{const result=await rpc("upsert_finish_staff_actual",{...base,p_table_code:tableCode,p_start_time:start,p_end_time:end||null,p_reason:reason||null});await rpc("set_finish_staff_break_v1",{...base,p_table_code:tableCode,p_break_minutes:view.breakMinutes});return result;};
+    const saveTimes=(start,end,reason)=>view.confirmed?rpc(view.segments.length>1?"correct_finish_staff_time_v1":"upsert_finish_staff_actual",{...base,p_table_code:table,p_start_time:start,p_end_time:end||null,p_reason:reason||null}):createSession(table,start,end,reason);
     // Roster rows that nobody confirmed yet are confirmed with the planned start first.
-    const ensureConfirmed=async()=>{if(!view.confirmed)await rpc("upsert_finish_staff_actual",{...base,p_table_code:table,p_start_time:view.plannedStart||view.start,p_end_time:null,p_reason:"Confirmed as planned."});};
+    const ensureConfirmed=async()=>{if(!view.confirmed)await createSession(table,view.plannedStart||view.start,null,"Confirmed as planned.");};
     const moveTime=()=>{const from=staffChangeValue("move-from");return from==="NOW"?localTimeNow():from==="TIME"?staffChangeValue("time"):null;};
     if(!table&&!["absent","table"].includes(step))return show("Choose their table first with Went to another table.");
     let action;
@@ -776,7 +794,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const target=staffChangeValue("table"),from=staffChangeValue("move-from"),time=moveTime();
       if(!target)return show("Choose the table.");
       if(from==="TIME"&&!time)return show("Choose the time they moved.");
-      if(from==="START"||!table)action=()=>rpc("upsert_finish_staff_actual",{...base,p_table_code:target,p_start_time:view.plannedStart||view.start,p_end_time:null,p_reason:joinNote(`Working on ${tableName(target)} today.`)});
+      if(from==="START"||!table)action=()=>createSession(target,view.plannedStart||view.start,null,joinNote(`Working on ${tableName(target)} today.`));
       else action=async()=>{await ensureConfirmed();return rpc("move_finish_staff_table_v1",{...base,p_from_table_code:table,p_to_table_code:target,p_move_time:time,p_notes:note||null});};
     }else if(step==="sorting"){
       const from=staffChangeValue("move-from"),time=moveTime();
