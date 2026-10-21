@@ -371,7 +371,7 @@ async function loadRoster() {
     ROSTER_VIEW.authenticated = true;
     ROSTER_VIEW.data = await portalRpc("get_my_account_roster_portal");
     const managementView = Boolean(ROSTER_VIEW.data?.management_view || ROSTER_VIEW.data?.administrator_view);
-    document.querySelector("h1").textContent = managementView ? "Published Roster" : "My Roster";
+    document.querySelector("h1").textContent = managementView ? "Published Production Roster" : "My Production Roster";
     nodes.search.closest(".rv-search-wrap").hidden = !managementView;
     nodes.leaveButton.hidden = managementView;
     if (managementView) nodes.pubInfo.textContent = "Management view · all published Production staff";

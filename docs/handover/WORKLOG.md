@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — My Roster renamed to My Production Roster
+
+- Branch / commits: `claude/my-production-roster-name`, Pull Request into `master`
+- Changed: the employee production roster screen is now called "My Production Roster"
+  (sidebar, page title, heading) so it reads in parallel with "My Driver Roster". The
+  management view heading is "Published Production Roster". The URL
+  (`pages/roster-view.html`) and the navigation id `my-roster` are unchanged, so links and
+  notification deep links keep working. Cache version of `app-shell-policy.js` bumped on
+  every page.
+- Database: none. The permission catalogue (`application_modules.module_name` for
+  `MY_ROSTER`) and RPC error messages still say "My Roster".
+- Validation: `node scripts/validate-repository.mjs` passed. Not tested in a browser.
+- Open / next: if the owner wants the Accounts & Access label renamed too, add a migration
+  updating `application_modules.module_name` for `MY_ROSTER`.
+
 ## 2026-10-20 — Claude — Sorting MOP: up to two staff per day
 
 - Branch / commits: `claude/sorting-mop-two-staff`, Pull Request into `master`.

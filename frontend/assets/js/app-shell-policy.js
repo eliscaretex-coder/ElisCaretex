@@ -166,7 +166,7 @@
       href: "./index.html", icon: "home", group: "Home"
     },
     {
-      id: "my-roster", label: "My Roster", description: "My published schedule and leave requests",
+      id: "my-roster", label: "My Production Roster", description: "My published production schedule and leave requests",
       href: "./pages/roster-view.html", icon: "myRoster", group: "My work",
       permission: NAVIGATION_PERMISSIONS.MY_ROSTER
     },
