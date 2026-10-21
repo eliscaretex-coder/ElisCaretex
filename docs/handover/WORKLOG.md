@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-10-21 — Claude — Sorting Staff tab: plan next to actual, one-tap changes
+
+- Branch / commits: `claude/sorting-staff-quick-actions` (Pull Request into `master`).
+- Changed: the Sorting Staff tab shows each person as Roster (plan) next to Today (actual),
+  with late start, early leave and overtime highlighted. A "What changed?" button opens
+  plain choices: Arrived late, Leaving early, Staying later, Did not come, Clothes / MOP,
+  Went to a Finish table, Different break, Time away, Edit all times. Each choice is one
+  short step with "Now" and preset time chips and no browser prompts. "Add staff
+  manually" is now "Add someone to Sorting". The full edit dialog shows planned times.
+- Database: none. The new screen calls the existing RPCs (`save_sorting_staff_actual_v3`,
+  `set_sorting_staff_attendance`, `set_sorting_staff_work_mode`,
+  `move_sorting_staff_to_finish_table_v1`, `set_sorting_staff_break_v1`,
+  `restore_sorting_staff_*`, `cancel_sorting_actual_staff`), so Actuals, production per
+  person, the two-MOP rule and reports read the same data as before.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright against a local
+  server with a stubbed Supabase client: desktop and 390 px layouts render; every choice
+  sends the expected RPC and parameters. Not tested against the live database.
+- Open / next: covering as Team Leader or Supervisor has no Actual record in the database
+  yet; it needs a migration and owner approval.
+
 ## 2026-10-21 — Claude — Urgent trolley checks for Managers and Distribution
 
 - Branch / commits: `claude/trolley-check-urgent-alert`, Pull Request into `master`.

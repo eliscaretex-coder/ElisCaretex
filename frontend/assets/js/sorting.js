@@ -1850,52 +1850,320 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).join("");
   }
 
+  function clockMinutes(value){
+    const match=/^(\d{1,2}):(\d{2})/.exec(String(value||""));
+    return match?Number(match[1])*60+Number(match[2]):null;
+  }
+
+  function clockDiff(from,to){
+    const a=clockMinutes(from),b=clockMinutes(to);
+    if(a===null||b===null)return 0;
+    let diff=b-a;
+    if(diff>720)diff-=1440;
+    if(diff<-720)diff+=1440;
+    return diff;
+  }
+
+  function clockShift(value,minutes){
+    const base=clockMinutes(value);
+    if(base===null)return "";
+    const total=((base+minutes)%1440+1440)%1440;
+    return `${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`;
+  }
+
+  function shortDuration(minutes){
+    const value=Math.max(0,Math.round(Number(minutes||0)));
+    return value<60?`${value} min`:minutesToLabel(value);
+  }
+
+  function nowClock(){
+    const now=new Date();
+    return `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  }
+
+  // One view of a Sorting staff row: what the Roster planned and what really happened today.
+  function staffDayView(row){
+    const movedOut=row.attendance_status==="MOVED"||row.actual_in_sorting===false;
+    const confirmedAbsent=row.attendance_status==="ABSENT";
+    const autoAbsent=row.attendance_status==="AUTO_ABSENT";
+    const absent=confirmedAbsent||autoAbsent;
+    const plannedStart=row.planned_start_time?fmtTime(row.planned_start_time):"";
+    const plannedEnd=row.planned_end_time?fmtTime(row.planned_end_time):"";
+    const recordedStart=row.actual_start_time?fmtTime(row.actual_start_time):"";
+    const recordedEnd=row.actual_end_time?fmtTime(row.actual_end_time):"";
+    const start=recordedStart||plannedStart;
+    const end=recordedEnd||plannedEnd;
+    const closed=Boolean(row.work_session_id&&row.actual_end_time);
+    const workMode=row.work_mode==="MOP"?"MOP":"CLOTHES";
+    const perf=row.performance||{};
+    return {
+      row,movedOut,confirmedAbsent,autoAbsent,absent,unavailable:absent||movedOut,
+      training:confirmedAbsent&&row.absence_reason==="TRAINING",
+      plannedStart,plannedEnd,start,end,closed,workMode,
+      plannedLabel:row.planned_schedule_label||(plannedStart&&plannedEnd?`${plannedStart}-${plannedEnd}`:"Published weekly schedule"),
+      lateMinutes:plannedStart&&start?Math.max(0,clockDiff(plannedStart,start)):0,
+      earlyMinutes:closed&&plannedEnd?Math.max(0,clockDiff(recordedEnd,plannedEnd)):0,
+      overtimeMinutes:Math.max(0,Number(row.variance_minutes||0)),
+      away:Number(row.extra_non_work_minutes||0),
+      breakMinutes:Number(row.standard_break_minutes??state.staffWork?.work_profile?.break_minutes??0),
+      hasActualActivity:Boolean(row.has_actual_operational_activity)||Number(perf.total_loads||0)>0||Number(row.trolley_intake_count||0)>0,
+      perf
+    };
+  }
+
+  function staffDayStatus(view){
+    const {row}=view;
+    if(view.movedOut)return {label:`Moved · ${row.actual_area_name||titleCode(row.actual_area_code)||"Other area"}`,tone:"moved"};
+    if(view.training)return {label:"Training",tone:"absent"};
+    if(view.confirmedAbsent)return {label:`Absent · ${titleCode(row.absence_reason||"OTHER")}`,tone:"absent"};
+    if(view.autoAbsent)return {label:"No activity · check",tone:"absent"};
+    const notes=[];
+    if(view.lateMinutes>0)notes.push(`Late ${shortDuration(view.lateMinutes)}`);
+    if(view.earlyMinutes>0)notes.push(`Left early ${shortDuration(view.earlyMinutes)}`);
+    else if(view.overtimeMinutes>0)notes.push(`Overtime +${shortDuration(view.overtimeMinutes)}`);
+    if(notes.length)return {label:notes.join(" · "),tone:view.overtimeMinutes>0&&!view.lateMinutes?"overtime":"adjusted"};
+    if(row.manual_position)return {label:"Added today",tone:"manual"};
+    if(row.adjusted)return {label:"Changed",tone:"adjusted"};
+    return {label:"As planned",tone:"planned"};
+  }
+
   function renderStaffWork(){
     const rows=Array.isArray(state.staffWork?.staff)?state.staffWork.staff:[];
     if(!el.staffWorkList)return;
     if(el.staffCount)el.staffCount.textContent=`${rows.length} staff`;
     const profile=state.staffWork?.work_profile;
-    const targets=state.staffWork?.performance_targets||{};
     const autoAbsence=state.staffWork?.auto_absence||{};
     if(el.staffScheduleNote){
-      const schedule=profile?.schedule_label?`${profile.schedule_label} · break ${Number(profile.break_minutes||0)} min.`:"Published weekly schedule.";
-      const auto=autoAbsence.cutoff_reached?" Staff without activity after the normal end are marked Auto absent.":"";
-      el.staffScheduleNote.textContent=`Roster is Planned; this page records Actual. Standard schedule: ${schedule}${auto} Clothes target ${Number(targets.clothes_kg_hr||160)} kg/hr · MOP reference ${Number(targets.mop_kg_hr||100)} kg/hr.`;
+      const schedule=profile?.schedule_label?`Standard ${profile.schedule_label}, break ${Number(profile.break_minutes||0)} min.`:"";
+      const auto=autoAbsence.cutoff_reached?" Staff with no activity after the normal end show No activity: confirm if they worked.":"";
+      el.staffScheduleNote.textContent=`Roster shows the plan. Today shows what really happened. Tap What changed? when someone is late, leaves early, is absent or changes job. ${schedule}${auto}`.trim();
     }
     if(!rows.length){
-      el.staffWorkList.innerHTML='<div class="sorting-empty">No staff are currently shown in Sorting for this shift. Use Add staff manually when the actual position changed.</div>';
+      el.staffWorkList.innerHTML='<div class="sorting-empty">No staff are shown in Sorting for this shift. Use Add someone to Sorting when a person comes from a table or is not on the Roster.</div>';
       return;
     }
-    el.staffWorkList.innerHTML=`<div class="sorting-staff-simple-table"><table><thead><tr><th>Staff</th><th>Planned</th><th>Actual position</th><th>Sorting time</th><th>Worked</th><th>Output</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(row=>{
-      const movedOut=row.attendance_status==="MOVED"||row.actual_in_sorting===false;
-      const confirmedAbsent=row.attendance_status==="ABSENT";
-      const autoAbsent=row.attendance_status==="AUTO_ABSENT";
-      const absent=confirmedAbsent||autoAbsent;
-      const unavailable=absent||movedOut;
-      const training=confirmedAbsent&&row.absence_reason==="TRAINING";
-      const editing=false;
-      const actualStart=row.actual_start_time?fmtTime(row.actual_start_time):"";
-      const actualEnd=row.actual_end_time?fmtTime(row.actual_end_time):"";
-      const plannedLabel=row.planned_schedule_label||(row.planned_start_time&&row.planned_end_time?`${fmtTime(row.planned_start_time)}-${fmtTime(row.planned_end_time)}`:"Published weekly schedule");
-      const workMode=row.work_mode==="MOP"?"MOP":"CLOTHES";
-      const plannedMode=row.planned_work_mode==="MOP"?"MOP":row.planned_work_mode==="CLOTHES"?"CLOTHES":"No dedicated MOP";
-      const away=Number(row.extra_non_work_minutes||0),awayHours=Math.floor(away/60),awayMinutes=away%60,breakMinutes=Number(row.standard_break_minutes??state.staffWork?.work_profile?.break_minutes??0);
-      const perf=row.performance||{};
-      const hasActualActivity=Boolean(row.has_actual_operational_activity)||Number(perf.total_loads||0)>0||Number(row.trolley_intake_count||0)>0;
-      const overtime=Math.max(0,Number(row.variance_minutes||0));
-      const attendanceLabel=movedOut?`Moved · ${row.actual_area_name||row.actual_area_code||"Other area"}`:training?"Training":confirmedAbsent?`Absent · ${titleCode(row.absence_reason||"OTHER")}`:autoAbsent?"Auto absent":row.manual_position?"Manual Actual":overtime>0?`Overtime +${minutesToLabel(overtime)}`:row.adjusted?"Adjusted":"As planned";
-      const stateClass=movedOut?"moved":absent?"absent":row.manual_position?"manual":overtime>0?"overtime":row.adjusted?"adjusted":"planned";
-      const actualPosition=movedOut?(row.actual_area_name||titleCode(row.actual_area_code)||"Other area"):(workMode==="MOP"?"MOP":"Clothes");
-      const timeDisplay=unavailable?"Not counted":actualStart&&actualEnd?`${actualStart} - ${actualEnd}`:plannedLabel;
-      const worked=unavailable?"0h 00m":minutesToLabel(row.net_work_minutes);
-      let actions="";
-      if(movedOut)actions=`<button class="sorting-finish-staff-action" data-return-sorting="${esc(row.staff_id)}" type="button">Return to Sorting</button>`;
-      else if(confirmedAbsent)actions=`<button class="sorting-finish-staff-action" data-mark-present="${esc(row.staff_id)}" type="button">Confirm arrived</button>`;
-      else if(autoAbsent)actions=`<button class="sorting-finish-staff-action" data-mark-present="${esc(row.staff_id)}" type="button">Confirm</button><button class="sorting-finish-staff-action danger-outline" data-no-work="${esc(row.staff_id)}" type="button">No Work</button>`;
-      else actions=`${hasActualActivity?"":`<button class="sorting-finish-staff-action danger-outline" data-no-work="${esc(row.staff_id)}" type="button">No Work</button>`}<button class="sorting-finish-staff-action" data-edit-staff-work="${esc(row.staff_id)}" type="button">${editing?"Editing":"Edit"}</button><button class="sorting-finish-staff-action" data-change-work-mode="${esc(row.staff_id)}" data-work-mode="${workMode==="MOP"?"CLOTHES":"MOP"}" type="button">${workMode==="MOP"?"Clothes":"Set MOP"}</button>${row.manual_position?`<button class="sorting-finish-staff-action danger-outline" data-cancel-manual-staff="${esc(row.work_session_id)}" type="button">Remove</button>`:""}`;
-      const editor=editing?`<tr class="sorting-staff-editor-row" data-staff-work="${esc(row.staff_id)}"><td colspan="8"><div class="sorting-staff-table-editor"><div><strong>Actual clock times</strong><small>Set a later leaving time for overtime. Time away is only for an interruption during the shift.</small></div><div class="sorting-clock-time-grid"><label>Started at<input data-work-field="start" type="time" value="${esc(actualStart)}"></label><label>Leaving at<input data-work-field="end" type="time" value="${esc(actualEnd)}"></label><label>Break (minutes)<input data-work-field="break" type="number" min="0" max="240" step="5" value="${breakMinutes}"></label></div><label class="sorting-time-away-toggle"><input data-work-field="away-enabled" type="checkbox"${away>0?" checked":""}><span><strong>Add time away</strong><small>Do not use this for late arrival, early leave or overtime.</small></span></label><div class="sorting-time-away-panel${away>0?"":" hidden"}" data-time-away-panel><fieldset class="sorting-time-away-field"><legend>Time away</legend><label>Hours<input data-work-field="away-hours" type="number" min="0" max="12" step="1" value="${awayHours}"></label><label>Minutes<input data-work-field="away-minutes" type="number" min="0" max="59" step="5" value="${awayMinutes}"></label></fieldset><label>Reason<select data-work-field="reason"><option value="NONE">Choose...</option><option value="TRAINING"${row.adjustment_reason==="TRAINING"?" selected":""}>Training</option><option value="PERSONAL"${row.adjustment_reason==="PERSONAL"?" selected":""}>Personal</option><option value="OTHER"${row.adjustment_reason==="OTHER"?" selected":""}>Other</option></select></label></div><div class="sorting-staff-table-editor-footer"><label>Notes<input data-work-field="notes" maxlength="1000" value="${esc(row.notes||"")}" placeholder="Optional operational note"></label><div><strong>${worked}</strong><small>Effective worked time</small></div><button class="sorting-secondary-button" data-cancel-staff-edit="${esc(row.staff_id)}" type="button">Close</button><button class="sorting-primary-button" data-save-staff-work="${esc(row.staff_id)}" type="button">Save time</button></div></div></td></tr>`:"";
-      return `<tr class="${unavailable?"is-unavailable":""}" data-staff-work="${esc(row.staff_id)}"><td><strong>${esc(row.display_name)}</strong><small>${esc(workMode)}${row.work_mode_changed?` · changed from ${esc(plannedMode)}`:""}</small></td><td><b>${esc(plannedPositionLabel(row)||"Sorting Area")}</b><small>${esc(plannedLabel)}</small></td><td><b>${esc(actualPosition)}</b><small>${row.manual_position?"Planned elsewhere":movedOut?"Moved from Sorting":"Confirmed area"}</small></td><td><b>${esc(timeDisplay)}</b><small>Standard: ${esc(plannedLabel)}</small></td><td><b>${esc(worked)}</b><small>${unavailable?"Excluded":away>0?`${minutesToLabel(away)} away`:"No time away"}</small></td><td><b>${unavailable?"Excluded":`${Number(perf.clothes_kg||0).toFixed(1)} kg clothes`}</b><small>${unavailable?"":`${Number(perf.mop_kg||0).toFixed(1)} kg MOP · ${Number(perf.total_loads||0)} loads`}</small></td><td><span class="sorting-staff-simple-state ${stateClass}">${esc(attendanceLabel)}</span></td><td><div class="sorting-staff-table-actions">${actions}</div></td></tr>${editor}`;
-    }).join("")}</tbody></table></div>`;
+    el.staffWorkList.innerHTML=`<div class="sorting-staff-day-list">${rows.map(row=>{
+      const view=staffDayView(row),status=staffDayStatus(view);
+      const plannedPosition=plannedPositionLabel(row)||"Sorting Area";
+      const actualPosition=view.movedOut?(row.actual_area_name||titleCode(row.actual_area_code)||"Other area"):(view.workMode==="MOP"?"MOP":"Clothes");
+      const positionChanged=view.movedOut||Boolean(row.manual_position)||Boolean(row.work_mode_changed);
+      const startClass=view.lateMinutes>0?" changed":"";
+      const endClass=view.earlyMinutes>0||view.overtimeMinutes>0?" changed":"";
+      const endLabel=view.closed?view.end:view.end?`${view.end} (planned)`:"open";
+      const todayTimes=view.unavailable?'<span class="muted">Not counted</span>':`<span class="${startClass.trim()}">${esc(view.start||"—")}</span> – <span class="${endClass.trim()}">${esc(endLabel)}</span>`;
+      const extras=[];
+      if(!view.unavailable&&view.away>0)extras.push(`${minutesToLabel(view.away)} away`);
+      if(!view.unavailable&&view.breakMinutes!==Number(profile?.break_minutes??view.breakMinutes))extras.push(`break ${view.breakMinutes} min`);
+      if(row.notes)extras.push(row.notes);
+      let quick="";
+      if(view.movedOut)quick=`<button class="sorting-staff-day-quick" data-return-sorting="${esc(row.staff_id)}" type="button">Back to Sorting</button>`;
+      else if(view.absent)quick=`<button class="sorting-staff-day-quick" data-mark-present="${esc(row.staff_id)}" type="button">${view.autoAbsent?"Yes, they worked":"They arrived"}</button>`;
+      const change=view.movedOut?"":`<button class="sorting-staff-day-change" data-staff-change="${esc(row.staff_id)}" type="button">What changed?</button>`;
+      const remove=row.manual_position?`<button class="sorting-staff-day-remove" data-cancel-manual-staff="${esc(row.work_session_id)}" type="button" title="Remove the person added today">Remove</button>`:"";
+      return `<article class="sorting-staff-day-row tone-${status.tone}${view.unavailable?" is-unavailable":""}" data-staff-work="${esc(row.staff_id)}">
+        <div class="sorting-staff-day-who"><strong>${esc(row.display_name)}</strong><span class="sorting-staff-simple-state ${status.tone}">${esc(status.label)}</span></div>
+        <div class="sorting-staff-day-col planned"><span>Roster</span><b>${esc(plannedPosition)}</b><small>${esc(view.plannedLabel)}</small></div>
+        <div class="sorting-staff-day-col actual"><span>Today</span><b class="${positionChanged?"changed":""}">${esc(actualPosition)}</b><small>${todayTimes}</small>${extras.length?`<em>${esc(extras.join(" · "))}</em>`:""}</div>
+        <div class="sorting-staff-day-col worked"><span>Worked</span><b>${view.unavailable?"0h 00m":esc(minutesToLabel(row.net_work_minutes))}</b><small>${view.unavailable?"":`${Number(view.perf.clothes_kg||0).toFixed(0)} kg · ${Number(view.perf.total_loads||0)} loads`}</small></div>
+        <div class="sorting-staff-day-actions">${quick}${change}${remove}</div>
+      </article>`;
+    }).join("")}</div>`;
+  }
+
+  const STAFF_CHANGE_ACTIONS=[
+    {key:"late",icon:"⏰",title:"Arrived late",hint:"Set the real start time."},
+    {key:"early",icon:"🚪",title:"Leaving early",hint:"Close the shift now or at a time."},
+    {key:"overtime",icon:"➕",title:"Staying later",hint:"Overtime after the planned end."},
+    {key:"absent",icon:"✖",title:"Did not come",hint:"Sick, no show, training or other."},
+    {key:"mode",icon:"⇄",title:"Clothes / MOP",hint:"Change the job inside Sorting."},
+    {key:"finish",icon:"➜",title:"Went to a Finish table",hint:"Working on a table instead."},
+    {key:"break",icon:"☕",title:"Different break",hint:"Longer or shorter break."},
+    {key:"away",icon:"⏸",title:"Time away",hint:"Left the area during the shift."},
+    {key:"full",icon:"✎",title:"Edit all times",hint:"Start, end and break together."}
+  ];
+
+  function ensureStaffChangeDialog(){
+    let dialog=document.getElementById("sortingStaffChangeDialog");
+    if(dialog)return dialog;
+    document.body.insertAdjacentHTML("beforeend",`<dialog id="sortingStaffChangeDialog" class="sorting-staff-time-dialog sorting-staff-change-dialog"><section class="sorting-staff-time-dialog-card"><header><div><p>What changed today?</p><h2 id="sortingStaffChangeTitle">Staff</h2><span id="sortingStaffChangeSubtitle"></span></div><button type="button" class="sorting-staff-time-dialog-close" data-close-staff-change aria-label="Close">x</button></header><div id="sortingStaffChangeBody"></div></section></dialog>`);
+    dialog=document.getElementById("sortingStaffChangeDialog");
+    dialog.addEventListener("click",async event=>{
+      if(event.target.closest("[data-close-staff-change]")){dialog.close();return;}
+      const action=event.target.closest("[data-staff-change-action]");
+      if(action&&!action.disabled){
+        if(action.dataset.staffChangeAction==="full"){const staffId=state.staffChange?.staffId;dialog.close();openStaffActualDialog(staffId);return;}
+        await renderStaffChangeStep(action.dataset.staffChangeAction);return;
+      }
+      if(event.target.closest("[data-staff-change-back]")){renderStaffChangeStep("menu");return;}
+      const pick=event.target.closest("[data-staff-change-pick]");
+      if(pick){
+        const group=pick.closest("[data-pick-group]");
+        group?.querySelectorAll("[data-staff-change-pick]").forEach(button=>button.classList.toggle("selected",button===pick));
+        const field=dialog.querySelector(`[data-change-field="${group?.dataset.pickGroup}"]`);
+        if(field)field.value=pick.dataset.staffChangePick;
+        updateStaffChangePreview();
+        return;
+      }
+      const setTime=event.target.closest("[data-set-time]");
+      if(setTime){const input=dialog.querySelector('[data-change-field="time"]');if(input){input.value=setTime.dataset.setTime==="now"?nowClock():setTime.dataset.setTime;updateStaffChangePreview();}return;}
+      const save=event.target.closest("[data-staff-change-save]");
+      if(save&&!save.disabled)await saveStaffChange(save);
+    });
+    dialog.addEventListener("input",updateStaffChangePreview);
+    dialog.addEventListener("close",()=>{state.staffChange=null;});
+    return dialog;
+  }
+
+  function openStaffChangeDialog(staffId){
+    const row=(state.staffWork?.staff||[]).find(item=>item.staff_id===staffId);
+    if(!row)return;
+    const dialog=ensureStaffChangeDialog();
+    state.staffChange={staffId,step:"menu"};
+    document.getElementById("sortingStaffChangeTitle").textContent=row.display_name;
+    renderStaffChangeStep("menu");
+    dialog.showModal();
+  }
+
+  function staffChangeRow(){
+    return (state.staffWork?.staff||[]).find(item=>item.staff_id===state.staffChange?.staffId)||null;
+  }
+
+  function pickButtons(group,options,selected){
+    return `<div class="sorting-staff-change-picks" data-pick-group="${esc(group)}">${options.map(option=>`<button type="button" class="${option.value===selected?"selected":""}" data-staff-change-pick="${esc(option.value)}"${option.disabled?" disabled":""}><strong>${esc(option.label)}</strong>${option.hint?`<small>${esc(option.hint)}</small>`:""}</button>`).join("")}</div><input type="hidden" data-change-field="${esc(group)}" value="${esc(selected||"")}">`;
+  }
+
+  async function renderStaffChangeStep(step){
+    const row=staffChangeRow();
+    if(!row)return;
+    const view=staffDayView(row);
+    state.staffChange.step=step;
+    const body=document.getElementById("sortingStaffChangeBody");
+    const subtitle=document.getElementById("sortingStaffChangeSubtitle");
+    const planned=`Roster: ${plannedPositionLabel(row)||"Sorting Area"} · ${view.plannedLabel}`;
+    subtitle.textContent=planned;
+    if(step==="menu"){
+      const actions=view.absent?STAFF_CHANGE_ACTIONS.filter(action=>action.key==="late"):STAFF_CHANGE_ACTIONS;
+      body.innerHTML=`<div class="sorting-staff-change-menu">${actions.map(action=>{
+        const disabled=action.key==="absent"&&view.hasActualActivity;
+        const current=action.key==="mode"?` Now: ${view.workMode==="MOP"?"MOP":"Clothes"}.`:"";
+        return `<button type="button" data-staff-change-action="${action.key}"${disabled?" disabled":""}><span aria-hidden="true">${action.icon}</span><strong>${esc(action.title)}</strong><small>${esc(disabled?"Has production today. Use Leaving early instead.":action.hint+current)}</small></button>`;
+      }).join("")}</div>`;
+      return;
+    }
+    const footer=(label)=>`<label class="sorting-staff-change-note"><span>Note <em>(optional)</em></span><input data-change-field="note" maxlength="500" placeholder="Short note, for example who asked"></label><p class="sorting-staff-change-preview" data-staff-change-preview aria-live="polite"></p><p class="sorting-staff-change-message" data-staff-change-message aria-live="polite"></p><footer><button type="button" class="sorting-secondary-button" data-staff-change-back>Back</button><button type="button" class="sorting-primary-button" data-staff-change-save>${esc(label)}</button></footer>`;
+    const timeField=(label,value,chips)=>`<label class="sorting-staff-change-time">${esc(label)}<input data-change-field="time" type="time" value="${esc(value)}"></label><div class="sorting-staff-change-chips">${chips.map(chip=>`<button type="button" data-set-time="${esc(chip.value)}">${esc(chip.label)}</button>`).join("")}</div>`;
+    let html="";
+    if(step==="late"){
+      html=`<h3>What time did ${esc(row.display_name)} start?</h3>${timeField("Started at",nowClock(),[{value:"now",label:"Now"},...[5,10,15,30].map(m=>({value:clockShift(view.plannedStart||nowClock(),m),label:`${m} min late`}))])}${footer("Save start time")}`;
+    }else if(step==="early"){
+      html=`<h3>What time is ${esc(row.display_name)} leaving?</h3>${timeField("Leaving at",nowClock(),[{value:"now",label:"Now"},...[15,30,60].map(m=>({value:clockShift(nowClock(),m),label:`In ${m} min`}))])}${footer("Close shift")}`;
+    }else if(step==="overtime"){
+      const base=view.plannedEnd||view.end||nowClock();
+      html=`<h3>Until what time will ${esc(row.display_name)} stay?</h3>${timeField("Leaving at",clockShift(base,30),[15,30,60,90].map(m=>({value:clockShift(base,m),label:`+${m} min`})))}${footer("Save leaving time")}`;
+    }else if(step==="absent"){
+      html=`<h3>Why is ${esc(row.display_name)} not working today?</h3>${pickButtons("reason",[{value:"SICK",label:"Sick"},{value:"NO_SHOW",label:"No show"},{value:"TRAINING",label:"Training"},{value:"OTHER",label:"Other",hint:"Write a note"}],"")}${footer("Mark as absent")}`;
+    }else if(step==="mode"){
+      const next=view.workMode==="MOP"?"CLOTHES":"MOP";
+      html=`<h3>What is ${esc(row.display_name)} doing in Sorting?</h3>${pickButtons("mode",[{value:"CLOTHES",label:"Clothes"},{value:"MOP",label:"MOP",hint:"Up to two MOP staff"}],next)}<p class="sorting-staff-change-label">Why?</p>${pickButtons("why",[{value:"Covering MOP",label:"Covering MOP"},{value:"Workload",label:"Workload"},{value:"Other",label:"Other",hint:"Write a note"}],"Workload")}${footer("Save job")}`;
+    }else if(step==="finish"){
+      body.innerHTML='<p class="sorting-staff-change-loading">Loading Finish tables…</p>';
+      let tables=[];
+      try{const options=await loadNoWorkOptions();tables=Array.isArray(options?.finish_tables)?options.finish_tables:[];}
+      catch(error){console.error(error);body.innerHTML=`<p class="sorting-staff-change-message">${esc(friendly(error))}</p><footer><button type="button" class="sorting-secondary-button" data-staff-change-back>Back</button></footer>`;return;}
+      if(state.staffChange?.step!=="finish")return;
+      html=`<h3>Which table is ${esc(row.display_name)} going to?</h3>${tables.length?pickButtons("table",tables.map(table=>({value:table.station_code,label:table.station_name})),""):'<p class="sorting-staff-change-message">No Finish tables are available.</p>'}${footer("Move to table")}`;
+    }else if(step==="break"){
+      html=`<h3>How long was the break?</h3>${pickButtons("break",[0,15,30,45,60].map(m=>({value:String(m),label:`${m} min`})),String(view.breakMinutes))}<label class="sorting-staff-change-time">Other (minutes)<input data-change-field="break-other" type="number" min="0" max="240" step="5" placeholder="${esc(view.breakMinutes)}"></label>${footer("Save break")}`;
+    }else if(step==="away"){
+      html=`<h3>How long was ${esc(row.display_name)} away?</h3>${pickButtons("away",[15,30,45,60,90,120].map(m=>({value:String(m),label:minutesToLabel(m)})),view.away?String(view.away):"")}<p class="sorting-staff-change-label">Why?</p>${pickButtons("away-reason",[{value:"TRAINING",label:"Training"},{value:"PERSONAL",label:"Personal"},{value:"OTHER",label:"Other",hint:"Write a note"}],["TRAINING","PERSONAL","OTHER"].includes(row.adjustment_reason)?row.adjustment_reason:"")}<p class="sorting-staff-change-help">Not for late start or early leave: those have their own buttons.</p>${footer("Save time away")}`;
+    }
+    body.innerHTML=`<div class="sorting-staff-change-step" data-step="${esc(step)}">${html}</div>`;
+    updateStaffChangePreview();
+    body.querySelector('[data-change-field="time"]')?.focus();
+  }
+
+  function staffChangeValue(name){
+    return String(document.querySelector(`#sortingStaffChangeDialog [data-change-field="${name}"]`)?.value||"").trim();
+  }
+
+  function updateStaffChangePreview(){
+    const row=staffChangeRow(),preview=document.querySelector("#sortingStaffChangeDialog [data-staff-change-preview]");
+    if(!row||!preview)return;
+    const view=staffDayView(row),step=state.staffChange.step,time=staffChangeValue("time");
+    let text="";
+    if(step==="late"&&time&&view.plannedStart){const diff=clockDiff(view.plannedStart,time);text=diff>0?`Planned ${view.plannedStart}. Started ${shortDuration(diff)} late.`:`Planned ${view.plannedStart}. This is not a late start.`;}
+    if(step==="early"&&time&&view.plannedEnd){const diff=clockDiff(time,view.plannedEnd);text=diff>0?`Planned until ${view.plannedEnd}. Leaving ${shortDuration(diff)} early.`:`Planned until ${view.plannedEnd}.`;}
+    if(step==="overtime"&&time&&view.plannedEnd){const diff=clockDiff(view.plannedEnd,time);text=diff>0?`Planned until ${view.plannedEnd}. Overtime +${shortDuration(diff)}.`:`This is not later than the planned end (${view.plannedEnd}).`;}
+    preview.textContent=text;
+  }
+
+  async function saveStaffChange(button){
+    const row=staffChangeRow();
+    if(!row)return;
+    const view=staffDayView(row),step=state.staffChange.step,dialog=document.getElementById("sortingStaffChangeDialog");
+    const note=staffChangeValue("note");
+    const show=(message,type="error")=>{const target=dialog.querySelector("[data-staff-change-message]");if(target){target.textContent=message;target.className=`sorting-staff-change-message ${type}`;}};
+    const joinNote=(prefix)=>[prefix,note].filter(Boolean).join(" ");
+    const keepAway={p_extra_non_work_minutes:view.away,p_adjustment_reason:view.away>0?String(row.adjustment_reason||"OTHER"):"NONE"};
+    const saveTimes=(start,end,keepOpen,extra,notes)=>rpc("save_sorting_staff_actual_v3",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_actual_start_time:start,p_actual_end_time:end||null,p_keep_open:keepOpen,...extra,p_notes:notes||null});
+    const checkLength=(start,end)=>{let gross=clockDiff(start,end);if(gross<0)gross+=1440;if(gross<=0)return "Leaving time must be after the start time.";if(gross>780)return "A shift cannot be longer than 13 hours.";return "";};
+    let action;
+    if(step==="late"){
+      const time=staffChangeValue("time");
+      if(!time)return show("Choose the start time.");
+      if(view.closed){const problem=checkLength(time,view.end);if(problem)return show(problem);}
+      action=async()=>{
+        // An absent person who turns up late is first returned to normal attendance.
+        if(view.absent)await rpc("set_sorting_staff_attendance",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_attendance_status:"PRESENT",p_absence_reason:null,p_notes:`Arrived late at ${time}.`});
+        return saveTimes(time,view.closed?view.end:null,!view.closed,keepAway,joinNote(`Arrived late at ${time}.`));
+      };
+    }else if(step==="early"||step==="overtime"){
+      const time=staffChangeValue("time");
+      if(!time)return show("Choose the leaving time.");
+      if(!view.start)return show("The start time is missing. Use Edit all times.");
+      const problem=checkLength(view.start,time);if(problem)return show(problem);
+      action=()=>saveTimes(view.start,time,false,keepAway,joinNote(step==="early"?`Left early at ${time}.`:`Overtime until ${time}.`));
+    }else if(step==="absent"){
+      const reason=staffChangeValue("reason");
+      if(!reason)return show("Choose why they are not working.");
+      if(reason==="OTHER"&&!note)return show("Write a short note for Other.");
+      action=()=>rpc("set_sorting_staff_attendance",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_attendance_status:"ABSENT",p_absence_reason:reason,p_notes:note||null});
+    }else if(step==="mode"){
+      const mode=staffChangeValue("mode"),why=staffChangeValue("why");
+      if(mode===view.workMode)return show(`${row.display_name} is already ${mode==="MOP"?"MOP":"Clothes"}.`);
+      if(why==="Other"&&!note)return show("Write a short note for Other.");
+      const reason=why==="Other"?note:joinNote(why);
+      if(!reason)return show("Choose why the job changed.");
+      action=()=>rpc("set_sorting_staff_work_mode",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_work_mode:mode,p_reason:reason});
+    }else if(step==="finish"){
+      const table=staffChangeValue("table");
+      if(!table)return show("Choose the Finish table.");
+      action=()=>rpc("move_sorting_staff_to_finish_table_v1",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_target_table_code:table,p_notes:note||null});
+    }else if(step==="break"){
+      const other=staffChangeValue("break-other"),minutes=Number(other!==""?other:staffChangeValue("break"));
+      if(!Number.isInteger(minutes)||minutes<0||minutes>240)return show("Break must be a whole number from 0 to 240 minutes.");
+      action=()=>rpc("set_sorting_staff_break_v1",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_break_minutes:minutes});
+    }else if(step==="away"){
+      const minutes=Number(staffChangeValue("away")),reason=staffChangeValue("away-reason");
+      if(!minutes)return show("Choose how long they were away.");
+      if(!reason)return show("Choose why they were away.");
+      if(reason==="OTHER"&&!note)return show("Write a short note for Other.");
+      if(!view.start)return show("The start time is missing. Use Edit all times.");
+      action=()=>saveTimes(view.start,view.closed?view.end:null,!view.closed,{p_extra_non_work_minutes:minutes,p_adjustment_reason:reason},joinNote(`Away ${minutesToLabel(minutes)}.`));
+    }
+    if(!action)return;
+    button.disabled=true;
+    show("Saving…","info");
+    try{
+      const result=await action();
+      dialog.close();
+      await loadStaffWork();
+      setMessage(result?.message||`${row.display_name} updated.`,"success");
+    }catch(error){
+      console.error(error);
+      show(friendly(error));
+      button.disabled=false;
+    }
   }
 
   function ensureStaffTimeDialog(){
@@ -1935,8 +2203,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     state.editingStaffId=staffId;
     document.getElementById("sortingStaffTimeDialogTitle").textContent=row.display_name;
-    document.getElementById("sortingStaffTimeDialogSubtitle").textContent="Actual work in Sorting Area. The planned times remain visible for reference.";
-    document.getElementById("sortingStaffTimeDialogBody").innerHTML=`<div class="sorting-staff-time-form sorting-staff-time-form-finish" data-staff-work="${esc(staffId)}" data-existing-away="${existingAway}" data-existing-reason="${esc(existingReason)}" data-existing-mode="${esc(workMode)}"><label class="sorting-staff-time-name">Staff member<input type="text" value="${esc(row.display_name)}" readonly></label><label class="sorting-staff-position">Actual Position<select data-work-field="position"><option value="CLOTHES"${workMode==="CLOTHES"?" selected":""}>Clothes</option><option value="MOP"${workMode==="MOP"?" selected":""}>MOP</option></select></label><div class="sorting-staff-time-grid"><label>Started at<input data-work-field="start" type="time" value="${esc(actualStart)}"></label><label>Leaving at<input data-work-field="end" type="time" value="${esc(actualEnd)}"><small>This will close the shift at ${esc(actualEnd)}.</small></label><label>Break (minutes)<input data-work-field="break" type="number" min="0" max="240" step="5" value="${breakMinutes}"><small>Change only when the actual break was different.</small></label></div><label class="sorting-staff-close-toggle"><input data-work-field="close-shift" type="checkbox"${hasRecordedEnd?" checked":""}><span>Record this as the actual leaving time and close the shift.</span></label><label class="sorting-staff-time-note">Note / reason<input data-work-field="notes" maxlength="1000" value="${esc(row.notes||"")}" placeholder="Optional operational note"></label><p class="sorting-staff-time-message" data-staff-time-message aria-live="polite"></p><footer><span></span><button class="sorting-secondary-button" data-cancel-staff-edit="${esc(staffId)}" type="button">Cancel</button><button class="sorting-primary-button" data-save-staff-work="${esc(staffId)}" type="button">Save Staff Actual</button></footer></div>`;
+    document.getElementById("sortingStaffTimeDialogSubtitle").textContent="Edit all of today's times together. The Roster does not change.";
+    document.getElementById("sortingStaffTimeDialogBody").innerHTML=`<div class="sorting-staff-time-form sorting-staff-time-form-finish" data-staff-work="${esc(staffId)}" data-existing-away="${existingAway}" data-existing-reason="${esc(existingReason)}" data-existing-mode="${esc(workMode)}"><label class="sorting-staff-time-name">Staff member<input type="text" value="${esc(row.display_name)}" readonly></label><label class="sorting-staff-position">Actual Position<select data-work-field="position"><option value="CLOTHES"${workMode==="CLOTHES"?" selected":""}>Clothes</option><option value="MOP"${workMode==="MOP"?" selected":""}>MOP</option></select></label><div class="sorting-staff-time-grid"><label>Started at<input data-work-field="start" type="time" value="${esc(actualStart)}"><small>Planned: ${esc(row.planned_start_time?fmtTime(row.planned_start_time):"—")}</small></label><label>Leaving at<input data-work-field="end" type="time" value="${esc(actualEnd)}"><small>Planned: ${esc(row.planned_end_time?fmtTime(row.planned_end_time):"—")}</small></label><label>Break (minutes)<input data-work-field="break" type="number" min="0" max="240" step="5" value="${breakMinutes}"><small>Only if the real break was different.</small></label></div><label class="sorting-staff-close-toggle"><input data-work-field="close-shift" type="checkbox"${hasRecordedEnd?" checked":""}><span>They have already left (close the shift at the Leaving time).</span></label><label class="sorting-staff-time-note">Note / reason<input data-work-field="notes" maxlength="1000" value="${esc(row.notes||"")}" placeholder="Optional operational note"></label><p class="sorting-staff-time-message" data-staff-time-message aria-live="polite"></p><footer><span></span><button class="sorting-secondary-button" data-cancel-staff-edit="${esc(staffId)}" type="button">Cancel</button><button class="sorting-primary-button" data-save-staff-work="${esc(staffId)}" type="button">Save</button></footer></div>`;
     dialog.showModal();
   }
 
@@ -2311,7 +2579,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error(error);
       show(friendly(error),"error");
       button.disabled=false;
-      button.textContent="Save Staff Actual";
+      button.textContent="Save";
     }
   }
 
@@ -4782,6 +5050,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(returnButton){await returnStaffToSorting(returnButton.dataset.returnSorting);return;}
     const presentButton=e.target.closest("[data-mark-present]");
     if(presentButton){await markStaffPresent(presentButton.dataset.markPresent);return;}
+    const changeButton=e.target.closest("[data-staff-change]");
+    if(changeButton){openStaffChangeDialog(changeButton.dataset.staffChange);return;}
     const editButton=e.target.closest("[data-edit-staff-work]");
     if(editButton){openStaffActualDialog(editButton.dataset.editStaffWork);return;}
     const closeButton=e.target.closest("[data-cancel-staff-edit]");
