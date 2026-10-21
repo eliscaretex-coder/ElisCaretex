@@ -206,7 +206,8 @@
         { id:"sorting-washing", label:"Washing", href:"./pages/sorting.html#washing" },
         { id:"sorting-trolley", label:"Trolley Intake", href:"./pages/sorting.html#trolley" },
         { id:"sorting-mop", label:"MOP Production", href:"./pages/mop-production.html" },
-        { id:"sorting-staff", label:"Staff", href:"./pages/sorting.html#staff" }
+        { id:"sorting-staff", label:"Staff", href:"./pages/sorting.html#staff" },
+        { id:"sorting-results", label:"Results", href:"./pages/sorting-results.html" }
       ]
     },
     {
@@ -302,6 +303,7 @@
     "roster.html": "production-roster",
     "sorting.html": "sorting",
     "mop-production.html": "sorting",
+    "sorting-results.html": "sorting",
     "finish-production.html": "finish",
     "finish-results.html": "finish-results",
     "production-tracker.html": "production-tracker",

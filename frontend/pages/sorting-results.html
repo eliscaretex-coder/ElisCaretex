@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sorting Results | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/finish-results.css">
+  <link rel="stylesheet" href="../assets/css/sorting-results.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261021-4" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
+  <script src="../assets/js/sorting-results.js" defer></script>
+</head>
+<body class="finish-results-page sorting-results-page">
+  <div class="finish-results-shell" data-operational-shell-root>
+    <main class="finish-results-content">
+      <header class="finish-results-topbar">
+        <div>
+          <p>Sorting Area</p>
+          <h1>Sorting Results</h1>
+          <span>Daily washing performance by Staff and Shift.</span>
+        </div>
+        <div class="finish-results-controls">
+          <button id="sortingResultsPrev" class="secondary" type="button" aria-label="Previous day">‹</button>
+          <input id="sortingResultsDate" type="date" aria-label="Business date">
+          <button id="sortingResultsNext" class="secondary" type="button" aria-label="Next day">›</button>
+          <button id="sortingResultsToday" class="secondary" type="button">Today</button>
+          <button id="sortingResultsRefresh" class="primary" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <p id="sortingResultsMessage" class="finish-results-message" aria-live="polite"></p>
+
+      <section id="sortingResultsTotals" class="finish-results-totals"></section>
+
+      <section class="finish-results-section">
+        <header><div><p>Shift summary</p><h2>Morning / Evening</h2></div></header>
+        <div id="sortingResultsShifts" class="finish-results-shifts"></div>
+      </section>
+
+      <section class="finish-results-section">
+        <header>
+          <div><p>Staff performance</p><h2>Staff × Shift</h2></div>
+          <small id="sortingResultsTargets" class="sorting-results-targets"></small>
+        </header>
+        <div id="sortingResultsStaff" class="sorting-results-staff"></div>
+      </section>
+
+      <section class="finish-results-section">
+        <header>
+          <div><p>Production detail</p><h2>Washes recorded</h2></div>
+          <strong id="sortingResultsRunCount" class="finish-results-count">0</strong>
+        </header>
+        <div id="sortingResultsRuns" class="sorting-results-runs"></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
