@@ -2042,7 +2042,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const planned=`Roster: ${plannedPositionLabel(row)||"Sorting Area"} · ${view.plannedLabel}`;
     subtitle.textContent=planned;
     if(step==="menu"){
-      body.innerHTML=`<div class="sorting-staff-change-menu">${STAFF_CHANGE_ACTIONS.map(action=>{
+      const actions=view.absent?STAFF_CHANGE_ACTIONS.filter(action=>action.key==="late"):STAFF_CHANGE_ACTIONS;
+      body.innerHTML=`<div class="sorting-staff-change-menu">${actions.map(action=>{
         const disabled=action.key==="absent"&&view.hasActualActivity;
         const current=action.key==="mode"?` Now: ${view.workMode==="MOP"?"MOP":"Clothes"}.`:"";
         return `<button type="button" data-staff-change-action="${action.key}"${disabled?" disabled":""}><span aria-hidden="true">${action.icon}</span><strong>${esc(action.title)}</strong><small>${esc(disabled?"Has production today. Use Leaving early instead.":action.hint+current)}</small></button>`;
@@ -2111,7 +2112,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const time=staffChangeValue("time");
       if(!time)return show("Choose the start time.");
       if(view.closed){const problem=checkLength(time,view.end);if(problem)return show(problem);}
-      action=()=>saveTimes(time,view.closed?view.end:null,!view.closed,keepAway,joinNote(`Arrived late at ${time}.`));
+      action=async()=>{
+        // An absent person who turns up late is first returned to normal attendance.
+        if(view.absent)await rpc("set_sorting_staff_attendance",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_attendance_status:"PRESENT",p_absence_reason:null,p_notes:`Arrived late at ${time}.`});
+        return saveTimes(time,view.closed?view.end:null,!view.closed,keepAway,joinNote(`Arrived late at ${time}.`));
+      };
     }else if(step==="early"||step==="overtime"){
       const time=staffChangeValue("time");
       if(!time)return show("Choose the leaving time.");
