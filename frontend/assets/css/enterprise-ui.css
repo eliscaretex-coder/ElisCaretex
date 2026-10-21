@@ -1454,7 +1454,7 @@ body.elis-operational-tool-page a.distribution-tab {
   display: none !important;
 }
 
-/* My Roster and My Driver Roster keep their shift colours (morning, evening,
+/* My Production Roster and My Driver Roster keep their shift colours (morning, evening,
    preview) in a banner shaped like every other workspace header. */
 .operational-shell .shell-page .rv-header {
   position: relative;

@@ -8,7 +8,7 @@ several internal views, but those views must not become duplicate sidebar items.
 | Sidebar section | Workspace | Internal views |
 | --- | --- | --- |
 | Home | Home | Start page with the same workspaces as cards |
-| My work | My Roster | Published schedule and leave requests |
+| My work | My Production Roster | Published production schedule and leave requests |
 | My work | My Driver Roster | Routes, customers and leave requests |
 | My work | Notifications | Inbox and sent notices (attention count shown as a badge) |
 | Planning | Customer Workspace | Schedule Planner, Customer Master, Operational Reports |
