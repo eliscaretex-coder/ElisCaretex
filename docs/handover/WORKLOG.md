@@ -95,11 +95,20 @@ Entry format:
   `get_sorting_staff_dashboard_context_v2` now recognises `SORTING_TO_FINISH_TRANSFER`
   (pre-existing bug) and returns `partial_area_transfer` / `area_transfer_at`.
   Test: `supabase/tests/202610210002_sorting_partial_move_to_finish_validation.sql`.
-  Status: prepared, not applied (waiting for owner approval).
+  Status: applied 2026-10-21 on owner approval. Fix `202610210003_sorting_restore_partial_move_segment_fix.sql`
+  (applied on owner approval): restore v2 tried to close the Finish segment with
+  ended_at = started_at, refused by `finish_staff_table_segments_time_check`; the segment now
+  stays on the cancelled Finish session as history (every reader joins non-cancelled sessions).
 - Validation: `node scripts/validate-repository.mjs` passed; Playwright with a stubbed
-  Supabase client renders the partial-move row and sends the v2 call.
-- Open / next: apply after owner approval, run the test and advisors, then repeat the
-  owner's real test. Owner test data of 2026-10-21 (Ronaldo) to be cleaned afterwards.
+  Supabase client renders the partial-move row and sends the v2 call. Against the database
+  (pgtap is not installed, so the test assertions were run as plain queries): functions
+  exist, anon cannot execute, a caller without Sorting access is refused. Rolled-back run as
+  the owner account: Ronaldo (whole-shift move) now shows MOVED; Agostinho moved at 18:00
+  showed Sorting 15:00-18:00 (169 min net, break 11) and Finish Table 2 from 18:00 (break 19);
+  Back to Sorting reopened the Sorting shift with break 30 and no active Finish session.
+  Security advisors: only the expected authenticated SECURITY DEFINER warnings.
+- Open / next: owner repeats the real test; owner test data of 2026-10-21 (Ronaldo) to be
+  cleaned afterwards.
 
 ## 2026-10-21 — Claude — Sorting Staff tab: plan next to actual, one-tap changes
 
