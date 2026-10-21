@@ -488,34 +488,331 @@ document.addEventListener("DOMContentLoaded", async () => {
   function staffById(staffId){return (state.staffData?.staff||[]).find(row=>row.staff_id===staffId)||null;}
   function restoreRosterStartWhenPlaceholder(){const row=staffById(el.staffSelect.value);if(!row||el.staffStart.value!=="00:00")return;const planned=timeText(row.planned_start_time)||timeText(row.effective_start_time);if(planned&&planned!=="00:00")el.staffStart.value=planned;}
   function segmentTimeText(row){const segments=row.table_segments||[];if(!segments.length)return (timeText(row.effective_start_time)&&timeText(row.effective_end_time))?`${timeText(row.effective_start_time)} - ${timeText(row.effective_end_time)}`:row.actual_in_finish?"Open shift":"Not confirmed";return segments.map(segment=>`${tableName(segment.table_code)} ${timeText(segment.started_at)}-${timeText(segment.ended_at)||"now"}`).join(" · ");}
+  function clockDiff(from,to){
+    const a=timeMinutes(from),b=timeMinutes(to);
+    if(a==null||b==null)return 0;
+    let diff=b-a;
+    if(diff>720)diff-=1440;
+    if(diff<-720)diff+=1440;
+    return diff;
+  }
+  function clockShift(value,minutes){
+    const base=timeMinutes(value);
+    if(base==null)return "";
+    const total=((base+minutes)%1440+1440)%1440;
+    return `${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`;
+  }
+  function shortDuration(minutes){const value=Math.max(0,Math.round(Number(minutes||0)));return value<60?`${value} min`:minutesLabel(value);}
+  function segmentMinutes(segment){
+    const start=new Date(segment.started_at).getTime(),end=segment.ended_at?new Date(segment.ended_at).getTime():Date.now();
+    return Number.isFinite(start)&&Number.isFinite(end)&&end>start?Math.round((end-start)/60000):0;
+  }
+
+  // One view of a Finish staff row: what the Roster planned and what really happened today.
+  function finishDayView(row){
+    const profile=state.staffData?.work_profile||{},fixedTable=state.lockedTable||"";
+    const absent=row.attendance_status==="ABSENT";
+    const elsewhere=row.staff_state==="ACTUAL_ELSEWHERE";
+    const segments=row.table_segments||[];
+    const currentTable=rowTableCode(row);
+    const confirmed=Boolean(row.actual_in_finish&&row.actual_start_at&&!absent);
+    const fromSorting=row.actual_source==="SORTING_TO_FINISH_TRANSFER";
+    const plannedStart=timeText(row.planned_start_time)||timeText(profile.default_start_time);
+    const plannedEnd=timeText(row.planned_end_time)||timeText(profile.default_end_time);
+    const start=confirmed?timeText(row.actual_start_at):(timeText(row.effective_start_time)||plannedStart);
+    const end=confirmed&&row.actual_end_at?timeText(row.actual_end_at):"";
+    const lastSegment=segments[segments.length-1]||null;
+    // A person who moved to another table still shows on the table they left, with the move time.
+    const movedFromHere=Boolean(fixedTable&&!absent&&!elsewhere&&currentTable!==fixedTable);
+    const movedAt=movedFromHere?timeText(segments.find(segment=>segment.table_code===currentTable)?.started_at):elsewhere?timeText(row.actual_start_at):"";
+    return {
+      row,absent,elsewhere,segments,currentTable,confirmed,fromSorting,movedFromHere,movedAt,
+      unavailable:absent||elsewhere||movedFromHere,
+      plannedStart,plannedEnd,start,end,closed:Boolean(end),
+      plannedLabel:plannedStart&&plannedEnd?`${plannedStart}-${plannedEnd}`:(profile.schedule_label||"Roster schedule"),
+      lateMinutes:confirmed&&!fromSorting&&plannedStart?Math.max(0,clockDiff(plannedStart,start)):0,
+      earlyMinutes:end&&plannedEnd?Math.max(0,clockDiff(end,plannedEnd)):0,
+      overtimeMinutes:end&&plannedEnd?Math.max(0,clockDiff(plannedEnd,end)):0,
+      breakMinutes:Number(row.break_minutes??profile.break_minutes??0),
+      lastSegment
+    };
+  }
+
+  function finishDayStatus(view){
+    const {row}=view;
+    if(view.elsewhere)return {label:`Moved · ${row.actual_area_name||"Sorting"}${view.movedAt?` at ${view.movedAt}`:""}`,tone:"moved"};
+    if(view.movedFromHere)return {label:`Moved · ${tableName(view.currentTable)}${view.movedAt?` at ${view.movedAt}`:""}`,tone:"moved"};
+    if(view.absent)return {label:`Absent · ${String(row.absence_reason||"OTHER").replaceAll("_"," ").toLowerCase().replace(/^\w/,c=>c.toUpperCase())}`,tone:"absent"};
+    if(view.fromSorting)return {label:`From Sorting${view.lateMinutes||clockDiff(view.plannedStart,view.start)>0?` at ${view.start}`:""}`,tone:"manual"};
+    const notes=[];
+    if(view.lateMinutes>0)notes.push(`Late ${shortDuration(view.lateMinutes)}`);
+    if(view.earlyMinutes>0)notes.push(`Left early ${shortDuration(view.earlyMinutes)}`);
+    else if(view.overtimeMinutes>0)notes.push(`Overtime +${shortDuration(view.overtimeMinutes)}`);
+    if(view.segments.length>1)notes.push("Changed table");
+    if(notes.length)return {label:notes.join(" · "),tone:view.overtimeMinutes>0&&!view.lateMinutes?"overtime":"adjusted"};
+    if(row.staff_state==="INCOMING_ACTUAL")return {label:"Added today",tone:"manual"};
+    if(view.confirmed)return {label:"Confirmed",tone:"planned"};
+    return {label:"As planned",tone:"planned"};
+  }
+
+  function staffRowsForView(){
+    const fixedTable=state.lockedTable||"";
+    return (state.staffData?.staff||[]).filter(row=>!fixedTable||rowTableCode(row)===fixedTable||row.planned_table_code===fixedTable||(row.table_segments||[]).some(segment=>segment.table_code===fixedTable))
+      .slice().sort((a,b)=>String(rowTableCode(a)).localeCompare(String(rowTableCode(b)))||String(a.display_name||"").localeCompare(String(b.display_name||"")));
+  }
+
   function renderStaff(){
     const fixedTable=state.lockedTable||"";
-    const rows=(state.staffData?.staff||[]).filter(row=>!fixedTable||rowTableCode(row)===fixedTable).slice().sort((a,b)=>String(rowTableCode(a)).localeCompare(String(rowTableCode(b)))||String(a.display_name||"").localeCompare(String(b.display_name||"")));
+    const rows=staffRowsForView();
+    const profile=state.staffData?.work_profile;
     el.staffCount.textContent=`${rows.length} staff`;
-    el.staffScheduleNote.textContent=fixedTable?`${tableName(fixedTable)} only. Mark an absence, confirm an arrival, or transfer a confirmed staff member with the exact move time.`:"Roster names are pre-filled. Confirm the actual table, attendance, or a timed table transfer when needed.";
-    el.staffAdd.textContent=fixedTable?`Add staff manually to ${tableName(fixedTable)}`:"Add staff manually";
+    el.staffScheduleNote.textContent=`${fixedTable?`${tableName(fixedTable)} only. `:""}Roster shows the plan. Today shows what really happened. Tap What changed? when someone is late, leaves early, is absent or changes table.${profile?.schedule_label?` Standard ${profile.schedule_label}, break ${Number(profile.break_minutes||0)} min.`:""}`;
+    el.staffAdd.textContent=fixedTable?`Add someone to ${tableName(fixedTable)}`:"Add someone to Finish";
     el.staffTableSummary.hidden=true;
     if(!rows.length){el.staffList.innerHTML=`<div class="finish-empty">No staff is planned or confirmed for ${esc(fixedTable?tableName(fixedTable):"this Finish shift")}.</div>`;return;}
-    const profile=state.staffData?.work_profile?.schedule_label||"Roster schedule";
-    el.staffList.innerHTML=`<div class="finish-staff-simple-table"><table><thead><tr><th>Staff</th><th>Planned</th><th>Actual table</th><th>Table time</th><th>Worked</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(row=>{
-      const absent=row.attendance_status==="ABSENT";
-      const elsewhere=row.staff_state==="ACTUAL_ELSEWHERE";
-      const plannedTable=tableName(row.planned_table_code)||"Not planned";
-      const plannedTime=(timeText(row.planned_start_time)&&timeText(row.planned_end_time))?`${timeText(row.planned_start_time)} - ${timeText(row.planned_end_time)}`:profile;
-      const actualTable=absent?"Not working":elsewhere?(row.actual_area_name||row.actual_area_code||"Other area"):tableName(row.effective_table_code||row.planned_table_code)||"Choose table";
-      const hasActualStart=Boolean(row.actual_start_at),hasActualTime=row.actual_in_finish&&hasActualStart;
-      const plannedEnd=timeMinutes(row.planned_end_time)||timeMinutes(row.effective_end_time);
-      let overtimeMinutes=(timeMinutes(row.actual_end_at||row.effective_end_time)??0)-(plannedEnd??0);
-      if(overtimeMinutes < -720)overtimeMinutes+=1440;
-      overtimeMinutes=Math.max(0,overtimeMinutes);
-      const stateText=absent?"Absent":elsewhere?"Elsewhere":overtimeMinutes>0?`Overtime +${Math.floor(overtimeMinutes/60)}h ${String(overtimeMinutes%60).padStart(2,"0")}m`:hasActualTime?"Confirmed":"Planned";
-      const stateClass=absent?"absent":elsewhere?"elsewhere":hasActualTime?"confirmed":"planned";
-      let actions="";
-      if(absent) actions=`<button class="secondary finish-staff-edit" type="button" data-staff-present="${esc(row.staff_id)}">Confirm arrived</button>`;
-      else if(!elsewhere) actions=`<button class="secondary finish-staff-edit" type="button" data-staff-edit="${esc(row.staff_id)}">${hasActualTime?"Edit":"Confirm"}</button><button class="secondary finish-staff-edit" type="button" data-staff-move="${esc(row.staff_id)}" ${hasActualTime&&!row.actual_end_at?"":"disabled"}>Move</button><button class="secondary finish-staff-edit" type="button" data-staff-leave="${esc(row.staff_id)}" ${hasActualTime&&!row.actual_end_at?"":"disabled"}>Leave early</button><button class="secondary danger-outline finish-staff-edit" type="button" data-staff-absent="${esc(row.staff_id)}">Absent</button>`;
-      const worked=absent?"0h 00m":hasActualTime?workedTimeText(row):plannedWorkedTimeText(row);
-      return `<tr><td><strong>${esc(row.display_name)}</strong></td><td><b>${esc(plannedTable)}</b><small>${esc(plannedTime)}</small></td><td><b>${esc(actualTable)}</b>${absent&&row.absence_reason?`<small>${esc(row.absence_reason.replaceAll("_"," "))}</small>`:""}</td><td><small>${esc(absent?"No shift recorded":segmentTimeText(row))}</small></td><td><b>${esc(worked)}</b><small>${hasActualTime?"Actual":"Planned"} · Break ${Number(row.break_minutes||0)} min</small></td><td><span class="finish-staff-simple-state ${stateClass}">${esc(stateText)}</span></td><td><div class="finish-staff-actions">${actions}</div></td></tr>`;
-    }).join("")}</tbody></table></div>`;
+    el.staffList.innerHTML=`<div class="finish-staff-day-list">${rows.map(row=>{
+      const view=finishDayView(row),status=finishDayStatus(view);
+      const plannedTable=row.planned_table_code?tableName(row.planned_table_code):"Not on the Roster";
+      const todayTable=view.absent?"Not working":view.elsewhere?(row.actual_area_name||"Sorting"):view.segments.length>1?view.segments.map(segment=>tableName(segment.table_code)).filter((name,index,all)=>all.indexOf(name)===index).join(", then "):(view.currentTable?tableName(view.currentTable):"Choose a table");
+      const tableChanged=view.elsewhere||view.segments.length>1||Boolean(row.planned_table_code&&view.currentTable&&view.currentTable!==row.planned_table_code);
+      const endLabel=view.closed?view.end:view.plannedEnd?`${view.plannedEnd} (planned)`:"open";
+      let todayTimes;
+      if(view.absent)todayTimes='<span class="muted">Not counted</span>';
+      else if(view.elsewhere)todayTimes=view.movedAt?`<span class="muted">Finish until ${esc(view.movedAt)}</span>`:'<span class="muted">Not counted here</span>';
+      else todayTimes=`<span class="${view.lateMinutes>0?"changed":""}">${esc(view.start||"—")}</span> – <span class="${view.earlyMinutes>0||view.overtimeMinutes>0?"changed":""}">${esc(endLabel)}</span>`;
+      const extras=[];
+      if(view.segments.length>1)extras.push(segmentTimeText(row));
+      if(!view.unavailable&&view.breakMinutes!==Number(profile?.break_minutes??view.breakMinutes))extras.push(`break ${view.breakMinutes} min`);
+      if(row.attendance_notes&&view.absent)extras.push(row.attendance_notes);
+      const perTable=view.segments.length>1?Object.entries(view.segments.reduce((sum,segment)=>{sum[segment.table_code]=(sum[segment.table_code]||0)+segmentMinutes(segment);return sum;},{})).map(([code,minutes])=>`${tableName(code)} ${minutesLabel(minutes)}`).join(" · "):"";
+      const worked=view.absent||view.elsewhere?"—":view.confirmed?workedTimeText(row):plannedWorkedTimeText(row);
+      const workedNote=view.absent?"":view.elsewhere?"Counted in Sorting":view.confirmed?(perTable||(view.closed?"Total":"So far")):"Planned";
+      let quick="";
+      if(view.absent)quick=`<button class="finish-staff-day-quick" data-staff-arrived="${esc(row.staff_id)}" type="button">They arrived</button>`;
+      else if(view.fromSorting&&!state.terminalContext&&!view.movedFromHere)quick=`<button class="finish-staff-day-quick" data-staff-back-sorting="${esc(row.staff_id)}" type="button">Back to Sorting</button>`;
+      const change=view.absent||view.elsewhere||view.movedFromHere?"":`<button class="finish-staff-day-change" data-staff-change="${esc(row.staff_id)}" type="button">What changed?</button>`;
+      return `<article class="finish-staff-day-row tone-${status.tone}${view.unavailable?" is-unavailable":""}">
+        <div class="finish-staff-day-who"><strong>${esc(row.display_name)}</strong><span class="finish-staff-day-state ${status.tone}">${esc(status.label)}</span></div>
+        <div class="finish-staff-day-col planned"><span>Roster</span><b>${esc(plannedTable)}</b><small>${esc(row.planned_table_code?view.plannedLabel:"Added today")}</small></div>
+        <div class="finish-staff-day-col actual"><span>Today</span><b class="${tableChanged?"changed":""}">${esc(todayTable)}</b><small>${todayTimes}</small>${extras.length?`<em>${esc(extras.join(" · "))}</em>`:""}</div>
+        <div class="finish-staff-day-col worked"><span>Worked</span><b>${esc(worked)}</b><small>${esc(workedNote)}</small></div>
+        <div class="finish-staff-day-actions">${quick}${change}</div>
+      </article>`;
+    }).join("")}</div>`;
+  }
+
+  const FINISH_STAFF_CHANGE_ACTIONS=[
+    {key:"late",icon:"⏰",title:"Arrived late",hint:"Set the real start time."},
+    {key:"early",icon:"🚪",title:"Leaving early",hint:"Close the shift now or at a time."},
+    {key:"overtime",icon:"➕",title:"Staying later",hint:"Overtime after the planned end."},
+    {key:"absent",icon:"✖",title:"Did not come",hint:"Sick, no show, training or other."},
+    {key:"table",icon:"⇄",title:"Went to another table",hint:"Hours split between the tables."},
+    {key:"sorting",icon:"➜",title:"Went to Sorting",hint:"Finish counts until the move."},
+    {key:"break",icon:"☕",title:"Different break",hint:"Longer or shorter break."},
+    {key:"full",icon:"✎",title:"Edit all times",hint:"Start, end and break together."}
+  ];
+
+  function ensureStaffChangeDialog(){
+    let dialog=document.getElementById("finishStaffChangeDialog");
+    if(dialog)return dialog;
+    document.body.insertAdjacentHTML("beforeend",`<dialog id="finishStaffChangeDialog" class="finish-dialog finish-staff-change-dialog"><section class="finish-dialog-card"><header class="finish-dialog-header"><div><p>What changed today?</p><h2 id="finishStaffChangeTitle">Staff</h2><span id="finishStaffChangeSubtitle"></span></div><button type="button" class="finish-dialog-close" data-close-staff-change aria-label="Close">&times;</button></header><div id="finishStaffChangeBody"></div></section></dialog>`);
+    dialog=document.getElementById("finishStaffChangeDialog");
+    dialog.addEventListener("click",async event=>{
+      if(event.target.closest("[data-close-staff-change]")){dialog.close();return;}
+      const action=event.target.closest("[data-staff-change-action]");
+      if(action&&!action.disabled){
+        if(action.dataset.staffChangeAction==="full"){const staffId=state.staffChange?.staffId;dialog.close();openStaffEditor(staffId);return;}
+        renderStaffChangeStep(action.dataset.staffChangeAction);return;
+      }
+      if(event.target.closest("[data-staff-change-back]")){renderStaffChangeStep("menu");return;}
+      const pick=event.target.closest("[data-staff-change-pick]");
+      if(pick&&!pick.disabled){
+        const group=pick.closest("[data-pick-group]");
+        group?.querySelectorAll("[data-staff-change-pick]").forEach(button=>button.classList.toggle("selected",button===pick));
+        const field=dialog.querySelector(`[data-change-field="${group?.dataset.pickGroup}"]`);
+        if(field)field.value=pick.dataset.staffChangePick;
+        updateStaffChangePreview();
+        return;
+      }
+      const setTime=event.target.closest("[data-set-time]");
+      if(setTime){const input=dialog.querySelector('[data-change-field="time"]');if(input){input.value=setTime.dataset.setTime==="now"?localTimeNow():setTime.dataset.setTime;updateStaffChangePreview();}return;}
+      const save=event.target.closest("[data-staff-change-save]");
+      if(save&&!save.disabled)await saveStaffChange(save);
+    });
+    dialog.addEventListener("input",event=>{
+      // Typing a move time means the move starts at that time.
+      if(["table","sorting"].includes(state.staffChange?.step)&&event.target.matches('[data-change-field="time"]')){
+        dialog.querySelectorAll('[data-pick-group="move-from"] [data-staff-change-pick]').forEach(button=>button.classList.toggle("selected",button.dataset.staffChangePick==="TIME"));
+        const field=dialog.querySelector('[data-change-field="move-from"]');
+        if(field)field.value="TIME";
+      }
+      updateStaffChangePreview();
+    });
+    dialog.addEventListener("close",()=>{state.staffChange=null;});
+    return dialog;
+  }
+
+  function openStaffChangeDialog(staffId,step="menu"){
+    const row=staffById(staffId);
+    if(!row)return;
+    const dialog=ensureStaffChangeDialog();
+    state.staffChange={staffId,step};
+    document.getElementById("finishStaffChangeTitle").textContent=row.display_name;
+    renderStaffChangeStep(step);
+    dialog.showModal();
+  }
+
+  function staffChangeRow(){return staffById(state.staffChange?.staffId);}
+  function pickButtons(group,options,selected){
+    return `<div class="finish-staff-change-picks" data-pick-group="${esc(group)}">${options.map(option=>`<button type="button" class="${option.value===selected?"selected":""}" data-staff-change-pick="${esc(option.value)}"${option.disabled?" disabled":""}><strong>${esc(option.label)}</strong>${option.hint?`<small>${esc(option.hint)}</small>`:""}</button>`).join("")}</div><input type="hidden" data-change-field="${esc(group)}" value="${esc(selected||"")}">`;
+  }
+
+  function renderStaffChangeStep(step){
+    const row=staffChangeRow();
+    if(!row)return;
+    const view=finishDayView(row),now=localTimeNow();
+    state.staffChange.step=step;
+    const body=document.getElementById("finishStaffChangeBody");
+    document.getElementById("finishStaffChangeSubtitle").textContent=`Roster: ${row.planned_table_code?tableName(row.planned_table_code):"not planned"} · ${view.plannedLabel}${view.currentTable?` · Now on ${tableName(view.currentTable)}`:""}`;
+    if(step==="menu"){
+      const actions=view.absent?FINISH_STAFF_CHANGE_ACTIONS.filter(action=>action.key==="late"):FINISH_STAFF_CHANGE_ACTIONS;
+      body.innerHTML=`<div class="finish-staff-change-menu">${actions.map(action=>{
+        let blocked="";
+        if(action.key==="absent"&&view.fromSorting)blocked="Came from Sorting. Use Back to Sorting instead.";
+        if(action.key==="sorting"&&!row.is_sorting_cover)blocked="Needs the Sorting cover skill in Staff.";
+        if(action.key==="sorting"&&view.fromSorting)blocked="Came from Sorting. Use Back to Sorting instead.";
+        if(action.key==="early"&&view.closed)blocked=`Shift already closed at ${view.end}. Use Edit all times.`;
+        return `<button type="button" data-staff-change-action="${action.key}"${blocked?" disabled":""}><span aria-hidden="true">${action.icon}</span><strong>${esc(action.title)}</strong><small>${esc(blocked||action.hint)}</small></button>`;
+      }).join("")}</div>`;
+      return;
+    }
+    const footer=(label)=>`<label class="finish-staff-change-note"><span>Note <em>(optional)</em></span><input data-change-field="note" maxlength="500" placeholder="Short note, for example who asked"></label><p class="finish-staff-change-preview" data-staff-change-preview aria-live="polite"></p><p class="finish-staff-change-message" data-staff-change-message aria-live="polite"></p><footer><button type="button" class="secondary" data-staff-change-back>Back</button><button type="button" class="primary" data-staff-change-save>${esc(label)}</button></footer>`;
+    const timeField=(label,value,chips)=>`<label class="finish-staff-change-time">${esc(label)}<input data-change-field="time" type="time" value="${esc(value)}"></label><div class="finish-staff-change-chips">${chips.map(chip=>`<button type="button" data-set-time="${esc(chip.value)}">${esc(chip.label)}</button>`).join("")}</div>`;
+    const moveFrom=(hint)=>`<p class="finish-staff-change-label">From what time?</p>${pickButtons("move-from",[{value:"NOW",label:"From now",hint},{value:"TIME",label:"From a time",hint:"Choose below"},...(step==="table"?[{value:"START",label:"Whole shift",hint:view.confirmed?"Not possible: already working here today":"Never worked here today",disabled:view.confirmed}]:[])],"NOW")}<label class="finish-staff-change-time">Moved at<input data-change-field="time" type="time" value="${esc(now)}"></label>`;
+    let html="";
+    if(step==="late"){
+      html=`<h3>What time did ${esc(row.display_name)} start?</h3>${timeField("Started at",now,[{value:"now",label:"Now"},...[5,10,15,30].map(m=>({value:clockShift(view.plannedStart||now,m),label:`${m} min late`}))])}${footer("Save start time")}`;
+    }else if(step==="early"){
+      html=`<h3>What time is ${esc(row.display_name)} leaving?</h3>${timeField("Leaving at",now,[{value:"now",label:"Now"},...[15,30,60].map(m=>({value:clockShift(now,m),label:`In ${m} min`}))])}${footer("Close shift")}`;
+    }else if(step==="overtime"){
+      const base=view.plannedEnd||view.end||now;
+      html=`<h3>Until what time will ${esc(row.display_name)} stay?</h3>${timeField("Leaving at",clockShift(base,30),[15,30,60,90].map(m=>({value:clockShift(base,m),label:`+${m} min`})))}${footer("Save leaving time")}`;
+    }else if(step==="absent"){
+      html=`<h3>Why is ${esc(row.display_name)} not working today?</h3>${pickButtons("reason",[{value:"SICK",label:"Sick"},{value:"NO_SHOW",label:"No show"},{value:"TRAINING",label:"Training"},{value:"OTHER",label:"Other",hint:"Write a note"}],"")}${footer("Mark as absent")}`;
+    }else if(step==="table"){
+      const tables=["FINISH_TABLE_1","FINISH_TABLE_2","FINISH_TABLE_3"].filter(code=>code!==view.currentTable);
+      html=`<h3>Which table is ${esc(row.display_name)} going to?</h3>${pickButtons("table",tables.map(code=>({value:code,label:tableName(code)})),tables.length===1?tables[0]:"")}${moveFrom(view.currentTable?`${tableName(view.currentTable)} counts until now`:"")}${footer("Move to table")}`;
+    }else if(step==="sorting"){
+      html=`<h3>When did ${esc(row.display_name)} go to Sorting?</h3>${moveFrom("Finish counts until now")}${footer("Move to Sorting")}`;
+    }else if(step==="break"){
+      html=`<h3>How long was the break?</h3>${pickButtons("break",[0,15,30,45,60].map(m=>({value:String(m),label:`${m} min`})),String(view.breakMinutes))}<label class="finish-staff-change-time">Other (minutes)<input data-change-field="break-other" type="number" min="0" max="240" step="5" placeholder="${esc(view.breakMinutes)}"></label>${footer("Save break")}`;
+    }
+    body.innerHTML=`<div class="finish-staff-change-step" data-step="${esc(step)}">${html}</div>`;
+    updateStaffChangePreview();
+    body.querySelector('[data-change-field="time"]')?.focus();
+  }
+
+  function staffChangeValue(name){return String(document.querySelector(`#finishStaffChangeDialog [data-change-field="${name}"]`)?.value||"").trim();}
+
+  function updateStaffChangePreview(){
+    const row=staffChangeRow(),preview=document.querySelector("#finishStaffChangeDialog [data-staff-change-preview]");
+    if(!row||!preview)return;
+    const view=finishDayView(row),step=state.staffChange.step,time=staffChangeValue("time");
+    let text="";
+    if(step==="late"&&time&&view.plannedStart){const diff=clockDiff(view.plannedStart,time);text=diff>0?`Planned ${view.plannedStart}. Started ${shortDuration(diff)} late.`:`Planned ${view.plannedStart}. This is not a late start.`;}
+    if(step==="early"&&time&&view.plannedEnd){const diff=clockDiff(time,view.plannedEnd);text=diff>0?`Planned until ${view.plannedEnd}. Leaving ${shortDuration(diff)} early.`:`Planned until ${view.plannedEnd}.`;}
+    if(step==="overtime"&&time&&view.plannedEnd){const diff=clockDiff(view.plannedEnd,time);text=diff>0?`Planned until ${view.plannedEnd}. Overtime +${shortDuration(diff)}.`:`This is not later than the planned end (${view.plannedEnd}).`;}
+    if(step==="table"||step==="sorting"){
+      const from=staffChangeValue("move-from"),moved=from==="NOW"?localTimeNow():from==="TIME"?time:"";
+      const target=step==="sorting"?"Sorting":tableName(staffChangeValue("table"))||"the new table";
+      const source=view.currentTable?tableName(view.currentTable):"Finish";
+      text=from==="START"?`The whole shift counts on ${target}.`:moved&&view.start?`${source} counts ${view.start}–${moved}. ${target} counts from ${moved}.`:"";
+    }
+    preview.textContent=text;
+  }
+
+  async function saveStaffChange(button){
+    const row=staffChangeRow();
+    if(!row)return;
+    const view=finishDayView(row),step=state.staffChange.step,dialog=document.getElementById("finishStaffChangeDialog");
+    const note=staffChangeValue("note");
+    const show=(message,type="error")=>{const target=dialog.querySelector("[data-staff-change-message]");if(target){target.textContent=message;target.className=`finish-staff-change-message ${type}`;}};
+    const joinNote=(prefix)=>[prefix,note].filter(Boolean).join(" ");
+    const table=view.currentTable||state.lockedTable||"";
+    const base={p_staff_id:row.staff_id,p_shift_code:state.shift};
+    const checkLength=(start,end)=>{const gross=shiftMinutes(start,end);if(!gross)return "Leaving time must be after the start time.";if(gross>780)return "A shift cannot be longer than 13 hours.";return "";};
+    // Times after a table move go through the correction RPC so earlier table hours stay put.
+    const saveTimes=(start,end,reason)=>rpc(view.segments.length>1?"correct_finish_staff_time_v1":"upsert_finish_staff_actual",{...base,p_table_code:table,p_start_time:start,p_end_time:end||null,p_reason:reason||null});
+    // Roster rows that nobody confirmed yet are confirmed with the planned start first.
+    const ensureConfirmed=async()=>{if(!view.confirmed)await rpc("upsert_finish_staff_actual",{...base,p_table_code:table,p_start_time:view.plannedStart||view.start,p_end_time:null,p_reason:"Confirmed as planned."});};
+    const moveTime=()=>{const from=staffChangeValue("move-from");return from==="NOW"?localTimeNow():from==="TIME"?staffChangeValue("time"):null;};
+    if(!table&&!["absent","table"].includes(step))return show("Choose their table first with Went to another table.");
+    let action;
+    if(step==="late"){
+      const time=staffChangeValue("time");
+      if(!time)return show("Choose the start time.");
+      if(view.closed){const problem=checkLength(time,view.end);if(problem)return show(problem);}
+      action=async()=>{
+        // An absent person who turns up late is first returned to normal attendance.
+        if(view.absent)await rpc("set_finish_staff_attendance_v1",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_attendance_status:"PRESENT",p_absence_reason:null,p_notes:`Arrived late at ${time}.`});
+        return saveTimes(time,view.closed?view.end:null,joinNote(`Arrived late at ${time}.`));
+      };
+    }else if(step==="early"){
+      const time=staffChangeValue("time");
+      if(!time)return show("Choose the leaving time.");
+      const problem=checkLength(view.start,time);if(problem)return show(problem);
+      action=async()=>{await ensureConfirmed();return rpc("finish_end_staff_shift_v1",{...base,p_table_code:table,p_end_time:time,p_notes:joinNote(`Left early at ${time}.`)});};
+    }else if(step==="overtime"){
+      const time=staffChangeValue("time");
+      if(!time)return show("Choose the leaving time.");
+      const problem=checkLength(view.start,time);if(problem)return show(problem);
+      action=async()=>{await ensureConfirmed();return saveTimes(view.start,time,joinNote(`Overtime until ${time}.`));};
+    }else if(step==="absent"){
+      const reason=staffChangeValue("reason");
+      if(!reason)return show("Choose why they are not working.");
+      if(reason==="OTHER"&&!note)return show("Write a short note for Other.");
+      action=()=>rpc("set_finish_staff_attendance_v1",{p_shift_code:state.shift,p_staff_id:row.staff_id,p_attendance_status:"ABSENT",p_absence_reason:reason,p_notes:note||null});
+    }else if(step==="table"){
+      const target=staffChangeValue("table"),from=staffChangeValue("move-from"),time=moveTime();
+      if(!target)return show("Choose the table.");
+      if(from==="TIME"&&!time)return show("Choose the time they moved.");
+      if(from==="START"||!table)action=()=>rpc("upsert_finish_staff_actual",{...base,p_table_code:target,p_start_time:view.plannedStart||view.start,p_end_time:null,p_reason:joinNote(`Working on ${tableName(target)} today.`)});
+      else action=async()=>{await ensureConfirmed();return rpc("move_finish_staff_table_v1",{...base,p_from_table_code:table,p_to_table_code:target,p_move_time:time,p_notes:note||null});};
+    }else if(step==="sorting"){
+      const from=staffChangeValue("move-from"),time=moveTime();
+      if(from==="TIME"&&!time)return show("Choose the time they moved.");
+      action=async()=>{await ensureConfirmed();return rpc("move_finish_staff_to_sorting_v1",{...base,p_from_table_code:table,p_move_time:time,p_notes:note||null});};
+    }else if(step==="break"){
+      const other=staffChangeValue("break-other"),minutes=Number(other!==""?other:staffChangeValue("break"));
+      if(!Number.isInteger(minutes)||minutes<0||minutes>240)return show("Break must be a whole number from 0 to 240 minutes.");
+      action=async()=>{await ensureConfirmed();return rpc("set_finish_staff_break_v1",{...base,p_table_code:table,p_break_minutes:minutes});};
+    }
+    if(!action)return;
+    button.disabled=true;
+    show("Saving…","info");
+    try{
+      const result=await action();
+      dialog.close();
+      await load();
+      setMessage(result?.message||`${row.display_name} updated.`,"success");
+    }catch(error){
+      console.error(error);
+      show(error.message||"The change could not be saved.");
+      // An earlier step may have saved, so refresh the list behind the dialog.
+      load().catch(()=>{});
+      button.disabled=false;
+    }
+  }
+
+  async function returnStaffToSorting(staffId){
+    const row=staffById(staffId);
+    if(!row||!window.confirm(`Send ${row.display_name} back to Sorting? The time on the Finish table is cancelled and Sorting counts the whole shift again.`))return;
+    try{
+      const result=await client.rpc("restore_sorting_staff_from_finish_table_v2",{p_shift_code:state.shift,p_staff_id:staffId,p_reason:"Returned to Sorting from the Finish Staff list."});
+      if(result.error)throw result.error;
+      await load();
+      setMessage(result.data?.message||`${row.display_name} is back in Sorting.`,"success");
+    }catch(error){console.error(error);setMessage(error.message||"Could not return the staff member to Sorting.");}
   }
 
   function selectCustomer(q,{prefillTrolleys=true,isNewRecord=false}={}){
@@ -631,7 +928,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.queue.addEventListener("click",e=>{const b=e.target.closest("[data-queue-key]");if(!b)return;const q=queueRows().find(row=>queueRowKey(row)===b.dataset.queueKey);if(q?.production_flow_item_id)openCustomer(q);});
   el.recent.addEventListener("click",e=>{const b=e.target.closest("[data-edit]");if(b)editEntry(b.dataset.edit);});
   el.existingRecords.addEventListener("click",e=>{const b=e.target.closest("[data-edit-existing]");if(b)editEntry(b.dataset.editExisting);});
-  el.staffList.addEventListener("click",e=>{const edit=e.target.closest("[data-staff-edit]"),absent=e.target.closest("[data-staff-absent]"),present=e.target.closest("[data-staff-present]"),move=e.target.closest("[data-staff-move]"),leave=e.target.closest("[data-staff-leave]");if(edit)openStaffEditor(edit.dataset.staffEdit);else if(absent)openAbsentDialog(absent.dataset.staffAbsent);else if(present)confirmArrival(present.dataset.staffPresent);else if(move&&!move.disabled)openMoveDialog(move.dataset.staffMove);else if(leave&&!leave.disabled)openDepartureDialog(leave.dataset.staffLeave);});
+  el.staffList.addEventListener("click",e=>{const change=e.target.closest("[data-staff-change]"),arrived=e.target.closest("[data-staff-arrived]"),backSorting=e.target.closest("[data-staff-back-sorting]");if(change){openStaffChangeDialog(change.dataset.staffChange);return;}if(arrived){openStaffChangeDialog(arrived.dataset.staffArrived,"late");return;}if(backSorting){returnStaffToSorting(backSorting.dataset.staffBackSorting);return;}const edit=e.target.closest("[data-staff-edit]"),absent=e.target.closest("[data-staff-absent]"),present=e.target.closest("[data-staff-present]"),move=e.target.closest("[data-staff-move]"),leave=e.target.closest("[data-staff-leave]");if(edit)openStaffEditor(edit.dataset.staffEdit);else if(absent)openAbsentDialog(absent.dataset.staffAbsent);else if(present)confirmArrival(present.dataset.staffPresent);else if(move&&!move.disabled)openMoveDialog(move.dataset.staffMove);else if(leave&&!leave.disabled)openDepartureDialog(leave.dataset.staffLeave);});
   el.staffAdd.addEventListener("click",openStaffCheckIn);
   el.rewashOpen?.addEventListener("click",openRewashDialog);
   el.rewashDialogClose?.addEventListener("click",closeRewashDialog);
