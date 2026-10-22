@@ -88,8 +88,8 @@ Entry format:
   `current_staff_id()`. An ADMIN account managed only through `account_roles` (no staff
   record) got "An active authenticated staff account is required.". The guards now require
   `current_account_is_enabled()`; role checks are unchanged.
-- Database: `202610220003_account_access_without_staff_record.sql`, **Applied** by the owner
-  through the SQL Editor on 2026-10-22 (verified: no function still checks
+- Database: `202610220003_account_access_without_staff_record.sql`, **Applied** on 2026-10-22 after the
+  owner approved it (verified: no function still checks
   `current_staff_id() is null`).
 - Validation: dry run of the guard changes inside a rolled-back transaction on ElisCaretex-dev:
   the staff-less ADMIN account passed all guards; a Sorting terminal and an account with no
