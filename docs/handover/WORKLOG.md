@@ -80,6 +80,37 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Customer Service: complaints, trace, alerts, tasks and results
+
+- Branch / commits: `claude/customer-service` (Pull Request into `master`).
+- Changed: owner asked for a Customer Service screen (about three people, each with a
+  block of customers, one of them the manager who sees everything). New page
+  `frontend/pages/customer-service.html` with Complaints (pick-from-a-list type, received
+  date, delivery, severity, channel), a production trace per complaint (Finish records with
+  table, shift, processed-by and the staff on that table; washes with shift, washer,
+  operator and Sorting staff) and a link that copies table/shift into the complaint;
+  Customer alerts shown at the top of Sorting, Finish, MOP and Distribution
+  (`customer-alerts.js`, with a badge on the Finish queue and the washing picker);
+  department Tasks followed until done (production areas can mark their tasks done);
+  Results (per day/week/month, type, customer, table × shift, washing shift, person,
+  department); Settings (customer blocks per person, complaint types). New sidebar group
+  "Customer Service"; `app-shell-policy.js` version bumped on every page.
+- Database: `202610220001_customer_service_complaints.sql` — **Prepared, not applied**.
+  New module `CUSTOMER_SERVICE` (scope Own = own block, All = manager, Manage = settings),
+  six RLS-locked tables and SECURITY DEFINER RPCs with internal checks. The full migration
+  plus a scripted run (admin, Finish terminal, General Operative) was executed inside a
+  transaction that was rolled back on ElisCaretex-dev: all RPCs worked, the terminal saw
+  the alert and closed the task, the General Operative was refused.
+- Validation: `node scripts/validate-repository.mjs` passed; Playwright screenshots with a
+  stubbed client (desktop and 390 px; Finish page with the alert bar). pgTAP file
+  `supabase/tests/202610220001_customer_service_complaints_validation.sql` to run after
+  applying. Security advisors not run yet (nothing applied).
+- Open / next: owner approval to apply the migration **before** merging (the page and the
+  production alert bar call the new RPCs). Then give the three people the Customer Service
+  job title in Accounts & access (agents: scope Own; manager: scope All + Manage) and share
+  the customers in Settings. Legacy imported washes have no production flow id, so the
+  trace shows Finish and washing side by side by date instead of as one flow.
+
 ## 2026-10-22 — Claude — Sorting Results: loads and kg per shift, MOP separate from Clothes
 
 - Branch / commits: `claude/sorting-results-shift-loads` (Pull Request into `master`).

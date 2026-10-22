@@ -994,7 +994,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <input type="checkbox" value="${esc(key)}"${checked?" checked":""}${enabled?"":" disabled"}>
         ${dot}
         <span class="sorting-customer-option-copy">
-          <strong>${esc(row.customer_name)}</strong>
+          <strong>${esc(row.customer_name)}${window.ELIS_CUSTOMER_ALERTS?.badge(row.customer_id,row.customer_code,row.customer_name)||""}</strong>
           <span>${esc(shortDayDate(row.scheduled_for_date))}${row.route_display_name?` · ${esc(row.route_display_name)}`:""}${esc(washNote)}${esc(gateNote)}</span>
         </span>
         <span class="sorting-customer-option-badge">${esc(badge)}</span>
@@ -1013,7 +1013,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const badge=evidence?`RECEPTION OK · ${Number(evidence.contents_count||0)}`:exceptionReady?"EXCEPTION READY":legacyAllowed?"LEGACY CORRECTION":"RECEPTION REQUIRED";
       return `<label class="sorting-customer-option${enabled?" scan-enabled":" scan-locked"}">
         <input type="checkbox" value="${esc(key)}"${state.draftCustomers.includes(key)?" checked":""}${enabled?"":" disabled"}>
-        <span class="sorting-customer-option-copy"><strong>${esc(customer.customer_name)}</strong><span>${esc(customer.customer_code||"")}${evidence?" · Reception evidence confirmed":exceptionReady?" · controlled reception exception staged":" · Reception evidence missing"}</span></span>
+        <span class="sorting-customer-option-copy"><strong>${esc(customer.customer_name)}${window.ELIS_CUSTOMER_ALERTS?.badge(customer.customer_id,customer.customer_code,customer.customer_name)||""}</strong><span>${esc(customer.customer_code||"")}${evidence?" · Reception evidence confirmed":exceptionReady?" · controlled reception exception staged":" · Reception evidence missing"}</span></span>
         <span class="sorting-customer-option-badge">${esc(badge)}</span>
       </label>`;
     };
