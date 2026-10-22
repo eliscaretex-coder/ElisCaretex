@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Faster Distribution screens (customer KG estimates)
+
+- Branch / commits: `claude/distribution-kg-estimate-speed`, Pull Request into `master`
+- Changed: `customer_kg_estimates` took about 1.9 s per call because of a nested-loop plan
+  built on very low row estimates. The Distribution dashboard calls it twice (about 3.9 s) and
+  the weekly planner once (about 1.9 s). The function now runs with `enable_nestloop = off`.
+- Database: `202610220004_customer_kg_estimates_planner_fix.sql` (Prepared, not applied yet).
+- Validation: measured with the same setting for the session on ElisCaretex-dev:
+  estimates 163 ms, dashboard 364 ms, weekly planner 189 ms. Test file
+  `supabase/tests/202610220004_customer_kg_estimates_planner_fix_validation.sql`.
+- Open / next: apply the migration, run the test and confirm the screens in the browser.
+
 ## 2026-10-22 — Claude — ADMIN accounts without a staff record can open Distribution and Finish
 
 - Branch / commits: `claude/admin-account-without-staff`, Pull Request into `master`
