@@ -171,15 +171,15 @@ Entry format:
   tasks (production may still need to watch the customer). The migration also closes
   alerts and tasks already left open by cancelled complaints (one alert: CS-00001). The
   cancel dialog now says that alerts and open tasks are closed too.
-- Database: `202610220006_customer_service_cancel_closes_alerts.sql` — **Prepared, not
-  applied** (waiting for owner approval). Same RPC signature, so apply and merge can happen
-  in either order. Ran inside a rolled-back transaction: leftover alert closed; a new
+- Database: `202610220006_customer_service_cancel_closes_alerts.sql` — **Applied** to
+  ElisCaretex-dev on 2026-10-22 with the owner's approval; afterwards the CS-00001 alert is
+  ended, no cancelled complaint keeps an open alert, anon cannot execute the RPC. Ran inside a rolled-back transaction: leftover alert closed; a new
   complaint with an alert and a task, once cancelled, had the alert ENDED, the task
   CANCELLED, both logged, and Finish no longer received the alert. The complaint
   sequence was reset afterwards to continue from the last real code.
 - Validation: `node scripts/validate-repository.mjs` passed;
   `supabase/tests/202610220006_customer_service_cancel_closes_alerts_validation.sql`.
-- Open / next: apply with owner approval; merge.
+- Open / next: merge the PR.
 
 ## 2026-10-22 — Claude — Customer Service: Administrator accounts left out of the team list
 
