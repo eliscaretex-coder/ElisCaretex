@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Customer guides as a Distribution tab
+
+- Branch / commits: `claude/driver-guides-distribution-layout`, Pull Request into `master`
+- Changed: Customer Driver Guides now opens inside Distribution (`distribution.html#guides`) with
+  the same header, KPI cards and tab bar as the other tabs. Markup moved into
+  `frontend/pages/distribution.html`; `driver-guides.js` loads the guides only when the tab
+  opens; styles scoped in `frontend/assets/css/driver-guides-tab.css` (old
+  `driver-guides.css` removed). `driver-guides.html` now redirects to `distribution.html#guides`
+  and the navigation link points there.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Checked in headless Chromium with
+  a stubbed Supabase client: tab active, KPI cards shown, guides listed, switching back to
+  Daily board hides the guides, old URL redirects, no page errors.
+- Open / next: owner to confirm with real data.
+
 ## 2026-10-22 — Claude — Driver leave requests only in the Distribution Leave calendar
 
 - Branch / commits: `claude/driver-guides-remove-leave-requests`, Pull Request into `master`
