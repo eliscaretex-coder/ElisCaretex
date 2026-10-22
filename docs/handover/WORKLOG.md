@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Sorting Results: loads and kg per shift, MOP separate from Clothes
+
+- Branch / commits: `claude/sorting-results-shift-loads` (Pull Request into `master`).
+- Changed: owner asked to see how many machine loads each shift did, with MOP separate
+  from Clothes and the kg of each. Each shift card now shows Clothes, MOP and Total as
+  loads + kg (Others only when a day has them); the day totals show Clothes and MOP loads
+  first with their kg. Frontend only; the data already came from
+  `get_sorting_results_dashboard_v1`.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed; Playwright screenshots with
+  a stubbed client at desktop and 390 px.
+- Open / next: none.
+
 ## 2026-10-21 — Claude — Staff tabs: "Covering a leader" saved as a note
 
 - Branch / commits: `claude/staff-cover-note` (Pull Request into `master`).
