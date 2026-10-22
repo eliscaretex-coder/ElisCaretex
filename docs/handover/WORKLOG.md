@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Driver leave requests only in the Distribution Leave calendar
+
+- Branch / commits: `claude/driver-guides-remove-leave-requests`, Pull Request into `master`
+- Changed: removed the "Requests · Holiday / Day off" panel from Customer Driver Guides
+  (`frontend/pages/driver-guides.html`, `frontend/assets/js/driver-guides.js`). The same pending
+  requests, with the same `review_driver_leave_request` approve/reject, are in
+  Distribution > Leave calendar > Pending Requests. The page no longer calls
+  `get_driver_leave_requests_admin`.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Not checked in a browser.
+- Open / next: owner to confirm the page in the browser.
+
 ## 2026-10-22 — Claude — Customer KG estimates stored and refreshed weekly
 
 - Branch / commits: `claude/customer-kg-weekly-snapshot`, Pull Request into `master`
