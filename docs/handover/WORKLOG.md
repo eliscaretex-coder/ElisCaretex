@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Customer Service: Administrator accounts left out of the team list
+
+- Changed: the owner ticked the Customer Service permission on his Administrator account
+  (needed: accounts with module permissions get their menu only from those permissions, so
+  the Administrator did not see the new menu without it) and then appeared in Settings as
+  one of the Customer Service people. `get_customer_service_workspace_v1` now leaves
+  accounts with job title `ADMINISTRATOR` out of the `agents` list (who can receive customer
+  blocks). Access is unchanged: the Administrator still sees and changes everything.
+- Database: `202610220002_customer_service_team_excludes_admins.sql` — **Prepared, not
+  applied** (waiting for owner approval). Replaces only the workspace RPC; same signature,
+  so the order of apply and merge does not matter. Ran inside a rolled-back transaction as
+  the owner's account: scope ALL, Manage true, agents list empty.
+- Validation: `supabase/tests/202610220002_customer_service_team_excludes_admins_validation.sql`.
+- Open / next: apply with owner approval; merge.
+
 ## 2026-10-22 — Claude — Customer Service: complaints, trace, alerts, tasks and results
 
 - Branch / commits: `claude/customer-service` (Pull Request into `master`).
