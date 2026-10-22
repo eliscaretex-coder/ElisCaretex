@@ -61,6 +61,7 @@
   const ICONS = {
     home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg>',
     schedule: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9h18"/><path d="M7 13h3M14 13h3M7 17h3M14 17h3"/></svg>',
+    support: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/><path d="M19 19a4 4 0 0 1-4 3h-2"/></svg>',
     customers: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 19h5"/></svg>',
     tracker: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/><path d="M2.5 19.5h21"/></svg>',
     results: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-6M22 20V7"/><path d="M2.5 20.5h21"/></svg>',
@@ -128,6 +129,7 @@
   // defines the workspace entry points that should be visible to each role.
   const NAVIGATION_PERMISSIONS = Object.freeze({
     CUSTOMER_WORKSPACE: "customer.workspace",
+    CUSTOMER_SERVICE: "customer.service",
     MY_ROSTER: "self.my-roster",
     MY_DRIVER_ROSTER: "self.my-driver-roster",
     NOTIFICATIONS: "self.notifications",
@@ -148,6 +150,7 @@
     MY_DRIVER_ROSTER: [NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER],
     NOTIFICATIONS: [NAVIGATION_PERMISSIONS.NOTIFICATIONS],
     CUSTOMERS: [NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE],
+    CUSTOMER_SERVICE: [NAVIGATION_PERMISSIONS.CUSTOMER_SERVICE],
     PRODUCTION_ROSTER: [NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER],
     SORTING: [NAVIGATION_PERMISSIONS.SORTING],
     FINISH: [NAVIGATION_PERMISSIONS.FINISH,NAVIGATION_PERMISSIONS.FINISH_RESULTS],
@@ -189,6 +192,19 @@
         { id:"customer-workspace-schedule", label:"Schedule Planner", href:"./pages/customers.html?view=schedule" },
         { id:"customer-workspace-master", label:"Customer Master", href:"./pages/customers.html?view=master" },
         { id:"customer-workspace-reports", label:"Operational Reports", href:"./pages/customers.html?view=reports" }
+      ]
+    },
+    {
+      id: "customer-service", label: "Customer Service",
+      description: "Complaints, customer alerts, department tasks and results",
+      href: "./pages/customer-service.html", icon: "support", group: "Customer Service",
+      permission: NAVIGATION_PERMISSIONS.CUSTOMER_SERVICE,
+      children: [
+        { id:"customer-service-complaints", label:"Complaints", href:"./pages/customer-service.html#complaints" },
+        { id:"customer-service-alerts", label:"Customer alerts", href:"./pages/customer-service.html#alerts" },
+        { id:"customer-service-tasks", label:"Tasks", href:"./pages/customer-service.html#tasks" },
+        { id:"customer-service-results", label:"Results", href:"./pages/customer-service.html#results" },
+        { id:"customer-service-settings", label:"Settings", href:"./pages/customer-service.html#settings" }
       ]
     },
     {
@@ -290,7 +306,7 @@
   ]);
 
   // Sidebar sections, in display order. Every module group must be listed here.
-  const NAVIGATION_GROUPS = Object.freeze(["Home", "My work", "Planning", "Production", "Logistics", "Management"]);
+  const NAVIGATION_GROUPS = Object.freeze(["Home", "My work", "Customer Service", "Planning", "Production", "Logistics", "Management"]);
 
   // Which sidebar workspace owns each page. Pages not listed (sign-in, password
   // recovery, privacy, token review links) render without the sidebar.
@@ -300,6 +316,7 @@
     "driver-roster.html": "my-driver-roster",
     "notifications.html": "notifications",
     "customers.html": "customer-workspace",
+    "customer-service.html": "customer-service",
     "roster.html": "production-roster",
     "sorting.html": "sorting",
     "mop-production.html": "sorting",

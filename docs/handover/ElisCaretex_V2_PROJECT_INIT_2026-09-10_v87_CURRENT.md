@@ -144,10 +144,11 @@ Core rules:
 | Customer Guides | `frontend/pages/driver-guides.html`: management of customer photos/PDFs and pending driver leave decisions; assigned drivers view private guides through published routes. |
 | Trolleys | Trolley type/master, physical trolleys, lifecycle, locations and custody history. |
 | Staff Master | Staff directory, operational roles, cover capability, onboarding and Accounts & Access. |
+| Customer Service | `frontend/pages/customer-service.html` (Prepared 2026-10-22, PR `claude/customer-service`; migration `202610220001` Applied 2026-10-22): complaints with pick-from-a-list types, trace to the Finish table/shift/staff and the wash/shift/staff, customer alerts shown on Sorting/Finish/MOP/Distribution screens, department tasks followed until done, results, and customer blocks per person. Access: application module `CUSTOMER_SERVICE` (scope Own = own block of customers, All = manager; Manage = types and blocks). |
 | Notifications | Staff inbox plus manager/supervisor notice creation, delivery, read and acknowledgement tracking. |
 | Privacy | Employee privacy notice and acknowledgement entry point. |
 
-Customer Service complaints/quality workflow is still not implemented. The expected future scope includes complaints, trace-back to production/table/scanner, assigned actions, resolution status, metrics, and cross-area quality alerts. Do not invent this module without renewed owner direction and the owner's existing form definition.
+Customer Service: the owner asked for the module on 2026-10-22 (about three users, each with a block of customers, one of them the manager who sees all; complaint logging, trace to shift/table, customer alerts for production staff, department tasks and results). First version Prepared in `claude/customer-service`; see the Customer Service row above. Fields can still be aligned with any existing owner complaint form.
 
 ### Distribution continuation, 2026-10-17
 
@@ -687,7 +688,7 @@ Use Git history for detailed file-level evidence.
 2. Historical Finish/MOP records are visible in Production Intelligence and can support provisional planning suggestions, but their source reconciliation and formal owner acceptance remain pending.
 3. Forward capacity needs published future Finish rosters; missing publication is shown explicitly.
 4. Historical Apps Script source formats still need to be inventoried and converted source by source.
-5. Customer Service/complaints remains future work.
+5. Customer Service/complaints: first version 2026-10-22; migration `202610220001_customer_service_complaints.sql` Applied with owner approval; pending merge of the PR and owner acceptance.
 6. Read-only browser acceptance passed for ADMIN, Sorting terminal and Finish terminal on desktop and mobile. Destructive/action-level negative testing is still needed across modules.
 7. Controlled Clothes and MOP paths passed Intake -> Washing -> Production -> Tracker -> Distribution on 2026-10-16 and their evidence was removed. MOP ABS posting, append-only correction and the live-trolley cancellation guard also passed. Migration `202610160004` preserves terminal staff attribution on corrected MOP/ABS evidence.
 8. Supabase leaked-password protection requires the Pro plan; the project is on the Free plan, so it could not be enabled (owner, 2026-10-19). As the interim control, the owner raised the Auth minimum password length and set character requirements (Owner confirmed, 2026-10-19). Enable leaked-password protection after an upgrade to Pro.
@@ -706,7 +707,7 @@ Priority order:
 3. **Complete platform security settings,** especially leaked-password protection, extension placement review and focused authenticated-RPC review.
 4. **Publish representative future rosters** and validate six-week demand/capacity after historical reconciliation.
 5. **Expand automated browser coverage** for onboarding, invitation, My Roster, leave approval, notices and production entry/correction.
-6. **Resume Customer Service/Quality only with owner-provided form and workflow definitions.**
+6. **Customer Service:** `202610220001` is Applied; merge the PR, then create the Customer Service accounts and share the customer blocks.
 
 Do not build advanced analytics on unvalidated legacy data. Data provenance and reconciliation come first.
 

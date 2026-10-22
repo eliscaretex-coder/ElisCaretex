@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Customer Service | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/finish-results.css">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
+  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261022-1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261022-1" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
+  <script src="../assets/js/customer-service.js?v=20261022-1" defer></script>
+</head>
+<body class="finish-results-page cs-page">
+  <div class="finish-results-shell" data-operational-shell-root>
+    <main class="finish-results-content">
+      <header class="finish-results-topbar">
+        <div>
+          <p>Customer Service</p>
+          <h1 id="csTitle">Complaints</h1>
+          <span id="csSubtitle">Log customer complaints, find the shift and table that handled the goods, and follow them up.</span>
+        </div>
+        <div class="finish-results-controls">
+          <button id="csRefresh" class="cs-button secondary" type="button">Refresh</button>
+          <button id="csNewComplaint" class="cs-button primary" type="button">+ New complaint</button>
+        </div>
+      </header>
+
+      <nav class="cs-tabs" aria-label="Customer Service sections">
+        <a href="#complaints" data-tab="complaints">Complaints</a>
+        <a href="#alerts" data-tab="alerts">Customer alerts</a>
+        <a href="#tasks" data-tab="tasks">Tasks</a>
+        <a href="#results" data-tab="results">Results</a>
+        <a href="#settings" data-tab="settings">Settings</a>
+      </nav>
+
+      <p id="csMessage" class="finish-results-message" aria-live="polite"></p>
+
+      <section id="csCounts" class="finish-results-totals cs-counts"></section>
+
+      <!-- Complaints -->
+      <section class="cs-view" data-view="complaints">
+        <div class="cs-filters">
+          <label>From<input id="csFrom" type="date"></label>
+          <label>To<input id="csTo" type="date"></label>
+          <label>Status
+            <select id="csStatus">
+              <option value="ACTIVE">Open and investigating</option>
+              <option value="ALL">All in the period</option>
+              <option value="OPEN">Open</option>
+              <option value="INVESTIGATING">Investigating</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </label>
+          <label class="cs-grow">Customer<input id="csCustomerFilter" list="csCustomerList" placeholder="All customers" autocomplete="off"></label>
+          <label class="cs-check"><input id="csOnlyMine" type="checkbox"> Only my customers</label>
+        </div>
+        <section class="finish-results-section">
+          <header><div><p>Complaints</p><h2 id="csListTitle">Open and investigating</h2></div><strong id="csComplaintCount" class="finish-results-count">0</strong></header>
+          <div id="csComplaints" class="cs-list"></div>
+        </section>
+      </section>
+
+      <!-- Alerts -->
+      <section class="cs-view" data-view="alerts" hidden>
+        <div class="cs-filters">
+          <label class="cs-check"><input id="csAlertsEnded" type="checkbox"> Show ended alerts</label>
+          <span class="cs-spacer"></span>
+          <button id="csNewAlert" class="cs-button primary" type="button">+ New customer alert</button>
+        </div>
+        <section class="finish-results-section">
+          <header><div><p>Shown on the production screens</p><h2>Customer alerts</h2></div><strong id="csAlertCount" class="finish-results-count">0</strong></header>
+          <div id="csAlerts" class="cs-list"></div>
+        </section>
+      </section>
+
+      <!-- Tasks -->
+      <section class="cs-view" data-view="tasks" hidden>
+        <div class="cs-filters">
+          <label>Status
+            <select id="csTaskStatus">
+              <option value="ACTIVE">Open and in progress</option>
+              <option value="DONE">Done</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="ALL">All</option>
+            </select>
+          </label>
+          <label>Department<select id="csTaskDepartment"><option value="">All departments</option></select></label>
+          <span class="cs-spacer"></span>
+          <button id="csNewTask" class="cs-button primary" type="button">+ New task</button>
+        </div>
+        <section class="finish-results-section">
+          <header><div><p>Followed until done</p><h2>Department tasks</h2></div><strong id="csTaskCount" class="finish-results-count">0</strong></header>
+          <div id="csTasks" class="cs-list"></div>
+        </section>
+      </section>
+
+      <!-- Results -->
+      <section class="cs-view" data-view="results" hidden>
+        <div class="cs-filters">
+          <label>From<input id="csResultsFrom" type="date"></label>
+          <label>To<input id="csResultsTo" type="date"></label>
+          <div class="cs-presets">
+            <button class="cs-button secondary" type="button" data-preset="month">This month</button>
+            <button class="cs-button secondary" type="button" data-preset="30">Last 30 days</button>
+            <button class="cs-button secondary" type="button" data-preset="90">Last 3 months</button>
+            <button class="cs-button secondary" type="button" data-preset="year">This year</button>
+          </div>
+        </div>
+        <section id="csResultsTotals" class="finish-results-totals cs-results-totals"></section>
+        <div class="cs-results-grid">
+          <section class="finish-results-section cs-wide"><header><div><p>Over time</p><h2 id="csPeriodTitle">Complaints per day</h2></div></header><div id="csByPeriod" class="cs-chart"></div></section>
+          <section class="finish-results-section"><header><div><p>What went wrong</p><h2>By complaint type</h2></div></header><div id="csByType" class="cs-bars"></div></section>
+          <section class="finish-results-section"><header><div><p>Who complains most</p><h2>By customer</h2></div></header><div id="csByCustomer" class="cs-bars"></div></section>
+          <section class="finish-results-section"><header><div><p>Linked to Finish</p><h2>By table and shift</h2></div></header><div id="csByTable" class="cs-matrix"></div></section>
+          <section class="finish-results-section"><header><div><p>Linked to Sorting</p><h2>By washing shift</h2></div></header><div id="csBySorting" class="cs-bars"></div></section>
+          <section class="finish-results-section"><header><div><p>Customer Service team</p><h2>By person responsible</h2></div></header><div id="csByOwner" class="cs-table"></div></section>
+          <section class="finish-results-section"><header><div><p>Follow-up</p><h2>Tasks by department</h2></div></header><div id="csByDepartment" class="cs-table"></div></section>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="cs-view" data-view="settings" hidden>
+        <p id="csSettingsNote" class="cs-note"></p>
+        <section class="finish-results-section">
+          <header><div><p>Each person looks after a block of customers</p><h2>Customer blocks</h2></div><strong id="csBlockSummary" class="cs-block-summary"></strong></header>
+          <div class="cs-filters cs-inner">
+            <label class="cs-grow">Search<input id="csBlockSearch" placeholder="Customer name or code" autocomplete="off"></label>
+            <label>Show
+              <select id="csBlockFilter"><option value="">All customers</option><option value="__none">Without a person</option></select>
+            </label>
+            <label>Give selected to<select id="csBlockOwner"></select></label>
+            <button id="csBlockAssign" class="cs-button primary" type="button">Apply</button>
+          </div>
+          <div id="csBlocks" class="cs-blocks"></div>
+        </section>
+        <section class="finish-results-section">
+          <header><div><p>Pick-from-a-list complaints</p><h2>Complaint types</h2></div><button id="csNewType" class="cs-button secondary" type="button">+ New type</button></header>
+          <div id="csTypes" class="cs-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <datalist id="csCustomerList"></datalist>
+
+  <!-- New / edit complaint -->
+  <dialog id="csComplaintDialog" class="cs-dialog">
+    <form id="csComplaintForm" method="dialog">
+      <header><div><p>Customer Service</p><h2 id="csComplaintFormTitle">New complaint</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
+      <div class="cs-form-grid">
+        <label class="cs-span">Customer<input id="cfCustomer" list="csCustomerList" required autocomplete="off" placeholder="Start typing the customer name"></label>
+        <label>Received on<input id="cfReceived" type="date" required></label>
+        <label>Delivery it refers to<input id="cfDelivery" type="date"></label>
+        <label class="cs-span">Complaint<select id="cfType" required></select></label>
+        <label>Severity
+          <select id="cfSeverity"><option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option><option value="HIGH">High</option></select>
+        </label>
+        <label>Received by
+          <select id="cfChannel"><option value="">—</option><option value="PHONE">Phone</option><option value="EMAIL">Email</option><option value="DRIVER">Driver</option><option value="IN_PERSON">In person</option><option value="OTHER">Other</option></select>
+        </label>
+        <label class="cs-span">Customer reference (optional)<input id="cfReference" maxlength="120" placeholder="Their ticket, email subject, ward…"></label>
+        <label class="cs-span">What the customer said<textarea id="cfDescription" rows="4" required maxlength="4000"></textarea></label>
+      </div>
+      <p id="cfMessage" class="cs-form-message" aria-live="polite"></p>
+      <footer><button type="button" class="cs-button secondary" data-close>Cancel</button><button id="cfSave" type="submit" class="cs-button primary">Save complaint</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Complaint detail -->
+  <dialog id="csDetailDialog" class="cs-dialog cs-detail-dialog">
+    <div class="cs-detail">
+      <header><div><p id="cdCode">CS-00000</p><h2 id="cdTitle">Complaint</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
+      <div id="cdBody" class="cs-detail-body"></div>
+    </div>
+  </dialog>
+
+  <!-- Alert -->
+  <dialog id="csAlertDialog" class="cs-dialog">
+    <form id="csAlertForm" method="dialog">
+      <header><div><p>Shown on the production screens</p><h2 id="caTitle">New customer alert</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
+      <div class="cs-form-grid">
+        <label class="cs-span">Customer<input id="caCustomer" list="csCustomerList" required autocomplete="off"></label>
+        <label class="cs-span">Message for the staff<textarea id="caMessage" rows="3" maxlength="500" required placeholder="For example: count the duvet covers twice before closing the trolley."></textarea></label>
+        <fieldset class="cs-span cs-areas"><legend>Show in</legend>
+          <label><input type="checkbox" value="SORTING" checked> Sorting</label>
+          <label><input type="checkbox" value="FINISH" checked> Finish</label>
+          <label><input type="checkbox" value="MOP"> MOP</label>
+          <label><input type="checkbox" value="DISTRIBUTION"> Distribution</label>
+        </fieldset>
+        <label>From<input id="caStart" type="date"></label>
+        <label>Until (optional)<input id="caEnd" type="date"></label>
+      </div>
+      <p id="caMessageLine" class="cs-form-message" aria-live="polite"></p>
+      <footer><button type="button" class="cs-button secondary" data-close>Cancel</button><button type="submit" class="cs-button primary">Save alert</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Task -->
+  <dialog id="csTaskDialog" class="cs-dialog">
+    <form id="csTaskForm" method="dialog">
+      <header><div><p>Followed until done</p><h2 id="ctTitle">New task</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
+      <div class="cs-form-grid">
+        <label class="cs-span" id="ctCustomerWrap">Customer (optional)<input id="ctCustomer" list="csCustomerList" autocomplete="off"></label>
+        <label>Department<select id="ctDepartment" required></select></label>
+        <label>Due on<input id="ctDue" type="date"></label>
+        <label class="cs-span">What must be done<input id="ctTask" maxlength="160" required placeholder="For example: search for 2 missing duvet covers"></label>
+        <label class="cs-span">Details<textarea id="ctDetails" rows="3"></textarea></label>
+      </div>
+      <p id="ctMessage" class="cs-form-message" aria-live="polite"></p>
+      <footer><button type="button" class="cs-button secondary" data-close>Cancel</button><button type="submit" class="cs-button primary">Save task</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Short answer: resolve, cancel, task done, end alert -->
+  <dialog id="csAskDialog" class="cs-dialog cs-ask-dialog">
+    <form id="csAskForm" method="dialog">
+      <header><div><p id="askEyebrow">Customer Service</p><h2 id="askTitle">Confirm</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
+      <div class="cs-form-grid">
+        <label class="cs-span" id="askOutcomeWrap">Was the complaint justified?
+          <select id="askOutcome"><option value="">Choose…</option><option value="JUSTIFIED">Yes, our mistake</option><option value="NOT_JUSTIFIED">No</option><option value="UNDETERMINED">Could not tell</option></select>
+        </label>
+        <label class="cs-span"><span id="askNotesLabel">Notes</span><textarea id="askNotes" rows="3"></textarea></label>
+      </div>
+      <p id="askMessage" class="cs-form-message" aria-live="polite"></p>
+      <footer><button type="button" class="cs-button secondary" data-close>Back</button><button id="askConfirm" type="submit" class="cs-button primary">Confirm</button></footer>
+    </form>
+  </dialog>
+
+  <!-- Complaint type -->
+  <dialog id="csTypeDialog" class="cs-dialog cs-ask-dialog">
+    <form id="csTypeForm" method="dialog">
+      <header><div><p>Settings</p><h2 id="tyTitle">Complaint type</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
+      <div class="cs-form-grid">
+        <label class="cs-span">Name<input id="tyName" maxlength="80" required></label>
+        <label>Usual department<select id="tyDepartment"></select></label>
+        <label>Order in the list<input id="tyOrder" type="number" min="0" step="10" value="100"></label>
+        <label class="cs-check cs-span"><input id="tyActive" type="checkbox" checked> Show in the list</label>
+      </div>
+      <p id="tyMessage" class="cs-form-message" aria-live="polite"></p>
+      <footer><button type="button" class="cs-button secondary" data-close>Cancel</button><button type="submit" class="cs-button primary">Save type</button></footer>
+    </form>
+  </dialog>
+</body>
+</html>
