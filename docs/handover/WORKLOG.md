@@ -95,7 +95,8 @@ Entry format:
   Results (per day/week/month, type, customer, table × shift, washing shift, person,
   department); Settings (customer blocks per person, complaint types). New sidebar group
   "Customer Service"; `app-shell-policy.js` version bumped on every page.
-- Database: `202610220001_customer_service_complaints.sql` — **Prepared, not applied**.
+- Database: `202610220001_customer_service_complaints.sql` — **Applied** to ElisCaretex-dev on 2026-10-22
+  with the owner's approval (recorded as version `20261022174607`).
   New module `CUSTOMER_SERVICE` (scope Own = own block, All = manager, Manage = settings),
   six RLS-locked tables and SECURITY DEFINER RPCs with internal checks. The full migration
   plus a scripted run (admin, Finish terminal, General Operative) was executed inside a
@@ -103,10 +104,13 @@ Entry format:
   the alert and closed the task, the General Operative was refused.
 - Validation: `node scripts/validate-repository.mjs` passed; Playwright screenshots with a
   stubbed client (desktop and 390 px; Finish page with the alert bar). pgTAP file
-  `supabase/tests/202610220001_customer_service_complaints_validation.sql` to run after
-  applying. Security advisors not run yet (nothing applied).
-- Open / next: owner approval to apply the migration **before** merging (the page and the
-  production alert bar call the new RPCs). Then give the three people the Customer Service
+  `supabase/tests/202610220001_customer_service_complaints_validation.sql` (pgTAP is not
+  installed on the remote project, so the same checks ran after applying as a rolled-back
+  block: all passed, including admin flow, Finish terminal completing the task and the
+  General Operative refused). The complaint sequence was reset afterwards so the first real
+  complaint is CS-00001. Security advisors: no new findings beyond the project's existing
+  by-design ones (RLS without policies; SECURITY DEFINER executable by authenticated).
+- Open / next: merge the PR (the migration is already applied). Then give the three people the Customer Service
   job title in Accounts & access (agents: scope Own; manager: scope All + Manage) and share
   the customers in Settings. Legacy imported washes have no production flow id, so the
   trace shows Finish and washing side by side by date instead of as one flow.
