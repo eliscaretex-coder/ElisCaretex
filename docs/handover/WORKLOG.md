@@ -80,6 +80,22 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — ADMIN accounts without a staff record can open Distribution and Finish
+
+- Branch / commits: `claude/admin-account-without-staff`, Pull Request into `master`
+- Changed: the identity guards of Distribution, Finish, MOP, Customer Schedule editing,
+  operational report submit/review, ABS batch entry and the Trolley Type Master required
+  `current_staff_id()`. An ADMIN account managed only through `account_roles` (no staff
+  record) got "An active authenticated staff account is required.". The guards now require
+  `current_account_is_enabled()`; role checks are unchanged.
+- Database: `202610220003_account_access_without_staff_record.sql` (Prepared, not applied
+  until the owner approves).
+- Validation: dry run of the guard changes inside a rolled-back transaction on ElisCaretex-dev:
+  the staff-less ADMIN account passed all guards; a Sorting terminal and an account with no
+  roles were still refused by role. Test file
+  `supabase/tests/202610220003_account_access_without_staff_record_validation.sql`.
+- Open / next: apply the migration, run the test file and the security advisors.
+
 ## 2026-10-22 — Claude — Customer Service: Administrator accounts left out of the team list
 
 - Changed: the owner ticked the Customer Service permission on his Administrator account
