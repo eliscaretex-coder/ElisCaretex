@@ -37,19 +37,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // Loads and kg per wash type; Others only appear when a day actually has them.
+  function loadsBox(label,loads,kg,cls=""){return `<span class="sorting-results-loads ${cls}"><small>${label}</small><strong>${Number(loads||0)} loads</strong><em>${num(kg)} kg</em></span>`;}
+  function typeBoxes(x){return loadsBox("Clothes",x.clothes_loads,x.clothes_kg,"clothes")+loadsBox("MOP",x.mop_loads,x.mop_kg,"mop")+(Number(x.others_loads||0)?loadsBox("Others",x.others_loads,x.others_kg,"others"):"");}
+
   function renderTotals(data){
     const t=data.total||{};
     el.totals.innerHTML=`
       <article class="produced"><span>Washed</span><strong>${num(t.produced_kg)} kg</strong><small>${Number(t.total_loads||0)} loads</small></article>
-      <article><span>Clothes</span><strong>${num(Number(t.clothes_kg||0)+Number(t.others_kg||0))} kg</strong><small>${Number(t.clothes_loads||0)} loads${Number(t.others_loads||0)?` + ${Number(t.others_loads)} others`:""}</small></article>
-      <article><span>MOP</span><strong>${num(t.mop_kg)} kg</strong><small>${Number(t.mop_loads||0)} loads</small></article>
+      <article><span>Clothes</span><strong>${Number(t.clothes_loads||0)} loads</strong><small>${num(t.clothes_kg)} kg${Number(t.others_loads||0)?` · Others ${Number(t.others_loads)} loads, ${num(t.others_kg)} kg`:""}</small></article>
+      <article><span>MOP</span><strong>${Number(t.mop_loads||0)} loads</strong><small>${num(t.mop_kg)} kg</small></article>
       <article class="${efficiencyClass(t.efficiency_percent)}"><span>Efficiency</span><strong>${percent(t.efficiency_percent)}</strong><small>${num(t.kg_per_staff_hour)} kg per staff hour</small></article>
       <article class="planned"><span>Staff hours</span><strong>${num(t.staff_hours,2)}</strong><small>${Number(t.staff_count||0)} staff · ${Number(t.absent_count||0)} absent · ${Number(t.moved_count||0)+Number(t.partial_move_count||0)} moved</small></article>`;
   }
 
   function renderShifts(data){
     const by=new Map((data.shifts||[]).map(x=>[String(x.shift_code||"").toUpperCase(),x]));
-    el.shifts.innerHTML=["MORNING","EVENING"].map(code=>{const s=by.get(code)||{};return `<article class="finish-results-shift-card ${efficiencyClass(s.efficiency_percent)}"><header><strong>${shiftName(code)}</strong><b>${percent(s.efficiency_percent)}</b></header><div class="finish-results-shift-main"><span><small>Washed</small><strong>${num(s.produced_kg)} kg</strong></span><span><small>Clothes</small><strong>${num(Number(s.clothes_kg||0)+Number(s.others_kg||0))} kg</strong></span><span><small>MOP</small><strong>${num(s.mop_kg)} kg</strong></span><span><small>kg / staff hour</small><strong>${num(s.kg_per_staff_hour)}</strong></span></div><footer>${num(s.staff_hours,2)} staff hours · ${Number(s.staff_count||0)} staff · ${Number(s.total_loads||0)} loads${Number(s.absent_count||0)?` · ${Number(s.absent_count)} absent`:""}${Number(s.moved_count||0)?` · ${Number(s.moved_count)} moved`:""}${Number(s.partial_move_count||0)?` · ${Number(s.partial_move_count)} part shift`:""}</footer></article>`;}).join("");
+    el.shifts.innerHTML=["MORNING","EVENING"].map(code=>{const s=by.get(code)||{};return `<article class="finish-results-shift-card ${efficiencyClass(s.efficiency_percent)}"><header><strong>${shiftName(code)}</strong><b>${percent(s.efficiency_percent)}</b></header><div class="sorting-results-shift-loads">${typeBoxes(s)}${loadsBox("Total",s.total_loads,s.produced_kg,"total")}</div><footer>${num(s.kg_per_staff_hour)} kg per staff hour · ${num(s.staff_hours,2)} staff hours · ${Number(s.staff_count||0)} staff${Number(s.absent_count||0)?` · ${Number(s.absent_count)} absent`:""}${Number(s.moved_count||0)?` · ${Number(s.moved_count)} moved`:""}${Number(s.partial_move_count||0)?` · ${Number(s.partial_move_count)} part shift`:""}</footer></article>`;}).join("");
   }
 
   function renderStaff(data){
