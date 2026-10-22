@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-22 — Claude — Customer KG estimates stored and refreshed weekly
+
+- Branch / commits: `claude/customer-kg-weekly-snapshot`, Pull Request into `master`
+- Changed: owner decision: the KG estimate only needs a weekly refresh. The original
+  calculation is now `customer_kg_estimates_live`; `customer_kg_estimate_snapshot` stores its
+  result, refreshed by pg_cron `customer-kg-estimates-weekly-refresh` every Sunday 05:00 UTC
+  (before the roster autopublish). `customer_kg_estimates` keeps its signature: from the
+  snapshot date onwards it joins the stored estimates to the published schedule slots (new
+  slots show as LEARNING until the next refresh); earlier dates still calculate live.
+  ADMIN/MANAGER can refresh on demand with `refresh_customer_kg_estimates_v1()` (no UI button yet).
+- Database: `202610220005_customer_kg_estimate_weekly_snapshot.sql` (Prepared, not applied yet).
+  It supersedes `202610220004` (the nested-loop setting now sits on `customer_kg_estimates_live`).
+- Validation: on ElisCaretex-dev with a temporary copy of the snapshot, the stored path returned
+  the same 505 rows as the live calculation (0 differences) in 22 ms instead of about 1.9 s.
+  Test file `supabase/tests/202610220005_customer_kg_estimate_weekly_snapshot_validation.sql`.
+- Open / next: apply the migration, run the test, confirm Distribution in the browser.
+
 ## 2026-10-22 — Claude — Faster Distribution screens (customer KG estimates)
 
 - Branch / commits: `claude/distribution-kg-estimate-speed`, Pull Request into `master`
