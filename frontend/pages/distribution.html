@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
+  <link rel="stylesheet" href="../assets/css/driver-guides-tab.css?v=20261022-1">
   <style>@page { size: A4 landscape; margin: 8mm; }</style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
@@ -18,7 +19,8 @@
   <script src="../assets/js/app-shell-policy.js?v=20261022-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="DISTRIBUTION" defer></script>
-  <script src="../assets/js/distribution.js?v=20261020-1" defer></script>
+  <script src="../assets/js/driver-guides.js?v=20261022-2" defer></script>
+  <script src="../assets/js/distribution.js?v=20261022-1" defer></script>
 </head>
 <body class="distribution-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -45,9 +47,17 @@
         <section id="distributionPanel" class="distribution-panel">
           <div class="distribution-loading">Loading Distribution workspace...</div>
         </section>
+        <section id="distributionGuides" class="dg-scope" style="display:none">
+          <p id="message" class="dg-message" aria-live="polite"></p>
+<section class="dg-panel dg-editor"><div class="dg-panel-head"><div><span class="dg-step">CUSTOMER GUIDE</span><h2 id="formTitle">Add a new guide</h2><p>Select a customer, attach a photo or PDF, then save.</p></div><div class="dg-head-actions"><button id="cancelEdit" class="dg-button ghost hidden" type="button">Cancel edit</button><button id="saveGuide" class="dg-button primary save" type="submit" form="guideForm">Save guide</button></div></div>
+<form id="guideForm"><input id="guideId" type="hidden"><div class="dg-fields"><label>Customer<select id="customer" required></select></label><label>Guide title<input id="title" required maxlength="160" placeholder="Example: Loading bay entrance"></label><label class="wide">Instructions for the driver<textarea id="description" maxlength="1000" rows="3" placeholder="Explain what the driver should notice or do."></textarea></label><label class="wide dg-file-label"><span>Photo or PDF <small id="fileRequirement">Required for a new guide</small></span><input id="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><em>JPG, PNG, WebP or PDF · maximum 15 MB</em></label></div><div id="filePreview" class="dg-file-preview"><span>No file selected</span></div></form></section>
+<section class="dg-panel"><div class="dg-panel-head"><div><span class="dg-step">SAVED FILES</span><h2>Registered customer guides</h2><p>View, replace, edit or remove an existing guide.</p></div><label class="dg-filter">Customer<select id="filter"></select></label></div><div id="guideList" class="dg-grid"></div></section>
+        </section>
       </main>
     </div>
   </div>
+
+  <dialog id="viewer"><header><h2 id="viewerTitle">Guide</h2><button id="viewerClose" type="button">×</button></header><div id="viewerBody"></div></dialog>
 
   <dialog id="distributionRunDialog" class="distribution-dialog">
     <form id="distributionRunForm" method="dialog" onsubmit="return false;">

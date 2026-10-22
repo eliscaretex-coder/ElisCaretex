@@ -263,7 +263,7 @@
         { id:"distribution-fleet", label:"Fleet", href:"./pages/distribution.html#fleet" },
         { id:"distribution-routes", label:"Routes", href:"./pages/distribution.html#routes" },
         { id:"distribution-history", label:"History", href:"./pages/distribution.html#history" },
-        { id:"distribution-guides", label:"Customer guides", href:"./pages/driver-guides.html" }
+        { id:"distribution-guides", label:"Customer guides", href:"./pages/distribution.html#guides" }
       ]
     },
     {
