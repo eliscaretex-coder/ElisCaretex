@@ -88,13 +88,18 @@ Entry format:
   `current_staff_id()`. An ADMIN account managed only through `account_roles` (no staff
   record) got "An active authenticated staff account is required.". The guards now require
   `current_account_is_enabled()`; role checks are unchanged.
-- Database: `202610220003_account_access_without_staff_record.sql` (Prepared, not applied
-  until the owner approves).
+- Database: `202610220003_account_access_without_staff_record.sql`, **Applied** by the owner
+  through the SQL Editor on 2026-10-22 (verified: no function still checks
+  `current_staff_id() is null`).
 - Validation: dry run of the guard changes inside a rolled-back transaction on ElisCaretex-dev:
   the staff-less ADMIN account passed all guards; a Sorting terminal and an account with no
   roles were still refused by role. Test file
   `supabase/tests/202610220003_account_access_without_staff_record_validation.sql`.
-- Open / next: apply the migration, run the test file and the security advisors.
+- Validated after applying: the staff-less ADMIN account passed the Distribution, Finish,
+  MOP, Customer Schedule and Trolley Type Master guards; a Sorting terminal was still refused
+  by Distribution, Finish, Customer Schedules and Trolley Type Master; anon cannot call the
+  guards. Security advisors show the same categories as before (no new kind of finding).
+- Open / next: owner to confirm Distribution and Finish open in the browser.
 
 ## 2026-10-22 — Claude — Customer Service: Administrator accounts left out of the team list
 
