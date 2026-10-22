@@ -90,12 +90,16 @@ Entry format:
   snapshot date onwards it joins the stored estimates to the published schedule slots (new
   slots show as LEARNING until the next refresh); earlier dates still calculate live.
   ADMIN/MANAGER can refresh on demand with `refresh_customer_kg_estimates_v1()` (no UI button yet).
-- Database: `202610220005_customer_kg_estimate_weekly_snapshot.sql` (Prepared, not applied yet).
+- Database: `202610220005_customer_kg_estimate_weekly_snapshot.sql`, **Applied** 2026-10-22
+  (snapshot 505 rows; cron job present). `202610220004` was never applied and must not be.
   It supersedes `202610220004` (the nested-loop setting now sits on `customer_kg_estimates_live`).
 - Validation: on ElisCaretex-dev with a temporary copy of the snapshot, the stored path returned
   the same 505 rows as the live calculation (0 differences) in 22 ms instead of about 1.9 s.
   Test file `supabase/tests/202610220005_customer_kg_estimate_weekly_snapshot_validation.sql`.
-- Open / next: apply the migration, run the test, confirm Distribution in the browser.
+- Validated after applying: stored and live estimates match (0 differences); Distribution
+  dashboard 220 ms (was about 3.9-4.6 s), weekly planner 42 ms (was about 1.9 s); ADMIN manual
+  refresh works.
+- Open / next: owner to confirm in the browser; optional refresh button in the UI.
 
 ## 2026-10-22 — Claude — Faster Distribution screens (customer KG estimates)
 
@@ -103,7 +107,8 @@ Entry format:
 - Changed: `customer_kg_estimates` took about 1.9 s per call because of a nested-loop plan
   built on very low row estimates. The Distribution dashboard calls it twice (about 3.9 s) and
   the weekly planner once (about 1.9 s). The function now runs with `enable_nestloop = off`.
-- Database: `202610220004_customer_kg_estimates_planner_fix.sql` (Prepared, not applied yet).
+- Database: `202610220004_customer_kg_estimates_planner_fix.sql` (Prepared, never applied;
+  superseded by `202610220005`, do not apply).
 - Validation: measured with the same setting for the session on ElisCaretex-dev:
   estimates 163 ms, dashboard 364 ms, weekly planner 189 ms. Test file
   `supabase/tests/202610220004_customer_kg_estimates_planner_fix_validation.sql`.
