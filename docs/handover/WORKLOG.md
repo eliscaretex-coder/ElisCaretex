@@ -88,12 +88,12 @@ Entry format:
   one of the Customer Service people. `get_customer_service_workspace_v1` now leaves
   accounts with job title `ADMINISTRATOR` out of the `agents` list (who can receive customer
   blocks). Access is unchanged: the Administrator still sees and changes everything.
-- Database: `202610220002_customer_service_team_excludes_admins.sql` — **Prepared, not
-  applied** (waiting for owner approval). Replaces only the workspace RPC; same signature,
-  so the order of apply and merge does not matter. Ran inside a rolled-back transaction as
-  the owner's account: scope ALL, Manage true, agents list empty.
+- Database: `202610220002_customer_service_team_excludes_admins.sql` — **Applied** to
+  ElisCaretex-dev on 2026-10-22 with the owner's approval. Replaces only the workspace RPC; same signature,
+  so the order of apply and merge does not matter. Checked after applying as the owner's
+  account (rolled back): scope ALL, Manage true, agents list empty, anon cannot execute.
 - Validation: `supabase/tests/202610220002_customer_service_team_excludes_admins_validation.sql`.
-- Open / next: apply with owner approval; merge.
+- Open / next: merge the PR.
 
 ## 2026-10-22 — Claude — Customer Service: complaints, trace, alerts, tasks and results
 
