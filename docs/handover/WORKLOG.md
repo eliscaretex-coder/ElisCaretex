@@ -80,6 +80,14 @@ Entry format:
 
 ---
 
+## 2026-10-23 — Claude — Database review: orphan Distribution Roster RPCs and driver reinstatement fix
+
+- Branch / commits: claude/database-review-fixes, Pull Request
+- Changed: full review of repository vs live database (report in the project files, `revisao-logica-banco/README.md`). New migration revokes execution of the orphan Distribution Roster RPCs that exist only in the live database (`save_distribution_roster_draft`, `publish_distribution_roster(date,text)`, `get_distribution_roster_context`, `get_distribution_roster_history`, `require_distribution_roster_read_access`, `require_distribution_roster_manage_access`, `distribution_route_valid_on_date`). They let PLANNER and ROSTER_MANAGER publish a Distribution Roster outside the current path and without the 17–20/10 fixes. The same migration applies the `reinstate_distribution_driver` definition from `202610190004`, which was committed but never applied.
+- Database: `202610230004_close_orphan_distribution_roster_rpcs_and_apply_driver_reinstate_fix.sql` — **Applied** 2026-10-23 on the owner's go-ahead.
+- Validation: function-by-function comparison of all 480 repository functions against the live database; the 11 assertions of `supabase/tests/202610230004_..._validation.sql` (plus the two remaining helpers) all returned true against the live project, run as plain SQL because the pgTAP extension is not installed. Security advisors: no new findings; SECURITY DEFINER functions executable by authenticated went from 317 to 313.
+- Open / next: owner decision on one permission model (roles vs module grants); shared staff-portal token allows leave requests for any staff member; `202609160003` redefines `record_finish_rewash_v1` against a non-existent `finish_workstations` table (live version differs and works); capture the live-only functions in a migration so the repository becomes the source of truth again; mojibake in `record_customer_driver_guide_event`.
+
 ## 2026-10-23 — Claude — Production Roster exit after a job title change
 
 - Branch / commits: `claude/roster-role-change-exit`, Pull Request into `master`
