@@ -376,6 +376,11 @@ Implemented behaviour:
 
 Do not bypass the event/review history when importing or correcting leave decisions.
 
+Job title change (Prepared 2026-10-23, `202610230002_production_roster_exit_after_role_change.sql`):
+when a linked staff member's account job title moves out of Production, `staff_members.production_roster_until`
+is set to the Sunday of the current week. The staff member stays in the current week and is left
+out of later Production Roster weeks; published rosters are not changed. Moving back clears it.
+
 ## 9. Notices and notifications
 
 The internal notice system supports:

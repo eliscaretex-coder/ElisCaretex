@@ -366,7 +366,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const deactivatedOn = String(staff.deactivated_on || "");
       const entirelyOutside = (deactivatedOn && deactivatedOn < firstDay) || (joinedOn && joinedOn > lastDay);
       const masterUnavailableWithoutDates = staff.currently_eligible === false && !joinedOn && !deactivatedOn && (staff.master_active === false || staff.master_roster_eligible === false || staff.master_production_staff === false);
-      if (entirelyOutside || masterUnavailableWithoutDates) {
+      const movedOutOfProduction = Boolean(staff.production_roster_until) && String(staff.production_roster_until) < firstDay;
+      if (entirelyOutside || masterUnavailableWithoutDates || movedOutOfProduction) {
         removed.push(staff);
         state.layouts.delete(staff.staff_id);
         [...state.entries.keys()].filter((key) => key.startsWith(`${staff.staff_id}|`)).forEach((key) => state.entries.delete(key));
@@ -1442,7 +1443,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           currently_eligible: poolStaff.currently_eligible,
           master_active: poolStaff.master_active,
           master_roster_eligible: poolStaff.master_roster_eligible,
-          master_production_staff: poolStaff.master_production_staff
+          master_production_staff: poolStaff.master_production_staff,
+          production_roster_until: poolStaff.production_roster_until || null
         } : staff;
       });
 
@@ -1476,7 +1478,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
       } else if (employmentRepair.removed.length > 0 && isEditable()) {
         const names = employmentRepair.removed.map((staff) => staff.display_name).join(", ");
-        setMessage(`${employmentRepair.removed.length} staff member${employmentRepair.removed.length === 1 ? "" : "s"} removed from this planner because Staff Master employment dates do not overlap the visible week: ${names}. Published history was not changed. Save a new roster version to make the correction official.`, "error");
+        setMessage(`${employmentRepair.removed.length} staff member${employmentRepair.removed.length === 1 ? "" : "s"} removed from this planner because Staff Master employment dates do not overlap the visible week or they moved out of Production: ${names}. Published history was not changed. Save a new roster version to make the correction official.`, "error");
       } else if (employmentRepair.adjustedDays > 0 && isEditable()) {
         setMessage(`${employmentRepair.adjustedDays} roster day${employmentRepair.adjustedDays === 1 ? "" : "s"} changed to Off because they fall outside Staff Master employment dates. Review and Save.`, "error");
       } else if (approvedLeaveChanged && isEditable()) {
