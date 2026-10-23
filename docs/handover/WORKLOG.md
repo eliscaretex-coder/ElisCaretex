@@ -80,6 +80,25 @@ Entry format:
 
 ---
 
+## 2026-10-23 — Claude — Distribution manages customers
+
+- Branch / commits: `claude/distribution-customer-access`, Pull Request into `master`
+- Changed: `DISTRIBUTION_OPERATOR` now has full view and edit of customers, like `PLANNER`:
+  Customer Master (create, edit, deactivate, reactivate), schedule revisions (trolley
+  quantities, publish, cancel, restore), planner day order, schedule history, Clothes/MOP
+  planners, customer KG history and the trolley plan check list. Navigation: a `DISTRIBUTION`
+  account permission now also shows the Customer Workspace
+  (`frontend/assets/js/app-shell-policy.js`). No write path added; all of them already insert
+  into `audit_log` (actor, old/new data, reason).
+- Database: `202610230001_distribution_customer_management_access.sql` — **Prepared, not
+  applied** (waiting for owner approval). Large functions are patched in place by exact
+  role-list text; a dry run of the match counts against the live database matched every
+  expected occurrence on 2026-10-23.
+- Validation: `node scripts/validate-repository.mjs` passed. Test
+  `supabase/tests/202610230001_distribution_customer_management_access_validation.sql` to run
+  after applying.
+- Open / next: apply the migration, run the test and the security advisors.
+
 ## 2026-10-22 — Claude — Customer guides as a Distribution tab
 
 - Branch / commits: `claude/driver-guides-distribution-layout`, Pull Request into `master`

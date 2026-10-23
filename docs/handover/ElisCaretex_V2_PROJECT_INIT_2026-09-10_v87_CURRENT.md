@@ -130,7 +130,7 @@ Core rules:
 | Workspace | Current responsibility/status |
 | --- | --- |
 | Home | Role-aware cards, notification attention badge, personal/management entry points. |
-| Customer Workspace | Customer master, versioned weekly planner, product services, routes, trolley requirements and history. |
+| Customer Workspace | Customer master, versioned weekly planner, product services, routes, trolley requirements and history. From `202610230001` (Prepared), `DISTRIBUTION_OPERATOR` has the same customer and schedule edit rights as `PLANNER`, plus deactivate/reactivate; every write is recorded in `audit_log`. |
 | Production Roster | Weekly roster planning, publication, staff view, leave/day-off requests, approvals and capacity calendar. |
 | My Roster | Personal published roster for linked staff; administrators and production management can inspect published staff rosters. |
 | Sorting / Washing | Intake, washers, approximate load KG, staff actuals, no-work and governed area moves. |
@@ -585,6 +585,7 @@ recorded in WORKLOG on 2026-10-18 (not reapplied in this refresh):
 202610190008_roster_publish_clears_removed_runs.sql           (applied 2026-10-20)
 202610200001_customer_kg_history_estimates.sql                (applied 2026-10-20, owner approved)
 202610200002_production_roster_customer_kg.sql               (applied 2026-10-20, owner approved)
+202610230001_distribution_customer_management_access.sql     (Prepared 2026-10-23, not applied)
 ```
 
 Schema drift found 2026-10-19: live `distribution_drivers` has `joined_on`,
