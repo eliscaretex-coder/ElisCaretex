@@ -1065,7 +1065,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           p_source_application: "STAFF_MASTER_UI"
         });
         closeEditor(true);
-        setMessage(elements.pageMessage, `Driver ${result?.driver_code || ""} created and removed from Production Staff Master.`, "success");
+        setMessage(elements.pageMessage, `Driver ${result?.driver_code || ""} created. The staff member stays in this week's Production Roster and leaves it from next week.`, "success");
         await loadDirectory();
         return;
       }
