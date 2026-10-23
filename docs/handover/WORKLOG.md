@@ -91,13 +91,18 @@ Entry format:
   returns to Production. Editable drafts of later weeks lose the staff rows; published rosters
   are not changed. Staff pool, new-week list and the save/publish guard respect the date, and
   `roster.js` removes such staff from later-week planners.
-- Database: `202610230002_production_roster_exit_after_role_change.sql` (Prepared, not applied).
+- Database: `202610230002_production_roster_exit_after_role_change.sql` and
+  `202610230003_driver_transfer_keeps_current_roster_week.sql` applied to ElisCaretex-dev by the
+  owner through the SQL Editor on 2026-10-23 (the session's Supabase writes timed out).
 - Validation: `node scripts/validate-repository.mjs` passed. Migration run on a local
   PostgreSQL 16 with stub tables: job title change to Logistics Manager set the exit date to
   2026-10-25, removed the staff from the 2026-10-26 draft only, kept the current week and the
   published 2026-11-02 week, staff pool and new-week list excluded the staff from later weeks,
   the guard refused a later-week draft with the staff, and changing back cleared the date.
-  `supabase/tests/202610230002_..._validation.sql` still to be run after applying.
+  After applying: the validation assertions passed on ElisCaretex-dev (run as plain queries);
+  as Administrator, Paulo Teste2 (exit 2026-10-25) is in the 2026-10-19 week and absent from the
+  2026-10-26 and 2026-11-02 weeks; triggers and the `production-roster-exits` cron job exist; no
+  new security advisor finding for the new functions.
 - Transfer to Driver aligned (`202610230003_driver_transfer_keeps_current_roster_week.sql`): the
   transfer creates/links the Driver and sets the same exit date; the Staff Master record keeps its
   Production role, shift and eligibility until then, and the new daily cron job
