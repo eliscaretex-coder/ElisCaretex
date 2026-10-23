@@ -98,8 +98,15 @@ Entry format:
   published 2026-11-02 week, staff pool and new-week list excluded the staff from later weeks,
   the guard refused a later-week draft with the staff, and changing back cleared the date.
   `supabase/tests/202610230002_..._validation.sql` still to be run after applying.
-- Open / next: owner to apply the migration. The Staff Master "Transfer to Driver" flow still
-  removes the staff from current-week drafts immediately; align it if wanted.
+- Transfer to Driver aligned (`202610230003_driver_transfer_keeps_current_roster_week.sql`): the
+  transfer creates/links the Driver and sets the same exit date; the Staff Master record keeps its
+  Production role, shift and eligibility until then, and the new daily cron job
+  `production-roster-exits` (00:07 UTC, `process_production_roster_exits()`) completes the move
+  to Driver/Distribution afterwards. Only drafts after the exit week lose the staff rows.
+  Validated locally the same way. The job title sync does not clear the exit date of a staff
+  member linked to a Driver record.
+- Open / next: none once both migrations are applied.
+
 ## 2026-10-23 — Claude — Distribution manages customers
 
 - Branch / commits: `claude/distribution-customer-access`, Pull Request into `master`
