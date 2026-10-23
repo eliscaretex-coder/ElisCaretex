@@ -80,6 +80,14 @@ Entry format:
 
 ---
 
+## 2026-10-23 — Claude — Module permissions decide access for personal accounts
+
+- Branch / commits: claude/permissions-by-module, Pull Request
+- Changed: owner decision 2026-10-23 — for personal (USER) accounts, the ticked module permissions decide access in every module; legacy roles only apply to production terminals and accounts without an access profile. New helpers (`account_module_allowed`, `account_uses_module_permissions`, `legacy_role_allowed`, `legacy_role_modules`, `trolley_action_for_roles`); 55 guards and capability functions rewritten from their live definitions with only the role checks changed; customers / staff_members / staff_roles read policies follow the same rule. Job-title templates completed per the owner-approved matrix (General/Production Manager get Sorting, Finish, MOP, Customers, Trolleys, Tracker; Production Supervisor and Auditor get read access; Logistics Manager gets Customers edit and its Distribution MANAGE now really manages drivers/fleet/routes); existing accounts receive the new rows (additions only). DRIVER no longer carries DISTRIBUTION_OPERATOR, which let a driver account edit customers and publish the Distribution Roster.
+- Database: `202610230008_permissions_by_module.sql` — Prepared, waiting for the owner's go-ahead to apply.
+- Validation: SQL and PL/pgSQL parsed with pglast (76 statements, 0 errors); `supabase/tests/202610230008_permissions_by_module_validation.sql` (18 assertions, including a throw-away personal account and the Sorting terminal) to run after applying.
+- Open / next: storage policies for `mop-type-photos` still check ADMIN/MANAGER roles (storage schema owner); the frontend navigation already follows module permissions for personal accounts, so no UI change was needed.
+
 ## 2026-10-23 — Claude — Database review: orphan Distribution Roster RPCs and driver reinstatement fix
 
 - Branch / commits: claude/database-review-fixes, Pull Request
