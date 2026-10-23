@@ -365,6 +365,8 @@ async function loadRoster() {
   if (token) {
     ROSTER_VIEW.token = token;
     ROSTER_VIEW.data = await portalRpc("get_published_production_roster_portal", { p_token: token });
+    // The shared link only shows the roster; leave requests need the staff member's own sign-in.
+    nodes.leaveButton.textContent = "▣ Sign in to request holiday / day off";
   } else {
     const { data } = await window.elisSupabase.auth.getSession();
     if (!data.session) { window.location.replace("../index.html"); return; }
@@ -430,9 +432,7 @@ async function loadMyLeaveRequests() {
   const staffId = nodes.leaveStaff.value;
   if (!staffId) { nodes.myLeaveRequests.innerHTML = ""; return; }
   try {
-    const list = ROSTER_VIEW.authenticated
-      ? await portalRpc("get_my_account_leave_requests")
-      : await portalRpc("get_my_production_roster_leave_requests", { p_token: ROSTER_VIEW.token, p_staff_id: staffId });
+    const list = await portalRpc("get_my_account_leave_requests");
     if (!Array.isArray(list) || !list.length) { nodes.myLeaveRequests.innerHTML = ""; return; }
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -455,6 +455,7 @@ async function loadMyLeaveRequests() {
 }
 
 async function openLeaveForm() {
+  if (!ROSTER_VIEW.authenticated) { window.location.href = "roster-view.html"; return; }
   const people = portalStaffOptions();
   nodes.leaveStaff.innerHTML = '<option value="">Select your name…</option>' + people.map((person) => `<option value="${escapeHtml(person.staffId)}">${escapeHtml(person.name)}</option>`).join("");
   if (ROSTER_VIEW.authenticated && people.length === 1) {
@@ -497,8 +498,7 @@ async function submitLeaveRequest() {
   nodes.leaveSubmit.disabled = true;
   setLeaveMessage("Submitting request…");
   try {
-    const result = await portalRpc(ROSTER_VIEW.authenticated ? "submit_my_account_leave_request" : "submit_production_roster_leave_request", {
-      ...(ROSTER_VIEW.authenticated ? {} : { p_token: ROSTER_VIEW.token, p_staff_id: staffId }),
+    const result = await portalRpc("submit_my_account_leave_request", {
       p_request_type: requestType,
       p_start_date: start,
       p_end_date: end || null,
