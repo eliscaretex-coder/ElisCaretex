@@ -110,14 +110,15 @@ Entry format:
   account permission now also shows the Customer Workspace
   (`frontend/assets/js/app-shell-policy.js`). No write path added; all of them already insert
   into `audit_log` (actor, old/new data, reason).
-- Database: `202610230001_distribution_customer_management_access.sql` — **Prepared, not
-  applied** (waiting for owner approval). Large functions are patched in place by exact
-  role-list text; a dry run of the match counts against the live database matched every
-  expected occurrence on 2026-10-23.
-- Validation: `node scripts/validate-repository.mjs` passed. Test
-  `supabase/tests/202610230001_distribution_customer_management_access_validation.sql` to run
-  after applying.
-- Open / next: apply the migration, run the test and the security advisors.
+- Database: `202610230001_distribution_customer_management_access.sql` — **Applied** to
+  `ElisCaretex-dev` on 2026-10-23 (owner approved), from the committed file.
+- Validation: `node scripts/validate-repository.mjs` passed. pgTAP is not installed on the
+  project, so the 22 assertions of
+  `supabase/tests/202610230001_distribution_customer_management_access_validation.sql` were run
+  as an equivalent plain-SQL block: all 22 passed (Distribution account allowed, Finish account
+  still refused, audit_log inserts present). Security advisors: no new finding for these
+  functions.
+- Open / next: owner to confirm in the app with the Distribution account.
 
 ## 2026-10-22 — Claude — Customer guides as a Distribution tab
 
