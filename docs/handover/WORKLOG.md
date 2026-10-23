@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-10-23 — Claude — Production Roster exit after a job title change
+
+- Branch / commits: `claude/roster-role-change-exit`, Pull Request into `master`
+- Changed: when a linked staff member's account job title moves out of Production
+  (department DISTRIBUTION, CUSTOMER_SERVICE, ADMINISTRATION or MANAGEMENT), they stay in the
+  current roster week and are left out of every later week. New column
+  `staff_members.production_roster_until` (Sunday of the change week), set by triggers on
+  `account_access_profiles.job_title_code` and on account linking; cleared when the job title
+  returns to Production. Editable drafts of later weeks lose the staff rows; published rosters
+  are not changed. Staff pool, new-week list and the save/publish guard respect the date, and
+  `roster.js` removes such staff from later-week planners.
+- Database: `202610230002_production_roster_exit_after_role_change.sql` (Prepared, not applied).
+- Validation: `node scripts/validate-repository.mjs` passed. Migration run on a local
+  PostgreSQL 16 with stub tables: job title change to Logistics Manager set the exit date to
+  2026-10-25, removed the staff from the 2026-10-26 draft only, kept the current week and the
+  published 2026-11-02 week, staff pool and new-week list excluded the staff from later weeks,
+  the guard refused a later-week draft with the staff, and changing back cleared the date.
+  `supabase/tests/202610230002_..._validation.sql` still to be run after applying.
+- Open / next: owner to apply the migration. The Staff Master "Transfer to Driver" flow still
+  removes the staff from current-week drafts immediately; align it if wanted.
 ## 2026-10-23 — Claude — Distribution manages customers
 
 - Branch / commits: `claude/distribution-customer-access`, Pull Request into `master`
