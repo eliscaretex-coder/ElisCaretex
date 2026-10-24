@@ -80,6 +80,22 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — Cloth + MOP print by production and by delivery day
+
+- Branch / commits: `claude/schedule-print-cloth-mop`, Pull Request into `master`.
+- Changed: new `frontend/assets/js/schedule-combined-print.js` builds a 3-page A4 print
+  with Cloth and MOP trolleys side by side. Schedule Planner gets a "Print Cloth + MOP"
+  menu next to the unchanged Print button: "By production day" (Clothes + MOP planners,
+  Clothes order first, MOP-only customers after with "M" order) and "By delivery day"
+  (Distribution planner, grouped by delivery day and route in delivery order).
+  Distribution → Route customers gets the same delivery print button.
+- Database: none. Uses the existing `get_clothes_weekly_planner`, `get_mop_weekly_planner`
+  and `get_distribution_weekly_planner` RPCs.
+- Validation: `node scripts/validate-repository.mjs` passed. Both prints rendered in
+  Chromium from live RPC data for 24 Oct 2026 (read-only transaction): 3 A4 pages each.
+  The buttons inside the logged-in pages were not clicked in a browser.
+- Open / next: owner acceptance of the layout.
+
 ## 2026-10-24 — Claude — My Driver Roster shows each route in its colour
 
 - Branch / commits: `claude/driver-roster-route-colors`, Pull Request into `master`

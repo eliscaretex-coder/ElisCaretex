@@ -1363,6 +1363,70 @@ body.customers-modal-open {
   outline: none;
 }
 
+/* Cloth + MOP print menu */
+.customers-print-menu {
+  position: relative;
+}
+
+.customers-print-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+}
+
+.customers-print-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.customers-print-menu > summary::after {
+  content: "▾";
+  margin-left: 2px;
+}
+
+.customers-print-menu-options {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 4px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+}
+
+.customers-print-menu-options button {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #0f172a;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.customers-print-menu-options button:hover,
+.customers-print-menu-options button:focus-visible {
+  background: #f1f5f9;
+  outline: none;
+}
+
+.customers-print-menu-options strong {
+  font-size: 0.82rem;
+}
+
+.customers-print-menu-options span {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
 /* Weekly planner */
 .customers-planner-outer {
   position: relative;

@@ -766,6 +766,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <button id="schedulePrintButton" class="customers-print-button" type="button">
           <span aria-hidden="true">▣</span> Print
         </button>
+        ${renderCombinedPrintMenu()}
       </div>
 
       <section class="customers-kg-coverage${missingKgRows ? " has-missing" : " complete"}">
@@ -1305,6 +1306,80 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Second print option: Cloth + MOP together, by production day (both
+  // planners) or by delivery day (Distribution planner). The single-service
+  // Print above stays unchanged.
+  function canPrintCombinedProduction() {
+    return Boolean(
+      state.capabilities?.can_view_clothes_planner &&
+      state.capabilities?.can_view_mop_planner
+    );
+  }
+
+  function renderCombinedPrintMenu() {
+    const options = [];
+
+    if (canPrintCombinedProduction()) {
+      options.push(`
+        <button type="button" data-combined-print="production">
+          <strong>By production day</strong>
+          <span>Same layout as Print, Cloth and MOP trolleys side by side</span>
+        </button>
+      `);
+    }
+
+    if (state.capabilities?.can_view_distribution) {
+      options.push(`
+        <button type="button" data-combined-print="delivery">
+          <strong>By delivery day</strong>
+          <span>For Distribution: grouped by delivery day and route</span>
+        </button>
+      `);
+    }
+
+    if (!options.length || !window.ElisCombinedSchedulePrint) {
+      return "";
+    }
+
+    return `
+      <details class="customers-print-menu">
+        <summary class="customers-print-button"><span aria-hidden="true">▣</span> Print Cloth + MOP</summary>
+        <div class="customers-print-menu-options">${options.join("")}</div>
+      </details>
+    `;
+  }
+
+  async function printCombinedSchedule(mode) {
+    const printer = window.ElisCombinedSchedulePrint;
+    const printEffectiveDate = effectiveDateInput.value;
+
+    await printer.open({
+      mode,
+      effectiveDate: printEffectiveDate,
+      load: async () => {
+        if (mode === "delivery") {
+          const payload = await rpc("get_distribution_weekly_planner", {
+            p_effective_date: printEffectiveDate,
+            p_delivery_weekday: null,
+            p_search: null
+          });
+          return printer.deliveryRows(payload?.items);
+        }
+
+        const parameters = {
+          p_effective_date: printEffectiveDate,
+          p_production_weekday: null,
+          p_search: null
+        };
+        const [clothes, mop] = await Promise.all([
+          rpc("get_clothes_weekly_planner", parameters),
+          rpc("get_mop_weekly_planner", parameters)
+        ]);
+        return printer.productionRows(clothes?.items, mop?.items);
+      }
+    });
+  }
+
   function plannerReorderAvailability() {
     const businessDate = String(
       state.capabilities?.business_date || new Date().toISOString().slice(0, 10)
@@ -1598,6 +1673,12 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshButton?.addEventListener("click", loadMainView);
     addButton?.addEventListener("click", () => openCustomerForm("create"));
     printButton?.addEventListener("click", printSchedulePlanner);
+    document.querySelectorAll("[data-combined-print]").forEach((button) => {
+      button.addEventListener("click", () => {
+        button.closest("details")?.removeAttribute("open");
+        printCombinedSchedule(button.dataset.combinedPrint);
+      });
+    });
     missingKgButton?.addEventListener("click", () => {
       state.schedule.missingKgOnly = !state.schedule.missingKgOnly;
       renderSchedulePlanner({ effective_date: effectiveDateInput.value, total_count: state.schedule.items.length });
