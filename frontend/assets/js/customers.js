@@ -1015,6 +1015,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th style="height:${headerHeightMm}mm;font-size:${headerFontSizePt}pt;">
                   ${escapeHtml(day?.name || "Day")}
                   <span class="day-count">(${rows.length})</span>
+                  <span class="day-kind">Production</span>
                 </th>
               </tr>
             </thead>
@@ -1116,6 +1117,7 @@ document.addEventListener("DOMContentLoaded", () => {
               font-weight: 900;
             }
             .day-count { font-size: 10px; opacity: 0.7; }
+            .day-kind { float: right; font-size: 6pt; font-weight: 700; letter-spacing: 0.06em; opacity: 0.7; }
             .customer-row {
               position: relative;
               overflow: hidden;

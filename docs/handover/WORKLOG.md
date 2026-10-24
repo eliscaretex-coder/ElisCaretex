@@ -80,6 +80,16 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — "Production" label on the single-service planner print
+
+- Branch / commits: `claude/schedule-print-production-label`, Pull Request into `master`.
+- Changed: the existing Schedule Planner Print (Clothes or MOP) shows "PRODUCTION" on the
+  right of each black day header, like the new Cloth + MOP print. Layout otherwise unchanged.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed; print rendered in Chromium
+  with live Clothes planner data.
+- Open / next: none.
+
 ## 2026-10-24 — Claude — Cloth + MOP print by production and by delivery day
 
 - Branch / commits: `claude/schedule-print-cloth-mop`, Pull Request into `master`.
