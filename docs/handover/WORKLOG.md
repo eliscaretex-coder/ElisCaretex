@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — Copy Eircode from the route on My Driver Roster
+
+- Branch / commits: `claude/driver-roster-copy-eircode`, Pull Request into `master`
+- Changed: in the route dialog of `frontend/assets/js/driver-roster.js` each customer now shows
+  its Eircode in a large box with a "Copy Eircode" button, so the driver can paste it into the
+  GPS app they prefer. Uses the Clipboard API with a `execCommand("copy")` fallback; the button
+  confirms with "Copied ✓". Customers without an Eircode show "No Eircode registered".
+  Styles in `driver-roster.css`; cache-busting versions bumped in `driver-roster.html`.
+- Database: none. Data comes from the existing `get_my_driver_route` RPC, which already only
+  returns routes assigned to the signed-in driver (or Distribution managers).
+- Validation: `node scripts/validate-repository.mjs` passed; route dialog and copy checked in
+  Chromium with iPhone 13 emulation and mocked RPC data. Not tested against live data.
+- Open / next: the Eircode is the snapshot on the run stop (`eircode_snapshot`).
+
 ## 2026-10-24 — Claude — Fix Distribution roster save on imported weeks ("fri" date error)
 
 - Branch / commits: `claude/fix-roster-required-routes-weekday`, Pull Request into `master`.
