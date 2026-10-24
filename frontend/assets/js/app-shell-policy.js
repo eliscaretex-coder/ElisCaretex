@@ -292,7 +292,15 @@
       id: "production-insights", label: "Production Intelligence",
       description: "Official production history, demand learning and management indicators",
       href: "./pages/production-insights.html", icon: "insights", group: "Management",
-      permission: NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS
+      permission: NAVIGATION_PERMISSIONS.PRODUCTION_INSIGHTS,
+      children: [
+        { id:"production-insights-overview", label:"Overview", href:"./pages/production-insights.html?view=overview" },
+        { id:"production-insights-daily", label:"Daily report", href:"./pages/production-insights.html?view=daily" },
+        { id:"production-insights-customers", label:"Customers", href:"./pages/production-insights.html?view=customers" },
+        { id:"production-insights-performance", label:"Shifts & tables", href:"./pages/production-insights.html?view=performance" },
+        { id:"production-insights-staff", label:"Staff", href:"./pages/production-insights.html?view=staff" },
+        { id:"production-insights-planning", label:"Planning", href:"./pages/production-insights.html?view=planning" }
+      ]
     },
     {
       id: "staff-master", label: "Staff Master",

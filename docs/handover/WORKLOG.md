@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — Production Intelligence for managers and in-app Daily report
+- Branch / commits: `claude/production-intelligence-managers` (Pull Request)
+- Changed: Production Intelligence rebuilt as tabs (Overview, Daily report, Customers, Shifts & tables,
+  Staff, Planning) driven by a Day / Week / Month / Year period that opens on the current month and
+  compares with the same days of the previous period. Customers shows KG, average KG and average
+  trolleys per production day, and change. Shifts & tables shows Finish/Sorting efficiency per shift
+  and per table. Staff shows headcount, leavers, joiners and turnover %. The Daily report replaces the
+  Apps Script daily emails: scheduled customers against washed and produced, Sorting/Finish results
+  of the day (reusing their Results functions) and MOP. Sidebar links for each tab.
+- Database: `202610240001_production_intelligence_manager_views.sql` (new read-only RPCs
+  `get_production_intelligence_manager_view`, `get_production_daily_report` and the internal helper
+  `production_intelligence_staff_hours`). **Not applied yet** — waiting for the owner's confirmation.
+  Logic was checked against live data inside temporary (session-only) functions; nothing was written.
+- Validation: `node scripts/validate-repository.mjs`; page checked in Chromium with mocked RPC data at
+  desktop and phone width. pgTAP file `supabase/tests/202610240001_production_intelligence_manager_views_validation.sql`
+  to run after applying.
+- Open / next: joiners are only counted for staff with a start date (`joined_on` is empty for most
+  imported staff). Finish efficiency uses imported Apps Script hours until September and the published
+  roster (minus sessions/absences) afterwards. Per-person KG ranking was left out because a Finish entry
+  records one person while tables work as a team.
+
 ## 2026-10-23 — Claude — Module permissions decide access for personal accounts
 
 - Branch / commits: claude/permissions-by-module, Pull Request
