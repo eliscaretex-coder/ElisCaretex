@@ -6,90 +6,163 @@
   <title>Production Intelligence | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/production-insights.css?v=20261017-2">
+  <link rel="stylesheet" href="../assets/css/production-insights.css?v=20261024-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
-  <script src="../assets/js/app-shell-policy.js?v=20261022-1" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
-  <script src="../assets/js/production-insights.js?v=20261017-2" defer></script>
+  <script src="../assets/js/production-insights.js?v=20261024-1" defer></script>
 </head>
 <body class="production-insights-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
     <main class="production-insights-content">
       <header class="production-insights-header">
-        <div><p>Management</p><h1>Production Intelligence</h1><span>Official production history and demand learning.</span></div>
-        <div class="production-insights-filters">
-          <label>From<input id="insightsFrom" type="date"></label>
-          <label>To<input id="insightsTo" type="date"></label>
-          <button id="insightsRefresh" type="button">Refresh</button>
+        <div><p>Management</p><h1>Production Intelligence</h1></div>
+        <div class="production-insights-period" id="insightsPeriodControls">
+          <div class="production-insights-segment" role="group" aria-label="Period">
+            <button type="button" data-period="DAY">Day</button>
+            <button type="button" data-period="WEEK">Week</button>
+            <button type="button" data-period="MONTH" class="active">Month</button>
+            <button type="button" data-period="YEAR">Year</button>
+          </div>
+          <div class="production-insights-stepper">
+            <button id="insightsPrev" type="button" aria-label="Previous period">&#8249;</button>
+            <input id="insightsAnchor" type="date" aria-label="Period date">
+            <button id="insightsNext" type="button" aria-label="Next period">&#8250;</button>
+            <button id="insightsToday" type="button">Today</button>
+          </div>
+        </div>
+        <div class="production-insights-period" id="dailyControls" hidden>
+          <div class="production-insights-stepper">
+            <button id="dailyPrev" type="button" aria-label="Previous day">&#8249;</button>
+            <input id="dailyDate" type="date" aria-label="Report date">
+            <button id="dailyNext" type="button" aria-label="Next day">&#8250;</button>
+            <button id="dailyToday" type="button">Today</button>
+            <button id="dailyPrint" type="button">Print</button>
+          </div>
         </div>
       </header>
 
+      <nav class="production-insights-tabs" role="tablist" aria-label="Production Intelligence sections">
+        <button type="button" role="tab" data-tab="overview">Overview</button>
+        <button type="button" role="tab" data-tab="daily">Daily report</button>
+        <button type="button" role="tab" data-tab="customers">Customers</button>
+        <button type="button" role="tab" data-tab="performance">Shifts &amp; tables</button>
+        <button type="button" role="tab" data-tab="staff">Staff</button>
+        <button type="button" role="tab" data-tab="planning">Planning</button>
+      </nav>
+
+      <p id="insightsPeriodLabel" class="production-insights-period-label"></p>
       <p id="insightsMessage" class="production-insights-message" aria-live="polite"></p>
-      <aside class="production-insights-policy"><strong>Official KG</strong><span>Finish and MOP Production only. Sorting estimates are never included.</span></aside>
 
-      <section id="insightsKpis" class="production-insights-kpis" aria-label="Production summary"></section>
-
-      <section class="production-insights-card">
-        <header><div><p>Weekly history</p><h2>Actual production trend</h2><span>Week-by-week record ready for annual and seasonal comparison.</span></div><b id="insightsWeekCount">0 weeks</b></header>
-        <div id="insightsWeekly" class="production-insights-weekly"></div>
-      </section>
-
-      <section class="production-insights-card">
-        <header><div><p>Seasonality</p><h2>Monthly official production</h2><span>Finish and MOP history across the selected period.</span></div><b id="insightsSeasonalityStatus">Learning</b></header>
-        <div id="insightsMonthly" class="production-insights-monthly"></div>
-      </section>
-
-      <section class="production-insights-card">
-        <header class="production-insights-customer-header"><div><p>Customer analysis</p><h2>Volume contribution and weekly variation</h2><span>Supports seasonal planning after historical data import.</span></div><div><input id="insightsCustomerSearch" type="search" placeholder="Search customer…"><b id="insightsCustomerCount">0 customers</b></div></header>
-        <div id="insightsCustomers" class="production-insights-customers"></div>
-      </section>
-
-      <section id="insightsCustomerHistoryCard" class="production-insights-card production-insights-history-card" hidden>
-        <header><div><p>Customer KG history</p><h2 id="insightsCustomerHistoryTitle">Customer</h2><span>Official Finish and MOP records, with weekday-specific three-day averages.</span></div><button id="insightsCustomerHistoryClose" type="button">Close</button></header>
-        <div id="insightsCustomerSuggestions" class="production-insights-suggestions"></div>
-        <div id="insightsCustomerHistory" class="production-insights-history"></div>
-      </section>
-
-      <section class="production-insights-card production-insights-capacity-card">
-        <header><div><p>Forward planning</p><h2>Expected demand versus published Finish capacity</h2><span>Six-week view. Incomplete customer history remains Learning.</span></div><b id="insightsCapacityStatus">Loading</b></header>
-        <div id="insightsCapacityWeeks" class="production-insights-capacity-weeks"></div>
-        <div id="insightsCapacityDays" class="production-insights-capacity-days"></div>
-      </section>
-
-      <section class="production-insights-card">
-        <header><div><p>Daily control</p><h2>Production and recorded capacity</h2><span>Capacity appears only when actual Finish attendance hours exist.</span></div><b id="insightsDayCount">0 days</b></header>
-        <div id="insightsDaily" class="production-insights-daily"></div>
-      </section>
-
-      <div class="production-insights-split">
+      <!-- Overview -->
+      <section class="production-insights-panel" data-panel="overview">
+        <aside class="production-insights-policy"><strong>Official KG</strong><span>Finish KG lines and MOP Production only. Sorting weights are approximate and never added to official totals.</span></aside>
+        <div id="overviewKpis" class="production-insights-kpis production-insights-kpis-compare"></div>
         <section class="production-insights-card">
-          <header><div><p>Shift</p><h2>Production by shift</h2></div></header>
-          <div id="insightsShifts" class="production-insights-ranking"></div>
+          <header><div><p>Trend</p><h2 id="overviewTrendTitle">Official production</h2><span id="overviewTrendHint">Finish and MOP in the selected period.</span></div><div class="production-insights-legend"><i></i>Finish<i class="mop"></i>MOP</div></header>
+          <div id="overviewTrend" class="production-insights-trend"></div>
+        </section>
+        <div class="production-insights-areas" id="overviewAreas"></div>
+        <section class="production-insights-card">
+          <header><div><p>Highlights</p><h2>What needs attention</h2><span>Automatic reading of the selected period.</span></div></header>
+          <ul id="overviewHighlights" class="production-insights-highlights"></ul>
+        </section>
+      </section>
+
+      <!-- Daily report -->
+      <section class="production-insights-panel" data-panel="daily" hidden>
+        <div id="dailyBanner" class="production-insights-daily-banner"></div>
+        <div id="dailyAreas" class="production-insights-areas"></div>
+        <section class="production-insights-card">
+          <header><div><p>Alerts</p><h2>Problems found on this day</h2></div></header>
+          <ul id="dailyAlerts" class="production-insights-highlights"></ul>
         </section>
         <section class="production-insights-card">
-          <header><div><p>Workstation</p><h2>Production by table / area</h2></div></header>
-          <div id="insightsWorkstations" class="production-insights-ranking"></div>
+          <header class="production-insights-customer-header">
+            <div><p>Customers</p><h2>Scheduled production and delivery readiness</h2><span>Customers scheduled on this day, what Sorting washed and what Finish / MOP produced.</span></div>
+            <div class="production-insights-filter-group" id="dailyFilter">
+              <button type="button" data-filter="PENDING" class="active">Pending</button>
+              <button type="button" data-filter="ALL">All</button>
+              <button type="button" data-filter="LATE">Late</button>
+            </div>
+          </header>
+          <div id="dailyCustomers" class="production-insights-table-wrap"></div>
         </section>
-      </div>
-
-      <section class="production-insights-card production-insights-sorting-card">
-        <header><div><p>Sorting & trolley flow</p><h2>Operational movement</h2><span>Sorting KG is approximate and is not included in official production totals.</span></div><b id="insightsSortingDayCount">0 days</b></header>
-        <div id="insightsSortingKpis" class="production-insights-flow-kpis"></div>
-        <div id="insightsSortingDaily" class="production-insights-flow-daily"></div>
+        <section class="production-insights-card">
+          <header><div><p>Areas</p><h2>Results by shift</h2><span>Same numbers as the Sorting Results and Finish Results pages.</span></div></header>
+          <div id="dailyShifts" class="production-insights-table-wrap"></div>
+        </section>
+        <section class="production-insights-card" id="dailyUnscheduledCard" hidden>
+          <header><div><p>Extra production</p><h2>Produced without a schedule on this day</h2></div><b id="dailyUnscheduledCount">0</b></header>
+          <div id="dailyUnscheduled" class="production-insights-table-wrap"></div>
+        </section>
       </section>
 
-      <section class="production-insights-card">
-        <header><div><p>Washers</p><h2>Sorting load utilisation</h2><span>Operational washer loading only; weights remain approximate.</span></div></header>
-        <div id="insightsWashers" class="production-insights-washers"></div>
+      <!-- Customers -->
+      <section class="production-insights-panel" data-panel="customers" hidden>
+        <section class="production-insights-card">
+          <header class="production-insights-customer-header">
+            <div><p>Customers</p><h2>KG processed and trolleys per customer</h2><span id="customersHint">Compared with the previous period.</span></div>
+            <div class="production-insights-filter-group">
+              <select id="customersProduct" aria-label="Product"><option value="">All products</option><option value="CLOTHES">Clothes</option><option value="MOP">MOP</option></select>
+              <input id="customersSearch" type="search" placeholder="Search customer…">
+              <b id="customersCount">0 customers</b>
+            </div>
+          </header>
+          <div id="customersTable" class="production-insights-table-wrap"></div>
+        </section>
+        <section id="insightsCustomerHistoryCard" class="production-insights-card production-insights-history-card" hidden>
+          <header><div><p>Customer KG history</p><h2 id="insightsCustomerHistoryTitle">Customer</h2><span>Official Finish and MOP records, with weekday-specific three-day averages.</span></div><button id="insightsCustomerHistoryClose" type="button">Close</button></header>
+          <div id="insightsCustomerSuggestions" class="production-insights-suggestions"></div>
+          <div id="insightsCustomerHistory" class="production-insights-history"></div>
+        </section>
       </section>
 
-      <section class="production-insights-card">
-        <header><div><p>Automatic learning</p><h2>Next-week customer estimate</h2><span>The system needs at least three recent production records before showing an estimate.</span></div><b id="insightsForecastCount">0 customers</b></header>
-        <div id="insightsForecasts" class="production-insights-forecasts"></div>
+      <!-- Shifts & tables -->
+      <section class="production-insights-panel" data-panel="performance" hidden>
+        <aside class="production-insights-policy"><strong>Efficiency</strong><span id="performancePolicy">Finish uses the Finish Results basis (KG, units converted and ReWash) against the KG per staff hour target. Only days with staff hours are counted.</span></aside>
+        <section class="production-insights-card">
+          <header><div><p>Shift</p><h2>Morning against Evening</h2><span>Which shift performed better in each area.</span></div></header>
+          <div id="performanceShifts" class="production-insights-shift-compare"></div>
+        </section>
+        <section class="production-insights-card">
+          <header><div><p>Finish tables</p><h2>Performance by table and shift</h2><span>KG, staff hours, KG per staff hour and efficiency against target.</span></div><b id="performanceBest">—</b></header>
+          <div id="performanceTables" class="production-insights-table-grid"></div>
+        </section>
+      </section>
+
+      <!-- Staff -->
+      <section class="production-insights-panel" data-panel="staff" hidden>
+        <div id="staffKpis" class="production-insights-kpis"></div>
+        <section class="production-insights-card">
+          <header><div><p>Turnover</p><h2>Last 12 months</h2><span>Leavers and turnover % per month (leavers ÷ average headcount).</span></div></header>
+          <div id="staffMonthly" class="production-insights-trend"></div>
+        </section>
+        <section class="production-insights-card">
+          <header><div><p>Leavers</p><h2>Staff who left in the period</h2><span id="staffNote"></span></div><b id="staffLeaversCount">0</b></header>
+          <div id="staffLeavers" class="production-insights-table-wrap"></div>
+        </section>
+      </section>
+
+      <!-- Planning -->
+      <section class="production-insights-panel" data-panel="planning" hidden>
+        <section class="production-insights-card production-insights-capacity-card">
+          <header><div><p>Forward planning</p><h2>Expected demand versus published Finish capacity</h2><span>Six-week view. Incomplete customer history remains Learning.</span></div><b id="insightsCapacityStatus">Loading</b></header>
+          <div id="insightsCapacityWeeks" class="production-insights-capacity-weeks"></div>
+          <div id="insightsCapacityDays" class="production-insights-capacity-days"></div>
+        </section>
+        <section class="production-insights-card">
+          <header><div><p>Seasonality</p><h2>Monthly official production, last 12 months</h2><span>Finish and MOP history.</span></div><b id="insightsSeasonalityStatus">Learning</b></header>
+          <div id="insightsMonthly" class="production-insights-monthly"></div>
+        </section>
+        <section class="production-insights-card">
+          <header><div><p>Automatic learning</p><h2>Next-week customer estimate</h2><span>The system needs at least three recent production records before showing an estimate.</span></div><b id="insightsForecastCount">0 customers</b></header>
+          <div id="insightsForecasts" class="production-insights-forecasts"></div>
+        </section>
       </section>
     </main>
   </div>
