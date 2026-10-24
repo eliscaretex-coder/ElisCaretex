@@ -91,11 +91,15 @@ Entry format:
   of the day (reusing their Results functions) and MOP. Sidebar links for each tab.
 - Database: `202610240001_production_intelligence_manager_views.sql` (new read-only RPCs
   `get_production_intelligence_manager_view`, `get_production_daily_report` and the internal helper
-  `production_intelligence_staff_hours`). **Not applied yet** — waiting for the owner's confirmation.
-  Logic was checked against live data inside temporary (session-only) functions; nothing was written.
+  `production_intelligence_staff_hours`). **Applied** to ElisCaretex-dev on 2026-10-24 after the owner's
+  confirmation (migration name `production_intelligence_manager_views`).
 - Validation: `node scripts/validate-repository.mjs`; page checked in Chromium with mocked RPC data at
-  desktop and phone width. pgTAP file `supabase/tests/202610240001_production_intelligence_manager_views_validation.sql`
-  to run after applying.
+  desktop and phone width. **Validated** after applying: pgTAP is not installed on the project, so the
+  assertions of `supabase/tests/202610240001_production_intelligence_manager_views_validation.sql` were
+  run as plain SQL (12/12 passed): grants, anonymous refusal, inverted period refusal, Administrator gets
+  both RPCs (October: 82,514.8 kg, 22/10: 109 scheduled services), Logistics Manager gets the daily report
+  with Sorting/Finish `DENIED`. Security advisors: no new finding beyond the existing project-wide
+  "authenticated can execute SECURITY DEFINER" notice, which these permission-guarded RPCs share by design.
 - Open / next: joiners are only counted for staff with a start date (`joined_on` is empty for most
   imported staff). Finish efficiency uses imported Apps Script hours until September and the published
   roster (minus sessions/absences) afterwards. Per-person KG ranking was left out because a Finish entry
