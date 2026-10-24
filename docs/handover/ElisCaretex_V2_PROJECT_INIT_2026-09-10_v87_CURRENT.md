@@ -625,6 +625,12 @@ supabase/functions/production-roster-leave-email/index.ts
 supabase/functions/admin-account-management/index.ts
 ```
 
+Driver role transfer (2026-10-24, `202610240003_driver_role_transfer.sql`, **Prepared**):
+Distribution requests a Driver -> job title move from Drivers > Remove; a Staff Master
+APPROVE holder below the target rank, or an Administrator, approves it in Staff Master;
+the job `driver-role-transfers` applies it the day after the last driver day. Table
+`distribution_driver_role_transfers` (RLS on, RPC access only).
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
