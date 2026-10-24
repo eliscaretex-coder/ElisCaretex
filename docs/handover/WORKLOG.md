@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — Production Tracker read-only for Distribution and Customer Service
+- Branch / commits: `claude/production-tracker-distribution-cs` (Pull Request)
+- Changed: the Logistics Manager and Customer Service job titles now get Production Tracker with
+  view only, in their permission templates and on the existing accounts. No frontend change: the
+  sidebar link and the page already follow the PRODUCTION_TRACKER module grant, and the page only
+  reads `get_production_tracker_v4`. Driver is left out (keeps My Driver Roster only).
+- Database: `202610240002_production_tracker_view_for_distribution_and_customer_service.sql`
+  (data only). **Applied** to ElisCaretex-dev on 2026-10-24 at the owner's request
+  (migration name `production_tracker_view_for_distribution_and_customer_service`).
+- Validation: assertions of
+  `supabase/tests/202610240002_production_tracker_view_for_distribution_and_customer_service_validation.sql`
+  run as plain SQL after applying (pgTAP is not installed): 7/7 passed, including Paulo Teste2
+  (Logistics Manager) reading the tracker with view but no edit.
+- Open / next: there is no Customer Service account yet; new ones get the permission from the template.
+
 ## 2026-10-24 — Claude — Production Intelligence for managers and in-app Daily report
 - Branch / commits: `claude/production-intelligence-managers` (Pull Request)
 - Changed: Production Intelligence rebuilt as tabs (Overview, Daily report, Customers, Shifts & tables,
