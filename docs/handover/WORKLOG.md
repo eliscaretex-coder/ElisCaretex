@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — Fix Distribution roster save on imported weeks ("fri" date error)
+
+- Branch / commits: `claude/fix-roster-required-routes-weekday`, Pull Request into `master`.
+- Cause: imported roster weeks (e.g. 2026-10-26, PUBLISHED v1) store `required_routes` by
+  weekday (`{"mon":10,...,"fri":10}`). Editing such a week sent those keys back to
+  `save_distribution_roster_week`, which casts each key to `date` and failed with
+  `invalid input syntax for type date: "fri"`. Not caused by PR #61 or #62.
+- Changed: `distribution.js` converts weekday keys to the ISO dates of the roster week
+  before showing, editing and saving Required routes (date keys win over weekday keys).
+  The imported targets now also show in the Required row instead of falling back.
+- Database: none (stored rows keep weekday keys; the next save writes date keys).
+- Validation: `node --check` and `node scripts/validate-repository.mjs`; conversion checked
+  with the live 2026-10-26 `required_routes` value.
+- Open / next: owner to confirm the save works on the 2026-10-26 week.
+
 ## 2026-10-24 — Claude — "Production" label on the single-service planner print
 
 - Branch / commits: `claude/schedule-print-production-label`, Pull Request into `master`.
