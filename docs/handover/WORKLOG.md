@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — My Driver Roster shows each route in its colour
+
+- Branch / commits: `claude/driver-roster-route-colors`, Pull Request into `master`
+- Changed: `frontend/assets/js/driver-roster.js` paints the route button of each day with the
+  route colour stored on the published roster entry (`route_color_snapshot`). Text switches
+  between dark and white by WCAG luminance; very light colours (white, pale yellow) get a
+  thicker slate border so the box stays visible. Entries without a valid colour keep the old look.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs` passed; rendering checked in Chromium with
+  white, yellow, teal, red, navy, black, green and no colour. Not tested against live data.
+- Open / next: the colour is the snapshot taken when the roster was published, so a colour
+  changed in the route master shows after the next publication.
+
 ## 2026-10-24 — Claude — Production Intelligence for managers and in-app Daily report
 - Branch / commits: `claude/production-intelligence-managers` (Pull Request)
 - Changed: Production Intelligence rebuilt as tabs (Overview, Daily report, Customers, Shifts & tables,
