@@ -659,8 +659,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     return rosterEntries().some((entry) => localDate(entry.work_date) === localDate(workDate) && !isCurrentRosterEntry(entry) && (String(entry.primary_driver_id) === String(driverId) || String(entry.support_driver_id) === String(driverId)));
   }
 
+  // Imported rosters keep Required routes by weekday ("mon".."sun"); the save RPC needs ISO dates of the week.
+  function requiredRoutesByDate() {
+    const weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    const result = {};
+    Object.entries(state.roster?.required_routes || {}).forEach(([key, value]) => {
+      const offset = weekdays.indexOf(String(key).toLowerCase());
+      if (offset < 0) { if (/^\d{4}-\d{2}-\d{2}$/.test(key)) result[key] = value; return; }
+      if (!state.roster?.week_start) return;
+      const date = new Date(`${localDate(state.roster.week_start)}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + offset);
+      const iso = date.toISOString().slice(0, 10); if (!(iso in result)) result[iso] = value;
+    });
+    return result;
+  }
+
   function requiredRoutesFor(workDate) {
-    const saved = state.roster?.required_routes?.[localDate(workDate)];
+    const saved = requiredRoutesByDate()[localDate(workDate)];
     return saved === undefined || saved === null || saved === "" ? Number(rosterDailyMetric(workDate).scheduled_routes || 0) : Number(saved || 0);
   }
 
@@ -1219,7 +1233,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       week_start: state.roster.week_start,
       row_version: document.row_version || null,
       roster_note: document?.roster_note ?? state.roster?.roster_note ?? null,
-      required_routes: state.roster?.required_routes || {},
+      required_routes: requiredRoutesByDate(),
       entries: rosterEntries().map((entry) => ({ work_date: localDate(entry.work_date), route_id: entry.route_id, assignment_status: entry.assignment_status, primary_driver_id: entry.primary_driver_id || null, support_driver_id: entry.support_driver_id || null, vehicle_id: entry.vehicle_id || null, entry_note: entry.entry_note || null }))
     };
   }
@@ -1297,7 +1311,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.addStop.addEventListener("click", () => el.manualForm.classList.toggle("hidden")); el.manualSave.addEventListener("click", addManualStop);
   el.panel.addEventListener("change", (event) => { const routeCustomersDay = event.target.closest("[data-route-customers-day]"); const routeCustomersRoute = event.target.closest("[data-route-customers-route]"); const routeCustomersSearch = event.target.closest("[data-route-customers-search]"); const week = event.target.closest("#distributionRosterWeek"); const actualsWeek = event.target.closest("#distributionActualsWeek"); const required = event.target.closest("[data-required-routes-date]"); if (routeCustomersDay || routeCustomersRoute || routeCustomersSearch) { if (routeCustomersDay) state.routeCustomersDay = routeCustomersDay.value; if (routeCustomersRoute) state.routeCustomersRoute = routeCustomersRoute.value; if (routeCustomersSearch) state.routeCustomersSearch = routeCustomersSearch.value.trim(); renderRouteCustomers(); } else if (week) loadRoster(weekStartFromInput(week.value)); else if (actualsWeek) { if (actualsWeek.value) openActualsWeek(weekStartFromInput(actualsWeek.value)); } else if (required && state.roster) renderRoster(); });
   el.panel.addEventListener("change",(event)=>{const driver=event.target.closest("[data-leave-filter-driver]"),type=event.target.closest("[data-leave-filter-type]");if(!driver&&!type)return;if(driver)state.leaveDriverFilter=driver.value;if(type)state.leaveTypeFilter=type.value;renderLeaveCalendar();});
-  el.panel.addEventListener("input", (event) => { const note = event.target.closest("#distributionRosterNote"); const required = event.target.closest("[data-required-routes-date]"); if (!state.roster || (!note && !required)) return; if (note) { if (state.roster.document) state.roster.document.roster_note = note.value; else state.roster.roster_note = note.value; } if (required) { state.roster.required_routes = { ...(state.roster.required_routes || {}), [required.dataset.requiredRoutesDate]: Math.max(0, Number(required.value || 0)) }; } state.rosterDirty = true; const save = el.panel.querySelector("[data-roster-save]"); if (save) save.disabled = false; });
+  el.panel.addEventListener("input", (event) => { const note = event.target.closest("#distributionRosterNote"); const required = event.target.closest("[data-required-routes-date]"); if (!state.roster || (!note && !required)) return; if (note) { if (state.roster.document) state.roster.document.roster_note = note.value; else state.roster.roster_note = note.value; } if (required) { state.roster.required_routes = { ...requiredRoutesByDate(), [required.dataset.requiredRoutesDate]: Math.max(0, Number(required.value || 0)) }; } state.rosterDirty = true; const save = el.panel.querySelector("[data-roster-save]"); if (save) save.disabled = false; });
   document.addEventListener("click", (event) => { const closeButton = event.target.closest("[data-close-dialog]"); if (closeButton) close($(closeButton.dataset.closeDialog)); });
   el.date.addEventListener("change", () => load(el.date.value)); el.today.addEventListener("click", () => load(nextOperatingDate())); el.refresh.addEventListener("click", () => load(el.date.value));
   if (window.ELIS_SUPABASE_ERROR || !client) { setMessage(window.ELIS_SUPABASE_ERROR || "Supabase could not be initialized."); return; }
