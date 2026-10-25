@@ -80,6 +80,32 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Supervisors and managers edit Customers and Staff Master
+
+- Branch / commits: `claude/supervisors-managers-edit-customers`, Pull Request into `master`
+- Changed: owner request: supervisors, managers and Distribution accounts that already see
+  the Customers list, the Schedule Planner and the Customer Master can also edit them, every
+  change stays recorded, and the Production Supervisor approves role transfers in Staff
+  Master. Permission data only (templates and existing grants, only widened):
+  CUSTOMERS view -> create + edit for Production Manager and Production Supervisor
+  (General Manager and Logistics Manager already edited); STAFF_MASTER gains create + edit
+  for General Manager and create + approve for Production Supervisor. Deactivating a
+  customer or a staff member still needs MANAGE. A supervisor approves only transfers into
+  a job title ranked below them (unchanged hierarchy rule). Auditor stays read-only. No
+  frontend change: the screens follow `get_customer_read_capabilities`,
+  `get_staff_master_reference_data` and `get_driver_role_transfers`.
+- Recording: the customer, schedule and Staff Master RPCs already write `audit_log` with
+  actor, time, old and new data and reason. The migration also writes one `audit_log` row
+  per template and account grant it widens. Grant changes made in Accounts & Access are
+  not yet written to `audit_log` (follow-up).
+- Database: `202610250006_supervisors_managers_edit_customers_and_staff_master.sql`
+  **Prepared** (not applied).
+- Validation: migration plus
+  `supabase/tests/202610250006_supervisors_managers_edit_customers_and_staff_master_validation.sql`
+  run inside a rolled-back transaction on `ElisCaretex-dev`: 17/17 pass, including a real
+  `update_customer` by the Production Supervisor recorded in `audit_log` and a Cleaner
+  refused. Nothing was kept (checked afterwards).
+
 ## 2026-10-25 — Claude — Production Roster opens on each supervisor's own shift
 
 - Branch / commits: `claude/roster-supervisor-home-shift`, Pull Request into `master`
