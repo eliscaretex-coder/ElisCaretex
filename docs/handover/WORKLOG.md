@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Finish warns when staff have no start time (Sunday / free hours)
+
+- Branch / commits: `claude/finish-sunday-planned-hours`, Pull Request
+- Changed: on days without a Roster work profile (Sunday) the Finish staff rows have no start/end time, so
+  the Produced card counted them but Planned/Target now showed 0 staff hours with no explanation. The Planned
+  card now says "N staff without hours", a notice under the cards links to Finish Staff, and Finish Staff
+  shows the same warning above the list. Calculation unchanged.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; page rendered in Chromium with stubbed data (5 staff,
+  no times → warning; with 15:00-20:00 → 558.1 kg planned, no warning), desktop and 390px mobile.
+- Open / next: none.
+
 ## 2026-10-25 — Claude — Customer Version History shows the trolley plan reports
 
 - Branch / commits: `claude/customer-trolley-plan-reports-history`, Pull Request into `master`.
