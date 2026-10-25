@@ -631,6 +631,12 @@ APPROVE holder below the target rank, or an Administrator, approves it in Staff 
 the job `driver-role-transfers` applies it the day after the last driver day. Table
 `distribution_driver_role_transfers` (RLS on, RPC access only).
 
+Driver -> Production start (2026-10-25, `202610250002_driver_role_transfer_production_start.sql`,
+**Prepared**): approving a Driver role transfer to a Production job title with a future first
+day prepares the Staff Master record at once with `staff_members.production_roster_from` = the
+first day (trigger `distribution_driver_role_transfers_staff_sync`); cancelling reverts it,
+applying clears it. Production Roster pool, week and checks respect `production_roster_from`.
+
 Staff -> Driver first day (2026-10-25, `202610250001_staff_to_driver_effective_date.sql`,
 **Applied** 2026-10-25): `transfer_staff_to_distribution_driver` takes `p_effective_on` (first day as
 Driver, today to +90 days; default next Monday). `production_roster_until` = the day

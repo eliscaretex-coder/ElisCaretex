@@ -189,7 +189,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const joinedOn = String(staff?.joined_on || "");
     const deactivatedOn = String(staff?.deactivated_on || "");
     const productionUntil = String(staff?.production_roster_until || "");
-    return (!joinedOn || workDate >= joinedOn) && (!deactivatedOn || workDate <= deactivatedOn) && (!productionUntil || workDate <= productionUntil);
+    const productionFrom = String(staff?.production_roster_from || "");
+    return (!joinedOn || workDate >= joinedOn) && (!deactivatedOn || workDate <= deactivatedOn) && (!productionUntil || workDate <= productionUntil) && (!productionFrom || workDate >= productionFrom);
   }
 
   function staffUnavailableLabel(staff, workDate) {
@@ -199,6 +200,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (deactivatedOn && workDate > deactivatedOn) return `Left · ${formatDate(deactivatedOn, { year: false })}`;
     const productionUntil = String(staff?.production_roster_until || "");
     if (productionUntil && workDate > productionUntil) return `Left Production · ${formatDate(productionUntil, { year: false })}`;
+    const productionFrom = String(staff?.production_roster_from || "");
+    if (productionFrom && workDate < productionFrom) return `Starts · ${formatDate(productionFrom, { year: false })}`;
     return "Unavailable";
   }
 
@@ -369,7 +372,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const deactivatedOn = String(staff.deactivated_on || "");
       const entirelyOutside = (deactivatedOn && deactivatedOn < firstDay) || (joinedOn && joinedOn > lastDay);
       const masterUnavailableWithoutDates = staff.currently_eligible === false && !joinedOn && !deactivatedOn && (staff.master_active === false || staff.master_roster_eligible === false || staff.master_production_staff === false);
-      const movedOutOfProduction = Boolean(staff.production_roster_until) && String(staff.production_roster_until) < firstDay;
+      const movedOutOfProduction = (Boolean(staff.production_roster_until) && String(staff.production_roster_until) < firstDay)
+        || (Boolean(staff.production_roster_from) && String(staff.production_roster_from) > lastDay);
       if (entirelyOutside || masterUnavailableWithoutDates || movedOutOfProduction) {
         removed.push(staff);
         state.layouts.delete(staff.staff_id);
@@ -403,8 +407,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       staff.currently_eligible !== false
       && !included.has(staff.staff_id)
       && staff.default_shift_code === currentShift
-      && staff.joined_on
-      && staff.joined_on <= lastVisibleDay
+      && (staff.production_roster_from || staff.joined_on)
+      && (staff.production_roster_from || staff.joined_on) <= lastVisibleDay
     );
 
     joiners.forEach((staff) => {
@@ -1447,7 +1451,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           master_active: poolStaff.master_active,
           master_roster_eligible: poolStaff.master_roster_eligible,
           master_production_staff: poolStaff.master_production_staff,
-          production_roster_until: poolStaff.production_roster_until || null
+          production_roster_until: poolStaff.production_roster_until || null,
+          production_roster_from: poolStaff.production_roster_from || null
         } : staff;
       });
 
