@@ -632,7 +632,7 @@ the job `driver-role-transfers` applies it the day after the last driver day. Ta
 `distribution_driver_role_transfers` (RLS on, RPC access only).
 
 Driver -> Production start (2026-10-25, `202610250002_driver_role_transfer_production_start.sql`,
-**Prepared**): approving a Driver role transfer to a Production job title with a future first
+**Applied** and **Validated** 2026-10-25, 17/17 database test): approving a Driver role transfer to a Production job title with a future first
 day prepares the Staff Master record at once with `staff_members.production_roster_from` = the
 first day (trigger `distribution_driver_role_transfers_staff_sync`); cancelling reverts it,
 applying clears it. Production Roster pool, week and checks respect `production_roster_from`.

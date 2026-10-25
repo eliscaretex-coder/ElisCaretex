@@ -82,7 +82,7 @@ Entry format:
 
 ## 2026-10-25 — Claude — Driver moving to Production can be rostered before the first day
 
-- Branch / commits: `claude/transfer-production-start`, Pull Request into `master`
+- Branch / commits: `claude/transfer-production-start`, Pull Request #71 (merged)
 - Changed: owner test: a driver approved to move to Cleaner from 26 Oct was missing from the
   Production Roster of 26 Oct - 1 Nov, because Staff Master only changed on the day. Now,
   when a transfer to a Production job title is approved with a future first day, the Staff
@@ -92,11 +92,15 @@ Entry format:
   day. Cancelling an approved transfer restores the previous values (or soft-deletes a record
   created for it); applying clears `production_roster_from`. The Production Roster pool,
   week, checks and planner offer the person from that week and block the days before.
-- Database: `202610250002_driver_role_transfer_production_start.sql` **Prepared** (not
-  applied). It also prepares transfers already approved (Paulo Teste2).
+- Database: `202610250002_driver_role_transfer_production_start.sql` **Applied** 2026-10-25
+  by the owner in the SQL Editor. It also prepared the transfer already approved (Paulo
+  Teste2: Production staff, CLEANER, `production_roster_from` 2026-10-26).
 - Validation: `validate-repository.mjs` passes. Database test
-  `supabase/tests/202610250002_driver_role_transfer_production_start_validation.sql` not yet run.
-- Open / next: run the test and the security advisors after the owner applies the migration.
+  `supabase/tests/202610250002_driver_role_transfer_production_start_validation.sql`
+  **Validated**: 17/17 passed (dry run, rolled back), plus the live check above. Security
+  advisors: no new findings for the new functions; the new internal functions are not
+  executable by `authenticated`.
+- Open / next: none.
 
 ## 2026-10-25 — Claude — Staff -> Driver transfer with a first day as Driver
 
