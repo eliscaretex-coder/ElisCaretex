@@ -4648,3 +4648,12 @@ body.customers-modal-open {
 .customers-kg-source:empty{display:none}
 .customers-kg-source.is-manual{background:var(--ec-info-soft,#e9f2fb);color:var(--ec-info,#1d5fa7)}
 .customers-kg-source.is-stale{background:var(--ec-warning-soft,#fff4df);color:var(--ec-warning,#a56000)}
+
+/* Version history: trolley plan reports of the customer */
+.customers-history-trolley-reports{margin-top:18px}
+.customers-history-trolley-reports-intro{margin:0 0 12px;color:#647b8b;font-size:13px}
+.customers-history-report-source{font-size:12px;color:#647b8b;white-space:nowrap}
+.customers-history-report-link{border:1px solid #cfe0ea;background:#f4f9fc;color:#1f5f8b;border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}
+.customers-history-report-link:hover{background:#e7f2f9}
+.customers-history-report-waiting{margin-right:auto;align-self:center;color:#a96a07;font-size:12px;font-weight:600}
+@media(max-width:700px){.customers-history-report-source{white-space:normal}}

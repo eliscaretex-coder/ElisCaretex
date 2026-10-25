@@ -92,6 +92,27 @@ Entry format:
   no times → warning; with 15:00-20:00 → 558.1 kg planned, no warning), desktop and 390px mobile.
 - Open / next: none.
 
+## 2026-10-25 — Claude — Customer Version History shows the trolley plan reports
+
+- Branch / commits: `claude/customer-trolley-plan-reports-history`, Pull Request into `master`.
+- Changed: Customers → Schedule → Version History now ends with a "Trolley plan reports"
+  section for that customer: who sent "Report trolley plan" (Finish/MOP), when, the published
+  plan vs what was requested, the reason and scanned trolleys, which revision was live (click
+  opens it), and who resolved or rejected it, when and with what note. A KPI and a warning
+  show pending reports at the top; handlers can review a pending report from there. Before
+  this, the reports were only in Customers → Operational Reports (all customers mixed) and in
+  the app-wide alert while pending.
+- Database: `202610250010_customer_schedule_trolley_plan_reports_history.sql` (new read-only
+  RPC `get_customer_trolley_plan_reports(uuid, integer)`, same audience as Version History;
+  no table or existing function changed). **Prepared, not applied** — the owner applies it.
+- Validation: `node scripts/validate-repository.mjs` passed. The migration was run inside a
+  block forced to roll back: an account without the history role was refused (42501), the
+  admin account got the one existing report with reporter and reviewer names, and the
+  function does not exist afterwards. The pgTAP file was not run as a file. Browser render
+  checked with mocked RPC data (desktop, 390 px, and the RPC-missing error state).
+- Open / next: apply the migration; until then the section shows an error message and the
+  rest of Version History keeps working.
+
 ## 2026-10-25 — Claude — Finish marks wrong trolley saves and Results counts them
 
 - Branch / commits: `claude/finish-trolley-errors`, Pull Request into `master`.
