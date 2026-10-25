@@ -483,24 +483,41 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderSettings(){
     const canManage=me().can_manage, agents=state.ws?.agents||[];
     $("csSettingsNote").textContent=canManage?"":"Only the Customer Service manager can change these settings.";
-    $("csBlockOwner").innerHTML=`<option value="">Nobody (remove)</option>${agents.map(a=>`<option value="${esc(a.auth_user_id)}">${esc(a.display_name)}</option>`).join("")}`;
+    const owner=state.blockOwner||"";
+    $("csBlockOwner").innerHTML=`<option value="">Choose a person…</option>${agents.map(a=>`<option value="${esc(a.auth_user_id)}">${esc(a.display_name)}</option>`).join("")}<option value="__remove">Remove the person (no one)</option>`;
+    $("csBlockOwner").value=[...$("csBlockOwner").options].some(o=>o.value===owner)?owner:"";
     $("csBlockFilter").innerHTML=`<option value="">All customers</option><option value="__none">Without a person</option>${agents.map(a=>`<option value="${esc(a.auth_user_id)}">${esc(a.display_name)}</option>`).join("")}`;
     $("csBlockFilter").value=state.blockFilter||"";
-    $("csBlockAssign").disabled=$("csBlockOwner").disabled=!canManage; $("csNewType").disabled=!canManage;
-    const counts=new Map(); (state.ws?.customers||[]).forEach(c=>{ const k=c.owner_name||"No person"; counts.set(k,(counts.get(k)||0)+1); });
-    $("csBlockSummary").textContent=[...counts.entries()].map(([k,v])=>`${k}: ${v}`).join(" · ");
-    renderBlocks(); renderTypes();
+    $("csBlockOwner").disabled=!canManage; $("csNewType").disabled=!canManage;
+    $("csBlockSteps").hidden=!canManage||!agents.length;
+    renderBlockPeople(); renderBlocks(); renderTypes();
     if(!agents.length&&canManage) $("csSettingsNote").textContent="Nobody has Customer Service access yet. Give the job title Customer Service to each person in Staff Master → Accounts & access, then come back to share the customers.";
   }
   function renderBlocks(){
     const q=$("csBlockSearch").value.trim().toLowerCase(), filter=state.blockFilter||"", canManage=me().can_manage;
     const rows=(state.ws?.customers||[]).filter(c=>(!q||`${c.customer_name} ${c.customer_code||""}`.toLowerCase().includes(q))&&(!filter||(filter==="__none"?!c.owner_auth_user_id:c.owner_auth_user_id===filter)));
     $("csBlocks").innerHTML=rows.length?`${canManage?`<label class="cs-block-all"><input type="checkbox" id="csBlockAll"${rows.every(c=>state.blockSelection.has(c.customer_id))?" checked":""}> Select the ${rows.length} customers shown</label>`:""}<div class="cs-block-grid">${rows.map(c=>`<label class="cs-block ${c.owner_auth_user_id?"":"none"}">${canManage?`<input type="checkbox" data-block="${esc(c.customer_id)}"${state.blockSelection.has(c.customer_id)?" checked":""}>`:""}<span><strong>${esc(c.customer_name)}</strong><small>${esc(c.customer_code||"")}</small></span><em>${esc(c.owner_name||"No person")}</em></label>`).join("")}</div>`:'<div class="finish-results-empty">No customers for this filter.</div>';
+    updateBlockAssign();
+  }
+  // One card per person with their number of customers; clicking a card shows only those customers.
+  function renderBlockPeople(){
+    const customers=state.ws?.customers||[], agents=state.ws?.agents||[], filter=state.blockFilter||"";
+    const count=(id)=>customers.filter(c=>id==="__none"?!c.owner_auth_user_id:c.owner_auth_user_id===id).length;
+    const cards=[...agents.map(a=>({id:a.auth_user_id,name:a.display_name,n:count(a.auth_user_id)})),{id:"__none",name:"Without a person",n:count("__none")}];
+    $("csBlockPeople").innerHTML=cards.map(p=>`<button type="button" class="cs-block-person ${p.id==="__none"?"none":""} ${filter===p.id?"active":""}" data-block-person="${esc(p.id)}"><strong>${esc(p.name)}</strong><span>${p.n} customer${p.n===1?"":"s"}</span></button>`).join("");
+  }
+  function updateBlockAssign(){
+    const n=state.blockSelection.size, owner=$("csBlockOwner").value, canManage=me().can_manage;
+    const name=$("csBlockOwner").selectedOptions[0]?.textContent||"";
+    const label=!n?"Tick customers first":!owner?"Choose a person":owner==="__remove"?`Remove the person from ${n} customer${n===1?"":"s"}`:`Give ${n} customer${n===1?"":"s"} to ${name}`;
+    $("csBlockAssign").textContent=label; $("csBlockAssign").disabled=!canManage||!n||!owner;
   }
   async function assignBlock(){
     const ids=[...state.blockSelection]; if(!ids.length){ setMessage("Select the customers first.","error"); return; }
-    const owner=$("csBlockOwner").value||null;
-    try{ const n=await rpc("set_customer_service_customer_owner_v1",{p_customer_ids:ids,p_owner_auth_user_id:owner}); state.blockSelection.clear(); await loadWorkspace(); renderSettings(); setMessage(`${n} customer${n===1?"":"s"} updated.`,"success"); }
+    const choice=$("csBlockOwner").value; if(!choice){ setMessage("Choose the person in Give to.","error"); return; }
+    const owner=choice==="__remove"?null:choice, name=$("csBlockOwner").selectedOptions[0]?.textContent||"";
+    try{ const n=await rpc("set_customer_service_customer_owner_v1",{p_customer_ids:ids,p_owner_auth_user_id:owner}); state.blockSelection.clear(); await loadWorkspace(); renderSettings();
+      setMessage(owner?`${n} customer${n===1?"":"s"} given to ${name}.`:`${n} customer${n===1?"":"s"} now without a person.`,"success"); }
     catch(err){ console.error(err); setMessage(errorText(err,"The customer block could not be saved."),"error"); }
   }
   function renderTypes(){
@@ -543,12 +560,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   ["csResultsFrom","csResultsTo"].forEach(id=>$(id).addEventListener("change",()=>loadResults().catch(err=>setMessage(errorText(err,"Results could not be loaded."),"error"))));
   document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>setPreset(b.dataset.preset)));
   $("csBlockSearch").addEventListener("input",renderBlocks);
-  $("csBlockFilter").addEventListener("change",()=>{ state.blockFilter=$("csBlockFilter").value; renderBlocks(); });
+  $("csBlockFilter").addEventListener("change",()=>{ state.blockFilter=$("csBlockFilter").value; renderBlockPeople(); renderBlocks(); });
+  $("csBlockPeople").addEventListener("click",(event)=>{ const card=event.target.closest("[data-block-person]"); if(!card) return;
+    state.blockFilter=state.blockFilter===card.dataset.blockPerson?"":card.dataset.blockPerson; $("csBlockFilter").value=state.blockFilter; renderBlockPeople(); renderBlocks(); });
+  $("csBlockOwner").addEventListener("change",()=>{ state.blockOwner=$("csBlockOwner").value; updateBlockAssign(); });
   $("csBlockAssign").addEventListener("click",assignBlock);
   $("csBlocks").addEventListener("change",(event)=>{
     const box=event.target.closest("input[data-block]");
-    if(box){ box.checked?state.blockSelection.add(box.dataset.block):state.blockSelection.delete(box.dataset.block); return; }
-    if(event.target.id==="csBlockAll"){ document.querySelectorAll("#csBlocks input[data-block]").forEach(i=>{ i.checked=event.target.checked; i.checked?state.blockSelection.add(i.dataset.block):state.blockSelection.delete(i.dataset.block); }); }
+    if(box){ box.checked?state.blockSelection.add(box.dataset.block):state.blockSelection.delete(box.dataset.block); updateBlockAssign(); return; }
+    if(event.target.id==="csBlockAll"){ document.querySelectorAll("#csBlocks input[data-block]").forEach(i=>{ i.checked=event.target.checked; i.checked?state.blockSelection.add(i.dataset.block):state.blockSelection.delete(i.dataset.block); }); updateBlockAssign(); }
   });
   $("cdBody").addEventListener("change",(event)=>{ if(event.target.matches('#cdTrace input[type="radio"]')) syncFlowHighlight(); });
   $("cdBody").addEventListener("keydown",(event)=>{ if(event.key==="Enter"&&event.target.id==="cdNote"){ event.preventDefault(); detailAction("note"); } });

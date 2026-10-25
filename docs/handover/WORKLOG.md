@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Customer Service: clearer customer blocks in Settings
+
+- Changed: the owner could not see how to give customers to a Customer Service person.
+  Settings → Customer blocks now shows:
+  - The three steps.
+  - One card per person with their number of customers. Clicking a card shows only those
+    customers.
+  - A "Give to" list that starts at "Choose a person…" instead of "Nobody (remove)".
+    Removing the person is now an explicit option at the end of the list.
+  - A button that names the action ("Give 2 customers to Maria", "Remove the person from
+    3 customers") and stays disabled until customers are ticked and a person is chosen.
+  Frontend only; no database change.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright with a stubbed
+  client, desktop and 390 px: no horizontal scroll, button text follows the selection,
+  clicking a person's card filters the list.
+- Open / next: merge the PR.
+
 ## 2026-10-25 — Claude — Supervisors and managers edit Customers and Staff Master
 
 - Branch / commits: `claude/supervisors-managers-edit-customers`, Pull Request into `master`
