@@ -99,7 +99,10 @@ Entry format:
   per template and account grant it widens. Grant changes made in Accounts & Access are
   not yet written to `audit_log` (follow-up).
 - Database: `202610250006_supervisors_managers_edit_customers_and_staff_master.sql`
-  **Prepared** (not applied).
+  **Applied** to `ElisCaretex-dev` on 2026-10-25 after owner approval. Checked afterwards:
+  Supervisor Morning has CUSTOMERS and STAFF_MASTER create/edit (+ approve on Staff
+  Master), General Manager has STAFF_MASTER create/edit, 7 `audit_log` rows written, and
+  the validation re-run (rolled back) passes 15/15 on the live state.
 - Validation: migration plus
   `supabase/tests/202610250006_supervisors_managers_edit_customers_and_staff_master_validation.sql`
   run inside a rolled-back transaction on `ElisCaretex-dev`: 17/17 pass, including a real
