@@ -32,6 +32,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     transferDriver: document.getElementById("staffTransferDriver"),
     driverTransferFields: document.getElementById("staffDriverTransferFields"),
     driverExisting: document.getElementById("staffDriverExisting"),
+    driverEffectiveOn: document.getElementById("staffDriverEffectiveOn"),
     driverCode: document.getElementById("staffDriverCode"),
     driverPhone: document.getElementById("staffDriverPhone"),
     driverEmail: document.getElementById("staffDriverEmail"),
@@ -182,6 +183,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   function localDateValue(date = new Date()) {
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 10);
+  }
+
+  function nextMondayValue() {
+    const date = new Date();
+    date.setDate(date.getDate() + ((8 - date.getDay()) % 7 || 7));
+    return localDateValue(date);
   }
 
   function formatDate(value) {
@@ -1072,6 +1079,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.driverTransferOptions = Array.isArray(data?.drivers) ? data.drivers : [];
       elements.driverExisting.innerHTML = '<option value="">Create a new Driver record</option>' + state.driverTransferOptions.map((driver) => option(driver.driver_id, `${driver.display_name} · ${driver.driver_code}`)).join("");
       fillDriverTransferFields();
+      elements.driverEffectiveOn.min = localDateValue();
+      elements.driverEffectiveOn.value = nextMondayValue();
       elements.primaryRole.value = "DRIVER";
       elements.defaultArea.value = "DISTRIBUTION";
       populateStationOptions("");
@@ -1081,7 +1090,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       elements.driverTransferFields.classList.remove("hidden");
       elements.transferDriver.classList.add("hidden");
       elements.editorSave.textContent = "Complete Driver transfer";
-      setMessage(elements.editorMessage, "Complete the Driver record. Saving will remove this person from Production Staff Master.", "success");
+      setMessage(elements.editorMessage, "Choose the first day as Driver and complete the Driver record.", "success");
       elements.driverExisting.focus();
     } catch (error) {
       setMessage(elements.editorMessage, friendlyError(error), "error");
@@ -1233,6 +1242,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           setMessage(elements.editorMessage, "Complete the Driver code, phone, licence, category, licence expiry and CPC expiry.", "error");
           return;
         }
+        const effectiveOn = elements.driverEffectiveOn.value;
+        if (!effectiveOn || effectiveOn < localDateValue()) {
+          setMessage(elements.editorMessage, "Choose the first day as Driver (today or later).", "error");
+          return;
+        }
         const result = await rpc("transfer_staff_to_distribution_driver", {
           p_staff_id: staffId,
           p_expected_row_version: Number(elements.editorRowVersion.value),
@@ -1246,10 +1260,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           p_cpc_expires_on: elements.driverCpcExpiry.value,
           p_notes: elements.driverNotes.value.trim() || null,
           p_change_reason: reason,
-          p_source_application: "STAFF_MASTER_UI"
+          p_source_application: "STAFF_MASTER_UI",
+          p_effective_on: effectiveOn
         });
         closeEditor(true);
-        setMessage(elements.pageMessage, `Driver ${result?.driver_code || ""} created. The staff member stays in this week's Production Roster and leaves it from next week.`, "success");
+        const republished = Number(result?.published_rosters_republished || 0);
+        setMessage(elements.pageMessage, result?.completed_now
+          ? `Driver ${result?.driver_code || ""} starts today. The staff member is OFF in the Production Roster from today and has moved to Distribution.${republished ? " The published roster was updated as a new version." : ""}`
+          : `Driver ${result?.driver_code || ""} starts on ${formatDate(result?.first_day_as_driver || effectiveOn)}. The staff member is OFF in the Production Roster from that day and moves to Distribution then.${republished ? " The published roster was updated as a new version." : ""}`, "success");
         await loadDirectory();
         return;
       }

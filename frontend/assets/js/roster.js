@@ -188,7 +188,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   function staffAvailableOnDate(staff, workDate) {
     const joinedOn = String(staff?.joined_on || "");
     const deactivatedOn = String(staff?.deactivated_on || "");
-    return (!joinedOn || workDate >= joinedOn) && (!deactivatedOn || workDate <= deactivatedOn);
+    const productionUntil = String(staff?.production_roster_until || "");
+    return (!joinedOn || workDate >= joinedOn) && (!deactivatedOn || workDate <= deactivatedOn) && (!productionUntil || workDate <= productionUntil);
   }
 
   function staffUnavailableLabel(staff, workDate) {
@@ -196,6 +197,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const deactivatedOn = String(staff?.deactivated_on || "");
     if (joinedOn && workDate < joinedOn) return `Not joined · ${formatDate(joinedOn, { year: false })}`;
     if (deactivatedOn && workDate > deactivatedOn) return `Left · ${formatDate(deactivatedOn, { year: false })}`;
+    const productionUntil = String(staff?.production_roster_until || "");
+    if (productionUntil && workDate > productionUntil) return `Left Production · ${formatDate(productionUntil, { year: false })}`;
     return "Unavailable";
   }
 

@@ -17,7 +17,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
-  <script src="../assets/js/staff.js?v=20261024-1" defer></script>
+  <script src="../assets/js/staff.js?v=20261025-1" defer></script>
 </head>
 
 <body class="staff-page">
@@ -149,6 +149,7 @@
               <p>Complete the Distribution details before transferring this person out of Production.</p>
             </div>
             <div class="staff-form-grid two-columns">
+              <label class="staff-field wide"><span>First day as Driver *</span><input id="staffDriverEffectiveOn" type="date"><small>Past days are not changed. From this day the person is OFF in the Production Roster (a published week gets a new version) and appears in the Driver Roster. Staff Master moves them to Distribution on this day.</small></label>
               <label class="staff-field wide"><span>Existing Driver record</span><select id="staffDriverExisting"><option value="">Create a new Driver record</option></select><small>Select an existing unlinked record to prevent duplicates.</small></label>
               <label class="staff-field"><span>Driver code *</span><input id="staffDriverCode" type="text" maxlength="40" autocomplete="off"></label>
               <label class="staff-field"><span>Phone *</span><input id="staffDriverPhone" type="tel" maxlength="60" autocomplete="off"></label>

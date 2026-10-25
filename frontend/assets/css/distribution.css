@@ -269,3 +269,5 @@
 /* Route customers KG: automatic from history unless tagged Manual. */
 .distribution-kg-cell { white-space: nowrap; }
 .distribution-route-customers-table td .distribution-kg-source, .distribution-kg-source { display: inline-block; margin: 0 0 0 4px; padding: 0 5px; border-radius: 999px; background: var(--ec-info-soft, #e9f2fb); color: var(--ec-info, #1d5fa7); font-size: .62rem; font-weight: 800; vertical-align: middle; }
+.distribution-driver-day-button.not-started strong { background: transparent; color: #8aa0b7; border: 1px dashed #c3d0de; }
+.distribution-driver-day-button.not-started small { color: #8aa0b7; }

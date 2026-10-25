@@ -80,6 +80,33 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Staff -> Driver transfer with a first day as Driver
+
+- Branch / commits: `claude/driver-transfer-date`, Pull Request into `master`
+- Changed: the Staff Master "Transfer to Driver" form asks for the first day as Driver
+  (default next Monday, today or later, at most 90 days ahead). Before, the person stayed
+  in Production until Sunday and showed in the Driver Roster at once, so they were in two
+  places. Now `production_roster_until` is the day before; from the first day the person
+  is OFF in the Production Roster (drafts changed in place; a published week with no
+  draft gets a new published version and the previous one stays SUPERSEDED; later weeks
+  drop the person). The new Driver gets `joined_on` = the first day, so the Driver Roster
+  lists them from that week and blocks the days before ("Not started"). Staff Master moves
+  the record to Driver/Distribution on that day (nightly job), or at once when the first
+  day is today. The Production Roster check and planner also refuse working days after
+  the last Production day.
+- Database: `202610250001_staff_to_driver_effective_date.sql` **Prepared** (not applied).
+  It replaces `transfer_staff_to_distribution_driver` (new last argument
+  `p_effective_on`, optional so the current screen keeps working) and adds the internal
+  `production_roster_close_staff_from`; it also replaces
+  `production_roster_assert_operational_rules`, `validate_distribution_roster_version`
+  and `get_distribution_roster_week`.
+- Validation: Staff Master and Distribution roster rendered in Chromium with stubbed RPC
+  data (first-day field, past date refused, `p_effective_on` sent, days before the first
+  day disabled; no console errors). `validate-repository.mjs` passes. Database test
+  `supabase/tests/202610250001_staff_to_driver_effective_date_validation.sql` not yet run.
+- Open / next: run the test file and the security advisors after the owner applies the
+  migration.
+
 ## 2026-10-24 — Claude — Driver role transfer (Driver to another job title)
 
 - Branch / commits: `claude/driver-role-transfer`, Pull Request into `master`

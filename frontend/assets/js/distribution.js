@@ -694,6 +694,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const driverRows = rosterDrivers();
     const primaryEntries = (day) => rosterEntries().filter((entry) => localDate(entry.work_date) === localDate(day) && entry.assignment_status === "PLANNED" && entry.primary_driver_id);
     const activeAssignment = (driver, day) => {
+      if (driver.joined_on && localDate(day) < localDate(driver.joined_on)) return { kind: "not-started", label: "Not started", detail: `Driver from ${localDate(driver.joined_on).slice(8, 10)}/${localDate(driver.joined_on).slice(5, 7)}` };
       const approvedLeave = driverLeaveForDay(driver.driver_id, day);
       if (approvedLeave) {
         const leaveLabel = leaveTypeLabel(approvedLeave.absence_type);
@@ -713,7 +714,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const assignment = activeAssignment(driver, day);
       const pendingLeave = (state.rosterLeave?.pending || []).find((item) => String(item.driver_id) === String(driver.driver_id) && localDate(item.starts_on) <= localDate(day) && localDate(item.ends_on) >= localDate(day));
       const action = `${driver.display_name}, ${fmtDate(day)}: ${assignment.label}${assignment.vehicleBlock ? ` - vehicle cannot be used: ${assignment.vehicleBlock}` : ""}`;
-      return `<td class="distribution-driver-day ${assignment.kind === "leave" ? "leave" : ""} ${pendingLeave ? "leave-pending" : ""}"><button class="distribution-driver-day-button ${assignment.kind} ${assignment.vehicleBlock ? "vehicle-blocked" : ""}" type="button" data-roster-driver="${esc(driver.driver_id)}" data-roster-date="${esc(day)}" title="${esc(action)}" ${!editable || isSunday(day) || assignment.kind === "leave" ? "disabled" : ""} ${assignment.color ? `style="--distribution-route-color:${assignment.color};--distribution-route-text:${assignment.textColor}"` : ""}><strong>${esc(assignment.label)}</strong><small>${esc(assignment.detail)}</small>${pendingLeave?`<em class="distribution-leave-reminder">${esc(leaveTypeLabel(pendingLeave.absence_type))} pending</em>`:""}</button></td>`;
+      return `<td class="distribution-driver-day ${assignment.kind === "leave" ? "leave" : ""} ${pendingLeave ? "leave-pending" : ""}"><button class="distribution-driver-day-button ${assignment.kind} ${assignment.vehicleBlock ? "vehicle-blocked" : ""}" type="button" data-roster-driver="${esc(driver.driver_id)}" data-roster-date="${esc(day)}" title="${esc(action)}" ${!editable || isSunday(day) || assignment.kind === "leave" || assignment.kind === "not-started" ? "disabled" : ""} ${assignment.color ? `style="--distribution-route-color:${assignment.color};--distribution-route-text:${assignment.textColor}"` : ""}><strong>${esc(assignment.label)}</strong><small>${esc(assignment.detail)}</small>${pendingLeave?`<em class="distribution-leave-reminder">${esc(leaveTypeLabel(pendingLeave.absence_type))} pending</em>`:""}</button></td>`;
     };
     const driverTotals = (driver) => {
       const assigned = rosterEntries().filter((entry) => String(entry.primary_driver_id) === String(driver.driver_id));
@@ -1229,6 +1230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function openRosterEntryForDriver(driverId, workDate) {
     const driver = rosterDrivers().find((item) => String(item.driver_id) === String(driverId)); if (!driver || isSunday(workDate)) return;
+    if (driver.joined_on && localDate(workDate) < localDate(driver.joined_on)) { setMessage(`${driver.display_name} starts as Driver on ${fmtDate(driver.joined_on)}.`, ""); return; }
     if (driverOnLeave(driverId, workDate)) { setMessage(`${driver.display_name} has approved leave on ${fmtDate(workDate)}.`, ""); return; }
     const entry = driverRosterEntry(driverId, workDate) || {};
     state.rosterEditing = { driverId, workDate, entryId: entry.distribution_roster_entry_id || null };
