@@ -91,13 +91,16 @@ Entry format:
   `production_roster_events`); only the history RPC did not return it.
 - Database: `202610250007_production_roster_history_saved_and_published_by.sql` — replaces
   `get_production_roster_history` and adds the internal helper `production_roster_actor_name`
-  (no direct execute for any client role). No table, column or row changes. **Prepared, not applied.**
+  (no direct execute for any client role). No table, column or row changes. **Applied** (confirmed by querying the
+  database objects on 2026-10-25, after Pull Request #80 was merged).
 - Validation: dry run on `ElisCaretex-dev` inside a transaction that was forced to roll back,
   calling the RPC as a real roster manager for 5 shift-weeks (manual, superseded, legacy import);
   names and sources came back as expected. `node scripts/validate-repository.mjs` passed.
-  The pgTAP file has not been run yet (needs the migration applied).
-- Open / next: owner applies the migration in the SQL editor, then run the pgTAP file and the
-  security advisors.
+  **Validated** after applying: the assertions of the pgTAP file pass (anon blocked, authenticated
+  allowed, permission check present, helper not callable by anon or authenticated, every manual
+  publisher resolves to a name). Security advisors: no new finding; the only entry is the usual
+  "authenticated can execute SECURITY DEFINER" note for `get_production_roster_history`, which is intended.
+- Open / next: none.
 
 ## 2026-10-25 — Claude — Customer Service: clearer customer blocks in Settings
 
