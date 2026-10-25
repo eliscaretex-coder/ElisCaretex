@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — MOP Production Trace table no longer cut off
+
+- Branch / commits: `claude/mop-trace-table-fit`, Pull Request into `master`
+- Changed: `frontend/assets/css/sorting.css` only. The MOP Production Trace table had a fixed
+  minimum width of 1120px, so on normal laptop screens the Actions column (Edit / Cancel) was
+  pushed outside the card. The columns now shrink to fit the card; below 700px each record is
+  shown as a stacked card with small labels and the Edit / Cancel buttons at the bottom.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Browser screenshots (static copy of
+  the page with sample rows, no database access) at 1792px, 1366px and 390px: before, the table
+  overflowed at 1366px (1120px table in a 950px card); after, it fits at all three widths.
+  Not yet owner confirmed in the live app.
+- Open / next: none.
+
 ## 2026-10-25 — Claude — Production Roster history shows who saved and who published
 
 - Branch / commits: `claude/roster-history-saved-published-by`, Pull Request into `master`

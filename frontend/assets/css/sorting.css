@@ -4242,3 +4242,26 @@ body.sorting-page{background:#e7edf3;color:#111827}
 @media(max-width:900px){.sorting-staff-day-row{grid-template-columns:1fr 1fr;gap:9px}.sorting-staff-day-who{grid-column:1/-1;grid-auto-flow:column;justify-content:space-between;align-items:center}.sorting-staff-day-row{grid-template-columns:1fr 1fr}.sorting-staff-day-actions{grid-column:1/-1;justify-content:stretch}.sorting-staff-day-actions button{flex:1}}
 @media(max-width:600px){.sorting-staff-change-menu{grid-template-columns:1fr 1fr}.sorting-staff-day-row{padding:11px 12px}}
 @media(max-width:420px){.sorting-staff-change-menu{grid-template-columns:1fr}}
+
+/* MOP Production Trace: fit the card so the Actions column (Edit / Cancel) is never cut off. */
+.sorting-mop-trace-table{min-width:0;width:100%}
+.sorting-mop-trace-row{grid-template-columns:minmax(140px,1.28fr) minmax(160px,1.45fr) minmax(70px,.78fr) minmax(85px,.88fr) minmax(95px,1fr) minmax(80px,.95fr) max-content;gap:8px}
+.sorting-mop-trace-actions{flex-wrap:nowrap}
+.sorting-mop-trace-row>*{min-width:0}
+.sorting-mop-trace-lines>span{min-width:0}
+.sorting-mop-trace-lines strong{overflow-wrap:anywhere}
+@media(max-width:700px){
+  .sorting-mop-recent{overflow-x:visible}
+  .sorting-mop-trace-head{display:none}
+  .sorting-mop-trace-row{grid-template-columns:1fr 1fr;gap:9px 12px;padding:11px 12px}
+  .sorting-mop-trace-row>:nth-child(1),.sorting-mop-trace-row>:nth-child(2),.sorting-mop-trace-row>:nth-child(7){grid-column:1/-1}
+  .sorting-mop-trace-row>:nth-child(n+2)::before{display:block;margin-bottom:3px;font-size:7px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8}
+  .sorting-mop-trace-row>:nth-child(2)::before{content:"MOP details"}
+  .sorting-mop-trace-row>:nth-child(3)::before{content:"Production"}
+  .sorting-mop-trace-row>:nth-child(4)::before{content:"Trolley"}
+  .sorting-mop-trace-row>:nth-child(5)::before{content:"Processed"}
+  .sorting-mop-trace-row>:nth-child(6)::before{content:"ABS Batch"}
+  .sorting-mop-trace-row>:nth-child(7)::before{content:none}
+  .sorting-mop-trace-actions{justify-content:flex-end;padding-top:8px;border-top:1px dashed #e2e8f0}
+  .sorting-mop-trace-actions button{padding:7px 12px;font-size:9px}
+}
