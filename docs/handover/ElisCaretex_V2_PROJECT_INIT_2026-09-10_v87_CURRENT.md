@@ -632,7 +632,7 @@ the job `driver-role-transfers` applies it the day after the last driver day. Ta
 `distribution_driver_role_transfers` (RLS on, RPC access only).
 
 Role transfer switch time (2026-10-25, `202610250003_role_transfer_sunday_noon_switch.sql`,
-**Prepared**, dry run 13/13): a role transfer whose first day is a Monday takes effect on Sunday at
+**Applied** and **Validated** 2026-10-25, dry run 13/13 and live run): a role transfer whose first day is a Monday takes effect on Sunday at
 12:00 Europe/Dublin (`role_transfer_switch_at`), otherwise at 00:00 Dublin on the first day. Applies
 to Driver -> another job title and Staff -> Driver; the latter also switches a Production login up
 to Team Leader to the Driver job title. The `driver-role-transfers` and `production-roster-exits`
