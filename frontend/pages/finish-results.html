@@ -6,7 +6,7 @@
   <title>Finish Results | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/finish-results.css?v=20261021-4">
+  <link rel="stylesheet" href="../assets/css/finish-results.css?v=20261025-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
@@ -14,7 +14,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
-  <script src="../assets/js/finish-results.js?v=20261021-4" defer></script>
+  <script src="../assets/js/finish-results.js?v=20261025-1" defer></script>
 </head>
 <body class="finish-results-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -51,6 +51,20 @@
       <section class="finish-results-section">
         <header><div><p>Staff hours</p><h2>Who counted at each Table</h2></div><strong id="finishResultsStaffCount" class="finish-results-count">0</strong></header>
         <div id="finishResultsStaff" class="finish-results-staff"></div>
+      </section>
+
+      <section class="finish-results-section finish-results-trolley-section">
+        <header>
+          <div><p>Trolley errors</p><h2>Saved with wrong trolley quantity / size</h2></div>
+          <label class="finish-results-trolley-period">Period
+            <select id="finishResultsTrolleyPeriod" aria-label="Trolley error period">
+              <option value="1">This day</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+            </select>
+          </label>
+        </header>
+        <div id="finishResultsTrolley" class="finish-results-trolley"></div>
       </section>
 
       <section class="finish-results-section finish-results-production-section">

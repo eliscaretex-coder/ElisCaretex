@@ -417,3 +417,8 @@ body.elis-operational-tool-page.finish-page .operational-page-header .finish-top
 .finish-staff-day-state.absent{background:#fee2e2;color:#b91c1c}
 .finish-staff-change-dialog .finish-dialog-card{padding:0}
 .finish-staff-change-step footer button{margin:0}
+
+/* Saved today: record saved with wrong trolley quantity/size (trolley_scan_status MISMATCH). */
+.finish-saved-row.trolley-error{background:#fff5f5}
+.finish-saved-row.trolley-error:hover{background:#ffecec}
+.finish-saved-trolley-error{display:inline-block;max-width:100%;margin-top:4px;border:1px solid #fca5a5;border-radius:6px;background:#fee2e2;color:#b91c1c;padding:2px 6px;font-size:.6rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

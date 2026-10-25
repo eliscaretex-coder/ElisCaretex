@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Finish marks wrong trolley saves and Results counts them
+
+- Branch / commits: `claude/finish-trolley-errors`, Pull Request into `master`.
+- Changed: Finish "Saved today" highlights records saved with "Use with mismatch"
+  (`trolley_scan_status = 'MISMATCH'`) with a red "Wrong trolley qty/size" tag and the
+  planned trolleys. Finish Results gets a "Trolley errors" section (This day / 7 / 30 days)
+  with totals, counts and % by person, Table and Shift, and the list of records with planned
+  vs scanned trolleys. The "Customers processed" list also flags those records. Errors are
+  attributed to the "Processed by" person of the first MISMATCH revision; a contribution
+  with a PENDING/RESOLVED trolley plan report counts as "Plan reported", not as an error.
+- Database: `202610250009_finish_trolley_error_results.sql` (new read-only RPC
+  `get_finish_trolley_errors_v1(date, date)`; no table or existing function changed).
+  **Prepared, not applied** — the owner applies it.
+- Validation: `node scripts/validate-repository.mjs` passed. The migration and
+  `supabase/tests/202610250009_finish_trolley_error_results_validation.sql` were run inside a
+  single block that was forced to roll back (as FINISH-T1-PC01): all checks passed and the
+  function does not exist afterwards. Browser render checked with mocked RPC data (desktop
+  and 390 px). Not validated with a real save after applying.
+- Open / next: apply the migration; Results shows an error message in the new section until
+  then (the rest of the page keeps working).
+
 ## 2026-10-25 — Claude — Finish Auto Shift no longer fails on days without an Evening work profile
 
 - Branch / commits: `claude/finish-evening-shift-fallback`, Pull Request
