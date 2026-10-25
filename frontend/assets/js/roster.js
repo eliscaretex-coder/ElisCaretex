@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const elements = {
     message: $("rosterPageMessage"), grid: $("rosterGridCard"), week: $("rosterWeekInput"),
     sunday: $("rosterSundaySelect"), shift: $("rosterShiftSelect"), search: $("rosterSearchInput"),
-    note: $("rosterWeekNote"), context: $("rosterContextBanner"), readOnly: $("rosterReadOnlyBanner"),
+    note: $("rosterWeekNote"), context: $("rosterContextBanner"), homeShiftNotice: $("rosterHomeShiftNotice"), readOnly: $("rosterReadOnlyBanner"),
     documentStatus: $("rosterDocumentStatus"), save: $("rosterSaveButton"), publish: $("rosterPublishButton"),
     discard: $("rosterDiscardButton"), copy: $("rosterCopyButton"), nextWeek: $("rosterNextWeekButton"), history: $("rosterHistoryButton"),
     addStaff: $("rosterAddStaffButton"), staffLink: $("rosterStaffLinkButton"), print: $("rosterPrintButton"), signOut: $("rosterSignOutButton"),
@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     accessProfile: null, canEditRoster: false, canApproveLeave: false, canManageRoster: false, leaveCalendarData: null,
     operationalSettings: null, settingsBundle: null, settingsTab: "TARGETS", leaveRevision: "", leaveHistorySearchTimer: null, capacityCollapsed: false, capacitySimulationPercent: 100, customerKg: null, otherShift: null, dirty: false,
     editingKey: "", quickKey: "", staffPickerSelectedId: "", historyVersionId: null, loading: false,
-    loadedWeekStart: "", loadedShiftCode: "", suspiciousShiftDraft: null, shiftIntegrity: null
+    loadedWeekStart: "", loadedShiftCode: "", suspiciousShiftDraft: null, shiftIntegrity: null, homeShiftCode: ""
   };
   try { state.capacityCollapsed = window.localStorage.getItem("eliscaretex.roster.capacity.collapsed") === "1"; } catch (_) {}
 
@@ -709,6 +709,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     else if (diff === 1) { cls = "next"; label = "Next week"; }
     elements.context.className = `roster-context-banner ${cls}`;
     elements.context.textContent = `${label} · ${formatDate(selected)} – ${formatDate(addDays(selected, Number(elements.sunday.value) ? 6 : 5))}`;
+    renderHomeShiftNotice();
+  }
+
+  // Each supervisor opens their own shift; covering the other shift stays one click away.
+  function shiftName(code) {
+    const shift = (state.reference?.shifts || []).find((item) => String(item.shift_code).toUpperCase() === String(code).toUpperCase());
+    return shift?.shift_name || code;
+  }
+
+  function renderHomeShiftNotice() {
+    const home = state.homeShiftCode;
+    const selected = String(elements.shift.value || "").toUpperCase();
+    const covering = Boolean(home && selected && home !== selected);
+    elements.homeShiftNotice.classList.toggle("hidden", !covering);
+    if (!covering) { elements.homeShiftNotice.innerHTML = ""; return; }
+    elements.homeShiftNotice.innerHTML = `<span>You are on the <strong>${escapeHtml(shiftName(selected))}</strong> roster. Your shift is ${escapeHtml(shiftName(home))}.</span><button class="roster-button" type="button" data-home-shift>Back to my shift</button>`;
   }
 
   function displaySection(staff) {
@@ -2452,7 +2468,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const { data: sessionData } = await client.auth.getSession();
       if (!sessionData.session) { window.location.replace("../index.html"); return; }
-      const [reference,accessProfile]=await Promise.all([rpc("get_production_roster_reference_data"),rpc("get_current_account_access")]);
+      const [reference,accessProfile,homeShift]=await Promise.all([rpc("get_production_roster_reference_data"),rpc("get_current_account_access"),rpc("get_current_account_home_shift").catch(() => null)]);
       state.reference = reference;
       state.accessProfile=accessProfile||{};
       state.canEditRoster=canAccountAction("PRODUCTION_ROSTER","EDIT");
@@ -2461,7 +2477,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const leaveSettingsTab=elements.settingsTabs.querySelector('[data-settings-tab="LEAVE"]');
       if (leaveSettingsTab) leaveSettingsTab.classList.toggle("hidden",!state.canManageRoster);
       elements.leaveSettingsSave.classList.toggle("hidden",!state.canManageRoster);
-      elements.shift.innerHTML = (state.reference.shifts || []).map((shift) => `<option value="${escapeHtml(shift.shift_code)}">${escapeHtml(shift.shift_name)}</option>`).join("");
+      const shiftCodes = (state.reference.shifts || []).map((shift) => String(shift.shift_code).toUpperCase());
+      const homeShiftCode = String(homeShift?.shift_code || "").toUpperCase();
+      state.homeShiftCode = shiftCodes.includes(homeShiftCode) ? homeShiftCode : "";
+      elements.shift.innerHTML = (state.reference.shifts || []).map((shift) => `<option value="${escapeHtml(shift.shift_code)}">${escapeHtml(shift.shift_name)}${String(shift.shift_code).toUpperCase() === state.homeShiftCode ? " (my shift)" : ""}</option>`).join("");
+      if (state.homeShiftCode) elements.shift.value = (state.reference.shifts || []).find((shift) => String(shift.shift_code).toUpperCase() === state.homeShiftCode).shift_code;
       elements.week.value = isoWeekValue(currentMonday());
       await loadRoster({ force: true });
       await refreshLeaveRequestBadge();
@@ -2563,6 +2583,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.role.addEventListener("change", () => { const entry = state.entries.get(state.editingKey); if (entry) renderSortingWorkModeField(entry); });
   elements.week.addEventListener("change", () => { state.historyVersionId = null; loadRoster(); });
   elements.shift.addEventListener("change", () => { state.historyVersionId = null; loadRoster(); });
+  elements.homeShiftNotice.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-home-shift]") || !state.homeShiftCode || elements.shift.disabled) return;
+    const home = (state.reference?.shifts || []).find((shift) => String(shift.shift_code).toUpperCase() === state.homeShiftCode);
+    if (!home) return;
+    elements.shift.value = home.shift_code;
+    elements.shift.dispatchEvent(new Event("change"));
+  });
   elements.sunday.addEventListener("change", () => {
     if (!state.data) return;
     adjustEntriesToVisibleDays();
