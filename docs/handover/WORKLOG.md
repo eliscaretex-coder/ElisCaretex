@@ -94,8 +94,10 @@ Entry format:
   new job title and its template permissions. Also fixed `apply_staff_production_scope`,
   which turned `production_staff` back to true on every update, so the Staff -> Driver
   transfer never left Production.
-- Database: `202610240003_driver_role_transfer.sql` **Prepared, not applied**. The owner
-  applies it in the SQL Editor.
+- Database: `202610240003_driver_role_transfer.sql` **Applied** by the owner in the SQL
+  Editor (verified 2026-10-25: table, `driver-role-transfers` job and the
+  `apply_staff_production_scope` fix exist). Security advisors only list the expected
+  RLS-without-policy table and authenticated SECURITY DEFINER RPCs with internal checks.
 - Validation: the migration plus the scenarios of
   `supabase/tests/202610240003_driver_role_transfer_validation.sql` ran on ElisCaretex-dev
   inside a rolled-back transaction (32 of 32 checks passed, nothing kept). Both screens
