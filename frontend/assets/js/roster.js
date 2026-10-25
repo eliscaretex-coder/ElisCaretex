@@ -1919,13 +1919,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) { setMessage(friendlyError(error), "error"); }
   }
 
+  const HISTORY_EVENT_LABELS = { DRAFT_CREATED: "Draft created", DRAFT_SAVED: "Saved", PUBLISHED: "Published", SUPERSEDED: "Replaced by a newer version", DRAFT_CANCELLED: "Draft discarded" };
+
+  function historyPublishedLine(version) {
+    if (!version.published_at) return "";
+    const when = escapeHtml(formatDateTime(version.published_at));
+    const name = version.published_by_name ? escapeHtml(version.published_by_name) : "";
+    if (version.publish_source === "AUTOMATIC") return `Published automatically (Sunday 12:00) · ${when}`;
+    if (version.publish_source === "LEGACY_IMPORT") return `Imported from the old spreadsheet${name ? ` (last edited by ${name})` : ""} · ${when}`;
+    return `Published by <b>${name || "unknown"}</b> · ${when}`;
+  }
+
+  function historyRowHtml(version) {
+    // Before migration 202610250007 the history RPC returned dates only.
+    if (!("publish_source" in version)) return `<div class="roster-history-row"><div><span class="roster-status-chip ${String(version.status).toLowerCase()}">${escapeHtml(version.status)}</span></div><div><strong>Version ${Number(version.version_number)}</strong><span>${Number(version.staff_count)} staff · ${Number(version.entry_count)} entries · ${escapeHtml(formatDateTime(version.published_at || version.saved_at || version.created_at))}</span>${version.week_note ? `<span class="roster-history-who">${escapeHtml(version.week_note)}</span>` : ""}</div><button class="roster-button" type="button" data-open-roster-version="${escapeHtml(version.roster_version_id)}">Open</button></div>`;
+    const savedLine = version.saved_at && version.publish_source !== "LEGACY_IMPORT" ? `<span class="roster-history-who">Saved by <b>${escapeHtml(version.saved_by_name || "unknown")}</b> · ${escapeHtml(formatDateTime(version.saved_at))}</span>` : "";
+    const publishedLine = historyPublishedLine(version);
+    const activity = Array.isArray(version.activity) ? version.activity : [];
+    const activityHtml = activity.length ? `<details class="roster-history-activity"><summary>Activity (${activity.length})</summary><ol>${activity.map((event) => `<li>${escapeHtml(HISTORY_EVENT_LABELS[event.event_type] || event.event_type)}${event.actor_name ? ` by <b>${escapeHtml(event.actor_name)}</b>` : ""} · ${escapeHtml(formatDateTime(event.occurred_at))}</li>`).join("")}</ol></details>` : "";
+    return `<div class="roster-history-row"><div><span class="roster-status-chip ${String(version.status).toLowerCase()}">${escapeHtml(version.status)}</span></div><div><strong>Version ${Number(version.version_number)}</strong><span>${Number(version.staff_count)} staff · ${Number(version.entry_count)} entries</span>${savedLine}${publishedLine ? `<span class="roster-history-who">${publishedLine}</span>` : ""}${version.week_note ? `<span class="roster-history-who">${escapeHtml(version.week_note)}</span>` : ""}${activityHtml}</div><button class="roster-button" type="button" data-open-roster-version="${escapeHtml(version.roster_version_id)}">Open</button></div>`;
+  }
+
   async function openHistory() {
     elements.historyModal.classList.remove("hidden"); elements.historyTitle.textContent = `${state.data.shift.shift_name} · ${formatDate(mondayFromWeekValue(elements.week.value))}`;
     elements.historyContent.innerHTML = '<div class="roster-loading"><span></span><p>Loading history…</p></div>';
     try {
       const result = await rpc("get_production_roster_history", { p_week_start: mondayFromWeekValue(elements.week.value), p_shift_code: elements.shift.value });
       const versions = result.versions || [];
-      elements.historyContent.innerHTML = `${state.historyVersionId ? '<button class="roster-button" type="button" data-open-current-roster>Return to current roster</button>' : ""}${versions.length ? versions.map((version) => `<div class="roster-history-row"><div><span class="roster-status-chip ${String(version.status).toLowerCase()}">${escapeHtml(version.status)}</span></div><div><strong>Version ${Number(version.version_number)}</strong><span>${Number(version.staff_count)} staff · ${Number(version.entry_count)} entries · ${escapeHtml(formatDateTime(version.published_at || version.saved_at || version.created_at))}</span>${version.week_note ? `<span>${escapeHtml(version.week_note)}</span>` : ""}</div><button class="roster-button" type="button" data-open-roster-version="${escapeHtml(version.roster_version_id)}">Open</button></div>`).join("") : '<div class="roster-empty">No saved versions for this shift and week.</div>'}`;
+      elements.historyContent.innerHTML = `${state.historyVersionId ? '<button class="roster-button" type="button" data-open-current-roster>Return to current roster</button>' : ""}${versions.length ? versions.map(historyRowHtml).join("") : '<div class="roster-empty">No saved versions for this shift and week.</div>'}`;
     } catch (error) { elements.historyContent.innerHTML = `<div class="roster-empty">${escapeHtml(friendlyError(error))}</div>`; }
   }
 

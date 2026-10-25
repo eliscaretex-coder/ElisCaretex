@@ -80,6 +80,25 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Production Roster history shows who saved and who published
+
+- Branch / commits: `claude/roster-history-saved-published-by`, Pull Request into `master`
+- Changed: the Production Roster History window now shows, for each version, "Saved by" and
+  "Published by" with date and time, plus an "Activity" list (draft created, saved, published,
+  replaced, discarded) with the person for each step. Sunday automatic publications say
+  "Published automatically" and legacy spreadsheet imports say "Imported from the old spreadsheet".
+  The data was already stored (`production_roster_versions.saved_by/published_by` and
+  `production_roster_events`); only the history RPC did not return it.
+- Database: `202610250007_production_roster_history_saved_and_published_by.sql` — replaces
+  `get_production_roster_history` and adds the internal helper `production_roster_actor_name`
+  (no direct execute for any client role). No table, column or row changes. **Prepared, not applied.**
+- Validation: dry run on `ElisCaretex-dev` inside a transaction that was forced to roll back,
+  calling the RPC as a real roster manager for 5 shift-weeks (manual, superseded, legacy import);
+  names and sources came back as expected. `node scripts/validate-repository.mjs` passed.
+  The pgTAP file has not been run yet (needs the migration applied).
+- Open / next: owner applies the migration in the SQL editor, then run the pgTAP file and the
+  security advisors.
+
 ## 2026-10-25 — Claude — Customer Service: clearer customer blocks in Settings
 
 - Changed: the owner could not see how to give customers to a Customer Service person.

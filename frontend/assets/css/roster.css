@@ -328,3 +328,4 @@ body.roster-print-fit .roster-leave-planning-banner,body.roster-print-fit .roste
 /* Supervisor covering the other shift */
 .roster-home-shift-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;border-radius:10px;padding:8px 12px;font-size:13px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3}.roster-home-shift-notice .roster-button{height:32px}
 @media print{.roster-home-shift-notice{display:none!important}}
+.roster-history-who{display:block;margin-top:2px}.roster-history-who b{color:var(--roster-ink)}.roster-history-activity{margin-top:6px;font-size:12px;color:var(--roster-muted)}.roster-history-activity summary{cursor:pointer;font-weight:700}.roster-history-activity ol{margin:6px 0 0;padding-left:18px}.roster-history-activity li{margin:2px 0}.roster-history-activity b{color:var(--roster-ink)}
