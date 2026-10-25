@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Finish Auto Shift no longer fails on days without an Evening work profile
+
+- Branch / commits: `claude/finish-evening-shift-fallback`, Pull Request
+- Changed: `get_finish_auto_shift_context` raised "Evening shift start time could not be resolved..." on Sunday
+  (no EVENING Roster work profile, `shifts.start_time` empty for EVENING), blocking Finish Table 1 and the
+  new-entry current-shift guard. It now falls back to 14:00, the same fallback Sorting/MOP Auto Shift use.
+  New reason codes `EVENING_FALLBACK_START` / `BEFORE_EVENING_FALLBACK_START`.
+- Database: `202610250008_finish_auto_shift_evening_fallback.sql` — Prepared, not applied (owner applies).
+- Validation: migration + `supabase/tests/202610250008_finish_auto_shift_evening_fallback_validation.sql` ran
+  in one aborted transaction as FINISH-T1-PC01 (Sunday 18:05 EVENING, Sunday 10:00 MORNING, Monday profile
+  15:00 respected, overnight continuation, anon denied); live function confirmed unchanged afterwards.
+- Open / next: owner may add a Sunday EVENING Roster work profile or fill the Shift master start time if 14:00
+  is not the right Sunday start.
+
 ## 2026-10-25 — Claude — MOP Production Trace table no longer cut off
 
 - Branch / commits: `claude/mop-trace-table-fit`, Pull Request into `master`
