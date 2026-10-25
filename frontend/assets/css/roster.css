@@ -324,3 +324,7 @@ body.roster-print-fit .roster-leave-planning-banner,body.roster-print-fit .roste
 .roster-capacity-row.is-customer-kg{border-top:1px solid #cbd5e1;background:#fbfdff}.roster-capacity-row.is-customer-kg .roster-capacity-name>span{background:#1d5fa7}.roster-customer-kg-day strong{color:#1d4f86}
 .roster-customer-kg-day span+span{margin-top:1px}
 .roster-capacity-row.is-both-shifts{background:#e6f6f5;font-weight:800}.roster-capacity-row.is-both-shifts .roster-capacity-name>span{background:#0b6f73}.roster-customer-kg-day.is-over-capacity{background:#fff0ef}.roster-customer-kg-day.is-over-capacity strong{color:#b42318}
+
+/* Supervisor covering the other shift */
+.roster-home-shift-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;border-radius:10px;padding:8px 12px;font-size:13px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3}.roster-home-shift-notice .roster-button{height:32px}
+@media print{.roster-home-shift-notice{display:none!important}}

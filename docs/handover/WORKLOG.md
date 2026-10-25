@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Production Roster opens on each supervisor's own shift
+
+- Branch / commits: `claude/roster-supervisor-home-shift`, Pull Request into `master`
+- Changed: owner request: there are two Production Supervisors (Morning and Evening) and
+  each one should see their own shift, while still being able to open the other shift's
+  roster when covering it. New RPC `get_current_account_home_shift()` returns the default
+  shift of the Staff Master record linked to the signed-in account. The Production Roster
+  now opens on that shift and marks it "(my shift)" in the Shift selector. On the other
+  shift a notice says so, with a "Back to my shift" button. Permissions are unchanged: a
+  supervisor can still open and edit both shifts. Accounts without a linked Staff Master
+  record (or before the migration is applied) keep today's behaviour (first shift).
+- Database: `202610250005_production_roster_home_shift.sql` **Prepared** (not applied).
+- Validation: `validate-repository.mjs` passes. The migration was run inside a rolled-back
+  transaction on `ElisCaretex-dev`: it compiles, anon cannot execute it, and an admin with
+  no linked Staff Master record gets `shift_code: null`. Test:
+  `supabase/tests/202610250005_production_roster_home_shift_validation.sql`.
+- Open / next: link each supervisor's login to their Staff Master record in Accounts & Access.
+
 ## 2026-10-25 — Claude — Production Intelligence read-only for Customer Service
 
 - Branch / commits: `claude/production-intelligence-customer-service` (Pull Request)
