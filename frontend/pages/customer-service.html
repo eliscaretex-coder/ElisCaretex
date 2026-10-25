@@ -9,13 +9,13 @@
   <link rel="stylesheet" href="../assets/css/finish-results.css">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
-  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261022-1">
+  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261025-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
-  <script src="../assets/js/customer-service.js?v=20261022-2" defer></script>
+  <script src="../assets/js/customer-service.js?v=20261025-1" defer></script>
 </head>
 <body class="finish-results-page cs-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -130,14 +130,20 @@
       <section class="cs-view" data-view="settings" hidden>
         <p id="csSettingsNote" class="cs-note"></p>
         <section class="finish-results-section">
-          <header><div><p>Each person looks after a block of customers</p><h2>Customer blocks</h2></div><strong id="csBlockSummary" class="cs-block-summary"></strong></header>
+          <header><div><p>Each person looks after a block of customers</p><h2>Customer blocks</h2></div></header>
+          <ol id="csBlockSteps" class="cs-steps">
+            <li>Tick the customers in the list below. Search, or "Select the customers shown", helps with many at once.</li>
+            <li>Choose the person in <b>Give to</b>.</li>
+            <li>Click the button next to it. The person's name then shows on each customer.</li>
+          </ol>
+          <div id="csBlockPeople" class="cs-block-people" aria-label="Customers per person"></div>
           <div class="cs-filters cs-inner">
             <label class="cs-grow">Search<input id="csBlockSearch" placeholder="Customer name or code" autocomplete="off"></label>
             <label>Show
               <select id="csBlockFilter"><option value="">All customers</option><option value="__none">Without a person</option></select>
             </label>
-            <label>Give selected to<select id="csBlockOwner"></select></label>
-            <button id="csBlockAssign" class="cs-button primary" type="button">Apply</button>
+            <label>Give to<select id="csBlockOwner"></select></label>
+            <button id="csBlockAssign" class="cs-button primary" type="button" disabled>Tick customers first</button>
           </div>
           <div id="csBlocks" class="cs-blocks"></div>
         </section>
