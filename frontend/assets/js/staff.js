@@ -440,7 +440,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div>
             <p class="staff-section-eyebrow">Moving from Distribution</p>
             <h2>Driver transfers${waiting ? ` (${waiting} waiting)` : ""}</h2>
-            <p>Distribution asked to move these drivers to another job title. After approval they start the new role the day after their last day as a driver, keeping the same Staff Master record (or getting a new one).</p>
+            <p>Distribution asked to move these drivers to another job title. After approval they start the new role the day after their last day as a driver, keeping the same Staff Master record (or getting a new one). When the new role starts on a Monday, the move (login included) happens at 12:00 on Sunday.</p>
           </div>
         </header>
         <div class="staff-transfer-list">${transfers.map(row).join("")}</div>
