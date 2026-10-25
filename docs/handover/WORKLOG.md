@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Driver moving to Production can be rostered before the first day
+
+- Branch / commits: `claude/transfer-production-start`, Pull Request into `master`
+- Changed: owner test: a driver approved to move to Cleaner from 26 Oct was missing from the
+  Production Roster of 26 Oct - 1 Nov, because Staff Master only changed on the day. Now,
+  when a transfer to a Production job title is approved with a future first day, the Staff
+  Master record is prepared at once (Production staff, approved role/area/station/shift,
+  new `staff_members.production_roster_from` = the first day; a record is created for a
+  driver without one). The driver link, login job title and driver exit still change on the
+  day. Cancelling an approved transfer restores the previous values (or soft-deletes a record
+  created for it); applying clears `production_roster_from`. The Production Roster pool,
+  week, checks and planner offer the person from that week and block the days before.
+- Database: `202610250002_driver_role_transfer_production_start.sql` **Prepared** (not
+  applied). It also prepares transfers already approved (Paulo Teste2).
+- Validation: `validate-repository.mjs` passes. Database test
+  `supabase/tests/202610250002_driver_role_transfer_production_start_validation.sql` not yet run.
+- Open / next: run the test and the security advisors after the owner applies the migration.
+
 ## 2026-10-25 — Claude — Staff -> Driver transfer with a first day as Driver
 
 - Branch / commits: `claude/driver-transfer-date`, Pull Request into `master`
