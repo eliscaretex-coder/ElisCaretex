@@ -115,7 +115,7 @@ Entry format:
 
 ## 2026-10-25 — Claude — Role transfers starting on a Monday switch on Sunday at 12:00
 
-- Branch / commits: `claude/transfer-sunday-noon`, Pull Request into `master`
+- Branch / commits: `claude/transfer-sunday-noon`, Pull Request #73 (merged)
 - Changed: owner request: Sunday is normally not a working day, so a person starting a new
   role on Monday must see the new roster on Sunday. New `role_transfer_switch_at(first_day)`:
   Sunday 12:00 Europe/Dublin when the first day is a Monday, otherwise 00:00 Dublin on the
@@ -126,12 +126,17 @@ Entry format:
   Helper `apply_account_job_title_template` (internal). The `driver-role-transfers` and
   `production-roster-exits` cron jobs now run hourly (minutes 8 and 7). Help texts in Staff
   Master and Distribution say so.
-- Database: `202610250003_role_transfer_sunday_noon_switch.sql` **Prepared** (not applied).
+- Database: `202610250003_role_transfer_sunday_noon_switch.sql` **Applied** 2026-10-25 by the
+  owner in the SQL Editor. Cron jobs verified hourly (`7 * * * *`, `8 * * * *`).
 - Validation: `validate-repository.mjs` passes. Database test
   `supabase/tests/202610250003_role_transfer_sunday_noon_switch_validation.sql` **Validated**
   as a dry run against ElisCaretex-dev (migration + test in one transaction, rolled back):
   13/13 passed.
-- Open / next: owner applies the migration; then check the cron schedules and advisors.
+- Live check: the 15:08 UTC `driver-role-transfers` run completed Paulo Teste2's transfer
+  (Driver -> Cleaner from 26 Oct): login job title CLEANER, My Roster active, My Driver Roster
+  inactive, `production_roster_from` cleared. Security advisors: no finding for the new
+  functions.
+- Open / next: none.
 
 ## 2026-10-25 — Claude — Driver moving to Production can be rostered before the first day
 
