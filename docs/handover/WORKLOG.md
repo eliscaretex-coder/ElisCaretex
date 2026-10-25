@@ -80,6 +80,31 @@ Entry format:
 
 ---
 
+## 2026-10-24 — Claude — Driver role transfer (Driver to another job title)
+
+- Branch / commits: `claude/driver-role-transfer`, Pull Request into `master`
+- Changed: Distribution Drivers > Remove now asks "Leaving the company" or "Moving to
+  another role" (last day as a driver, job title from GO, Label, Team Leader, Supervisor,
+  Cleaner, Logistics Manager, Maintenance, Production Manager, reason). Staff Master shows
+  "Driver transfers" where a manager with Staff Master APPROVE (only below their own job
+  title rank) or an Administrator approves (role, area, station, shift, roster), rejects or
+  cancels. The move applies the day after the last driver day (daily job
+  `driver-role-transfers`, or at approval when the date has passed): the Staff Master
+  record is reused or created, the driver record is unlinked, an existing login gets the
+  new job title and its template permissions. Also fixed `apply_staff_production_scope`,
+  which turned `production_staff` back to true on every update, so the Staff -> Driver
+  transfer never left Production.
+- Database: `202610240003_driver_role_transfer.sql` **Prepared, not applied**. The owner
+  applies it in the SQL Editor.
+- Validation: the migration plus the scenarios of
+  `supabase/tests/202610240003_driver_role_transfer_validation.sql` ran on ElisCaretex-dev
+  inside a rolled-back transaction (32 of 32 checks passed, nothing kept). Both screens
+  rendered in Chromium with stubbed RPC data (no console errors). `validate-repository.mjs`
+  passes.
+- Open / next: run the test file and the security advisors after the owner applies the
+  migration. A person without a login keeps the chosen job title only on the transfer
+  record; choose it again when access is set up.
+
 ## 2026-10-24 — Claude — Copy Eircode from the route on My Driver Roster
 
 - Branch / commits: `claude/driver-roster-copy-eircode`, Pull Request into `master`

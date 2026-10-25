@@ -8,7 +8,7 @@
 
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css?v=20261017-1">
-  <link rel="stylesheet" href="../assets/css/staff.css?v=20261020-1">
+  <link rel="stylesheet" href="../assets/css/staff.css?v=20261024-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
 
@@ -17,7 +17,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
-  <script src="../assets/js/staff.js?v=20261020-1" defer></script>
+  <script src="../assets/js/staff.js?v=20261024-1" defer></script>
 </head>
 
 <body class="staff-page">
@@ -287,6 +287,63 @@
       <footer class="staff-modal-footer">
         <button id="staffStatusCancel" class="staff-secondary-button" type="button">Cancel</button>
         <button id="staffStatusConfirm" class="staff-danger-button" type="submit" form="staffStatusForm">Confirm</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="staffTransferModal" class="staff-modal hidden" role="dialog" aria-modal="true" aria-labelledby="staffTransferTitle">
+    <button id="staffTransferBackdrop" class="staff-modal-backdrop" type="button" aria-label="Close driver transfer"></button>
+    <section class="staff-modal-card staff-status-card">
+      <header class="staff-modal-header">
+        <div>
+          <p class="staff-modal-eyebrow">Driver transfer</p>
+          <h2 id="staffTransferTitle">Approve transfer</h2>
+          <p id="staffTransferSubtitle"></p>
+        </div>
+        <button id="staffTransferClose" class="staff-icon-button" type="button" aria-label="Close driver transfer">×</button>
+      </header>
+
+      <form id="staffTransferForm" class="staff-form" novalidate>
+        <input id="staffTransferId" type="hidden">
+        <input id="staffTransferRowVersion" type="hidden">
+        <input id="staffTransferMode" type="hidden">
+
+        <div id="staffTransferSummary" class="staff-info-callout"></div>
+
+        <div id="staffTransferWorkFields" class="staff-form-grid two-columns">
+          <label class="staff-field">
+            <span>Primary role *</span>
+            <select id="staffTransferRole"></select>
+          </label>
+          <label class="staff-field">
+            <span>Default shift</span>
+            <select id="staffTransferShift"></select>
+          </label>
+          <label class="staff-field">
+            <span>Default area</span>
+            <select id="staffTransferArea"></select>
+          </label>
+          <label class="staff-field">
+            <span>Default table / station</span>
+            <select id="staffTransferStation"></select>
+          </label>
+          <label class="staff-toggle-field wide">
+            <input id="staffTransferRosterEligible" type="checkbox" checked>
+            <span><strong>Roster eligible</strong><small>Include the person in the Production Roster from the day they start.</small></span>
+          </label>
+        </div>
+
+        <label class="staff-field">
+          <span id="staffTransferNoteLabel">Note</span>
+          <textarea id="staffTransferNote" rows="3" maxlength="500"></textarea>
+        </label>
+
+        <p id="staffTransferMessage" class="staff-inline-message" aria-live="polite"></p>
+      </form>
+
+      <footer class="staff-modal-footer">
+        <button id="staffTransferCancel" class="staff-secondary-button" type="button">Close</button>
+        <button id="staffTransferConfirm" class="staff-primary-button" type="submit" form="staffTransferForm">Approve</button>
       </footer>
     </section>
   </div>

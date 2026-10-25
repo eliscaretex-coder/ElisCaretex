@@ -119,7 +119,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     terminalPasswordConfirmation: document.getElementById("terminalPasswordResetConfirmation"),
     terminalPasswordShow: document.getElementById("terminalPasswordResetShow"),
     terminalPasswordMessage: document.getElementById("terminalPasswordResetMessage"),
-    terminalPasswordSave: document.getElementById("terminalPasswordResetSave")
+    terminalPasswordSave: document.getElementById("terminalPasswordResetSave"),
+    transferModal: document.getElementById("staffTransferModal"),
+    transferBackdrop: document.getElementById("staffTransferBackdrop"),
+    transferClose: document.getElementById("staffTransferClose"),
+    transferCancel: document.getElementById("staffTransferCancel"),
+    transferForm: document.getElementById("staffTransferForm"),
+    transferTitle: document.getElementById("staffTransferTitle"),
+    transferSubtitle: document.getElementById("staffTransferSubtitle"),
+    transferId: document.getElementById("staffTransferId"),
+    transferRowVersion: document.getElementById("staffTransferRowVersion"),
+    transferMode: document.getElementById("staffTransferMode"),
+    transferSummary: document.getElementById("staffTransferSummary"),
+    transferWorkFields: document.getElementById("staffTransferWorkFields"),
+    transferRole: document.getElementById("staffTransferRole"),
+    transferShift: document.getElementById("staffTransferShift"),
+    transferArea: document.getElementById("staffTransferArea"),
+    transferStation: document.getElementById("staffTransferStation"),
+    transferRosterEligible: document.getElementById("staffTransferRosterEligible"),
+    transferNoteLabel: document.getElementById("staffTransferNoteLabel"),
+    transferNote: document.getElementById("staffTransferNote"),
+    transferMessage: document.getElementById("staffTransferMessage"),
+    transferConfirm: document.getElementById("staffTransferConfirm")
   };
 
   const state = {
@@ -143,6 +164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     accountModules: [],
     accountJobTitles: [],
     directoryStaff: [],
+    driverTransfers: [],
     busy: false,
     editorPrimaryRoleCode: "",
     resolveRosterRoleChoice: null
@@ -323,14 +345,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderLoading("Loading staff directory...");
 
     try {
-      const [data,accountData] = await Promise.all([
+      const [data,accountData,transferData] = await Promise.all([
         rpc("get_staff_directory", {
           p_status: state.statusFilter,
           p_shift_code: state.shiftFilter === "ALL" ? null : state.shiftFilter,
           p_search: state.search || null
         }),
-        state.canViewAccounts ? rpc("get_admin_account_access_directory", { p_search:null }) : Promise.resolve(null)
+        state.canViewAccounts ? rpc("get_admin_account_access_directory", { p_search:null }) : Promise.resolve(null),
+        rpc("get_driver_role_transfers", { p_include_closed:false }).catch((error) => { console.warn("Driver transfers are unavailable.", error); return null; })
       ]);
+      state.driverTransfers = Array.isArray(transferData?.transfers) ? transferData.transfers : [];
       if (accountData) {
         state.accounts = Array.isArray(accountData.accounts) ? accountData.accounts : [];
         state.accountRoles = Array.isArray(accountData.available_roles) ? accountData.available_roles : [];
@@ -371,6 +395,164 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  function driverTransfersCard() {
+    const transfers = state.driverTransfers || [];
+    if (!transfers.length) return "";
+    const waiting = transfers.filter((item) => item.transfer_status === "PENDING").length;
+    const row = (item) => {
+      const approved = item.transfer_status === "APPROVED";
+      const work = approved && item.production_job_title
+        ? [item.primary_role_name, item.default_area_name, item.default_station_name, item.default_shift_name].filter(Boolean).join(" · ")
+        : "";
+      const actions = [
+        item.can_decide ? `<button class="staff-row-button" type="button" data-transfer-approve="${escapeHtml(item.transfer_id)}">Approve</button>` : "",
+        item.can_decide ? `<button class="staff-row-button danger" type="button" data-transfer-reject="${escapeHtml(item.transfer_id)}">Reject</button>` : "",
+        approved && item.can_cancel ? `<button class="staff-row-button danger" type="button" data-transfer-cancel="${escapeHtml(item.transfer_id)}">Cancel transfer</button>` : ""
+      ].join("");
+      return `
+        <article class="staff-transfer-row">
+          <div>
+            <strong>${escapeHtml(item.driver_name)}</strong>
+            <span class="staff-subtext">${escapeHtml(item.driver_code)}${item.staff_employee_code ? ` · Staff ${escapeHtml(item.staff_employee_code)}` : " · No Staff Master record yet"}${item.has_login ? " · Has a login" : ""}</span>
+          </div>
+          <div>
+            <strong>${escapeHtml(item.job_title_name)}</strong>
+            <span class="staff-subtext">Last day as driver ${formatDate(item.last_driver_day)} · starts ${formatDate(item.effective_on)}</span>
+          </div>
+          <div>
+            <span class="staff-transfer-status ${approved ? "approved" : ""}">${approved ? "Approved" : "Waiting for approval"}</span>
+            <span class="staff-subtext">${escapeHtml(work || item.reason || "")}${item.requested_by_name ? ` · requested by ${escapeHtml(item.requested_by_name)}` : ""}</span>
+          </div>
+          <div class="staff-row-actions">${actions || '<span class="staff-subtext">A manager decides</span>'}</div>
+        </article>
+      `;
+    };
+    return `
+      <section class="staff-card staff-transfer-card">
+        <header class="staff-card-header">
+          <div>
+            <p class="staff-section-eyebrow">Moving from Distribution</p>
+            <h2>Driver transfers${waiting ? ` (${waiting} waiting)` : ""}</h2>
+            <p>Distribution asked to move these drivers to another job title. After approval they start the new role the day after their last day as a driver, keeping the same Staff Master record (or getting a new one).</p>
+          </div>
+        </header>
+        <div class="staff-transfer-list">${transfers.map(row).join("")}</div>
+      </section>
+    `;
+  }
+
+  function populateTransferStations(selectedCode = "") {
+    const area = (state.reference?.areas || []).find((item) => item.area_code === elements.transferArea.value);
+    const stations = area ? (state.reference?.stations || []).filter((item) => item.area_id === area.area_id) : [];
+    const selected = selectedCode || (stations.length === 1 ? stations[0].station_code : "");
+    elements.transferStation.innerHTML = option("", !area ? "Select an area first" : stations.length ? "No default station" : "No stations in this area", selected) + stations.map((station) => option(station.station_code, station.station_name, selected)).join("");
+    elements.transferStation.disabled = !stations.length;
+  }
+
+  function operationalRoleForJobTitle(jobTitleCode) {
+    return ({PRODUCTION_MANAGER:"PRODUCTION_MANAGER",PRODUCTION_SUPERVISOR:"SUPERVISOR",LABEL_OPERATIVE:"LABEL",TEAM_LEADER:"TEAM_LEADER",CLEANER:"CLEANER",MAINTENANCE:"MAINTENANCE",GENERAL_OPERATIVE:"GENERAL_OPERATIVE"})[jobTitleCode] || "";
+  }
+
+  function openTransferModal(mode, transferId) {
+    const item = (state.driverTransfers || []).find((entry) => entry.transfer_id === transferId);
+    if (!item) return;
+    const approving = mode === "APPROVE";
+    const production = approving && item.production_job_title;
+    elements.transferForm.reset();
+    elements.transferId.value = item.transfer_id;
+    elements.transferRowVersion.value = item.row_version;
+    elements.transferMode.value = mode;
+    elements.transferTitle.textContent = approving ? "Approve transfer" : mode === "REJECT" ? "Reject transfer" : "Cancel transfer";
+    elements.transferSubtitle.textContent = `${item.driver_name} (${item.driver_code}) to ${item.job_title_name}`;
+    const staffLine = item.staff_employee_code
+      ? `Their Staff Master record ${item.staff_employee_code} is kept and moved to the new role.`
+      : production ? "They have no Staff Master record yet: a new one is created with a new employee code." : "They have no Staff Master record.";
+    const loginLine = item.has_login ? ` Their login changes to ${item.job_title_name} with its standard permissions.` : " They have no login yet; when access is set up, choose this job title.";
+    elements.transferSummary.textContent = approving
+      ? `Last day as a driver: ${formatDate(item.last_driver_day)}. Starts as ${item.job_title_name} on ${formatDate(item.effective_on)}${item.effective_on <= localDateValue() ? " (applied now, because the date has passed)" : ""}. ${staffLine}${loginLine} Distribution's reason: ${item.reason}`
+      : mode === "REJECT"
+        ? `The driver stays in Distribution and Distribution sees the rejection. Distribution's reason was: ${item.reason}`
+        : `The approved transfer and the scheduled driver exit on ${formatDate(item.last_driver_day)} are both cancelled. The driver stays in Distribution.`;
+    elements.transferWorkFields.classList.toggle("hidden", !production);
+    if (production) {
+      const roles = (state.reference?.operational_roles || []).filter((role) => role.allow_as_primary && role.role_code !== "DRIVER");
+      const areas = (state.reference?.areas || []).filter((area) => !NON_WORK_AREA_CODES.includes(area.area_code) && area.area_code !== "DISTRIBUTION");
+      const suggestedRole = operationalRoleForJobTitle(item.job_title_code);
+      elements.transferRole.innerHTML = option("", "Select role", suggestedRole) + roles.map((role) => option(role.role_code, role.role_name, suggestedRole)).join("");
+      elements.transferShift.innerHTML = option("", "No default shift") + (state.reference?.shifts || []).map((shift) => option(shift.shift_code, shift.shift_name)).join("");
+      elements.transferArea.innerHTML = option("", "No default area") + areas.map((area) => option(area.area_code, area.area_name)).join("");
+      populateTransferStations();
+      elements.transferRosterEligible.checked = true;
+    }
+    elements.transferNoteLabel.textContent = approving ? "Note (optional)" : "Reason *";
+    elements.transferConfirm.textContent = approving ? "Approve" : mode === "REJECT" ? "Reject" : "Cancel transfer";
+    elements.transferConfirm.className = approving ? "staff-primary-button" : "staff-danger-button";
+    setMessage(elements.transferMessage);
+    elements.transferModal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    (production ? elements.transferRole : elements.transferNote).focus();
+  }
+
+  function closeTransferModal(force = false) {
+    if (state.busy && !force) return;
+    elements.transferModal.classList.add("hidden");
+    document.body.style.overflow = "";
+    elements.transferForm.reset();
+    setMessage(elements.transferMessage);
+  }
+
+  async function saveTransfer(event) {
+    event.preventDefault();
+    if (state.busy) return;
+    const mode = elements.transferMode.value;
+    const item = (state.driverTransfers || []).find((entry) => entry.transfer_id === elements.transferId.value) || {};
+    const note = elements.transferNote.value.trim();
+    const production = mode === "APPROVE" && item.production_job_title;
+    if (production && !elements.transferRole.value) { setMessage(elements.transferMessage, "Choose the primary role.", "error"); return; }
+    if (mode !== "APPROVE" && !note) { setMessage(elements.transferMessage, "A reason is required.", "error"); return; }
+    state.busy = true;
+    elements.transferConfirm.disabled = true;
+    setMessage(elements.transferMessage, mode === "APPROVE" ? "Approving transfer..." : "Saving...");
+    try {
+      const args = { p_transfer_id: item.transfer_id, p_expected_row_version: Number(elements.transferRowVersion.value) || null };
+      let result;
+      if (mode === "APPROVE") {
+        result = await rpc("approve_driver_role_transfer", {
+          ...args,
+          p_primary_role_code: production ? elements.transferRole.value : null,
+          p_default_area_code: production ? elements.transferArea.value || null : null,
+          p_default_station_code: production ? elements.transferStation.value || null : null,
+          p_default_shift_code: production ? elements.transferShift.value || null : null,
+          p_roster_eligible: production ? elements.transferRosterEligible.checked : false,
+          p_note: note || null
+        });
+      } else if (mode === "REJECT") {
+        result = await rpc("reject_driver_role_transfer", { ...args, p_reason: note });
+      } else {
+        result = await rpc("cancel_driver_role_transfer", { ...args, p_reason: note });
+      }
+      closeTransferModal(true);
+      const notes = [];
+      if (mode === "APPROVE") {
+        notes.push(result?.applied_now
+          ? `${result.driver_name} now works as ${result.job_title_name}${result.staff_created ? " with a new Staff Master record" : ""}.`
+          : `${result?.driver_name || "The driver"} starts as ${result?.job_title_name || "the new role"} on ${formatDate(result?.effective_on)}. Distribution keeps them as a driver until ${formatDate(result?.last_driver_day)}.`);
+        const conflicts = Array.isArray(result?.published_roster_conflicts) ? result.published_roster_conflicts : [];
+        if (conflicts.length) notes.push(`Distribution must reassign ${conflicts.length} published roster day(s) after the last driver day.`);
+      } else {
+        notes.push(mode === "REJECT" ? "Transfer rejected. The driver stays in Distribution." : "Transfer cancelled. The driver stays in Distribution.");
+      }
+      setMessage(elements.pageMessage, notes.join(" "), "success");
+      await loadDirectory();
+    } catch (error) {
+      console.error("Failed to save driver transfer:", error);
+      setMessage(elements.transferMessage, friendlyError(error), "error");
+    } finally {
+      state.busy = false;
+      elements.transferConfirm.disabled = false;
+    }
+  }
+
   function renderDirectory(data) {
     const summary = data.summary || {};
     const staff = Array.isArray(data.staff) ? data.staff : [];
@@ -387,6 +569,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${kpi(summary.roster_eligible, "Active and roster eligible")}
         ${kpi(summary.review_required, "Import review required", summary.review_required ? "warning" : "")}
       </section>
+
+      ${driverTransfersCard()}
 
       <div class="staff-info-callout">
         Staff Master stores the original operational role. Temporary COVER work is planned separately and may currently use Team Leader, Sorting Area or Supervisor capability.
@@ -1300,6 +1484,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    const transferApprove = event.target.closest("[data-transfer-approve]");
+    if (transferApprove) return openTransferModal("APPROVE", transferApprove.dataset.transferApprove);
+    const transferReject = event.target.closest("[data-transfer-reject]");
+    if (transferReject) return openTransferModal("REJECT", transferReject.dataset.transferReject);
+    const transferCancel = event.target.closest("[data-transfer-cancel]");
+    if (transferCancel) return openTransferModal("CANCEL", transferCancel.dataset.transferCancel);
+
     const editButton = event.target.closest("[data-staff-edit], [data-staff-open]");
     if (editButton && state.canEditStaff) {
       return openEditor(editButton.dataset.staffEdit || editButton.dataset.staffOpen);
@@ -1345,6 +1536,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.rosterRoleKeep.addEventListener("click", () => closeRosterRoleChoice(false));
   elements.rosterRoleApply.addEventListener("click", () => closeRosterRoleChoice(true));
   elements.statusForm.addEventListener("submit", saveStatus);
+  elements.transferForm.addEventListener("submit", saveTransfer);
+  elements.transferArea.addEventListener("change", () => populateTransferStations());
+  elements.transferBackdrop.addEventListener("click", () => closeTransferModal());
+  elements.transferClose.addEventListener("click", () => closeTransferModal());
+  elements.transferCancel.addEventListener("click", () => closeTransferModal());
   elements.statusBackdrop.addEventListener("click", closeStatusModal);
   elements.statusClose.addEventListener("click", closeStatusModal);
   elements.statusCancel.addEventListener("click", closeStatusModal);
@@ -1373,6 +1569,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (!elements.editorModal.classList.contains("hidden")) closeEditor();
     if (!elements.statusModal.classList.contains("hidden")) closeStatusModal();
+    if (!elements.transferModal.classList.contains("hidden")) closeTransferModal();
     if (!elements.accountModal.classList.contains("hidden")) closeAccountEditor();
     if (!elements.terminalPasswordModal.classList.contains("hidden")) closeTerminalPasswordReset();
   });
