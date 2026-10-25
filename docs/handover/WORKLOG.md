@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Finish "Batch / quantity" shows the exact KG (no rounding)
+
+- Branch / commits: `claude/finish-kg-full-value`, Pull Request
+- Changed: the Saved today table on Finish showed each batch KG rounded to 1 decimal (1.68 kg appeared as
+  1.7 kg), which confused staff checking what they typed. The column now shows the value as saved, up to 2
+  decimals (1.68 kg, 15.5 kg, 20 kg), and units as "units" instead of "u". Script cache version bumped.
+  Saved data and calculations unchanged.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; column rendered in Chromium with the real CSS and example
+  data, before/after, desktop and 390px mobile.
+- Open / next: other KG displays on Finish (totals, queue, existing records) still use 1 decimal; owner to decide.
+
 ## 2026-10-25 — Claude — Finish warns when staff have no start time (Sunday / free hours)
 
 - Branch / commits: `claude/finish-sunday-planned-hours`, Pull Request
