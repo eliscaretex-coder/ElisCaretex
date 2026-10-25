@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-25 — Claude — Production Intelligence read-only for Customer Service
+
+- Branch / commits: `claude/production-intelligence-customer-service` (Pull Request)
+- Changed: the Customer Service job title now gets Production Intelligence (PRODUCTION_INSIGHTS)
+  with view only, in its permission template and on the existing account. No frontend change: the
+  sidebar link and the page already follow the module grant. In the Daily report the Sorting and
+  Finish blocks stay hidden for Customer Service (they keep their own SORTING / FINISH checks).
+- Database: `202610250004_production_intelligence_view_for_customer_service.sql` (data only).
+  **Applied** to ElisCaretex-dev on 2026-10-25 at the owner's request
+  (migration name `production_intelligence_view_for_customer_service`).
+- Validation: `supabase/tests/202610250004_production_intelligence_view_for_customer_service_validation.sql`
+  passed 7/7 (pgTAP created inside the rolled-back transaction). Also checked as the Customer Service
+  account: dashboard and forward capacity load; Daily report returns Sorting/Finish as DENIED.
+- Open / next: none. Shift-scoped roster access for supervisors is handled in a separate task.
+
 ## 2026-10-25 — Claude — Role transfers starting on a Monday switch on Sunday at 12:00
 
 - Branch / commits: `claude/transfer-sunday-noon`, Pull Request into `master`
