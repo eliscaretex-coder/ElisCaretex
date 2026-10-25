@@ -631,6 +631,17 @@ APPROVE holder below the target rank, or an Administrator, approves it in Staff 
 the job `driver-role-transfers` applies it the day after the last driver day. Table
 `distribution_driver_role_transfers` (RLS on, RPC access only).
 
+Staff -> Driver first day (2026-10-25, `202610250001_staff_to_driver_effective_date.sql`,
+**Prepared**): `transfer_staff_to_distribution_driver` takes `p_effective_on` (first day as
+Driver, today to +90 days; default next Monday). `production_roster_until` = the day
+before; the internal `production_roster_close_staff_from` sets the person OFF from that day
+(drafts in place, a published week without a draft through a new published version, the
+old one SUPERSEDED) and removes them from later weeks. The Driver gets `joined_on` = that
+day; `get_distribution_roster_week` lists drivers from the week of `joined_on` and
+`validate_distribution_roster_version` refuses entries before it.
+`production_roster_assert_operational_rules` refuses working days after
+`production_roster_until`.
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
