@@ -94,7 +94,9 @@ Entry format:
   the record to Driver/Distribution on that day (nightly job), or at once when the first
   day is today. The Production Roster check and planner also refuse working days after
   the last Production day.
-- Database: `202610250001_staff_to_driver_effective_date.sql` **Prepared** (not applied).
+- Database: `202610250001_staff_to_driver_effective_date.sql` **Applied** by the owner
+  (verified 2026-10-25: new 14-argument transfer, internal close function not executable by
+  `authenticated`, roster checks in place; security advisors show only the existing categories).
   It replaces `transfer_staff_to_distribution_driver` (new last argument
   `p_effective_on`, optional so the current screen keeps working) and adds the internal
   `production_roster_close_staff_from`; it also replaces
@@ -102,10 +104,10 @@ Entry format:
   and `get_distribution_roster_week`.
 - Validation: Staff Master and Distribution roster rendered in Chromium with stubbed RPC
   data (first-day field, past date refused, `p_effective_on` sent, days before the first
-  day disabled; no console errors). `validate-repository.mjs` passes. Database test
-  `supabase/tests/202610250001_staff_to_driver_effective_date_validation.sql` not yet run.
-- Open / next: run the test file and the security advisors after the owner applies the
-  migration.
+  day disabled; no console errors). `validate-repository.mjs` passes. The data scenarios in
+  `supabase/tests/202610250001_staff_to_driver_effective_date_validation.sql` have not run yet
+  (the Supabase confirmation prompt timed out twice).
+- Open / next: run that test file against ElisCaretex-dev (it rolls back).
 
 ## 2026-10-24 — Claude — Driver role transfer (Driver to another job title)
 

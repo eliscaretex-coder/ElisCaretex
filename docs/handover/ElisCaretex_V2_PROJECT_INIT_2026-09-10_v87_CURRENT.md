@@ -632,7 +632,7 @@ the job `driver-role-transfers` applies it the day after the last driver day. Ta
 `distribution_driver_role_transfers` (RLS on, RPC access only).
 
 Staff -> Driver first day (2026-10-25, `202610250001_staff_to_driver_effective_date.sql`,
-**Prepared**): `transfer_staff_to_distribution_driver` takes `p_effective_on` (first day as
+**Applied** 2026-10-25): `transfer_staff_to_distribution_driver` takes `p_effective_on` (first day as
 Driver, today to +90 days; default next Monday). `production_roster_until` = the day
 before; the internal `production_roster_close_staff_from` sets the person OFF from that day
 (drafts in place, a published week without a draft through a new published version, the
