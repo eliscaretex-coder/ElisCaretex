@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedVersionId: null,
       view: "schedule",
       history: null,
+      trolleyReports: null,
       kgHistory: null,
       readOnlyPayload: null,
       readOnlyDistributionPayload: null
@@ -523,7 +524,9 @@ document.addEventListener("DOMContentLoaded", () => {
     try{
       const result=await rpc('review_operational_schedule_report',{p_operational_report_id:item.operational_report_id,p_action:action,p_notes:notes});
       showToast(result?.message||'Operational report updated.');closeModal(document.getElementById('operationalReportReviewDialog'));
-      state.capabilities.pending_operational_report_count=Math.max(0,Number(state.capabilities.pending_operational_report_count||0)-1);renderMainTabs();await loadOperationalReports(state.requestId);
+      state.capabilities.pending_operational_report_count=Math.max(0,Number(state.capabilities.pending_operational_report_count||0)-1);renderMainTabs();
+      if(state.mainView==='reports')await loadOperationalReports(state.requestId);
+      if(state.studio.view==='history'&&state.studio.customerId===item.customer_id)await loadScheduleHistory(state.studio.selectedVersionId);
     }catch(error){msg.textContent=errorMessage(error);msg.classList.remove('hidden');}
     finally{state.reports.saving=false;document.getElementById('operationalReportReject').disabled=false;document.getElementById('operationalReportResolved').disabled=false;}
   }
@@ -2504,14 +2507,26 @@ document.addEventListener("DOMContentLoaded", () => {
     scheduleBody.innerHTML = `${renderStudioViewTabs("history")}${loadingHtml("Loading schedule history...")}`;
     bindScheduleManagementEditor();
 
-    const history = await rpc("get_customer_schedule_history", {
-      p_customer_id: state.studio.customerId,
-      p_selected_version_id: selectedVersionId,
-      p_effective_date: effectiveDateInput.value,
-      p_limit: 50
-    });
+    const [history, trolleyReports] = await Promise.all([
+      rpc("get_customer_schedule_history", {
+        p_customer_id: state.studio.customerId,
+        p_selected_version_id: selectedVersionId,
+        p_effective_date: effectiveDateInput.value,
+        p_limit: 50
+      }),
+      // The trolley plan reports are extra information: if they fail, the
+      // version history still opens and the section explains the problem.
+      rpc("get_customer_trolley_plan_reports", {
+        p_customer_id: state.studio.customerId,
+        p_limit: 50
+      }).catch((error) => {
+        console.error("Trolley plan reports load failed:", error);
+        return { error: errorMessage(error) };
+      })
+    ]);
 
     state.studio.history = history;
+    state.studio.trolleyReports = trolleyReports;
     state.studio.selectedVersionId = history?.selected_version_id || selectedVersionId;
     renderScheduleHistory(history);
   }
@@ -3037,8 +3052,18 @@ document.addEventListener("DOMContentLoaded", () => {
           ${studioKpi(versions.length, "Versions")}
           ${studioKpi(days.length, "Selected days")}
           ${studioKpi(productCount, "Products")}
+          ${state.studio.trolleyReports?.summary ? studioKpi(state.studio.trolleyReports.summary.total || 0, "Trolley reports") : ""}
         </div>
       </section>
+
+      ${Number(state.studio.trolleyReports?.summary?.pending || 0) > 0
+        ? `
+          <div class="customers-warning-callout customers-history-warning">
+            <strong>${escapeHtml(state.studio.trolleyReports.summary.pending)} trolley plan report${Number(state.studio.trolleyReports.summary.pending) === 1 ? " is" : "s are"} waiting for review.</strong>
+            <span>See Trolley plan reports at the end of this page.</span>
+          </div>
+        `
+        : ""}
 
       ${history?.open_working_revision_id
         ? `
@@ -3072,9 +3097,80 @@ document.addEventListener("DOMContentLoaded", () => {
           </section>
         `
         : emptyHtml("No schedule history exists for this customer.", "Create and publish a schedule to start the history.")}
+
+      ${renderHistoryTrolleyReports(state.studio.trolleyReports, history)}
     `;
 
     bindScheduleManagementEditor();
+  }
+
+  // Trolley plan reports sent by Finish or MOP for this customer: who asked, when,
+  // what they asked for, and who resolved or rejected it.
+  function renderHistoryTrolleyReports(data, history) {
+    if (!data) return "";
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    const summary = data.summary || {};
+    const heading = `
+      <div class="customers-history-section-heading">
+        <div>
+          <span class="customers-modal-code">Finish / MOP → Customer Schedule</span>
+          <h3>Trolley plan reports</h3>
+        </div>
+        ${data.error
+          ? ""
+          : `<span>${escapeHtml(summary.total || 0)} total · ${escapeHtml(summary.pending || 0)} pending · ${escapeHtml(summary.resolved || 0)} resolved · ${escapeHtml(summary.rejected || 0)} rejected</span>`}
+      </div>
+    `;
+
+    if (data.error) {
+      return `<section class="customers-history-section customers-history-trolley-reports">${heading}<p class="customers-form-alert">Trolley plan reports could not be loaded: ${escapeHtml(data.error)}</p></section>`;
+    }
+
+    return `
+      <section class="customers-history-section customers-history-trolley-reports" id="customersHistoryTrolleyReports">
+        ${heading}
+        <p class="customers-history-trolley-reports-intro">Requests from production to review the published trolley quantity or type. A report never changes the schedule: any change is made as a new revision above.</p>
+        ${items.length
+          ? `<div class="customers-operational-report-list">${items.map((item) => renderHistoryTrolleyReportCard(item, data, history)).join("")}</div>`
+          : emptyHtml("No trolley plan reports for this customer.", "Reports sent from Finish or MOP with Report trolley plan will appear here.")}
+      </section>
+    `;
+  }
+
+  function renderHistoryTrolleyReportCard(item, data, history) {
+    const status = String(item.status || "").toUpperCase();
+    const statusLabel = { PENDING: "Pending", RESOLVED: "Resolved", REJECTED: "Rejected" }[status] || status;
+    const versions = Array.isArray(history?.versions) ? history.versions : [];
+    const sourceVersion = versions.find((version) => version.schedule_version_id === item.source_schedule_version_id);
+    const sourceLabel = item.source_version_number
+      ? `Revision ${item.source_version_number} was live`
+      : "Revision not recorded";
+    const sourceHtml = sourceVersion
+      ? `<button class="customers-history-report-link" type="button" data-history-version-id="${escapeHtml(sourceVersion.schedule_version_id)}">${escapeHtml(sourceLabel)}</button>`
+      : `<span>${escapeHtml(sourceLabel)}</span>`;
+
+    return `
+      <article class="customers-operational-report-card ${escapeHtml(status.toLowerCase())}">
+        <header>
+          <div>
+            <span class="customers-status-badge ${escapeHtml(status.toLowerCase())}">${escapeHtml(statusLabel)}</span>
+            <h3>${escapeHtml(item.product_code)} · production ${escapeHtml(formatDate(item.business_date))}</h3>
+            <p>Requested by <b>${escapeHtml(item.reported_by || "Operator")}</b> from ${escapeHtml(item.source_area_code)} · ${escapeHtml(formatDateTime(item.reported_at))}</p>
+          </div>
+          <span class="customers-history-report-source">${sourceHtml}</span>
+        </header>
+        <div class="customers-operational-report-comparison">
+          <article><span>Published plan</span><strong>${reportRequirementText(item.planned_snapshot)}</strong></article>
+          <article class="reported"><span>Requested</span><strong>${reportRequirementText(item.reported_snapshot)}</strong></article>
+        </div>
+        <p class="customers-operational-report-note"><strong>Reason:</strong> ${escapeHtml(item.reason)}</p>
+        <div class="customers-operational-report-evidence"><span>Scanned: ${reportObservedText(item.observed_snapshot)}</span></div>
+        ${status === "PENDING"
+          ? `<footer><span class="customers-history-report-waiting">Waiting for review</span>${data.can_review ? `<button type="button" class="customers-primary-button" data-history-review-report="${escapeHtml(item.operational_report_id)}">Review report</button>` : ""}</footer>`
+          : `<footer class="customers-operational-report-reviewed"><span>${escapeHtml(statusLabel)} by <b>${escapeHtml(item.reviewed_by || "Reviewer")}</b> · ${escapeHtml(formatDateTime(item.reviewed_at))}</span><strong>${escapeHtml(item.review_notes || "")}</strong></footer>`}
+      </article>
+    `;
   }
 
   function renderHistoryVersionButton(version, selectedVersionId) {
@@ -3950,6 +4046,15 @@ document.addEventListener("DOMContentLoaded", () => {
           console.error("Schedule history version load failed:", error);
           showStudioAlert(errorMessage(error));
         });
+        return;
+      }
+
+      const historyReviewButton = event.target.closest("[data-history-review-report]");
+
+      if (historyReviewButton) {
+        const items = Array.isArray(state.studio.trolleyReports?.items) ? state.studio.trolleyReports.items : [];
+        const item = items.find((report) => report.operational_report_id === historyReviewButton.dataset.historyReviewReport);
+        if (item) openOperationalReport(item);
         return;
       }
 
