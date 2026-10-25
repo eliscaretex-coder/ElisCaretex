@@ -51,8 +51,7 @@ insert into public.production_roster_versions(roster_version_id, roster_period_i
 select x.id::uuid, x.period::uuid, (select shift_id from public.shifts where shift_code = 'MORNING'), x.n, 'DRAFT' from (values
   ('00000000-0000-4000-8000-0000000001d1','00000000-0000-4000-8000-0000000001c1',1),
   ('00000000-0000-4000-8000-0000000001d2','00000000-0000-4000-8000-0000000001c2',1),
-  ('00000000-0000-4000-8000-0000000001d3','00000000-0000-4000-8000-0000000001c3',1),
-  ('00000000-0000-4000-8000-0000000001d4','00000000-0000-4000-8000-0000000001c3',2)) x(id, period, n);
+  ('00000000-0000-4000-8000-0000000001d3','00000000-0000-4000-8000-0000000001c3',1)) x(id, period, n);
 insert into public.production_roster_entries(roster_version_id, work_date, staff_id, day_status, assignment_type,
   operational_role_id, area_id, staff_display_name_snapshot, shift_code_snapshot, shift_name_snapshot,
   operational_role_code_snapshot, area_code_snapshot)
@@ -61,13 +60,23 @@ select v.id::uuid, rp.week_start + d, s.id::uuid, 'WORKING', 'BASE',
   (select area_id from public.areas where area_code = 'FINISH'),
   s.name, 'MORNING', 'Morning', 'GENERAL_OPERATIVE', 'FINISH'
 from (values ('00000000-0000-4000-8000-0000000001d1'),('00000000-0000-4000-8000-0000000001d2'),
-             ('00000000-0000-4000-8000-0000000001d3'),('00000000-0000-4000-8000-0000000001d4')) v(id)
+             ('00000000-0000-4000-8000-0000000001d3')) v(id)
 join public.production_roster_versions prv on prv.roster_version_id = v.id::uuid
 join public.roster_periods rp on rp.roster_period_id = prv.roster_period_id
 cross join generate_series(0, 5) d
 cross join (values ('00000000-0000-4000-8000-0000000001b1','SDT Staff S'),('00000000-0000-4000-8000-0000000001b2','SDT Staff T')) s(id, name);
 update public.production_roster_versions set status = 'PUBLISHED', published_at = now()
 where roster_version_id in ('00000000-0000-4000-8000-0000000001d1','00000000-0000-4000-8000-0000000001d3');
+-- Week W+14 also has a draft (version 2) based on its published version.
+insert into public.production_roster_versions(roster_version_id, roster_period_id, shift_id, version_number, status, based_on_version_id)
+values ('00000000-0000-4000-8000-0000000001d4','00000000-0000-4000-8000-0000000001c3',(select shift_id from public.shifts where shift_code = 'MORNING'),2,'DRAFT','00000000-0000-4000-8000-0000000001d3');
+insert into public.production_roster_entries(roster_version_id, work_date, staff_id, day_status, assignment_type,
+  operational_role_id, area_id, staff_display_name_snapshot, shift_code_snapshot, shift_name_snapshot,
+  operational_role_code_snapshot, area_code_snapshot)
+select '00000000-0000-4000-8000-0000000001d4', work_date, staff_id, day_status, assignment_type,
+  operational_role_id, area_id, staff_display_name_snapshot, shift_code_snapshot, shift_name_snapshot,
+  operational_role_code_snapshot, area_code_snapshot
+from public.production_roster_entries where roster_version_id = '00000000-0000-4000-8000-0000000001d3';
 
 -- A general operative cannot transfer.
 select set_config('request.jwt.claims', json_build_object('sub','00000000-0000-4000-8000-0000000001a2','role','authenticated')::text, true);

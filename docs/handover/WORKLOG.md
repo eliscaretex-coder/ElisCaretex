@@ -104,10 +104,12 @@ Entry format:
   and `get_distribution_roster_week`.
 - Validation: Staff Master and Distribution roster rendered in Chromium with stubbed RPC
   data (first-day field, past date refused, `p_effective_on` sent, days before the first
-  day disabled; no console errors). `validate-repository.mjs` passes. The data scenarios in
-  `supabase/tests/202610250001_staff_to_driver_effective_date_validation.sql` have not run yet
-  (the Supabase confirmation prompt timed out twice).
-- Open / next: run that test file against ElisCaretex-dev (it rolls back).
+  day disabled; no console errors). `validate-repository.mjs` passes. After the owner applied
+  the migration, the scenarios of
+  `supabase/tests/202610250001_staff_to_driver_effective_date_validation.sql` ran against
+  ElisCaretex-dev in a rolled-back transaction: 25 of 25 checks passed, nothing kept (the
+  test's setup was corrected to respect the one-draft-per-week index).
+- Open / next: none.
 
 ## 2026-10-24 — Claude — Driver role transfer (Driver to another job title)
 
