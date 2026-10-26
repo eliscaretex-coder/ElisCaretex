@@ -95,16 +95,19 @@ Entry format:
   records imported from CentralDB on 2026-08-17 with no screen: adds the missing columns and backfills
   severity code and expiry; RLS on and grants revoked;
   3 new RPCs, `get_distribution_driver_master` and `get_distribution_activity_history` replaced with
-  added keys/labels only). **Prepared, not applied** — the owner applies it.
+  added keys/labels only). **Applied** by the owner on 2026-10-26 and **Validated** (below).
 - Validation: `node scripts/validate-repository.mjs` passed. Browser render with mocked RPC data
   (Drivers, Add window, driver history, History, Weekly roster; desktop and 390 px) and the save
-  payload checked. The database test run inside a rolled-back transaction was not completed in
-  this session (see the PR); the pgTAP file was not run (pgTAP is not installed).
+  payload checked. Database: the owner ran `teste-sem-gravar.sql` (rolled back) and every check
+  passed; after the apply, Claude ran the RPCs again as a Distribution operator inside a rolled-back
+  block (refusals without access, validation, new/edit/stale/cancel, history labels) and read the
+  12 imported records (all ACTIVE, `Imported from CentralDB`). Security advisors: only the expected
+  `rls_enabled_no_policy` (INFO) and authenticated SECURITY DEFINER (WARN) entries, same as the
+  other Distribution RPCs. The pgTAP file was not run (pgTAP is not installed).
   The owner's first run in the SQL editor failed (`p_row.col` instead of `(p_row).col` in a SQL
   function) and was rolled back; that run also revealed the existing imported table. The migration
   was corrected before merge and never applied.
-- Open / next: apply the migration; until then Drivers and Roster work as before and the History
-  infringement list shows an error. Owner to confirm the 7-month rule (one constant:
+- Open / next: merge the Pull Request to publish the screens. Owner to confirm the 7-month rule (one constant:
   `distribution_infringement_validity_months()`).
 
 ## 2026-10-25 — Claude — Finish "Batch / quantity" shows the exact KG (no rounding)
