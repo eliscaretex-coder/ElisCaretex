@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-10-26 — Claude — Production Tracker: weekly Production map
+
+- Branch / commits: `claude/production-map`, Pull Request into `master`
+- Changed: new "Production map" view in Production Tracker (`?view=map`, side menu entry, and the
+  view switch on mobile; also in the Tracker embedded in Sorting). It shows the week Monday to
+  Saturday like the printed Cloth + MOP production list, customers in production order, one box
+  per customer and day: grey = not started, route-colour border = registered in Sorting (Clothes
+  trolley intake or any wash), filled with the route colour plus a tick = processed (Finish
+  Production for Clothes, MOP Production for MOP). A Clothes customer that also has MOP gets a
+  small "M" chip with its own stage. Dashed box = not on the Schedule. Previous / this / next
+  week navigation, refresh every 2 minutes while the map is open, and a click on a customer
+  opens that day on the Route board filtered to the customer. Read-only: one
+  `get_production_tracker_v4` call per day of the week, no new RPC.
+  Also fixed: the "Viewing history" banner and the Expand/Collapse buttons ignored `hidden`
+  (CSS `display:flex` won), so the banner showed on today's view.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright with a stubbed Supabase client fed
+  with the real flow items of 19–24 Oct 2026 (Finish/MOP/intake evidence from `ElisCaretex-dev`,
+  route colours simulated because the snapshots are empty): 352 customer-days rendered, no console
+  errors, week navigation and click-through to the Route board work, desktop and 390 px mobile.
+  Not validated against the live RPC with a signed-in user.
+- Open / next: owner to check with real data. Route 614 is white, so its "In Sorting" border is a
+  white frame with a thin dark outline; the tick is what tells "processed" apart for white routes.
+
 ## 2026-10-26 — Claude — Distribution: driver infringements with 7-month validity
 
 - Branch / commits: `claude/driver-infringements`, Pull Request into `master`.

@@ -6,7 +6,7 @@
   <title>Production Tracker | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/production-tracker.css">
+  <link rel="stylesheet" href="../assets/css/production-tracker.css?v=20261026-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
@@ -14,7 +14,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
-  <script src="../assets/js/production-tracker.js" defer></script>
+  <script src="../assets/js/production-tracker.js?v=20261026-1" defer></script>
 </head>
 <body class="production-tracker-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -85,6 +85,7 @@
             <div class="production-tracker-view-switch" role="group" aria-label="Tracker view">
               <button id="productionTrackerBoardView" class="active" type="button" aria-pressed="true">Route board</button>
               <button id="productionTrackerListView" type="button" aria-pressed="false">Operational list</button>
+              <button id="productionTrackerMapView" type="button" aria-pressed="false">Production map</button>
             </div>
             <div class="production-tracker-route-actions"><button id="productionTrackerExpandAll" type="button">Expand all</button><button id="productionTrackerCollapseAll" type="button">Collapse all</button></div>
             <span id="productionTrackerRowCount">0 customers</span>

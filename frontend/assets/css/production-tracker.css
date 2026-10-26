@@ -132,3 +132,28 @@ body.production-tracker-page{margin:0;background:linear-gradient(180deg,#eaf2f8 
 .production-tracker-stream-row.tracker-ok td:not(.production-tracker-customer-cell){background:#ecfdf5}
 @media(max-width:960px){.production-tracker-operational-item{grid-template-columns:30px 20px minmax(160px,1fr) minmax(150px,.8fr)}}
 @media(max-width:620px){.production-tracker-operational-item{grid-template-columns:30px 20px minmax(0,1fr)}}
+/* Production map: weekly Schedule grid coloured by progress (grey, route border, route fill). */
+.production-tracker-map{display:grid;gap:12px}
+.production-tracker-map-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.production-tracker-map-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;color:#334155;font-size:.76rem;font-weight:800}.production-tracker-map-legend span{display:inline-flex;align-items:center;gap:6px}
+.production-tracker-map-swatch{display:inline-grid;place-items:center;width:30px;height:18px;border:3px solid #d5dbe3;border-radius:5px;background:#e5e7eb;color:#fff;font-size:.6rem;font-style:normal;font-weight:950}.production-tracker-map-swatch.sorting{border-color:#4d93d9}.production-tracker-map-swatch.done{border-color:#4d93d9;background:#4d93d9}.production-tracker-map-swatch.done::after{content:"✓"}.production-tracker-map-swatch.mop{width:20px;border-width:2px;color:#1e293b}
+.production-tracker-map-week{display:flex;gap:5px}.production-tracker-map-week button{padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#26384b;font-size:.72rem;font-weight:900;cursor:pointer}.production-tracker-map-week button:hover{background:#f1f5f9}
+.production-tracker-map-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:start}
+.production-tracker-history-banner[hidden]{display:none}
+.production-tracker-map-day{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;padding:8px;border:1px solid var(--pt-border);border-radius:12px;background:#f8fafc}.production-tracker-map-day.today{border-color:#0f9fa3;background:#effbfa;box-shadow:0 0 0 3px rgba(15,159,163,.12)}
+.production-tracker-map-day>header{display:grid;gap:4px;padding-bottom:6px;border-bottom:1px solid #dbe3ec}.production-tracker-map-day>header div:first-child{display:flex;align-items:baseline;justify-content:space-between;gap:6px}.production-tracker-map-day>header strong{color:var(--pt-navy);font-size:.92rem}.production-tracker-map-day>header span{color:#64748b;font-size:.7rem;font-weight:800}
+.production-tracker-map-daystats{display:grid;gap:4px;color:#475569;font-size:.68rem;font-weight:700}.production-tracker-map-daystats b{color:#0f172a}.production-tracker-map-bar{display:block;height:5px;border-radius:999px;background:#e2e8f0;overflow:hidden}.production-tracker-map-bar i{display:block;height:100%;background:#0f9fa3}
+.production-tracker-map-list{display:grid;grid-template-columns:minmax(0,1fr);gap:4px}
+.production-tracker-map-box{display:flex;align-items:center;gap:6px;width:100%;min-width:0;min-height:30px;padding:4px 6px;border:3px solid #d5dbe3;border-radius:7px;background:#e5e7eb;color:#64748b;font:inherit;text-align:left;cursor:pointer}.production-tracker-map-box strong{flex:1;min-width:0;overflow:hidden;font-size:.74rem;font-weight:800;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.production-tracker-map-box:hover{filter:brightness(.96)}
+.production-tracker-map-order{flex:none;min-width:20px;font-size:.64rem;font-weight:950;opacity:.8}
+.production-tracker-map-box.sorting,.production-tracker-map-box.done{border-color:var(--route-color);box-shadow:0 0 0 1px rgba(15,23,42,.28)}
+.production-tracker-map-box.sorting{color:#1e293b}
+.production-tracker-map-box.done{background:var(--route-color);color:var(--route-text)}.production-tracker-map-box.done::after{content:"✓";flex:none;font-size:.8rem;font-weight:950}
+.production-tracker-map-box.extra{border-style:dashed}
+.production-tracker-map-mop{flex:none;display:inline-grid;place-items:center;width:20px;height:18px;border:2px solid #d5dbe3;border-radius:4px;background:#e5e7eb;color:#64748b;font-size:.58rem;font-weight:950;box-shadow:0 0 0 1px rgba(15,23,42,.18)}.production-tracker-map-mop.sorting{border-color:var(--route-color);color:#1e293b}.production-tracker-map-mop.done{border-color:var(--route-color);background:var(--route-color);color:var(--route-text)}
+.production-tracker-map-note{padding:10px 4px;color:#64748b;font-size:.74rem;font-weight:700}
+@media(max-width:1200px){.production-tracker-map-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.production-tracker-map-grid{grid-template-columns:minmax(0,1fr)}.production-tracker-map-week{width:100%}.production-tracker-map-week button{flex:1}}
+.production-tracker-map-swatch.extra{border-style:dashed;border-color:#94a3b8}
+.production-tracker-route-actions[hidden]{display:none}
+.production-tracker-map-day{scroll-margin-top:72px}
