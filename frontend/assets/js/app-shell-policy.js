@@ -274,7 +274,8 @@
       permission: NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER,
       children: [
         { id:"production-tracker-board", label:"Route board", href:"./pages/production-tracker.html?view=board" },
-        { id:"production-tracker-list", label:"Operational list", href:"./pages/production-tracker.html?view=list" }
+        { id:"production-tracker-list", label:"Operational list", href:"./pages/production-tracker.html?view=list" },
+        { id:"production-tracker-map", label:"Production map", href:"./pages/production-tracker.html?view=map" }
       ]
     },
     {
