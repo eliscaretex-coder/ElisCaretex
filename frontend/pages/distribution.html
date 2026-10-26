@@ -6,7 +6,7 @@
   <title>Distribution | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css?v=20261017-1">
-  <link rel="stylesheet" href="../assets/css/distribution.css?v=20261025-1">
+  <link rel="stylesheet" href="../assets/css/distribution.css?v=20261026-1">
   <link rel="stylesheet" href="../assets/css/roster.css">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
@@ -21,7 +21,7 @@
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="DISTRIBUTION" defer></script>
   <script src="../assets/js/driver-guides.js?v=20261022-2" defer></script>
   <script src="../assets/js/schedule-combined-print.js?v=20261024-1" defer></script>
-  <script src="../assets/js/distribution.js?v=20261025-2" defer></script>
+  <script src="../assets/js/distribution.js?v=20261026-1" defer></script>
 </head>
 <body class="distribution-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -143,6 +143,30 @@
       <div id="distributionMasterFields" class="distribution-form-grid"></div>
       <p id="distributionMasterMessage" class="distribution-inline-message" aria-live="polite"></p>
       <footer><button class="distribution-button secondary" type="button" data-close-dialog="distributionMasterDialog">Cancel</button><button id="distributionMasterSave" class="distribution-button primary" type="button">Save</button></footer>
+    </form>
+  </dialog>
+  <dialog id="distributionInfringementDialog" class="distribution-dialog distribution-infringement-dialog">
+    <form id="distributionInfringementForm" method="dialog" onsubmit="return false;">
+      <header><div><p>Driver management</p><h2 id="distributionInfringementTitle">Add Driver Infringement</h2></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionInfringementDialog" aria-label="Close">×</button></header>
+      <input id="distributionInfringementId" type="hidden"><input id="distributionInfringementVersion" type="hidden">
+      <div class="distribution-form-grid distribution-infringement-grid">
+        <label><span>Driver</span><select id="distributionInfringementDriver" required></select></label>
+        <label><span>Date/time occurred</span><input id="distributionInfringementOccurred" type="datetime-local" required></label>
+        <label><span>Severity Level</span><select id="distributionInfringementSeverity" required></select></label>
+        <label><span>Infringement type</span><input id="distributionInfringementType" list="distributionInfringementTypes" maxlength="120" autocomplete="off" placeholder="Select or type another type" required><datalist id="distributionInfringementTypes"></datalist></label>
+        <label class="wide"><span>Explanation / description</span><textarea id="distributionInfringementDescription" rows="5" maxlength="4000" placeholder="Write what happened, notes from the notification, reference numbers, etc."></textarea></label>
+        <p id="distributionInfringementNote" class="distribution-infringement-note wide">This record is stored individually for the selected driver and appears in both History and Drivers.</p>
+      </div>
+      <p id="distributionInfringementMessage" class="distribution-inline-message" aria-live="polite"></p>
+      <footer><button id="distributionInfringementCancelRecord" class="distribution-button danger distribution-infringement-cancel-record" type="button" hidden>Cancel this record</button><button class="distribution-button secondary" type="button" data-close-dialog="distributionInfringementDialog">Cancel</button><button id="distributionInfringementSave" class="distribution-button primary" type="submit">Save</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="distributionInfringementHistoryDialog" class="distribution-dialog distribution-infringement-history-dialog">
+    <form method="dialog" onsubmit="return false;">
+      <header><div><p>Driver infringements</p><h2 id="distributionInfringementHistoryTitle">Driver</h2><span id="distributionInfringementHistorySubtitle"></span></div><button class="distribution-icon-button" type="button" data-close-dialog="distributionInfringementHistoryDialog" aria-label="Close">×</button></header>
+      <div id="distributionInfringementHistoryBody" class="distribution-infringement-history-body"></div>
+      <footer><button id="distributionInfringementHistoryAdd" class="distribution-button secondary" type="button" hidden>Add infringement</button><button class="distribution-button primary" type="button" data-close-dialog="distributionInfringementHistoryDialog">Done</button></footer>
     </form>
   </dialog>
 </body>

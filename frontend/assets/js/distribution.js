@@ -9,11 +9,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     runDialog: $("distributionRunDialog"), runForm: $("distributionRunForm"), runTitle: $("distributionRunTitle"), runSubtitle: $("distributionRunSubtitle"), runId: $("distributionRunId"), runRouteId: $("distributionRunRouteId"), runVersion: $("distributionRunVersion"), runPrimary: $("distributionRunPrimaryDriver"), runSupport: $("distributionRunSupportDriver"), runVehicle: $("distributionRunVehicle"), runStatus: $("distributionRunStatus"), runNotes: $("distributionRunNotes"), runMessage: $("distributionRunMessage"),
     stopDialog: $("distributionStopDialog"), stopTitle: $("distributionStopTitle"), stopSubtitle: $("distributionStopSubtitle"), stopList: $("distributionStopList"), stopMessage: $("distributionStopMessage"), addStop: $("distributionAddStopButton"), manualForm: $("distributionManualStopForm"), manualKind: $("distributionManualStopKind"), manualName: $("distributionManualStopName"), manualEircode: $("distributionManualStopEircode"), manualKg: $("distributionManualStopKg"), manualInstructions: $("distributionManualStopInstructions"), manualSave: $("distributionManualStopSave"),
     masterDialog: $("distributionMasterDialog"), masterForm: $("distributionMasterForm"), masterEyebrow: $("distributionMasterEyebrow"), masterTitle: $("distributionMasterTitle"), masterFields: $("distributionMasterFields"), masterMessage: $("distributionMasterMessage"),
-    rosterDialog: $("distributionRosterEntryDialog"), rosterForm: $("distributionRosterEntryForm"), rosterTitle: $("distributionRosterEntryTitle"), rosterSubtitle: $("distributionRosterEntrySubtitle"), rosterRouteId: $("distributionRosterEntryRouteId"), rosterDate: $("distributionRosterEntryDate"), rosterDriverId: $("distributionRosterEntryDriverId"), rosterRoute: $("distributionRosterEntryRoute"), rosterStatus: $("distributionRosterEntryStatus"), rosterPrimary: $("distributionRosterEntryPrimary"), rosterSupport: $("distributionRosterEntrySupport"), rosterVehicle: $("distributionRosterEntryVehicle"), rosterNote: $("distributionRosterEntryNote"), rosterMessage: $("distributionRosterEntryMessage"), rosterCurrent: $("distributionRosterCurrent"), rosterDayTag: $("distributionRosterDayTag"), rosterRouteButtons: $("distributionRosterRouteButtons"), rosterTakenSection: $("distributionRosterTakenSection"), rosterTakenButtons: $("distributionRosterTakenButtons"), rosterVehicleButtons: $("distributionRosterVehicleButtons"), rosterConfirm: $("distributionRosterConfirm")
+    rosterDialog: $("distributionRosterEntryDialog"), rosterForm: $("distributionRosterEntryForm"), rosterTitle: $("distributionRosterEntryTitle"), rosterSubtitle: $("distributionRosterEntrySubtitle"), rosterRouteId: $("distributionRosterEntryRouteId"), rosterDate: $("distributionRosterEntryDate"), rosterDriverId: $("distributionRosterEntryDriverId"), rosterRoute: $("distributionRosterEntryRoute"), rosterStatus: $("distributionRosterEntryStatus"), rosterPrimary: $("distributionRosterEntryPrimary"), rosterSupport: $("distributionRosterEntrySupport"), rosterVehicle: $("distributionRosterEntryVehicle"), rosterNote: $("distributionRosterEntryNote"), rosterMessage: $("distributionRosterEntryMessage"), rosterCurrent: $("distributionRosterCurrent"), rosterDayTag: $("distributionRosterDayTag"), rosterRouteButtons: $("distributionRosterRouteButtons"), rosterTakenSection: $("distributionRosterTakenSection"), rosterTakenButtons: $("distributionRosterTakenButtons"), rosterVehicleButtons: $("distributionRosterVehicleButtons"), rosterConfirm: $("distributionRosterConfirm"),
+    infringementDialog: $("distributionInfringementDialog"), infringementForm: $("distributionInfringementForm"), infringementTitle: $("distributionInfringementTitle"), infringementId: $("distributionInfringementId"), infringementVersion: $("distributionInfringementVersion"), infringementDriver: $("distributionInfringementDriver"), infringementOccurred: $("distributionInfringementOccurred"), infringementSeverity: $("distributionInfringementSeverity"), infringementType: $("distributionInfringementType"), infringementTypes: $("distributionInfringementTypes"), infringementDescription: $("distributionInfringementDescription"), infringementNote: $("distributionInfringementNote"), infringementMessage: $("distributionInfringementMessage"), infringementCancelRecord: $("distributionInfringementCancelRecord"),
+    infringementHistoryDialog: $("distributionInfringementHistoryDialog"), infringementHistoryTitle: $("distributionInfringementHistoryTitle"), infringementHistorySubtitle: $("distributionInfringementHistorySubtitle"), infringementHistoryBody: $("distributionInfringementHistoryBody"), infringementHistoryAdd: $("distributionInfringementHistoryAdd")
   };
   const distributionTabIds = ["board", "customers", "roster", "leave", "actuals", "drivers", "fleet", "routes", "history", "guides"];
   const initialTab = String(location.hash || "").replace("#", "");
-  const state = { data: null, nextData: null, boardDay: "current", runBusinessDate: "", activeTab: distributionTabIds.includes(initialTab) ? initialTab : "board", routeDetail: null, master: null, roster: null, rosterWeek: "", rosterDirty: false, rosterEditing: null, rosterLeave: null, leaveCalendar: null, leaveDriverFilter: "", leaveTypeFilter: "", pendingRouteId: "", pendingVehicleId: "", history: null, actuals: null, actualsHistory: null, actualsHistoryWeeks: 8, actualsOpenWeek: "", lastWeekActuals: null, routeCustomersCollapsed: new Set(), routeCustomersWeekly: null, routeCustomersDay: "", routeCustomersRoute: "", routeCustomersSearch: "", driverStaffOptions: null, driversIncompleteOnly: false, showFormerDrivers: false, transferJobTitles: null, fleetIncompleteOnly: false, showInactiveVehicles: false };
+  const state = { data: null, nextData: null, boardDay: "current", runBusinessDate: "", activeTab: distributionTabIds.includes(initialTab) ? initialTab : "board", routeDetail: null, master: null, roster: null, rosterWeek: "", rosterDirty: false, rosterEditing: null, rosterLeave: null, leaveCalendar: null, leaveDriverFilter: "", leaveTypeFilter: "", pendingRouteId: "", pendingVehicleId: "", history: null, actuals: null, actualsHistory: null, actualsHistoryWeeks: 8, actualsOpenWeek: "", lastWeekActuals: null, routeCustomersCollapsed: new Set(), routeCustomersWeekly: null, routeCustomersDay: "", routeCustomersRoute: "", routeCustomersSearch: "", driverStaffOptions: null, driversIncompleteOnly: false, showFormerDrivers: false, transferJobTitles: null, fleetIncompleteOnly: false, showInactiveVehicles: false, infringements: null, infringementDriverFilter: "", infringementStateFilter: "ACTIVE", infringementHistoryDriverId: "" };
   const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   const isoToday = () => new Date().toISOString().slice(0, 10);
   const localDate = (value) => String(value || "").slice(0, 10);
@@ -45,6 +47,54 @@ document.addEventListener("DOMContentLoaded", async () => {
   const rosterVehicles = () => Array.isArray(state.roster?.vehicles) ? state.roster.vehicles : [];
   const nonWorkingStatuses = new Set(["OFF", "HOLIDAY", "TRAINING", "ABSENT", "SICK"]);
   const rosterStatusLabel = (status) => ({ PLANNED: "Working", OFF: "Off", HOLIDAY: "Hols", TRAINING: "Training", ABSENT: "Absent", SICK: "Sick" }[String(status || "PLANNED")] || titleCase(status));
+  // Driver infringements: active for 7 months after the day they happened (set in the database), then kept as history.
+  const infringementSeverities = [["NO_SEVERITY", "No severity", "No severity"], ["MINOR", "Minor infringement", "Minor"], ["SERIOUS", "Serious infringement", "Serious"], ["VERY_SERIOUS", "Very serious infringement", "Very serious"], ["MOST_SERIOUS", "Most serious infringement", "Most serious"]];
+  const infringementDefaultTypes = ["Speeding", "Mobile phone use while driving", "No seatbelt", "Parking offence", "Red light", "Driving hours / tachograph", "Vehicle damage", "Load not secured", "Late or missed delivery", "Customer complaint"];
+  const severityRank = (level) => infringementSeverities.findIndex(([code]) => code === level);
+  const severityLabel = (level, short = false) => (infringementSeverities.find(([code]) => code === level) || [level, titleCase(level), titleCase(level)])[short ? 2 : 1];
+  const severityTag = (level) => `<span class="distribution-infringement-severity sev-${severityRank(level)}">${esc(severityLabel(level))}</span>`;
+  const infringementStateLabel = (item) => item.state === "CANCELLED" ? "Cancelled" : item.state === "EXPIRED" ? "Expired" : "Active";
+  const infringementItems = () => Array.isArray(state.infringements?.items) ? state.infringements.items : [];
+  const canRecordInfringements = () => Boolean(state.infringements ? state.infringements.can_record : caps().can_plan_runs);
+  const driverInfringements = (driverId) => drivers().find((driver) => String(driver.driver_id) === String(driverId))?.infringements || null;
+  function infringementSummaryText(summary) {
+    if (!summary?.active_count) return "";
+    return `${fmtNumber(summary.active_count)} active infringement${Number(summary.active_count) === 1 ? "" : "s"} · highest: ${severityLabel(infringementSeverities[summary.highest_active_rank]?.[0], true)}${summary.next_expiry_on ? ` · next expires ${fmtShortDate(summary.next_expiry_on)}` : ""}`;
+  }
+  function infringementPill(driver) {
+    const summary = driver?.infringements;
+    if (!summary?.active_count) return summary?.recorded_count ? `<small class="distribution-infringement-quiet">No active infringements (${fmtNumber(summary.recorded_count)} in history)</small>` : "";
+    return `<span class="distribution-infringement-pill sev-${esc(summary.highest_active_rank)}" title="${esc(infringementSummaryText(summary))}">⚠ ${fmtNumber(summary.active_count)} active · ${esc(severityLabel(infringementSeverities[summary.highest_active_rank]?.[0], true))}</span>`;
+  }
+  function rosterInfringementBadge(driverId) {
+    const summary = driverInfringements(driverId);
+    if (!summary?.active_count) return "";
+    return `<button type="button" class="distribution-infringement-badge sev-${esc(summary.highest_active_rank)}" data-infringement-history="${esc(driverId)}" title="${esc(infringementSummaryText(summary))}. Click to see the history." aria-label="${esc(infringementSummaryText(summary))}">⚠ ${fmtNumber(summary.active_count)}</button>`;
+  }
+  function infringementRows(items, { showDriver = true, editable = false } = {}) {
+    return items.map((item) => {
+      const actions = editable && item.state !== "CANCELLED" ? `<button class="distribution-button secondary" type="button" data-infringement-edit="${esc(item.infringement_id)}">Edit</button>` : "";
+      const counts = item.state === "CANCELLED" ? `Cancelled ${fmtShortDate(item.cancelled_at)}${item.cancelled_by_name ? ` by ${item.cancelled_by_name}` : ""}` : item.state === "EXPIRED" ? `Expired ${fmtShortDate(item.expires_on)}` : `Until ${fmtShortDate(item.expires_on)}`;
+      return `<tr class="distribution-infringement-row ${esc(String(item.state).toLowerCase())}"><td class="distribution-infringement-when">${esc(fmtDateTime(item.occurred_at))}</td>${showDriver ? `<td><button type="button" class="distribution-link-button" data-infringement-history="${esc(item.driver_id)}">${esc(item.driver_name)}</button><span>${esc(item.driver_code || "")}</span></td>` : ""}<td>${severityTag(item.severity_level)}</td><td class="distribution-infringement-detail"><strong>${esc(item.infringement_type)}</strong>${item.description ? `<span>${esc(item.description)}</span>` : ""}${item.cancel_reason ? `<span class="cancel">Cancel reason: ${esc(item.cancel_reason)}</span>` : ""}</td><td><b class="distribution-infringement-state ${esc(String(item.state).toLowerCase())}">${esc(infringementStateLabel(item))}</b><span>${esc(counts)}</span></td><td class="distribution-history-by">${esc(item.created_by_name || "System")}<span>${esc(fmtShortDate(item.created_at))}${item.updated_by_name && item.state !== "CANCELLED" ? ` · edited by ${esc(item.updated_by_name)}` : ""}</span></td>${editable ? `<td class="distribution-infringement-actions">${actions}</td>` : ""}</tr>`;
+    }).join("");
+  }
+  function infringementTable(items, options = {}) {
+    const editable = Boolean(options.editable);
+    const header = `<tr><th>Happened</th>${options.showDriver === false ? "" : "<th>Driver</th>"}<th>Severity</th><th>Type and explanation</th><th>Counts</th><th>Recorded by</th>${editable ? "<th></th>" : ""}</tr>`;
+    const empty = `<tr><td colspan="${(options.showDriver === false ? 5 : 6) + (editable ? 1 : 0)}">${esc(options.empty || "No infringements recorded.")}</td></tr>`;
+    return `<div class="distribution-table-wrap"><table class="distribution-table distribution-infringement-table"><thead>${header}</thead><tbody>${items.length ? infringementRows(items, { showDriver: options.showDriver !== false, editable }) : empty}</tbody></table></div>`;
+  }
+  function renderInfringementSection() {
+    if (!state.infringements) return `<section class="distribution-infringement-section"><div class="distribution-loading">Loading driver infringements...</div></section>`;
+    if (state.infringements.error) return `<section class="distribution-infringement-section"><div class="distribution-empty">${esc(state.infringements.error)}</div></section>`;
+    const all = infringementItems();
+    const list = all.filter((item) => (!state.infringementDriverFilter || String(item.driver_id) === state.infringementDriverFilter) && (!state.infringementStateFilter || item.state === state.infringementStateFilter));
+    const activeCount = all.filter((item) => item.state === "ACTIVE").length;
+    const driverIds = [...new Set(all.map((item) => String(item.driver_id)))];
+    const driverOptions = driverIds.map((id) => all.find((item) => String(item.driver_id) === id)).sort((a, b) => String(a.driver_name).localeCompare(String(b.driver_name))).map((item) => `<option value="${esc(item.driver_id)}" ${String(item.driver_id) === state.infringementDriverFilter ? "selected" : ""}>${esc(item.driver_name)}</option>`).join("");
+    const stateOptions = [["ACTIVE", "Active"], ["EXPIRED", "Expired"], ["CANCELLED", "Cancelled"], ["", "All"]].map(([value, label]) => `<option value="${value}" ${state.infringementStateFilter === value ? "selected" : ""}>${label}</option>`).join("");
+    return `<section class="distribution-infringement-section"><div class="distribution-toolbar"><div><h2>Driver infringements</h2><p>${fmtNumber(activeCount)} active. An infringement counts for ${fmtNumber(state.infringements.validity_months || 7)} months after the day it happened; after that it stays here as history.</p></div><div class="distribution-card-actions"><select class="distribution-infringement-filter" data-infringement-filter-driver aria-label="Driver"><option value="">All drivers</option>${driverOptions}</select><select class="distribution-infringement-filter" data-infringement-filter-state aria-label="Status">${stateOptions}</select>${canRecordInfringements() ? `<button class="distribution-button primary" type="button" data-infringement-add>Add infringement</button>` : ""}</div></div>${infringementTable(list, { editable: canRecordInfringements(), empty: all.length ? "No infringements match this filter." : "No infringements recorded yet." })}</section>`;
+  }
 
   function nextOperatingDate(value = isoToday()) {
     const date = new Date(`${value}T12:00:00`);
@@ -396,15 +446,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const list = state.driversIncompleteOnly ? incomplete : all;
     const staffLine = (driver) => driver.staff_id ? `Staff: ${driver.staff_display_name || "Linked"}${driver.staff_employee_code ? ` (${driver.staff_employee_code})` : ""}${driver.staff_active === false ? " · inactive" : ""}` : "Staff link not set";
     const formerToggle = formerCount ? `<button class="distribution-button secondary" type="button" data-master-filter="former-drivers" aria-pressed="${state.showFormerDrivers}">${state.showFormerDrivers ? "Hide former drivers" : `Show former drivers (${fmtNumber(formerCount)})`}</button>` : "";
+    const infringementButton = (driver) => driver.infringements?.recorded_count || caps().can_plan_runs ? `<button class="distribution-button secondary" type="button" data-infringement-history="${esc(driver.driver_id)}">Infringements</button>` : "";
     const row = (driver) => {
       const former = isFormerDriver(driver); const transfer = driverTransfer(driver); const scheduled = driverExitScheduled(driver) || Boolean(transfer);
       const [label, cls] = former ? ["Former driver", ""] : driverCompliance(driver);
       const categories = Array.isArray(driver.licence_categories) && driver.licence_categories.length ? ` · ${driver.licence_categories.join(", ")}` : "";
       const exitNote = transfer ? `<small class="distribution-master-exit">Moving to ${esc(transfer.job_title_name)} · ${esc(transfer.transfer_status === "APPROVED" ? "approved" : "waiting for approval in Staff Master")}</small>` : (former || scheduled) && driver.deactivation_reason ? `<small class="distribution-master-exit">Reason: ${esc(driver.deactivation_reason)}</small>` : "";
       const actions = transfer ? manageButton("Edit", `edit-driver:${driver.driver_id}`, canManage) + manageButton("Cancel transfer", `cancel-transfer:${driver.driver_id}`, canManage) : former ? manageButton("Edit", `edit-driver:${driver.driver_id}`, canManage) + manageButton("Reinstate", `reinstate-driver:${driver.driver_id}`, canManage) : manageButton("Edit", `edit-driver:${driver.driver_id}`, canManage) + manageButton(scheduled ? "Change exit" : "Remove", `remove-driver:${driver.driver_id}`, canManage, "danger") + (scheduled ? manageButton("Cancel exit", `reinstate-driver:${driver.driver_id}`, canManage) : "");
-      return `<article class="distribution-master-row ${former ? "inactive" : ""}"><div class="distribution-master-main"><span class="distribution-master-mark" style="--mark:${former ? "#94a3b8" : scheduled ? "#d97706" : driver.employment_status === "ACTIVE" ? "#0f8b8d" : "#94a3b8"}"></span><div><strong>${esc(driver.display_name)}</strong><small>${esc(driver.driver_code)}${driver.phone ? ` · ${esc(driver.phone)}` : ""}</small><small>${esc(staffLine(driver))}</small></div></div><div class="distribution-master-meta"><strong>${esc(former ? "Not available" : titleCase(driver.availability_status))}</strong><span class="${scheduled ? "distribution-master-leaving" : ""}">${esc(driverEmploymentLine(driver))}</span></div><div class="distribution-master-meta"><strong>${esc(driver.licence_expires_on ? `Licence ${fmtShortDate(driver.licence_expires_on)}` : "Licence date not set")}${esc(categories)}</strong><span>${esc(driver.cpc_expires_on ? `CPC ${fmtShortDate(driver.cpc_expires_on)}` : "CPC date not set")}</span></div><div class="distribution-master-status"><span class="distribution-compliance ${cls}">${esc(label)}</span>${former ? "" : missingLine(driverMissing(driver))}${exitNote}</div><div class="distribution-card-actions">${actions}</div></article>`;
+      return `<article class="distribution-master-row ${former ? "inactive" : ""}"><div class="distribution-master-main"><span class="distribution-master-mark" style="--mark:${former ? "#94a3b8" : scheduled ? "#d97706" : driver.employment_status === "ACTIVE" ? "#0f8b8d" : "#94a3b8"}"></span><div><strong>${esc(driver.display_name)}</strong><small>${esc(driver.driver_code)}${driver.phone ? ` · ${esc(driver.phone)}` : ""}</small><small>${esc(staffLine(driver))}</small></div></div><div class="distribution-master-meta"><strong>${esc(former ? "Not available" : titleCase(driver.availability_status))}</strong><span class="${scheduled ? "distribution-master-leaving" : ""}">${esc(driverEmploymentLine(driver))}</span></div><div class="distribution-master-meta"><strong>${esc(driver.licence_expires_on ? `Licence ${fmtShortDate(driver.licence_expires_on)}` : "Licence date not set")}${esc(categories)}</strong><span>${esc(driver.cpc_expires_on ? `CPC ${fmtShortDate(driver.cpc_expires_on)}` : "CPC date not set")}</span></div><div class="distribution-master-status"><span class="distribution-compliance ${cls}">${esc(label)}</span>${former ? "" : missingLine(driverMissing(driver))}${exitNote}${infringementPill(driver)}</div><div class="distribution-card-actions">${infringementButton(driver)}${actions}</div></article>`;
     };
-    el.panel.innerHTML = `<div class="distribution-toolbar"><div><h2>Drivers</h2><p>Licence and CPC dates are visible before assigning a route. Holidays and days off are managed in the Leave calendar.</p></div><div class="distribution-card-actions">${formerToggle}${manageButton("Add driver", "new-driver", canManage)}</div></div>${masterFilterBar("drivers", incomplete.length, all.filter((driver) => !isFormerDriver(driver)).length, state.driversIncompleteOnly, "current drivers")}${list.length ? `<div class="distribution-master-list">${list.map(row).join("")}</div>` : `<div class="distribution-empty">${everyone.length ? "No drivers match this filter." : "No drivers have been added yet."}</div>`}`;
+    el.panel.innerHTML = `<div class="distribution-toolbar"><div><h2>Drivers</h2><p>Licence and CPC dates and active infringements are visible before assigning a route. Holidays and days off are managed in the Leave calendar.</p></div><div class="distribution-card-actions">${formerToggle}${caps().can_plan_runs ? `<button class="distribution-button secondary" type="button" data-infringement-add>Add infringement</button>` : ""}${manageButton("Add driver", "new-driver", canManage)}</div></div>${masterFilterBar("drivers", incomplete.length, all.filter((driver) => !isFormerDriver(driver)).length, state.driversIncompleteOnly, "current drivers")}${list.length ? `<div class="distribution-master-list">${list.map(row).join("")}</div>` : `<div class="distribution-empty">${everyone.length ? "No drivers match this filter." : "No drivers have been added yet."}</div>`}`;
   }
 
   // A temporary (short hire) vehicle only needs what the operation uses; the hire company keeps its documents.
@@ -492,13 +543,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!state.history) { el.panel.innerHTML = `<div class="distribution-loading">Loading Distribution history...</div>`; return; }
     const events = Array.isArray(state.history.events) ? state.history.events : [];
     const rosters = Array.isArray(state.history.roster_versions) ? state.history.roster_versions : [];
-    const historyEventLabel = (event) => event.roster_status === "distribution_drivers" ? `Driver ${event.event_type === "INSERT" ? "created" : event.event_type === "DELETE" ? "deleted" : "updated"}` : event.roster_status === "distribution_driver_absences" ? `Driver leave ${String(event.event_type || "updated").toLowerCase()}` : titleCase(event.event_type || event.activity_type || "Event");
+    const historyEventLabel = (event) => event.roster_status === "distribution_drivers" ? `Driver ${event.event_type === "INSERT" ? "created" : event.event_type === "DELETE" ? "deleted" : "updated"}` : event.roster_status === "distribution_driver_absences" ? `Driver leave ${String(event.event_type || "updated").toLowerCase()}` : event.roster_status === "distribution_driver_infringements" ? `Infringement ${event.event_type === "INSERT" ? "recorded" : event.event_type === "CANCELLED" ? "cancelled" : event.event_type === "DELETE" ? "deleted" : "edited"}` : titleCase(event.event_type || event.activity_type || "Event");
     const historySource = (event) => event.roster_status === "customer_driver_guides" ? "Customer guides" : (event.source || "Distribution");
     const historySummary = (event) => event.roster_status === "customer_driver_guides" ? String(event.summary || "").replace(/^customer_driver_guides\s+\S+:\s*/i, "") : (event.summary || event.route_display_name || event.roster_status || "Recorded change");
     const eventRows = events.map((event) => `<tr><td>${esc(fmtDateTime(event.event_at || event.created_at))}</td><td class="distribution-history-event"><strong>${esc(historyEventLabel(event))}</strong><span>${esc(historySource(event))}</span></td><td class="distribution-history-detail">${esc(historySummary(event))}</td><td class="distribution-history-by">${esc(event.recorded_by_name || "System")}</td></tr>`).join("");
     rosters.forEach((version) => { version.created_by = version.created_by_name || "System"; });
     const rosterRows = rosters.map((version) => `<tr><td>${esc(fmtShortDate(version.created_at))}</td><td><strong>Roster v${esc(version.version_number)}</strong><span>${esc(titleCase(version.roster_status))}</span></td><td>${esc(version.week_start)}${version.published_at ? ` · Published ${fmtShortDate(version.published_at)}` : ""}</td><td>${esc(version.created_by || "")}</td></tr>`).join("");
-    el.panel.innerHTML = `<div class="distribution-toolbar"><div><h2>Distribution history</h2><p>Roster versions, saves, publication and daily route execution events.</p></div><button class="distribution-button secondary" type="button" data-history-refresh>Refresh</button></div><div class="distribution-table-wrap"><table class="distribution-table"><thead><tr><th>Date</th><th>Event</th><th>Detail</th><th>By</th></tr></thead><tbody>${eventRows || rosterRows || `<tr><td colspan="4">No Distribution history has been recorded yet.</td></tr>`}${eventRows && rosterRows ? rosterRows : ""}</tbody></table></div>`;
+    el.panel.innerHTML = `${renderInfringementSection()}<div class="distribution-toolbar"><div><h2>Distribution history</h2><p>Roster versions, saves, publication, daily route execution, driver records and infringement events.</p></div><button class="distribution-button secondary" type="button" data-history-refresh>Refresh</button></div><div class="distribution-table-wrap"><table class="distribution-table"><thead><tr><th>Date</th><th>Event</th><th>Detail</th><th>By</th></tr></thead><tbody>${eventRows || rosterRows || `<tr><td colspan="4">No Distribution history has been recorded yet.</td></tr>`}${eventRows && rosterRows ? rosterRows : ""}</tbody></table></div>`;
   }
 
   function actualValue(value) {
@@ -729,7 +780,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const licence = (driver) => Array.isArray(driver.licence_categories) ? driver.licence_categories.join(", ") : (driver.licence_categories || driver.licence_category || "-");
     const rows = driverRows.map((driver, index) => {
       const totals = driverTotals(driver);
-      return `<tr><td class="distribution-row-number">${index + 1}</td><td class="distribution-licence">${esc(licence(driver))}</td><th scope="row" class="distribution-driver-name">${esc(driver.display_name)}</th>${days.map((day) => dayCell(driver, day)).join("")}<td>${fmtNumber(totals.days)}</td><td>${fmtNumber(totals.hours, 1)}</td><td>${fmtNumber(totals.km)}</td><td>${fmtNumber(totals.stops)}</td></tr>`;
+      return `<tr><td class="distribution-row-number">${index + 1}</td><td class="distribution-licence">${esc(licence(driver))}</td><th scope="row" class="distribution-driver-name">${esc(driver.display_name)}${rosterInfringementBadge(driver.driver_id)}</th>${days.map((day) => dayCell(driver, day)).join("")}<td>${fmtNumber(totals.days)}</td><td>${fmtNumber(totals.hours, 1)}</td><td>${fmtNumber(totals.km)}</td><td>${fmtNumber(totals.stops)}</td></tr>`;
     }).join("");
     const plannedByDay = days.map((day) => primaryEntries(day).length);
     const overall = days.reduce((sum, day) => { const entries = primaryEntries(day); sum.days += entries.length; entries.forEach((entry) => { const metric = rosterMetric(entry.route_id, day); sum.hours += Number(metric.hours || 0); sum.km += Number(metric.km || 0); sum.stops += Number(metric.stops || 0); }); return sum; }, { days: 0, hours: 0, km: 0, stops: 0 });
@@ -823,7 +874,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadHistory() {
     el.panel.style.opacity = ".55"; renderHistory();
     try {
-      state.history = await rpc("get_distribution_activity_history", { p_from: null, p_to: null, p_limit: 250 });
+      const [history] = await Promise.all([rpc("get_distribution_activity_history", { p_from: null, p_to: null, p_limit: 250 }), loadInfringements().catch(() => null)]);
+      state.history = history;
       render();
     } catch (error) {
       console.error(error);
@@ -872,8 +924,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.runBusinessDate = data.business_date;
     el.runTitle.textContent = route.display_name || route.route_code; el.runSubtitle.textContent = `${route.stops.length} scheduled stop${route.stops.length === 1 ? "" : "s"} · ${fmtDate(data.business_date)}`;
     el.runId.value = run.run_id || ""; el.runRouteId.value = route.route_id; el.runVersion.value = run.row_version || ""; el.runStatus.value = run.run_status === "READY" ? "READY" : "DRAFT"; el.runNotes.value = run.dispatch_notes || "";
-    el.runPrimary.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.primary_driver_id, (driver) => `${driver.display_name} · ${driver.driver_code}`);
-    el.runSupport.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.support_driver_id, (driver) => `${driver.display_name} · ${driver.driver_code}`);
+    const driverLabel = (driver) => `${driver.display_name} · ${driver.driver_code}${driver.infringements?.active_count ? ` · ⚠ ${driver.infringements.active_count} active infringement${Number(driver.infringements.active_count) === 1 ? "" : "s"}` : ""}`;
+    el.runPrimary.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.primary_driver_id, driverLabel);
+    el.runSupport.innerHTML = optionList(drivers().map((driver) => ({ id: driver.driver_id, ...driver, disabled: unavailableDriver(driver) })), run.support_driver_id, driverLabel);
     const offRoadToday = (vehicle) => localDate(data.business_date) === isoToday() && vehicle.unavailable_today;
     el.runVehicle.innerHTML = optionList(vehicles().map((vehicle) => ({ id: vehicle.vehicle_id, ...vehicle, disabled: String(vehicle.vehicle_id) !== String(run.vehicle_id || "") && (!vehicle.active || vehicle.operational_status !== "AVAILABLE" || Boolean(offRoadToday(vehicle))) })), run.vehicle_id, (vehicle) => `${vehicle.registration_number}${vehicle.display_name ? ` · ${vehicle.display_name}` : ""}${offRoadToday(vehicle) ? " (off road)" : ""}`);
     setInline(el.runMessage, ""); el.runDialog.showModal();
@@ -1348,6 +1401,107 @@ document.addEventListener("DOMContentLoaded", async () => {
     } finally { if (button && button.isConnected) button.disabled = false; }
   }
 
+  async function loadInfringements(driverId = null) {
+    try {
+      const data = await rpc("get_distribution_driver_infringements", { p_driver_id: driverId });
+      if (!driverId) state.infringements = data;
+      return data;
+    } catch (error) {
+      console.error(error);
+      if (!driverId) state.infringements = { error: error.message || "Driver infringements are unavailable. Apply the driver infringements migration." };
+      throw error;
+    }
+  }
+
+  function localDateTimeValue(date = new Date()) { const pad = (value) => String(value).padStart(2, "0"); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`; }
+  function infringementExpiryText(value) {
+    if (!value) return "";
+    const date = new Date(`${value.slice(0, 10)}T12:00:00`); const months = Number(state.infringements?.validity_months || 7); date.setMonth(date.getMonth() + months);
+    return ` It counts as active for ${months} months, until ${fmtShortDate(date.toISOString().slice(0, 10))}, then stays in the history.`;
+  }
+  function syncInfringementNote() { el.infringementNote.textContent = `This record is stored individually for the selected driver and appears in both History and Drivers.${infringementExpiryText(el.infringementOccurred.value)}`; }
+
+  async function openInfringement(item = {}) {
+    if (!state.infringements || state.infringements.error) { try { await loadInfringements(); } catch (error) { setMessage(error.message || "Driver infringements are unavailable.", "error"); return; } }
+    const editing = Boolean(item.infringement_id);
+    const choices = drivers().filter((driver) => !isFormerDriver(driver) || String(driver.driver_id) === String(item.driver_id || ""));
+    el.infringementTitle.textContent = editing ? "Edit Driver Infringement" : "Add Driver Infringement";
+    el.infringementId.value = item.infringement_id || ""; el.infringementVersion.value = item.row_version || "";
+    el.infringementDriver.innerHTML = `<option value="">Select driver...</option>${choices.map((driver) => `<option value="${esc(driver.driver_id)}" ${String(driver.driver_id) === String(item.driver_id || "") ? "selected" : ""}>${esc(driver.display_name)} · ${esc(driver.driver_code)}</option>`).join("")}`;
+    el.infringementOccurred.value = item.occurred_local || ""; el.infringementOccurred.max = localDateTimeValue();
+    el.infringementSeverity.innerHTML = `<option value="">Select severity...</option>${infringementSeverities.map(([code, label]) => `<option value="${code}" ${code === item.severity_level ? "selected" : ""}>${esc(label)}</option>`).join("")}`;
+    const types = [...new Set([...(state.infringements?.types || []), ...infringementDefaultTypes].map((type) => String(type).trim()).filter(Boolean))];
+    el.infringementTypes.innerHTML = types.map((type) => `<option value="${esc(type)}"></option>`).join("");
+    el.infringementType.value = item.infringement_type || ""; el.infringementDescription.value = item.description || "";
+    el.infringementCancelRecord.hidden = !editing; syncInfringementNote(); setInline(el.infringementMessage, "");
+    el.infringementDialog.showModal();
+  }
+
+  async function afterInfringementChange(message) {
+    close(el.infringementDialog);
+    const historyDriver = el.infringementHistoryDialog.open ? state.infringementHistoryDriverId : "";
+    await load(el.date.value);
+    if (state.roster && state.activeTab === "roster") renderRoster();
+    try { await loadInfringements(); } catch (error) { /* shown in the History tab */ }
+    if (state.activeTab === "history" && state.history) renderHistory();
+    if (historyDriver) await openInfringementHistory(historyDriver);
+    setMessage(message, "success");
+  }
+
+  async function saveInfringement() {
+    const value = { infringement_id: el.infringementId.value || null, row_version: el.infringementVersion.value || null, driver_id: el.infringementDriver.value || null, occurred_local: el.infringementOccurred.value || null, severity_level: el.infringementSeverity.value || null, infringement_type: el.infringementType.value.trim(), description: el.infringementDescription.value.trim() || null };
+    if (!value.driver_id) { setInline(el.infringementMessage, "Select the driver."); return; }
+    if (!value.occurred_local) { setInline(el.infringementMessage, "Enter the date and time it happened."); return; }
+    if (value.occurred_local > localDateTimeValue(new Date(Date.now() + 3600000))) { setInline(el.infringementMessage, "The date and time cannot be in the future."); return; }
+    if (!value.severity_level) { setInline(el.infringementMessage, "Select the severity level."); return; }
+    if (!value.infringement_type) { setInline(el.infringementMessage, "Select or type the infringement type."); return; }
+    const button = $("distributionInfringementSave"); button.disabled = true; setInline(el.infringementMessage, "");
+    try {
+      const saved = await rpc("save_distribution_driver_infringement", { p_infringement: value });
+      await afterInfringementChange(`Infringement ${value.infringement_id ? "updated" : "recorded"} for ${saved?.driver_name || "the driver"}.${saved?.state === "EXPIRED" ? " It happened more than 7 months ago, so it is kept as history only." : ""}`);
+    } catch (error) { setInline(el.infringementMessage, error.message || "The infringement could not be saved."); }
+    finally { button.disabled = false; }
+  }
+
+  async function cancelInfringementRecord() {
+    const id = el.infringementId.value; if (!id) return;
+    const reason = window.prompt("Why is this record being cancelled? It stays in the history as cancelled and no longer counts.");
+    if (reason === null) return;
+    if (!reason.trim()) { setInline(el.infringementMessage, "A reason is required to cancel the record."); return; }
+    el.infringementCancelRecord.disabled = true; setInline(el.infringementMessage, "");
+    try {
+      const result = await rpc("cancel_distribution_driver_infringement", { p_infringement_id: id, p_expected_row_version: el.infringementVersion.value ? Number(el.infringementVersion.value) : null, p_reason: reason.trim() });
+      await afterInfringementChange(`Infringement of ${result?.driver_name || "the driver"} cancelled. It stays in the history.`);
+    } catch (error) { setInline(el.infringementMessage, error.message || "The record could not be cancelled."); }
+    finally { el.infringementCancelRecord.disabled = false; }
+  }
+
+  async function openInfringementHistory(driverId) {
+    const driver = drivers().find((item) => String(item.driver_id) === String(driverId));
+    state.infringementHistoryDriverId = String(driverId);
+    el.infringementHistoryTitle.textContent = driver?.display_name || "Driver";
+    el.infringementHistorySubtitle.textContent = driver?.driver_code || "";
+    el.infringementHistoryBody.innerHTML = `<div class="distribution-loading">Loading infringements...</div>`;
+    if (!el.infringementHistoryDialog.open) el.infringementHistoryDialog.showModal();
+    try {
+      const data = await loadInfringements(driverId);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const active = items.filter((item) => item.state === "ACTIVE");
+      const highest = active.reduce((max, item) => Math.max(max, Number(item.severity_rank ?? severityRank(item.severity_level))), -1);
+      const nextExpiry = active.map((item) => localDate(item.expires_on)).sort()[0];
+      const tile = (value, label, cls = "") => `<article class="${cls}"><strong>${esc(value)}</strong><span>${esc(label)}</span></article>`;
+      el.infringementHistoryAdd.hidden = !data?.can_record;
+      el.infringementHistoryBody.innerHTML = `<div class="distribution-vehicle-metrics distribution-infringement-metrics">${tile(fmtNumber(active.length), "active now", active.length ? `sev-${highest}` : "")}${tile(highest >= 0 ? severityLabel(infringementSeverities[highest][0], true) : "-", "highest active")}${tile(nextExpiry ? fmtShortDate(nextExpiry) : "-", "next one expires")}${tile(fmtNumber(items.filter((item) => item.state !== "CANCELLED").length), "recorded in total")}</div><p class="distribution-master-note">Active infringements count for ${fmtNumber(data?.validity_months || 7)} months after the day they happened. Expired and cancelled records stay here so the driver can be followed over time.</p>${infringementTable(items, { showDriver: false, editable: Boolean(data?.can_record), empty: "No infringements recorded for this driver." })}`;
+    } catch (error) { el.infringementHistoryBody.innerHTML = `<div class="distribution-empty">${esc(error.message || "Driver infringements are unavailable.")}</div>`; }
+  }
+
+  async function editInfringement(id) {
+    let item = infringementItems().find((entry) => String(entry.infringement_id) === String(id));
+    if (!item && state.infringementHistoryDriverId) { try { item = ((await loadInfringements(state.infringementHistoryDriverId))?.items || []).find((entry) => String(entry.infringement_id) === String(id)); } catch (error) { /* message below */ } }
+    if (!item) { setMessage("This infringement could not be found. Refresh and try again.", "warning"); return; }
+    await openInfringement(item);
+  }
+
   async function reviewDriverLeave(absenceId, decision) { const verb=decision==="APPROVED"?"approve":"reject"; if(!window.confirm(`Confirm you want to ${verb} this driver leave request?`))return; try{await rpc("review_driver_leave_request",{p_absence_id:absenceId,p_decision:decision});setMessage(`Leave request ${decision.toLowerCase()}.`,"success");await loadLeaveCalendar();if(state.roster)await loadRoster(state.rosterWeek)}catch(error){setMessage(error.message||"Leave request could not be reviewed.")} }
   async function deleteDriverLeave(absenceId) { if(!window.confirm("Delete this approved driver leave? The dates will become available for roster planning again."))return; try{await rpc("delete_distribution_driver_leave_admin",{p_absence_id:absenceId});setMessage("Approved leave deleted.","success");await loadLeaveCalendar();if(state.roster)await loadRoster(state.rosterWeek)}catch(error){setMessage(error.message||"Driver leave could not be deleted.")} }
   async function switchDistributionTab(tabId) { const next = distributionTabIds.includes(tabId) ? tabId : "board"; if (next === state.activeTab) return; state.activeTab = next; if (location.hash !== `#${state.activeTab}`) history.replaceState(null, "", `#${state.activeTab}`); if (state.activeTab === "customers") { render(); await loadRouteCustomers(); } else if (state.activeTab === "roster") await loadRoster(); else if (state.activeTab === "leave") await loadLeaveCalendar(); else if (state.activeTab === "actuals") await loadActuals(); else if (state.activeTab === "history") await loadHistory(); else render(); }
@@ -1373,6 +1527,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.panel.addEventListener("change", (event) => { const routeCustomersDay = event.target.closest("[data-route-customers-day]"); const routeCustomersRoute = event.target.closest("[data-route-customers-route]"); const routeCustomersSearch = event.target.closest("[data-route-customers-search]"); const week = event.target.closest("#distributionRosterWeek"); const actualsWeek = event.target.closest("#distributionActualsWeek"); const required = event.target.closest("[data-required-routes-date]"); if (routeCustomersDay || routeCustomersRoute || routeCustomersSearch) { if (routeCustomersDay) state.routeCustomersDay = routeCustomersDay.value; if (routeCustomersRoute) state.routeCustomersRoute = routeCustomersRoute.value; if (routeCustomersSearch) state.routeCustomersSearch = routeCustomersSearch.value.trim(); renderRouteCustomers(); } else if (week) loadRoster(weekStartFromInput(week.value)); else if (actualsWeek) { if (actualsWeek.value) openActualsWeek(weekStartFromInput(actualsWeek.value)); } else if (required && state.roster) renderRoster(); });
   el.panel.addEventListener("change",(event)=>{const driver=event.target.closest("[data-leave-filter-driver]"),type=event.target.closest("[data-leave-filter-type]");if(!driver&&!type)return;if(driver)state.leaveDriverFilter=driver.value;if(type)state.leaveTypeFilter=type.value;renderLeaveCalendar();});
   el.panel.addEventListener("input", (event) => { const note = event.target.closest("#distributionRosterNote"); const required = event.target.closest("[data-required-routes-date]"); if (!state.roster || (!note && !required)) return; if (note) { if (state.roster.document) state.roster.document.roster_note = note.value; else state.roster.roster_note = note.value; } if (required) { state.roster.required_routes = { ...requiredRoutesByDate(), [required.dataset.requiredRoutesDate]: Math.max(0, Number(required.value || 0)) }; } state.rosterDirty = true; const save = el.panel.querySelector("[data-roster-save]"); if (save) save.disabled = false; });
+  el.panel.addEventListener("click", (event) => { const add = event.target.closest("[data-infringement-add]"), history = event.target.closest("[data-infringement-history]"), edit = event.target.closest("[data-infringement-edit]"); if (!add && !history && !edit) return; event.stopImmediatePropagation(); if (add) openInfringement({ driver_id: state.infringementDriverFilter || "" }); else if (history) openInfringementHistory(history.dataset.infringementHistory); else editInfringement(edit.dataset.infringementEdit); });
+  el.panel.addEventListener("change", (event) => { const driver = event.target.closest("[data-infringement-filter-driver]"), status = event.target.closest("[data-infringement-filter-state]"); if (!driver && !status) return; if (driver) state.infringementDriverFilter = driver.value; if (status) state.infringementStateFilter = status.value; renderHistory(); });
+  el.infringementHistoryBody.addEventListener("click", (event) => { const edit = event.target.closest("[data-infringement-edit]"); if (edit) editInfringement(edit.dataset.infringementEdit); });
+  el.infringementHistoryAdd.addEventListener("click", () => openInfringement({ driver_id: state.infringementHistoryDriverId }));
+  el.infringementForm.addEventListener("submit", (event) => { event.preventDefault(); saveInfringement(); }); el.infringementCancelRecord.addEventListener("click", cancelInfringementRecord); el.infringementOccurred.addEventListener("input", syncInfringementNote);
   document.addEventListener("click", (event) => { const closeButton = event.target.closest("[data-close-dialog]"); if (closeButton) close($(closeButton.dataset.closeDialog)); });
   el.date.addEventListener("change", () => load(el.date.value)); el.today.addEventListener("click", () => load(nextOperatingDate())); el.refresh.addEventListener("click", () => load(el.date.value));
   if (window.ELIS_SUPABASE_ERROR || !client) { setMessage(window.ELIS_SUPABASE_ERROR || "Supabase could not be initialized."); return; }

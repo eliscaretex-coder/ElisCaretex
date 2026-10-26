@@ -80,6 +80,28 @@ Entry format:
 
 ---
 
+## 2026-10-26 — Claude — Distribution: driver infringements with 7-month validity
+
+- Branch / commits: `claude/driver-infringements`, Pull Request into `master`.
+- Changed: new "Add Driver Infringement" window (driver, date/time, severity No severity / Minor /
+  Serious / Very serious / Most serious, type picked or typed, explanation). Drivers shows a badge
+  with the active count and highest severity, an "Infringements" history window per driver and
+  "Add infringement"; History lists all infringements (filter by driver and Active / Expired /
+  Cancelled / All) and the events; Weekly roster shows a ⚠ badge next to the driver; the daily
+  route window adds the active count to the driver options. An infringement counts for 7 months
+  after the day it happened (owner rule), then stays as history. Wrong records are edited or
+  cancelled with a reason, never deleted.
+- Database: `202610260001_distribution_driver_infringements.sql` (new table with RLS and no grants,
+  3 new RPCs, `get_distribution_driver_master` and `get_distribution_activity_history` replaced with
+  added keys/labels only). **Prepared, not applied** — the owner applies it.
+- Validation: `node scripts/validate-repository.mjs` passed. Browser render with mocked RPC data
+  (Drivers, Add window, driver history, History, Weekly roster; desktop and 390 px) and the save
+  payload checked. The database test run inside a rolled-back transaction was not completed in
+  this session (see the PR); the pgTAP file was not run (pgTAP is not installed).
+- Open / next: apply the migration; until then Drivers and Roster work as before and the History
+  infringement list shows an error. Owner to confirm the 7-month rule (one constant:
+  `distribution_infringement_validity_months()`).
+
 ## 2026-10-25 — Claude — Finish "Batch / quantity" shows the exact KG (no rounding)
 
 - Branch / commits: `claude/finish-kg-full-value`, Pull Request
