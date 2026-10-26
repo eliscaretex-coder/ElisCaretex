@@ -91,13 +91,18 @@ Entry format:
   route window adds the active count to the driver options. An infringement counts for 7 months
   after the day it happened (owner rule), then stays as history. Wrong records are edited or
   cancelled with a reason, never deleted.
-- Database: `202610260001_distribution_driver_infringements.sql` (new table with RLS and no grants,
+- Database: `202610260001_distribution_driver_infringements.sql` (adopts the existing table, which held 12
+  records imported from CentralDB on 2026-08-17 with no screen: adds the missing columns and backfills
+  severity code and expiry; RLS on and grants revoked;
   3 new RPCs, `get_distribution_driver_master` and `get_distribution_activity_history` replaced with
   added keys/labels only). **Prepared, not applied** — the owner applies it.
 - Validation: `node scripts/validate-repository.mjs` passed. Browser render with mocked RPC data
   (Drivers, Add window, driver history, History, Weekly roster; desktop and 390 px) and the save
   payload checked. The database test run inside a rolled-back transaction was not completed in
   this session (see the PR); the pgTAP file was not run (pgTAP is not installed).
+  The owner's first run in the SQL editor failed (`p_row.col` instead of `(p_row).col` in a SQL
+  function) and was rolled back; that run also revealed the existing imported table. The migration
+  was corrected before merge and never applied.
 - Open / next: apply the migration; until then Drivers and Roster work as before and the History
   infringement list shows an error. Owner to confirm the 7-month rule (one constant:
   `distribution_infringement_validity_months()`).

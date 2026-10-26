@@ -19,35 +19,77 @@
 -- ADMIN, MANAGER, SUPERVISOR, DISTRIBUTION_OPERATOR). The table has RLS enabled with
 -- no policies and no grants: it is only reached through these functions.
 --
+-- The table already exists in the database: 12 records imported on 2026-08-17 from the
+-- old CentralDB (import_source 'CENTRALDB_2026-08-17', severity stored as text such as
+-- 'Very serious infringement'), with no screen and no migration file. It is adopted, not
+-- recreated: the legacy columns stay as they are, the missing columns are added and the
+-- imported records get severity_level and expires_on from their own values.
+--
 -- Also replaced: get_distribution_driver_master (adds an "infringements" summary per
 -- driver) and get_distribution_activity_history (labels infringement events). Both
 -- keep their previous output; only new keys or labels are added.
 
+-- Shape of the imported table (only created here if it does not exist yet).
 create table if not exists public.distribution_driver_infringements (
-  infringement_id uuid primary key default gen_random_uuid(),
-  driver_id uuid not null references public.distribution_drivers(driver_id),
+  driver_infringement_id uuid primary key default gen_random_uuid(),
+  legacy_infringement_id text unique,
+  driver_id uuid references public.distribution_drivers(driver_id),
+  legacy_driver_id text,
+  driver_name_snapshot text not null,
   occurred_at timestamptz not null,
-  severity_level text not null
-    check (severity_level in ('NO_SEVERITY', 'MINOR', 'SERIOUS', 'VERY_SERIOUS', 'MOST_SERIOUS')),
-  infringement_type text not null
-    check (length(btrim(infringement_type)) between 1 and 120),
-  description text check (description is null or length(description) <= 4000),
-  expires_on date not null,
-  status text not null default 'ACTIVE' check (status in ('ACTIVE', 'CANCELLED')),
-  cancelled_at timestamptz,
-  cancelled_by uuid,
-  cancel_reason text check (cancel_reason is null or length(cancel_reason) <= 1000),
-  created_at timestamptz not null default now(),
-  created_by uuid,
-  updated_at timestamptz not null default now(),
-  updated_by uuid,
-  row_version integer not null default 1,
-  constraint distribution_driver_infringements_cancel_check
-    check ((status = 'CANCELLED') = (cancelled_at is not null and cancel_reason is not null))
+  severity text not null,
+  infringement_type text not null,
+  description text,
+  legacy_created_at timestamptz,
+  legacy_updated_at timestamptz,
+  import_source text not null default 'CENTRALDB_LEGACY',
+  created_at timestamptz not null default now()
 );
 
+alter table public.distribution_driver_infringements
+  add column if not exists severity_level text,
+  add column if not exists expires_on date,
+  add column if not exists status text not null default 'ACTIVE',
+  add column if not exists cancelled_at timestamptz,
+  add column if not exists cancelled_by uuid,
+  add column if not exists cancel_reason text,
+  add column if not exists created_by uuid,
+  add column if not exists updated_at timestamptz not null default now(),
+  add column if not exists updated_by uuid,
+  add column if not exists row_version integer not null default 1;
+
+alter table public.distribution_driver_infringements alter column description drop not null;
+
+-- Imported records: severity code from the text label, expiry 7 months after the day it happened.
+update public.distribution_driver_infringements
+set severity_level = case lower(btrim(severity))
+      when 'minor infringement' then 'MINOR'
+      when 'serious infringement' then 'SERIOUS'
+      when 'very serious infringement' then 'VERY_SERIOUS'
+      when 'most serious infringement' then 'MOST_SERIOUS'
+      else 'NO_SEVERITY' end
+where severity_level is null;
+
+update public.distribution_driver_infringements
+set expires_on = ((occurred_at at time zone 'Europe/Dublin')::date + interval '7 months')::date
+where expires_on is null;
+
+alter table public.distribution_driver_infringements
+  alter column severity_level set not null,
+  alter column expires_on set not null;
+
+alter table public.distribution_driver_infringements drop constraint if exists distribution_driver_infringements_severity_level_check;
+alter table public.distribution_driver_infringements add constraint distribution_driver_infringements_severity_level_check
+  check (severity_level in ('NO_SEVERITY', 'MINOR', 'SERIOUS', 'VERY_SERIOUS', 'MOST_SERIOUS'));
+alter table public.distribution_driver_infringements drop constraint if exists distribution_driver_infringements_status_check;
+alter table public.distribution_driver_infringements add constraint distribution_driver_infringements_status_check
+  check (status in ('ACTIVE', 'CANCELLED'));
+alter table public.distribution_driver_infringements drop constraint if exists distribution_driver_infringements_cancel_check;
+alter table public.distribution_driver_infringements add constraint distribution_driver_infringements_cancel_check
+  check ((status = 'CANCELLED') = (cancelled_at is not null and cancel_reason is not null));
+
 comment on table public.distribution_driver_infringements is
-  'Driver infringements recorded in Distribution. Active until expires_on (7 months after the day it happened); kept afterwards as history. Never deleted: cancelled with a reason.';
+  'Driver infringements (imported from CentralDB and recorded in Distribution). Active until expires_on (7 months after the day it happened); kept afterwards as history. Never deleted: cancelled with a reason.';
 
 create index if not exists distribution_driver_infringements_driver_idx
   on public.distribution_driver_infringements (driver_id, occurred_at desc);
@@ -88,6 +130,19 @@ $$;
 
 revoke all on function public.distribution_infringement_severity_rank(text) from public, anon, authenticated;
 
+create or replace function public.distribution_infringement_severity_label(p_severity text)
+returns text
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select case p_severity
+    when 'NO_SEVERITY' then 'No Severity' when 'MINOR' then 'Minor infringement' when 'SERIOUS' then 'Serious infringement'
+    when 'VERY_SERIOUS' then 'Very serious infringement' when 'MOST_SERIOUS' then 'Most serious infringement' else p_severity end
+$$;
+
+revoke all on function public.distribution_infringement_severity_label(text) from public, anon, authenticated;
+
 create or replace function public.distribution_infringement_item(p_row public.distribution_driver_infringements)
 returns jsonb
 language sql
@@ -96,33 +151,34 @@ security definer
 set search_path = public, auth, pg_temp
 as $$
   select jsonb_build_object(
-    'infringement_id', p_row.infringement_id,
-    'driver_id', p_row.driver_id,
+    'infringement_id', (p_row).driver_infringement_id,
+    'driver_id', (p_row).driver_id,
     'driver_name', d.display_name,
     'driver_code', d.driver_code,
-    'occurred_at', p_row.occurred_at,
-    'occurred_local', to_char(p_row.occurred_at at time zone 'Europe/Dublin', 'YYYY-MM-DD"T"HH24:MI'),
-    'severity_level', p_row.severity_level,
-    'severity_rank', public.distribution_infringement_severity_rank(p_row.severity_level),
-    'infringement_type', p_row.infringement_type,
-    'description', p_row.description,
-    'expires_on', p_row.expires_on,
-    'status', p_row.status,
-    'is_active', p_row.status = 'ACTIVE' and p_row.expires_on > (now() at time zone 'Europe/Dublin')::date,
-    'state', case when p_row.status = 'CANCELLED' then 'CANCELLED'
-                  when p_row.expires_on > (now() at time zone 'Europe/Dublin')::date then 'ACTIVE'
+    'occurred_at', (p_row).occurred_at,
+    'occurred_local', to_char((p_row).occurred_at at time zone 'Europe/Dublin', 'YYYY-MM-DD"T"HH24:MI'),
+    'severity_level', (p_row).severity_level,
+    'severity_rank', public.distribution_infringement_severity_rank((p_row).severity_level),
+    'infringement_type', (p_row).infringement_type,
+    'description', (p_row).description,
+    'expires_on', (p_row).expires_on,
+    'status', (p_row).status,
+    'is_active', (p_row).status = 'ACTIVE' and (p_row).expires_on > (now() at time zone 'Europe/Dublin')::date,
+    'state', case when (p_row).status = 'CANCELLED' then 'CANCELLED'
+                  when (p_row).expires_on > (now() at time zone 'Europe/Dublin')::date then 'ACTIVE'
                   else 'EXPIRED' end,
-    'cancelled_at', p_row.cancelled_at,
-    'cancelled_by_name', case when p_row.cancelled_by is null then null else coalesce(public.production_roster_actor_name(p_row.cancelled_by, null), 'Account user') end,
-    'cancel_reason', p_row.cancel_reason,
-    'created_at', p_row.created_at,
-    'created_by_name', coalesce(public.production_roster_actor_name(p_row.created_by, null), 'System'),
-    'updated_at', p_row.updated_at,
-    'updated_by_name', case when p_row.updated_by is null then null else coalesce(public.production_roster_actor_name(p_row.updated_by, null), 'Account user') end,
-    'row_version', p_row.row_version
+    'cancelled_at', (p_row).cancelled_at,
+    'cancelled_by_name', case when (p_row).cancelled_by is null then null else coalesce(public.production_roster_actor_name((p_row).cancelled_by, null), 'Account user') end,
+    'cancel_reason', (p_row).cancel_reason,
+    'created_at', (p_row).created_at,
+    'created_by_name', coalesce(public.production_roster_actor_name((p_row).created_by, null), case when (p_row).import_source <> 'APP' then 'Imported from CentralDB' else 'System' end),
+    'updated_at', (p_row).updated_at,
+    'updated_by_name', case when (p_row).updated_by is null then null else coalesce(public.production_roster_actor_name((p_row).updated_by, null), 'Account user') end,
+    'imported', (p_row).import_source <> 'APP',
+    'row_version', (p_row).row_version
   )
   from public.distribution_drivers d
-  where d.driver_id = p_row.driver_id
+  where d.driver_id = (p_row).driver_id
 $$;
 
 revoke all on function public.distribution_infringement_item(public.distribution_driver_infringements) from public, anon, authenticated;
@@ -231,13 +287,16 @@ begin
 
   if v_id is null then
     insert into public.distribution_driver_infringements (
-      driver_id, occurred_at, severity_level, infringement_type, description, expires_on, created_by
+      driver_id, driver_name_snapshot, occurred_at, severity, severity_level, infringement_type, description,
+      expires_on, import_source, created_by
     ) values (
-      v_driver_id, v_occurred, v_severity, v_type, v_description, v_expires, auth.uid()
+      v_driver_id, (select d.display_name from public.distribution_drivers d where d.driver_id = v_driver_id),
+      v_occurred, public.distribution_infringement_severity_label(v_severity), v_severity, v_type, v_description,
+      v_expires, 'APP', auth.uid()
     )
     returning * into v_row;
   else
-    select * into v_row from public.distribution_driver_infringements where infringement_id = v_id for update;
+    select * into v_row from public.distribution_driver_infringements where driver_infringement_id = v_id for update;
     if not found then
       raise exception using errcode = 'P0002', message = 'This infringement was not found.';
     end if;
@@ -249,14 +308,16 @@ begin
     end if;
     update public.distribution_driver_infringements
     set driver_id = v_driver_id,
+        driver_name_snapshot = (select d.display_name from public.distribution_drivers d where d.driver_id = v_driver_id),
         occurred_at = v_occurred,
+        severity = public.distribution_infringement_severity_label(v_severity),
         severity_level = v_severity,
         infringement_type = v_type,
         description = v_description,
         expires_on = v_expires,
         updated_by = auth.uid(),
         row_version = row_version + 1
-    where infringement_id = v_id
+    where driver_infringement_id = v_id
     returning * into v_row;
   end if;
 
@@ -289,7 +350,7 @@ begin
   if length(v_reason) > 1000 then
     raise exception using errcode = '22023', message = 'The reason is too long (maximum 1000 characters).';
   end if;
-  select * into v_row from public.distribution_driver_infringements where infringement_id = p_infringement_id for update;
+  select * into v_row from public.distribution_driver_infringements where driver_infringement_id = p_infringement_id for update;
   if not found then
     raise exception using errcode = 'P0002', message = 'This infringement was not found.';
   end if;
@@ -306,7 +367,7 @@ begin
       cancel_reason = v_reason,
       updated_by = auth.uid(),
       row_version = row_version + 1
-  where infringement_id = p_infringement_id
+  where driver_infringement_id = p_infringement_id
   returning * into v_row;
   return public.distribution_infringement_item(v_row);
 end;

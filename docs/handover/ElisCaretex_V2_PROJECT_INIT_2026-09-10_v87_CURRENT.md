@@ -639,8 +639,8 @@ to Team Leader to the Driver job title. The `driver-role-transfers` and `product
 jobs run hourly.
 
 Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
-**Prepared**, not applied): table `distribution_driver_infringements` (RLS on, no policies, no
-grants) with driver, `occurred_at`, severity (`NO_SEVERITY`, `MINOR`, `SERIOUS`, `VERY_SERIOUS`,
+**Prepared**, not applied): adopts the existing table `distribution_driver_infringements` (12 records
+imported from CentralDB on 2026-08-17, no screen before; RLS on, no policies, grants revoked) with driver, `occurred_at`, severity (`NO_SEVERITY`, `MINOR`, `SERIOUS`, `VERY_SERIOUS`,
 `MOST_SERIOUS`), free-text type, description and `expires_on` = day it happened + 7 months
 (owner rule, stored per record). Active while `expires_on` is later than today; afterwards kept as
 history. Never deleted: `cancel_distribution_driver_infringement` (reason required) keeps the row as
