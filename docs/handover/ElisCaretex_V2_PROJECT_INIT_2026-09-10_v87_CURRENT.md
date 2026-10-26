@@ -139,7 +139,7 @@ Core rules:
 | Finish Results | Daily/table/shift performance including unit-to-KG equivalent and ReWash visibility. |
 | Production Tracker | Shared route/customer production trace covering washing, MOP, Finish, ABS and trolley evidence. |
 | Production Intelligence | Manager analytics for official production, capacity, seasonality, Sorting/trolley flow and forward planning. |
-| Distribution | Daily planning, routes/stops, weekly roster publication and printing, driver/fleet master, actuals, driver leave calendar/review and readable history. |
+| Distribution | Daily planning, routes/stops, weekly roster publication and printing, driver/fleet master, actuals, driver leave calendar/review, driver infringements and readable history. |
 | My Driver Roster | `frontend/pages/driver-roster.html`: published weekly assignments, route stops/customer guides and Holiday/Day Off requests; management can inspect the full published week. |
 | Customer Guides | `frontend/pages/driver-guides.html`: management of customer photos/PDFs and pending driver leave decisions; assigned drivers view private guides through published routes. |
 | Trolleys | Trolley type/master, physical trolleys, lifecycle, locations and custody history. |
@@ -637,6 +637,19 @@ Role transfer switch time (2026-10-25, `202610250003_role_transfer_sunday_noon_s
 to Driver -> another job title and Staff -> Driver; the latter also switches a Production login up
 to Team Leader to the Driver job title. The `driver-role-transfers` and `production-roster-exits`
 jobs run hourly.
+
+Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
+**Applied** 2026-10-26 by the owner and **Validated** with rolled-back RPC tests): adopts the existing table `distribution_driver_infringements` (12 records
+imported from CentralDB on 2026-08-17, no screen before; RLS on, no policies, grants revoked) with driver, `occurred_at`, severity (`NO_SEVERITY`, `MINOR`, `SERIOUS`, `VERY_SERIOUS`,
+`MOST_SERIOUS`), free-text type, description and `expires_on` = day it happened + 7 months
+(owner rule, stored per record). Active while `expires_on` is later than today; afterwards kept as
+history. Never deleted: `cancel_distribution_driver_infringement` (reason required) keeps the row as
+`CANCELLED`. RPCs: `get_distribution_driver_infringements` (Distribution read access),
+`save_distribution_driver_infringement` and `cancel_distribution_driver_infringement`
+(`require_distribution_plan_access`, row-version checked). `get_distribution_driver_master` adds an
+`infringements` summary per driver; `get_distribution_activity_history` labels the events (trigger
+`record_distribution_master_event`). UI: Drivers (badge, "Infringements" history window, "Add
+infringement"), History (filterable list) and Weekly roster (badge next to the driver name).
 
 Driver -> Production start (2026-10-25, `202610250002_driver_role_transfer_production_start.sql`,
 **Applied** and **Validated** 2026-10-25, 17/17 database test): approving a Driver role transfer to a Production job title with a future first

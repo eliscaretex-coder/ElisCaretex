@@ -271,3 +271,38 @@
 .distribution-route-customers-table td .distribution-kg-source, .distribution-kg-source { display: inline-block; margin: 0 0 0 4px; padding: 0 5px; border-radius: 999px; background: var(--ec-info-soft, #e9f2fb); color: var(--ec-info, #1d5fa7); font-size: .62rem; font-weight: 800; vertical-align: middle; }
 .distribution-driver-day-button.not-started strong { background: transparent; color: #8aa0b7; border: 1px dashed #c3d0de; }
 .distribution-driver-day-button.not-started small { color: #8aa0b7; }
+
+/* Driver infringements: severity colours (0 No severity ... 4 Most serious). */
+.distribution-infringement-severity, .distribution-infringement-pill, .distribution-infringement-badge { --sev-bg: #f1f5f9; --sev-fg: #475569; --sev-border: #d9e2ea; display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border: 1px solid var(--sev-border); border-radius: 999px; background: var(--sev-bg); color: var(--sev-fg); font-size: .66rem; font-weight: 800; line-height: 1.2; white-space: nowrap; }
+.sev-1 { --sev-bg: #fffbeb; --sev-fg: #92400e; --sev-border: #fcd34d; }
+.sev-2 { --sev-bg: #fff4e5; --sev-fg: #b45309; --sev-border: #fdba74; }
+.sev-3 { --sev-bg: #fef3f2; --sev-fg: #b42318; --sev-border: #fda29b; }
+.sev-4 { --sev-bg: #b42318; --sev-fg: #ffffff; --sev-border: #912018; }
+.distribution-infringement-pill { display: flex; width: fit-content; margin-top: 4px; }
+.distribution-infringement-quiet { display: block; margin-top: 3px; color: #64748b; font-size: .64rem; }
+.distribution-infringement-badge { margin-left: 6px; padding: 2px 6px; vertical-align: middle; cursor: pointer; font-family: inherit; }
+.distribution-infringement-badge:hover { filter: brightness(.95); }
+.distribution-infringement-section { margin-bottom: 18px; }
+.distribution-infringement-filter { min-height: 34px; border: 1px solid #d5dee7; border-radius: 6px; padding: 6px 8px; background: #fff; color: #334155; font: inherit; font-size: .74rem; }
+.distribution-infringement-table td span:not(.distribution-infringement-severity) { display: block; margin-top: 2px; color: #718096; font-size: .66rem; }
+.distribution-infringement-table td.distribution-infringement-detail { min-width: 260px; line-height: 1.4; }
+.distribution-infringement-table td.distribution-infringement-detail span { white-space: pre-wrap; color: #475569; font-size: .7rem; }
+.distribution-infringement-table td.distribution-infringement-detail span.cancel { color: #b42318; }
+.distribution-infringement-when { white-space: nowrap; font-weight: 700; }
+.distribution-infringement-state { font-size: .7rem; }.distribution-infringement-state.active { color: #b45309; }.distribution-infringement-state.expired { color: #64748b; }.distribution-infringement-state.cancelled { color: #94a3b8; text-decoration: line-through; }
+.distribution-infringement-row.expired td, .distribution-infringement-row.cancelled td { background: #fafbfc; color: #64748b; }
+.distribution-infringement-row.cancelled .distribution-infringement-severity { opacity: .55; }
+.distribution-infringement-actions { text-align: right; white-space: nowrap; }
+.distribution-link-button { padding: 0; border: 0; background: none; color: #087f84; font: inherit; font-weight: 800; cursor: pointer; text-align: left; }.distribution-link-button:hover { text-decoration: underline; }
+.distribution-infringement-dialog { width: min(560px, calc(100vw - 24px)); }
+.distribution-infringement-dialog header p { display: none; }
+.distribution-infringement-grid input, .distribution-infringement-grid select, .distribution-infringement-grid textarea { background: #f1f5f9; border-color: #e2e8f0; }
+.distribution-infringement-note { grid-column: 1 / -1; margin: 0; color: #64748b; font-size: .68rem; line-height: 1.45; }
+.distribution-infringement-cancel-record { margin-right: auto; }
+.distribution-infringement-history-dialog { width: min(980px, calc(100vw - 24px)); }
+.distribution-infringement-history-body { display: grid; gap: 10px; padding: 14px 16px; overflow: auto; }
+.distribution-infringement-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.distribution-infringement-metrics article.sev-1, .distribution-infringement-metrics article.sev-2, .distribution-infringement-metrics article.sev-3, .distribution-infringement-metrics article.sev-4 { border-color: var(--sev-border); background: var(--sev-bg); }
+.distribution-infringement-metrics article.sev-4 strong, .distribution-infringement-metrics article.sev-4 span { color: #fff; }
+@media (max-width: 620px) { .distribution-infringement-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }.distribution-infringement-section .distribution-toolbar { flex-wrap: wrap; }.distribution-infringement-section .distribution-card-actions { flex-wrap: wrap; } }
+@media print { .distribution-infringement-badge { display: none !important; } }
