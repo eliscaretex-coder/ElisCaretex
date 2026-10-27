@@ -11,6 +11,7 @@ Database rules, outcomes and the live dry run: `docs/database/legacy-sync-finish
 | Piece | Where | What it does |
 | --- | --- | --- |
 | Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads `FinishEntries` (+ `FinishEntriesHistory`), `RewashProduction` and CentralDB `WashItems` (+ `WashItemsHistory`) for at most 7 days, normalises cell formats and sends signed requests. Never writes the sheets. |
+| Admin page | `legacy-sync/apps-script/Index.html` | Apps Script web app page: status, preview or import a date range, source spreadsheets; the old v3.1 diagnostics are folded under "Old diagnostics". Needs `Code.gs` (v3.1) and `LegacySyncFinish.gs`. |
 | Endpoint | `supabase/functions/legacy-sync-finish/index.ts` | Checks the HMAC signature and the timestamp (5 minutes), validates the request shape and calls one `integration.legacy_sync_*` function. No mapping logic. |
 | Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270005`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
 | Control | Finish Results page, "Legacy sheet sync" panel (`frontend/assets/js/legacy-sync-control.js`) | ADMIN only: on/off, "Sync now", last runs. |

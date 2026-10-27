@@ -1,0 +1,300 @@
+<!doctype html>
+<html>
+<head>
+<base target="_top">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f1f5f9;--teal:#0f766e;--red:#b91c1c;--amber:#b45309;--green:#047857}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+  .wrap{max-width:860px;margin:0 auto;padding:22px 16px 40px}
+  header h1{margin:0;font-size:1.35rem}
+  header p{margin:4px 0 0;color:var(--muted)}
+  header a{color:var(--teal);font-weight:600}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+  .card h2{margin:0 0 10px;font-size:1rem}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .status{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .status>div{border:1px solid var(--line);border-radius:10px;padding:10px}
+  .status span{display:block;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .status strong{display:block;margin:3px 0 6px}
+  .ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}
+  .row{display:flex;flex-wrap:wrap;align-items:end;gap:10px}
+  label{font-size:12px;font-weight:600;color:var(--muted)}
+  label input{display:block;margin-top:3px}
+  input[type=date],input[type=text],input[type=password]{padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;font:inherit}
+  input[type=text],input[type=password]{width:100%}
+  button{border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--teal);color:#fff}
+  button.secondary{background:#fff;color:var(--ink);border:1px solid #cbd5e1}
+  button.danger{background:#fff;color:var(--red);border:1px solid #fecaca}
+  button.link{background:none;color:var(--teal);padding:0;border:0}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  #notice{min-height:20px;margin:10px 0 0;font-weight:600}
+  .summary{margin-top:12px;display:grid;gap:10px}
+  .group{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .group h3{margin:0;padding:8px 10px;background:#f8fafc;font-size:13px;border-bottom:1px solid var(--line)}
+  .counts{display:flex;flex-wrap:wrap;gap:6px;padding:10px}
+  .pill{border-radius:999px;padding:3px 10px;background:#f1f5f9;font-size:12px;font-weight:600}
+  .pill.good{background:#dcfce7;color:#166534}.pill.attn{background:#fef3c7;color:#92400e}.pill.stop{background:#fee2e2;color:#991b1b}
+  .held{margin:0;padding:0 10px 10px 28px;font-size:12px;color:var(--muted)}
+  .source{display:grid;grid-template-columns:24px 110px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+  .source:first-child{border-top:0}
+  details{margin-top:14px}
+  details>summary{cursor:pointer;color:var(--muted);font-weight:600}
+  details .card{margin-top:10px}
+  .tools{display:flex;flex-wrap:wrap;gap:8px}
+  pre{margin:10px 0 0;max-height:320px;overflow:auto;white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px}
+  @media(max-width:640px){.status{grid-template-columns:1fr}.source{grid-template-columns:24px minmax(0,1fr)}.source input[type=text],.source button{grid-column:2;justify-self:start}.source input[type=text]{justify-self:stretch}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ElisCaretex Legacy Sync</h1>
+    <p>Copies the legacy Finish sheets into V2. The on/off switch, "Sync now" and the run history are in
+      <a href="https://eliscaretex-coder.github.io/ElisCaretex/pages/finish-results.html" target="_blank" rel="noopener">V2 → Finish Results</a>.</p>
+  </header>
+
+  <section class="card">
+    <h2>Status</h2>
+    <div class="status">
+      <div><span>Read the sheets</span><strong id="masterText">…</strong>
+        <label><input type="checkbox" id="master" style="display:inline;margin-right:5px">Allow the sync to read the sheets</label></div>
+      <div><span>Automatic check (every 5 min)</span><strong id="triggerText">…</strong>
+        <button id="triggerButton" class="secondary" type="button">…</button></div>
+      <div><span>V2 connection</span><strong id="connectionText">…</strong>
+        <div class="small muted">Script Properties LSF_ENDPOINT and LSF_SECRET</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Check or import a date range</h2>
+    <div class="row">
+      <label>From<input id="fromDate" type="date"></label>
+      <label>To<input id="toDate" type="date"></label>
+      <button id="previewButton" type="button">Preview</button>
+      <button id="importButton" class="secondary" type="button">Import now</button>
+    </div>
+    <p class="small muted">Preview changes nothing. Import writes to V2 only while the sync is ON in V2. At most 7 days.</p>
+    <p id="notice"></p>
+    <div id="summary" class="summary"></div>
+    <details id="rawBox" hidden><summary>Technical details</summary><pre id="raw"></pre></details>
+  </section>
+
+  <section class="card">
+    <h2>Source spreadsheets</h2>
+    <p class="small muted">Spreadsheet IDs, not Apps Script project IDs. The Finish sync uses <b>finish</b> and <b>central</b>.</p>
+    <div id="sources"></div>
+    <div class="row" style="margin-top:10px"><button id="saveSources" type="button">Save spreadsheets</button></div>
+  </section>
+
+  <details>
+    <summary>Old diagnostics (read-only)</summary>
+    <div class="card">
+      <div class="row"><label><input type="checkbox" id="daily" style="display:inline;margin-right:5px">Old daily diagnostic (keep OFF)</label></div>
+      <p class="small muted">Inbox connection (legacy-sync-ingest): <span id="inboxStatus"></span></p>
+      <label>Edge Function URL<input type="text" id="endpoint" placeholder="https://…supabase.co/functions/v1/legacy-sync-ingest"></label>
+      <label>Ingest token (leave blank to keep)<input type="password" id="token"></label>
+      <div class="row" style="margin-top:8px"><button class="secondary" type="button" id="saveInbox">Save inbox connection</button></div>
+      <div class="tools" style="margin-top:12px">
+        <button class="secondary" type="button" data-tool="compareV2Coverage">V2 day coverage</button>
+        <button class="secondary" type="button" data-tool="compareV2Candidates">V2 candidates</button>
+        <button class="secondary" type="button" data-tool="buildImportReviewManifest">Review manifest</button>
+        <button class="secondary" type="button" data-tool="inspectFinishImportReadiness">Finish preflight</button>
+        <button class="secondary" type="button" data-tool="reviewCanonicalWashFlows">WashItems → Flow</button>
+        <button class="secondary" type="button" data-tool="auditFinishWashDependencies">Finish → WashItems</button>
+        <button class="secondary" type="button" data-tool="inspectSources" data-no-dates="1">Source headers</button>
+      </div>
+      <p class="small muted">These use the dates above.</p>
+      <pre id="toolResult" hidden></pre>
+      <h2 style="margin-top:14px">Old run history</h2>
+      <pre id="history"></pre>
+    </div>
+  </details>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let dashboard = null;
+let panel = null;
+
+const LABELS = {
+  READY: ['ready to import', 'good'], ALREADY_IMPORTED: ['already in V2', ''], BLOCKED: ['needs review', 'attn'],
+  PENDING_SOURCE: ['no quantity yet', ''], SKIPPED: ['skipped', ''], REWASH_ROUTE: ['ReWash row', ''],
+  IMPORTED: ['new', 'good'], UPDATED: ['updated', 'good'], ADOPTED: ['matched', 'good'],
+  ADOPTED_AND_UPDATED: ['matched + updated', 'good'], RUN_LIMIT_REACHED: ['run limit reached', 'attn']
+};
+
+function server(name, args) {
+  return new Promise((resolve, reject) => {
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name].apply(null, args || []);
+  });
+}
+
+function notice(text, cls) { $('notice').textContent = text || ''; $('notice').className = cls || ''; }
+
+function busy(on) { document.querySelectorAll('button').forEach((b) => { b.disabled = on; }); }
+
+function pill(key, value) {
+  const label = LABELS[key] || (key.indexOf('REFUSED_') === 0 ? ['refused', 'stop'] : [key.toLowerCase().replace(/_/g, ' '), '']);
+  const span = document.createElement('span');
+  span.className = 'pill ' + label[1];
+  span.textContent = value + ' ' + label[0];
+  return span;
+}
+
+function group(title, counts, held, refusal) {
+  const box = document.createElement('div');
+  box.className = 'group';
+  const h = document.createElement('h3');
+  h.textContent = title;
+  box.appendChild(h);
+  const row = document.createElement('div');
+  row.className = 'counts';
+  const keys = Object.keys(counts || {}).filter((k) => k !== 'refusal' && Number(counts[k]) > 0);
+  if (!keys.length) row.appendChild(Object.assign(document.createElement('span'), {className: 'pill', textContent: 'Nothing to do'}));
+  keys.forEach((k) => row.appendChild(pill(k, counts[k])));
+  box.appendChild(row);
+  const notes = (held || []).map((x) => x.id + ': ' + (x.blockers || []).join('; '));
+  if (refusal) notes.unshift(refusal === 'Legacy Finish historical import is disabled.' || refusal === 'Legacy HOUSEHOLD ReWash import is disabled.'
+    ? 'Not written: the sync is OFF in V2.' : refusal);
+  if (notes.length) {
+    const ul = document.createElement('ul');
+    ul.className = 'held';
+    notes.forEach((t) => ul.appendChild(Object.assign(document.createElement('li'), {textContent: t})));
+    box.appendChild(ul);
+  }
+  return box;
+}
+
+function showResult(result) {
+  const out = $('summary');
+  out.innerHTML = '';
+  if (result.error) notice('Stopped: ' + result.error, 'bad');
+  if (result.mode === 'DRY_RUN') {
+    const s = result.summary || {};
+    out.appendChild(group('Finish (' + ((s.normal || {}).records || 0) + ' records)', (s.normal || {}).outcomes, (s.normal || {}).held));
+    out.appendChild(group('ReWash (' + ((s.rewash || {}).records || 0) + ' records)', (s.rewash || {}).outcomes, (s.rewash || {}).held));
+  } else {
+    const r = result.results || {};
+    out.appendChild(group('Finish', r.normal, (result.plan && result.plan.normal || {}).held, (r.normal || {}).refusal));
+    out.appendChild(group('ReWash', r.rewash, (result.plan && result.plan.rewash || {}).held, (r.rewash || {}).refusal));
+    if (result.stopped === 'TIME_BUDGET') notice('Stopped after 5 minutes. Run it again to continue.', 'warn');
+  }
+  $('raw').textContent = JSON.stringify(result, null, 2);
+  $('rawBox').hidden = false;
+}
+
+function range() {
+  const from = $('fromDate').value, to = $('toDate').value;
+  if (!from || !to) { notice('Choose both dates.', 'bad'); return null; }
+  return [from, to];
+}
+
+async function preview() {
+  const r = range(); if (!r) return;
+  busy(true); notice('Reading the sheets…');
+  try { const result = await server('previewFinishSync', r); notice(result.error ? '' : 'Preview ready. Nothing was changed.', 'ok'); showResult(result); }
+  catch (e) { notice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+}
+
+async function importNow() {
+  const r = range(); if (!r) return;
+  if (!confirm('Import ' + r[0] + ' to ' + r[1] + ' into V2 now?')) return;
+  busy(true); notice('Importing… this can take a few minutes.');
+  try { const result = await server('importFinishSync', r.concat(['MANUAL'])); if (!result.error) notice('Import finished.', 'ok'); showResult(result); }
+  catch (e) { notice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+}
+
+function drawPanel(p) {
+  panel = p;
+  $('triggerText').textContent = p.triggerInstalled ? 'Installed' : 'Not installed';
+  $('triggerText').className = p.triggerInstalled ? 'ok' : 'warn';
+  $('triggerButton').textContent = p.triggerInstalled ? 'Remove' : 'Install';
+  $('triggerButton').className = p.triggerInstalled ? 'danger' : 'secondary';
+  const ready = p.endpointConfigured && p.secretConfigured;
+  $('connectionText').textContent = ready ? 'Configured' : 'Missing ' + [p.endpointConfigured ? '' : 'LSF_ENDPOINT', p.secretConfigured ? '' : 'LSF_SECRET'].filter(Boolean).join(' and ');
+  $('connectionText').className = ready ? 'ok' : 'bad';
+  if (!$('fromDate').value) $('fromDate').value = p.yesterday;
+  if (!$('toDate').value) $('toDate').value = p.today;
+}
+
+function drawDashboard(d) {
+  dashboard = d;
+  $('master').checked = d.config.enabled;
+  $('masterText').textContent = d.config.enabled ? 'Allowed' : 'Blocked';
+  $('masterText').className = d.config.enabled ? 'ok' : 'bad';
+  $('daily').checked = d.config.daily;
+  $('inboxStatus').textContent = 'endpoint ' + (d.endpointConfigured ? 'configured' : 'missing') + ', token ' + (d.tokenConfigured ? 'configured' : 'missing');
+  $('history').textContent = JSON.stringify(d.history || [], null, 2);
+  const box = $('sources');
+  box.innerHTML = '';
+  Object.keys(d.sheets).forEach((key) => {
+    const src = d.config.sources[key] || {};
+    const row = document.createElement('div');
+    row.className = 'source';
+    row.innerHTML = '<input type="checkbox"><b></b><input type="text" placeholder="Spreadsheet ID"><button class="link" type="button">Test</button>';
+    row.dataset.key = key;
+    row.children[0].checked = !!src.enabled;
+    row.children[1].textContent = key;
+    row.children[2].value = src.id || '';
+    row.children[3].onclick = async () => {
+      busy(true); notice('Opening ' + key + '…');
+      try { const r = await server('testSource', [key]); notice(key + ': "' + r.spreadsheet + '" opened, ' + r.found.length + ' sheets.', 'ok'); }
+      catch (e) { notice('Error: ' + e.message, 'bad'); }
+      finally { busy(false); }
+    };
+    box.appendChild(row);
+  });
+}
+
+async function saveConfig(message) {
+  if (!dashboard) return;
+  const sources = {};
+  document.querySelectorAll('#sources .source').forEach((row) => {
+    sources[row.dataset.key] = {enabled: row.children[0].checked, id: row.children[2].value};
+  });
+  busy(true);
+  try { drawDashboard(await server('saveConfig', [{enabled: $('master').checked, daily: $('daily').checked, sources: sources}])); notice(message, 'ok'); }
+  catch (e) { notice('Save failed: ' + e.message, 'bad'); drawDashboard(dashboard); }
+  finally { busy(false); }
+}
+
+$('previewButton').onclick = preview;
+$('importButton').onclick = importNow;
+$('saveSources').onclick = () => saveConfig('Spreadsheets saved.');
+$('master').onchange = () => saveConfig($('master').checked ? 'The sheets can be read.' : 'Reading the sheets is blocked.');
+$('daily').onchange = () => saveConfig('Saved.');
+$('triggerButton').onclick = async () => {
+  const install = !panel.triggerInstalled;
+  if (!install && !confirm('Stop the automatic check? Nightly sync and "Sync now" will stop working.')) return;
+  busy(true);
+  try { drawPanel(await server(install ? 'installLegacySyncTrigger' : 'removeLegacySyncTrigger')); notice(install ? 'Automatic check installed.' : 'Automatic check removed.', 'ok'); }
+  catch (e) { notice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+};
+$('saveInbox').onclick = async () => {
+  busy(true);
+  try { drawDashboard(await server('saveConnection', [$('endpoint').value, $('token').value])); $('token').value = ''; notice('Inbox connection saved.', 'ok'); }
+  catch (e) { notice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+};
+document.querySelectorAll('[data-tool]').forEach((b) => {
+  b.onclick = async () => {
+    const args = b.dataset.noDates ? [] : [$('fromDate').value || null, $('toDate').value || null];
+    busy(true); notice('Working…');
+    try { const r = await server(b.dataset.tool, args); $('toolResult').hidden = false; $('toolResult').textContent = JSON.stringify(r, null, 2); notice(''); }
+    catch (e) { notice('Error: ' + e.message, 'bad'); }
+    finally { busy(false); }
+  };
+});
+
+Promise.all([server('getDashboard'), server('getFinishSyncPanel')])
+  .then(([d, p]) => { drawDashboard(d); drawPanel(p); })
+  .catch((e) => notice('Could not load: ' + e.message, 'bad'));
+</script>
+</body>
+</html>

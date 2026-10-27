@@ -18,6 +18,8 @@
  *                                                  Legacy Sync switch in V2 is on
  *   installLegacySyncTrigger()                     once: polls V2 every 5 minutes (legacySyncTick)
  *   removeLegacySyncTrigger()                      stops the polling
+ * Index.html (the web app page) calls previewFinishSync, importFinishSync, getFinishSyncPanel and
+ * the two trigger functions, plus getDashboard / saveConfig / saveConnection / testSource from Code.gs.
  * The poll runs an import only when V2 says so: once per night, or after "Sync now" in V2.
  */
 const LSF = {
@@ -285,15 +287,30 @@ function legacySyncTick() {
   return importFinishSync(claim.dateFrom, claim.dateTo, claim.reason);
 }
 
-/** Run once from the editor. Replaces any earlier legacySyncTick trigger. */
+/** Run once from the editor (or the Install button in Index.html). Replaces any earlier legacySyncTick trigger. */
 function installLegacySyncTrigger() {
   removeLegacySyncTrigger();
   ScriptApp.newTrigger('legacySyncTick').timeBased().everyMinutes(5).create();
   Logger.log('legacySyncTick will run every 5 minutes.');
+  return getFinishSyncPanel();
 }
 
 function removeLegacySyncTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'legacySyncTick') ScriptApp.deleteTrigger(t);
   });
+  return getFinishSyncPanel();
+}
+
+/** Status for Index.html. Never calls V2: a poll would claim a run. */
+function getFinishSyncPanel() {
+  const p = PropertiesService.getScriptProperties();
+  const today = Utilities.formatDate(new Date(), LSF.timeZone, 'yyyy-MM-dd');
+  return {
+    endpointConfigured: /^https:\/\/[a-z0-9-]+\.supabase\.co\/functions\/v1\/legacy-sync-finish$/.test(String(p.getProperty('LSF_ENDPOINT') || '').trim()),
+    secretConfigured: /^[0-9a-f]{64}$/i.test(String(p.getProperty('LSF_SECRET') || '').trim()),
+    triggerInstalled: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'legacySyncTick'; }),
+    today: today,
+    yesterday: Utilities.formatDate(new Date(Date.parse(today + 'T12:00:00Z') - 86400000), 'UTC', 'yyyy-MM-dd')
+  };
 }
