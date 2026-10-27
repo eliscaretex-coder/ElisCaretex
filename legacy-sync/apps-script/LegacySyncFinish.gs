@@ -18,9 +18,11 @@
  *                                                  Legacy Sync switch in V2 is on
  *   installLegacySyncTrigger()                     once: polls V2 every 5 minutes (legacySyncTick)
  *   removeLegacySyncTrigger()                      stops the polling
- * Index.html (the web app page) calls previewFinishSync, importFinishSync, getFinishSyncPanel and
- * the two trigger functions, plus getDashboard / saveConfig / saveConnection / testSource from Code.gs.
- * The poll runs an import only when V2 says so: once per night, or after "Sync now" in V2.
+ * Index.html (the web app page) calls getFinishSyncPanel, setFinishSyncEnabled, syncFinishNow,
+ * previewFinishSync, importFinishSync and the two trigger functions, plus getDashboard /
+ * saveConfig / saveConnection / testSource from Code.gs.
+ * The poll runs an import only when V2 says so: once per night while the sync is ON.
+ * The ON/OFF switch and "Sync now" are on the web app page (Index.html).
  */
 const LSF = {
   timeZone: 'Europe/Dublin',
@@ -302,15 +304,43 @@ function removeLegacySyncTrigger() {
   return getFinishSyncPanel();
 }
 
-/** Status for Index.html. Never calls V2: a poll would claim a run. */
+/**
+ * Status for Index.html: local settings plus the V2 state (on/off, last runs) through the
+ * signed "control" call. Never sends "poll": a poll would claim a run.
+ */
 function getFinishSyncPanel() {
   const p = PropertiesService.getScriptProperties();
   const today = Utilities.formatDate(new Date(), LSF.timeZone, 'yyyy-MM-dd');
-  return {
+  const panel = {
     endpointConfigured: /^https:\/\/[a-z0-9-]+\.supabase\.co\/functions\/v1\/legacy-sync-finish$/.test(String(p.getProperty('LSF_ENDPOINT') || '').trim()),
     secretConfigured: /^[0-9a-f]{64}$/i.test(String(p.getProperty('LSF_SECRET') || '').trim()),
     triggerInstalled: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'legacySyncTick'; }),
     today: today,
-    yesterday: Utilities.formatDate(new Date(Date.parse(today + 'T12:00:00Z') - 86400000), 'UTC', 'yyyy-MM-dd')
+    yesterday: Utilities.formatDate(new Date(Date.parse(today + 'T12:00:00Z') - 86400000), 'UTC', 'yyyy-MM-dd'),
+    v2: null,
+    v2Error: null
   };
+  if (panel.endpointConfigured && panel.secretConfigured) {
+    try { panel.v2 = lsfControl_('STATUS'); } catch (e) { panel.v2Error = String(e.message || e); }
+  }
+  return panel;
+}
+
+function lsfControl_(action) {
+  const r = lsfCall_({operation: 'control', action: action, changedBy: 'Apps Script admin page'});
+  if (!r.ok) throw Error(r.error || ('Refused: ' + r.code));
+  return r.result;
+}
+
+/** Index.html switch: ON enables the nightly sync and the imports in V2; OFF stops everything. */
+function setFinishSyncEnabled(on) {
+  lsfControl_(on ? 'ON' : 'OFF');
+  return getFinishSyncPanel();
+}
+
+/** Index.html "Sync now": imports the same window as the nightly run, straight away. */
+function syncFinishNow() {
+  const v2 = lsfControl_('STATUS');
+  if (!v2.auto_enabled) throw Error('The sync is OFF. Turn it on first.');
+  return importFinishSync(v2.date_from, v2.today, 'SYNC_NOW');
 }

@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: on/off and Sync now on the Apps Script page (Prepared)
+
+- Branch / commits: `claude/legacy-sync-control-in-apps-script`.
+- Why: owner decision, the switch belongs on the Apps Script page, not in V2.
+- Changed: migration `202610270006_legacy_sync_control_from_apps_script.sql` (service-role
+  `integration.legacy_sync_control`; drops the three V2 RPCs from 202610270005); Edge Function
+  `legacy-sync-finish` gains `control`; `LegacySyncFinish.gs` gains `setFinishSyncEnabled`,
+  `syncFinishNow` and a V2 status in `getFinishSyncPanel`; `Index.html` gets the "Sync to V2"
+  card (ON/OFF, Sync now, last runs); the Finish Results panel and its JS/CSS are removed.
+- Database / deploy: nothing applied. Needs the owner: apply the migration, then the Edge
+  Function redeploy, then paste `Index.html` and `LegacySyncFinish.gs` and publish a new version.
+- Validation: 12/12 SQL checks on the local replica; Edge Function handler tests pass (control
+  included); Apps Script harness passes (switch, Sync now window, no poll from the page); page
+  checked at 1000 px and 390 px with a mocked `google.script.run`; validate-repository passes.
+
 ## 2026-10-27 — Claude — Legacy Sync: cleaner Apps Script admin page
 
 - Branch / commits: `claude/legacy-sync-admin-page`.

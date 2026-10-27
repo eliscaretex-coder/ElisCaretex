@@ -1,4 +1,5 @@
 -- ElisCaretex V2 - Validation - 202610270005_legacy_sync_schedule
+-- Superseded by 202610270006, which drops the V2 RPCs used below: run it only before that migration.
 -- One DO block, so it runs the same way in the Supabase SQL Editor, psql or the MCP.
 -- It always ends with an exception, which rolls everything back:
 --   success: ERROR "PASSED: all 22 legacy sync schedule checks (nothing was kept)"

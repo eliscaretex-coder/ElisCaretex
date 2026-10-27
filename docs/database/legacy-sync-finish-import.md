@@ -271,11 +271,27 @@ Owner request 2026-10-27: sync every night, with a switch and a "Sync now" butto
   refused (55000) while OFF.
 - Edge Function operation `poll`; Apps Script `legacySyncTick` (5-minute trigger) opens the run
   before reading the sheets, so a sheet error shows as FAILED in V2.
-- Panel "Legacy sheet sync" on Finish Results, shown only when the status RPC succeeds.
+- Panel "Legacy sheet sync" on Finish Results, shown only when the status RPC succeeds
+  (removed by `202610270006`, see below).
 - Validation: `supabase/tests/202610270005_legacy_sync_schedule_validation.sql` (22 checks,
   passed on the local replica and on the live project, run by the owner in the SQL Editor).
 - Live state 2026-10-27 17:48: Edge Function v4 deployed, Apps Script trigger installed and
   polling every 5 minutes, sync OFF until the owner turns it on in V2.
+
+## Control moved to the Apps Script page (Prepared, migration `202610270006`)
+
+Owner decision 2026-10-27: the switch and "Sync now" belong on the Apps Script page, not in V2.
+
+- `integration.legacy_sync_control(action, changed_by)`, service_role only (refuses any
+  `auth.uid()`): `STATUS` returns the state, the 3-day window and the last 8 runs; `ON` / `OFF`
+  switch the schedule and both import switches together (ON sets limit 300).
+- The three V2 RPCs and `integration.legacy_sync_require_admin()` are dropped; the Finish Results
+  panel is removed. The nightly claim is unchanged; "Sync now" runs the import directly from the
+  page (`syncFinishNow`), labelled `SYNC_NOW` in the run history.
+- Edge Function operation `control`. Validation:
+  `supabase/tests/202610270006_legacy_sync_control_from_apps_script_validation.sql` (12 checks,
+  passed on the local replica). The 202610270005 validation file uses the dropped RPCs and no
+  longer applies after this migration.
 
 ## Still open
 
