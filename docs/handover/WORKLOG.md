@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Production map: click opens only that customer on the Route board
+
+- Branch / commits: `claude/production-map-customer-focus`, Pull Request into `master`
+- Changed: in the Production map, a customer already in Sorting or processed (border or fill)
+  opens that day on the Route board showing only that customer (matched by customer id, no
+  longer the free-text search, which also matched other customers whose data contained the
+  name). A banner shows "Showing only <customer>" with "Back to map" and "Show all customers".
+  Grey (not started) customers are not clickable. Filters return to normal when the user leaves
+  the customer (banner buttons, another view, another day, History) and on every visit to the
+  page (search/status/type reset, including when the browser restores form values on Back).
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright with the stubbed Supabase client
+  and the 19–24 Oct 2026 flow items: focus shows 1 customer, Show all / Back to map / day card
+  clear it, leaving and coming back with Back resets search and type filters, no console errors.
+  Not validated against the live RPC with a signed-in user.
+- Open / next: none.
+
 ## 2026-10-27 — Claude — Legacy Sync: identity foundation and historical Finish importer (Prepared)
 
 - Branch / commits: `claude/legacy-sync-finish-import`, Pull Request into `master`.

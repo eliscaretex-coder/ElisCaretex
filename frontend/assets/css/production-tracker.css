@@ -157,3 +157,6 @@ body.production-tracker-page{margin:0;background:linear-gradient(180deg,#eaf2f8 
 .production-tracker-map-swatch.extra{border-style:dashed;border-color:#94a3b8}
 .production-tracker-route-actions[hidden]{display:none}
 .production-tracker-map-day{scroll-margin-top:72px}
+.production-tracker-map-box.static{cursor:default}.production-tracker-map-box.static:hover{filter:none}
+.production-tracker-focus-banner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:9px 12px;border:1px solid #99e0dc;border-radius:10px;background:#effbfa;color:#0f766e;font-size:.8rem}.production-tracker-focus-banner strong{color:#0f172a}.production-tracker-focus-banner em{color:#475569;font-style:normal}
+.production-tracker-focus-banner button{padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#26384b;font-size:.72rem;font-weight:900;cursor:pointer}.production-tracker-focus-banner [data-focus-map]{margin-left:auto}
