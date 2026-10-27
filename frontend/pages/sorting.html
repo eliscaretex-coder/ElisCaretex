@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
   <link rel="stylesheet" href="../assets/css/sorting.css">
-  <link rel="stylesheet" href="../assets/css/production-tracker.css?v=20261026-1">
+  <link rel="stylesheet" href="../assets/css/production-tracker.css?v=20261027-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
@@ -18,7 +18,7 @@
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="SORTING" defer></script>
   <script src="../assets/js/production-station-kiosk.js" defer></script>
-  <script src="../assets/js/production-tracker.js?v=20261026-1" defer></script>
+  <script src="../assets/js/production-tracker.js?v=20261027-1" defer></script>
   <script src="../assets/js/sorting.js?v=20261022-1" defer></script>
 </head>
 <body class="sorting-page" data-production-station-area="SORTING">
@@ -320,7 +320,7 @@
                 </div>
                 <div class="production-tracker-filters">
                   <input id="productionTrackerSearch" type="search" placeholder="Search customer, trolley, washer, ABS..." autocomplete="off">
-                  <select id="productionTrackerStatusFilter">
+                  <select id="productionTrackerStatusFilter" autocomplete="off">
                     <option value="">All statuses</option>
                     <option value="NOT_STARTED">Not started</option>
                     <option value="WASHED_ONLY">Washed</option>
@@ -328,7 +328,7 @@
                     <option value="TRACKER_OK">Tracker OK</option>
                     <option value="IN_PROGRESS">In progress</option>
                   </select>
-                  <select id="productionTrackerTypeFilter">
+                  <select id="productionTrackerTypeFilter" autocomplete="off">
                     <option value="">CLOTHES + MOP</option>
                     <option value="CLOTHES">CLOTHES only</option>
                     <option value="MOP">MOP only</option>
