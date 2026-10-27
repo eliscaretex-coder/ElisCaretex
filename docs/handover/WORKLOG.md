@@ -80,6 +80,29 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: pending records and owner choices on the Apps Script page (Prepared)
+
+- Changed: owner asked to see each record the sync holds and keep his choice. New "Pending"
+  card on `Index.html`: each open review item with the reason, the detail and where to fix it
+  (sheet and tab); items that only wait for another part are shown as waiting. Two choices,
+  with an optional note: "Will fix in the sheet" (`FIX_IN_SOURCE`, status APPROVED) and "Do not
+  import" (`NOT_IMPORTED`, status REJECTED); kept with who (Apps Script user e-mail), when and the
+  record fingerprint. `legacy_sync_hold_for_review` no longer raises the same item for a decided
+  version; a changed legacy row is read again. Reading the list closes open items whose record
+  was imported later (SUPERSEDED, `IMPORTED_LATER`). Edge Function gains `review_list` and
+  `review_decide`; `LegacySyncFinish.gs` gains `getLegacySyncReviews` / `decideLegacySyncReview`.
+- Database: `202610270014_legacy_sync_pending_review.sql` prepared, not applied. Migrations
+  0012 and 0013 were applied by the owner.
+- Validation: `supabase/tests/202610270014_legacy_sync_pending_review_validation.sql` 8/8 on the
+  local replica; Edge Function request shapes 8/8 (Node, types stripped); page rendered with
+  stub data in Chromium.
+- First live sync (owner, 2026-10-27 20:59, SYNC_NOW, 25-27 Oct): registers 930 ADOPTED, washes
+  85 IMPORTED, attendance 69 IMPORTED and 1 held (Belen Vas 26/10, `WORK_OVER_13_HOURS`);
+  stopped at the 5-minute budget. Open items at 21:50: 10 MOP waiting for 24/10 washes (outside
+  the 3-day window), 8 trolleys waiting for MOP, ReWash 0.012 kg, Belen Vas.
+- Open / next: owner applies 0014 and its test, approves Edge Function v7, publishes the new
+  `.gs` and `Index.html`.
+
 ## 2026-10-27 — Claude — Legacy Sync: Ryotaro is one person under legacy users 111 and 112 (Prepared)
 
 - Changed: owner confirmed that legacy user 111 "Ryotaro" (deactivated 2026-10-24) and 112
