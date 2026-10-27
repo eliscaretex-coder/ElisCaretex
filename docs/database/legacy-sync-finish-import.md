@@ -1,11 +1,10 @@
 # Legacy sync: Finish import
 
-Status (2026-10-27): `202610260002`, `202610270001`, `202610270002` and `202610270003`
-**Applied** to `ElisCaretex-dev` by the owner and **Validated** there with the rolled-back test
-files (`202610270003`: 51/51 on the live project). `202610270004` (EntryID match in the notes of
-the workbook import) is **Prepared**: validated on a local replica (8/8) and previewed on the
-live project inside a rolled-back transaction; not yet applied. Both import switches are OFF.
-No import has run.
+Status (2026-10-27): `202610260002`, `202610270001`, `202610270002`, `202610270003` and
+`202610270004` **Applied** to `ElisCaretex-dev` by the owner and **Validated** there with the
+rolled-back test files (`202610270003`: 51/51, `202610270004`: 8/8 on the live project). With
+`202610270004` applied, the 24 entries of 2026-10-24 morning plan as 21 ADOPT and
+3 ADOPT_AND_UPDATE, no blockers. Both import switches are OFF. No import has run.
 
 The sync is temporary. When the legacy apps stop, keep the imported production data and remove
 the sync scaffolding (owner, 2026-10-27).
@@ -228,7 +227,7 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 
 1. Done 2026-10-27: `202610260002`, `202610270001`, `202610270002` applied and validated.
 2. Done 2026-10-27: `202610270003` applied and validated; dry run 24-27 October (above).
-3. Apply `202610270004`; run its validation file and repeat the NORMAL dry run.
+3. Done 2026-10-27: `202610270004` applied, validated, NORMAL dry run repeated.
 4. Edge Function for Apps Script (HMAC-signed requests; calls only the functions above).
 5. Owner enables a switch (limit 3), opens a `COMMIT` run, imports 1 to 3 records, closes the
    run, turns the switch off again, and checks the result.
