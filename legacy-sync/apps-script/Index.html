@@ -64,7 +64,7 @@
 <div class="wrap">
   <header>
     <h1>ElisCaretex Legacy Sync</h1>
-    <p>Copies the legacy Finish sheets into V2 every night while the sync is ON.</p>
+    <p>Copies the legacy sheets into V2 every night while the sync is ON.</p>
   </header>
 
   <section class="card">
@@ -110,7 +110,7 @@
 
   <section class="card">
     <h2>Source spreadsheets</h2>
-    <p class="small muted">Spreadsheet IDs, not Apps Script project IDs. The Finish sync uses <b>finish</b> and <b>central</b>.</p>
+    <p class="small muted">Spreadsheet IDs, not Apps Script project IDs. Washes use <b>sorting</b> and <b>central</b>; Finish and ReWash use <b>finish</b> and <b>central</b>.</p>
     <div id="sources"></div>
     <div class="row" style="margin-top:10px"><button id="saveSources" type="button">Save spreadsheets</button></div>
   </section>
@@ -186,8 +186,7 @@ function group(title, counts, held, refusal) {
   keys.forEach((k) => row.appendChild(pill(k, counts[k])));
   box.appendChild(row);
   const notes = (held || []).map((x) => x.id + ': ' + (x.blockers || []).join('; '));
-  if (refusal) notes.unshift(refusal === 'Legacy Finish historical import is disabled.' || refusal === 'Legacy HOUSEHOLD ReWash import is disabled.'
-    ? 'Not written: the sync is OFF in V2.' : refusal);
+  if (refusal) notes.unshift(refusal.replace(/Legacy [^.]* is disabled\./, 'Not written: this part is OFF in V2.'));
   if (notes.length) {
     const ul = document.createElement('ul');
     ul.className = 'held';
@@ -203,12 +202,14 @@ function showResult(result) {
   if (result.error) notice('Stopped: ' + result.error, 'bad');
   if (result.mode === 'DRY_RUN') {
     const s = result.summary || {};
-    out.appendChild(group('Finish (' + ((s.normal || {}).records || 0) + ' records)', (s.normal || {}).outcomes, (s.normal || {}).held));
-    out.appendChild(group('ReWash (' + ((s.rewash || {}).records || 0) + ' records)', (s.rewash || {}).outcomes, (s.rewash || {}).held));
+    PARTS.forEach(([key, name]) => {
+      const part = s[key] || {};
+      out.appendChild(group(name + ' (' + (part.records || 0) + ' records)', part.outcomes, part.held, (part.notes || []).join(' ')));
+    });
   } else {
-    const r = result.results || {};
-    out.appendChild(group('Finish', r.normal, (result.plan && result.plan.normal || {}).held, (r.normal || {}).refusal));
-    out.appendChild(group('ReWash', r.rewash, (result.plan && result.plan.rewash || {}).held, (r.rewash || {}).refusal));
+    const r = result.results || {}, plan = result.plan || {};
+    PARTS.forEach(([key, name]) => out.appendChild(group(name, r[key], (plan[key] || {}).held,
+      [(r[key] || {}).refusal].concat((plan[key] || {}).notes || []).filter(Boolean).join(' '))));
     if (result.stopped === 'TIME_BUDGET') notice('Stopped after 5 minutes. Run it again to continue.', 'warn');
   }
   $('raw').textContent = JSON.stringify(result, null, 2);
@@ -238,6 +239,10 @@ async function importNow() {
   finally { busy(false); }
 }
 
+// Parts of the sync, in the order they run (LSF.parts in LegacySyncFinish.gs).
+const PARTS = [['wash', 'Washes'], ['normal', 'Finish'], ['rewash', 'ReWash']];
+const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash'};
+
 const RESULT_LABELS = {IMPORTED: 'new', UPDATED: 'updated', ADOPTED: 'matched', ADOPTED_AND_UPDATED: 'matched + updated', BLOCKED: 'to review', RUN_LIMIT_REACHED: 'run limit'};
 
 function when(v) {
@@ -252,7 +257,7 @@ function runResult(summary) {
   if (!summary) return '';
   if (summary.error) return 'Error: ' + summary.error;
   const results = summary.results || {};
-  return [['normal', 'Finish'], ['rewash', 'ReWash']].map(([key, name]) => {
+  return PARTS.map(([key, name]) => {
     const counts = results[key] || {};
     const parts = Object.keys(counts).filter((k) => k !== 'refusal' && Number(counts[k]) > 0)
       .map((k) => counts[k] + ' ' + (RESULT_LABELS[k] || (k.indexOf('REFUSED_') === 0 ? 'refused' : k.toLowerCase())));
@@ -277,17 +282,21 @@ function drawSync(p) {
     return;
   }
   const on = Boolean(v2.auto_enabled);
+  // A part added later starts OFF: while any part is off, the button turns everything on.
+  const offParts = Object.keys(v2.imports || {}).filter((k) => !v2.imports[k]).map((k) => IMPORT_NAMES[k] || k);
+  const allOn = on && !offParts.length;
   $('syncState').textContent = on ? 'ON' : 'OFF';
   $('syncState').className = 'state' + (on ? ' on' : '');
-  $('syncToggle').textContent = on ? 'Turn off' : 'Turn on';
-  $('syncToggle').className = on ? 'danger' : '';
+  $('syncToggle').textContent = allOn ? 'Turn off' : on ? 'Turn on ' + offParts.join(', ') : 'Turn on';
+  $('syncToggle').className = allOn ? 'danger' : '';
   $('syncNow').className = on ? '' : 'secondary';
   const seen = v2.last_poll_at ? Math.round((Date.now() - new Date(v2.last_poll_at).getTime()) / 60000) : null;
   $('syncInfo').textContent = (on
     ? 'Every night between ' + v2.night_from + ' and ' + v2.night_until + ' (Dublin), last ' + v2.window_days + ' days. '
     : 'OFF: nothing is copied to V2. ')
     + (seen === null ? 'The automatic check has not run yet.' : 'Last automatic check ' + (seen < 1 ? 'less than a minute' : seen + ' min') + ' ago.')
-    + ' ' + Number(v2.open_review_items || 0) + ' record(s) waiting for review.';
+    + ' ' + Number(v2.open_review_items || 0) + ' record(s) waiting for review.'
+    + (on && offParts.length ? ' Not copied yet: ' + offParts.join(', ') + '.' : '');
   const runs = v2.runs || [];
   $('runs').innerHTML = '';
   if (!runs.length) return;
@@ -369,7 +378,8 @@ $('saveSources').onclick = () => saveConfig('Spreadsheets saved.');
 $('master').onchange = () => saveConfig($('master').checked ? 'The sheets can be read.' : 'Reading the sheets is blocked.');
 $('daily').onchange = () => saveConfig('Saved.');
 $('syncToggle').onclick = async () => {
-  const on = !(panel.v2 && panel.v2.auto_enabled);
+  const v2 = panel.v2 || {};
+  const on = !(v2.auto_enabled && Object.keys(v2.imports || {}).every((k) => v2.imports[k]));
   if (!on && !confirm('Turn the sync off? Nothing will be copied to V2 until it is turned on again.')) return;
   busy(true); syncNotice(on ? 'Turning on…' : 'Turning off…');
   try { drawPanel(await server('setFinishSyncEnabled', [on])); syncNotice(on ? 'Sync is ON. It runs every night.' : 'Sync is OFF.', 'ok'); }

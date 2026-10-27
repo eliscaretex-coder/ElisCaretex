@@ -297,6 +297,40 @@ Owner decision 2026-10-27: the switch and "Sync now" belong on the Apps Script p
   (Finish 5 IMPORTED; ReWash 3 IMPORTED, 1 BLOCKED = the known 0.012 kg record, no duplicate
   review item). From now on the sync runs every night 02:00-05:00 Dublin.
 
+## Sorting washes (Prepared 2026-10-27, migration `202610270007`)
+
+Owner decisions 2026-10-27: everything the legacy apps still record goes to V2 through the
+nightly sync, as if the team typed it in V2; trolley custody follows the legacy sheets; master
+data still lives in the legacy sheets. Washes are the first part; MOP production, trolley
+reception and custody, attendance and master data follow, one migration each.
+
+- Source per call: one `Sorting Area` row (WashID, START TIME, REGISTER TIME, MACHINE, WHO,
+  Type, KG), its CentralDB `WashItems` (one per customer: CustomerID, ScheduledDate, KGShare),
+  the operator's shifts that day from the Sorting `Staff` sheet and the operator's legacy
+  `UserID` from CentralDB `User` (name match, unique only).
+- Writes what `save_sorting_wash_run_v2` writes: a `sorting_wash_runs` row (wash_code = WashID,
+  source `LEGACY_SYNC_SORTING`) and one `sorting_wash_run_customers` row per customer with the
+  published schedule snapshot of the legacy scheduled date. The existing triggers split the
+  weight, link each customer to its Production Flow (the same customer + product + scheduled
+  date key as the Finish importer) and append `WASH_RECORDED`.
+- Shift: the operator's `Staff` sheet shift; otherwise the clock (before 14:00 Morning, else
+  Evening; up to 03:00 the previous Evening). Type OTHERS is CLOTHES. LATE_ENTRY when
+  registered more than 60 minutes after the start.
+- A changed legacy load becomes a V2 correction (old run CANCELLED, new CORRECTION run
+  `WashID-R2`...). Runs of the 2026-10-24 workbook import (wash_code = WashID) are adopted.
+- Review queue instead of the live screen checks: unknown washer, operator or customer, weight
+  over capacity, operator ABSENT in V2 attendance, inactive customer, customer twice in a load
+  with two scheduled dates. Sunday 2026-10-25 skipped; before 2026-10-24 skipped.
+- Switch `SORTING_WASH_IMPORT` (seeded OFF). `legacy_sync_control` ON/OFF now switch every
+  import switch; STATUS lists them under `imports`. Edge Function operations `dry_run` and
+  `import` with a `kind` go through `legacy_sync_dispatch_dry_run` / `legacy_sync_dispatch_import`.
+- Validation: `supabase/tests/202610270007_legacy_sync_sorting_washes_validation.sql`
+  (16 checks, passed on the local replica). Dry run of the real Sorting workbook (24-27 October,
+  147 loads) on the local replica: shifts all from the Staff sheet; the operator
+  "Ryotaro Kawauchi" (legacy UserID 112) has no V2 staff member yet (V2 has "Ryotaro", legacy
+  111): held for review until the staff master part, owner to confirm whether they are the
+  same person.
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

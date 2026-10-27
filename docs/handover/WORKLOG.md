@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: Sorting washes join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes`
+- Changed: owner decisions 2026-10-27 — everything the legacy apps record must reach V2 through
+  the sync, as if typed in V2; trolley custody follows the legacy sheets; master data is still
+  edited in the legacy sheets, so it will be synced too. First part: Sorting washes
+  (`Sorting Area` + CentralDB `WashItems` + Sorting `Staff`), written like
+  `save_sorting_wash_run_v2` with schedule snapshot, Production Flow link and corrections.
+  Generic `dry_run` / `import` Edge Function operations with a database dispatcher, so later
+  parts need no new deploy. Control ON/OFF switches every part. Apps Script page shows Washes.
+- Database: `202610270007_legacy_sync_sorting_washes.sql` prepared, not applied.
+- Validation: `supabase/tests/202610270007_legacy_sync_sorting_washes_validation.sql` 16/16 on
+  the local replica; 0006 control test still 12/12; Deno handler tests; Apps Script collector run
+  on the real Sorting workbook (147 loads 24-27 Oct, all shifts from the Staff sheet).
+- Open / next: owner applies 0007 and runs the test, approves the Edge Function deploy, replaces
+  `LegacySyncFinish.gs` and `Index.html`, enables the `sorting` source, previews, then presses
+  "Turn on Washes". Owner to confirm whether "Ryotaro Kawauchi" (legacy 112) is V2 "Ryotaro".
+  Next parts: MOP production, trolley reception/custody, attendance, master data and rosters.
+
 ## 2026-10-27 — Claude — Legacy Sync: switched ON from the Apps Script page, first Sync now
 
 - Branch / commits: `claude/legacy-sync-live-record` (docs only).

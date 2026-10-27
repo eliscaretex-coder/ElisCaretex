@@ -10,6 +10,7 @@ const MAX_BODY_BYTES = 512 * 1024;
 const MAX_CLOCK_SKEW_SECONDS = 300;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const KIND = /^[a-z][a-z_]{0,39}$/;
 // SQLSTATEs raised on purpose by the legacy sync functions: business answers, not server faults.
 const EXPECTED_SQLSTATES = new Set(["22023", "23505", "23514", "40001", "42501", "55000", "P0002"]);
 
@@ -78,11 +79,22 @@ export function plan(body: Record<string, unknown>): { fn: string; args: Record<
       const args = oneRecord(body);
       return args && { fn: "legacy_sync_import_rewash_cell", args };
     }
+    case "dry_run": {
+      // Generic parts of the sync (wash, and later ones): the database dispatcher picks the function.
+      const records = recordList(body, 60);
+      if (typeof body.kind !== "string" || !KIND.test(body.kind)) return null;
+      return records && { fn: "legacy_sync_dispatch_dry_run", args: { p_kind: body.kind, p_records: records } };
+    }
+    case "import": {
+      const args = oneRecord(body);
+      if (typeof body.kind !== "string" || !KIND.test(body.kind)) return null;
+      return args && { fn: "legacy_sync_dispatch_import", args: { p_kind: body.kind, ...args } };
+    }
     case "poll":
       // Asks the schedule whether to run now (nightly or "Sync now"); claims at most one run.
       return { fn: "legacy_sync_claim_run", args: {} };
     case "control": {
-      // Apps Script admin page: STATUS, or ON / OFF for the schedule and both import switches.
+      // Apps Script admin page: STATUS, or ON / OFF for the schedule and every import switch.
       const action = String(body.action || "").toUpperCase();
       const changedBy = typeof body.changedBy === "string" ? body.changedBy.trim() : "";
       if (!["STATUS", "ON", "OFF"].includes(action)) return null;
