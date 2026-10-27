@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: sender deployed, first signed dry run and 3-record pilot
+
+- Branch / commits: `claude/legacy-sync-sender-fix`.
+- Changed: `LegacySyncFinish.gs` no longer calls `Session.getEffectiveUser` (the project lacks the
+  userinfo.email scope; the first pilot attempt stopped before opening a run, nothing written).
+  Runbook in `docs/database/legacy-sync-finish-import.md` updated.
+- Database: Edge Function `legacy-sync-finish` deployed (v2, JWT verification off) on the owner's
+  approval; secret `LEGACY_SYNC_HMAC_SECRET` set by the owner. Pilot on the owner's approval:
+  `FINISH_HISTORICAL_IMPORT` enabled with limit 3, run `c73c15ac-…`: 3 entries ADOPTED, then
+  `RUN_LIMIT_REACHED`; switch OFF again. ReWash switch never enabled.
+- Validation: unsigned calls get 401; signed dry run 24-27 October from the Apps Script
+  (138 NORMAL READY, ReWash 13 READY + 1 BLOCKED); after the pilot: 1 COMPLETED run, 9 links
+  (3 entry, 3 line, 3 wash item), 3 `ADOPT_LEGACY_FINISH_ENTRY` audit rows, 0 new Finish rows,
+  0 review items, adopted entries still revision 1 ACTIVE.
+- Open / next: owner decides the next run (remaining Finish entries, then ReWash); the 0.012 kg
+  ReWash line still needs correcting in the sheet.
+
 ## 2026-10-27 — Claude — Legacy Sync: Edge Function and Apps Script sender for Finish (Prepared)
 
 - Branch / commits: `claude/legacy-sync-edge-function`, Pull Request into `master`.

@@ -231,11 +231,15 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 1. Done 2026-10-27: `202610260002`, `202610270001`, `202610270002` applied and validated.
 2. Done 2026-10-27: `202610270003` applied and validated; dry run 24-27 October (above).
 3. Done 2026-10-27: `202610270004` applied, validated, NORMAL dry run repeated.
-4. Prepared 2026-10-27: Edge Function `legacy-sync-finish` and Apps Script sender
-   `LegacySyncFinish.gs` (`legacy-sync/README.md`). Owner sets the secret, deploys, runs
-   `previewFinishSync`.
-5. Owner enables a switch (limit 3), opens a `COMMIT` run, imports 1 to 3 records, closes the
-   run, turns the switch off again, and checks the result.
+4. Done 2026-10-27: Edge Function `legacy-sync-finish` deployed (v2, JWT verification off,
+   owner-approved) with the owner's `LEGACY_SYNC_HMAC_SECRET`; Apps Script `LegacySyncFinish.gs`
+   installed. First signed dry run 24-27 October: NORMAL 138 READY (114 CREATE, 21 ADOPT,
+   3 ADOPT_AND_UPDATE); ReWash 13 READY, 1 BLOCKED (0.012 kg line).
+5. Done 2026-10-27: pilot. `FINISH_HISTORICAL_IMPORT` enabled with limit 3, run
+   `c73c15ac-4078-4ac2-9feb-abc6268d45e3`: 3 workbook entries of 2026-10-24 morning ADOPTED
+   (links and audit rows only, no new Finish rows), stopped at `RUN_LIMIT_REACHED`, run
+   COMPLETED, switch OFF again.
+6. Next (owner decides): the remaining Finish entries, then ReWash.
 
 To withdraw an imported entry, do not delete it: use a reviewed cancellation (status
 `CANCELLED` plus an audit row). The links stay as history.
@@ -244,7 +248,6 @@ To withdraw an imported entry, do not delete it: use a reviewed cancellation (st
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic
   "still present" check from the sender, or an owner decision.
-- Deploy and first signed dry run of `legacy-sync-finish` (owner).
 - Repository copy of the live-only `integration.legacy_inbox` and
   `staging.apps_script_incremental_rows` (`legacy-sync-ingest` is now copied in
   `supabase/functions/legacy-sync-ingest/`).
