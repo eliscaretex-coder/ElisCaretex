@@ -5,14 +5,18 @@
 -- Owner decisions of 2026-10-27 (Paulo Bressan) for the legacy Finish sync:
 --   * legacy HOUSEHOLD Finish entries are ReWash. They are imported into the
 --     existing ReWash ledger (finish_rewash_entries / finish_rewash_lines),
---     never into finish_production_entries, so they never count as official
---     Clothes KG;
---   * legacy rows with a Sunday business date are test data and are skipped.
+--     never into finish_production_entries. ReWash is production, counted
+--     separately per table and shift; it is not added to a customer's Clothes
+--     flow KG;
+--   * every legacy row of Sunday 2026-10-25 is owner test data and is skipped.
+--     Other Sundays are real (occasional catch-up) production: imported as
+--     usual, with a SUNDAY_PRODUCTION warning.
 --
 -- Changes:
 --   1. legacy_sync_record_links accepts FINISH_ENTRY_TO_REWASH_LINE links.
 --   2. New switch FINISH_REWASH_HISTORICAL_IMPORT, seeded OFF, pilot limit 3 cells.
---   3. legacy_sync_plan_finish_entry: Sunday -> SKIPPED, HOUSEHOLD -> REWASH_ROUTE.
+--   3. legacy_sync_plan_finish_entry: 2026-10-25 -> SKIPPED, other Sundays -> warning
+--      instead of the SUNDAY_PRODUCTION_REVIEW blocker, HOUSEHOLD -> REWASH_ROUTE.
 --      The rest of the body is unchanged from 202610270001.
 --   4. legacy_sync_finish_dry_run: also counts SKIPPED and REWASH_ROUTE.
 --   5. legacy_sync_plan_household_rewash (read-only) and
@@ -61,7 +65,7 @@ values ('FINISH_REWASH_HISTORICAL_IMPORT', false, 3, 'migration 202610270002',
 on conflict (setting_key) do nothing;
 
 -- ---------------------------------------------------------------------
--- 3. Planner for NORMAL entries (Sunday skip, HOUSEHOLD routed to ReWash)
+-- 3. Planner for NORMAL entries (test day skipped, HOUSEHOLD routed to ReWash)
 -- ---------------------------------------------------------------------
 create or replace function integration.legacy_sync_plan_finish_entry(p_record jsonb)
 returns jsonb
@@ -147,11 +151,11 @@ begin
         'The legacy entry changed after it was imported. A correction needs an explicit decision.'));
   end if;
 
-  -- Owner decision 2026-10-27: legacy Sunday rows are test data and are never imported.
+  -- Owner decision 2026-10-27: every legacy row of Sunday 2026-10-25 was a test.
   v_business := integration.legacy_sync_parse_date(integration.legacy_sync_text(v_entry,'BusinessDate'));
-  if v_business is not null and extract(isodow from v_business) = 7 then
+  if v_business = date '2026-10-25' then
     return jsonb_build_object('outcome','SKIPPED','source_record_id',v_id,'fingerprint',v_fp,
-      'skip_reason','SUNDAY_TEST_DATA','blockers','[]'::jsonb,'warnings','[]'::jsonb);
+      'skip_reason','OWNER_TEST_DAY','blockers','[]'::jsonb,'warnings','[]'::jsonb);
   end if;
 
   -- Entry type: NORMAL is imported here. HOUSEHOLD is ReWash (owner decision 2026-10-27)
@@ -204,6 +208,9 @@ begin
     v_blockers := v_blockers || integration.legacy_sync_issue('INVALID_BUSINESS_DATE', integration.legacy_sync_text(v_entry,'BusinessDate'));
   elsif v_business > (now() at time zone 'Europe/Dublin')::date then
     v_blockers := v_blockers || integration.legacy_sync_issue('BUSINESS_DATE_IN_FUTURE', v_business::text);
+  elsif extract(isodow from v_business) = 7 then
+    -- Sunday production is rare (catch-up or advance work) but real.
+    v_warnings := v_warnings || integration.legacy_sync_issue('SUNDAY_PRODUCTION', v_business::text);
   end if;
   if v_scheduled is not null then
     v_delivery := public.next_distribution_business_date(v_scheduled);
@@ -702,11 +709,11 @@ begin
       continue;
     end if;
 
-    -- Owner decision 2026-10-27: Sunday rows are test data.
+    -- Owner decision 2026-10-27: every legacy row of Sunday 2026-10-25 was a test.
     v_business := integration.legacy_sync_parse_date(integration.legacy_sync_text(v_entry,'BusinessDate'));
-    if v_business is not null and extract(isodow from v_business) = 7 then
+    if v_business = date '2026-10-25' then
       v_plans := v_plans || jsonb_build_array(jsonb_build_object('outcome','SKIPPED','source_record_id',v_id,
-        'fingerprint',v_fp,'skip_reason','SUNDAY_TEST_DATA','blockers','[]'::jsonb,'warnings','[]'::jsonb));
+        'fingerprint',v_fp,'skip_reason','OWNER_TEST_DAY','blockers','[]'::jsonb,'warnings','[]'::jsonb));
       continue;
     end if;
 
@@ -732,6 +739,8 @@ begin
       v_blockers := v_blockers || integration.legacy_sync_issue('INVALID_BUSINESS_DATE', integration.legacy_sync_text(v_entry,'BusinessDate'));
     elsif v_business > (now() at time zone 'Europe/Dublin')::date then
       v_blockers := v_blockers || integration.legacy_sync_issue('BUSINESS_DATE_IN_FUTURE', v_business::text);
+    elsif extract(isodow from v_business) = 7 then
+      v_warnings := v_warnings || integration.legacy_sync_issue('SUNDAY_PRODUCTION', v_business::text);
     end if;
 
     v_recorded_at := integration.legacy_sync_parse_instant(integration.legacy_sync_text(v_entry,'CreatedAt'));
@@ -982,7 +991,7 @@ $$;
 
 -- ---------------------------------------------------------------------
 -- 7. ReWash importer: the legacy HOUSEHOLD rows of ONE Finish cell per call,
---    one transaction. Sunday rows in the call are recorded as skipped.
+--    one transaction. Rows of the 2026-10-25 test day are recorded as skipped.
 -- ---------------------------------------------------------------------
 create or replace function integration.legacy_sync_import_household_rewash(
   p_sync_run_id uuid,
@@ -1070,7 +1079,7 @@ begin
         raw, status, decision, decided_by, decided_at, sync_run_id)
       values (c_system, c_table, v_item.plan->>'source_record_id', v_item.plan->>'skip_reason',
         jsonb_build_object('record', v_item.rec, 'fingerprint', v_item.plan->>'fingerprint'),
-        'REJECTED', jsonb_build_object('action','NOT_IMPORTED','rule','Sunday legacy rows are test data.'),
+        'REJECTED', jsonb_build_object('action','NOT_IMPORTED','rule','All legacy rows of Sunday 2026-10-25 were owner tests.'),
         'Owner decision 2026-10-27', now(), p_sync_run_id);
     elsif v_item.plan->>'outcome' = 'BLOCKED' and v_item.plan->>'source_record_id' is not null then
       for v_blocker in select value from jsonb_array_elements(coalesce(v_item.plan->'blockers','[]'::jsonb)) loop
@@ -1153,7 +1162,7 @@ grant execute on function integration.legacy_sync_plan_household_rewash(jsonb) t
 grant execute on function integration.legacy_sync_import_household_rewash(uuid,jsonb) to service_role;
 
 comment on function integration.legacy_sync_plan_household_rewash(jsonb) is
-  'Read-only plan for up to 60 legacy HOUSEHOLD Finish rows as ReWash: per-row blockers, Sunday skips and READY Finish cells. Writes nothing.';
+  'Read-only plan for up to 60 legacy HOUSEHOLD Finish rows as ReWash: per-row blockers, test-day skips and READY Finish cells. Writes nothing.';
 comment on function integration.legacy_sync_import_household_rewash(uuid,jsonb) is
   'Imports the legacy HOUSEHOLD rows of one Finish cell as one new ReWash entry, inside an open COMMIT run, when FINISH_REWASH_HISTORICAL_IMPORT is enabled. service_role only.';
 

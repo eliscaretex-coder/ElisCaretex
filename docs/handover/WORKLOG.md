@@ -83,13 +83,15 @@ Entry format:
 ## 2026-10-27 — Claude — Legacy Sync: foundation and Finish importer applied; HOUSEHOLD as ReWash (Prepared)
 
 - Branch / commits: `claude/legacy-sync-rewash-import`, Pull Request into `master`.
-- Changed: owner decisions 2026-10-27: legacy `HOUSEHOLD` Finish entries are ReWash; legacy
-  Sunday rows are test data and are not imported; the sync is temporary (once the legacy apps
+- Changed: owner decisions 2026-10-27: legacy `HOUSEHOLD` Finish entries are ReWash (production
+  counted separately per table and shift); every legacy row of Sunday 2026-10-25 was an owner
+  test and is not imported; other Sundays are real (rare catch-up) production; the sync is temporary (once the legacy apps
   stop, keep the production data and remove the sync scaffolding to save space).
   New `202610270002_legacy_sync_household_rewash_import.sql` (Prepared): link role
   `FINISH_ENTRY_TO_REWASH_LINE`; switch `FINISH_REWASH_HISTORICAL_IMPORT` seeded OFF (limit 3
-  cells per run); the NORMAL planner returns `SKIPPED` for Sunday and `REWASH_ROUTE` for
-  HOUSEHOLD (rest of the body unchanged) and the dry run counts both;
+  cells per run); the NORMAL planner returns `SKIPPED` for 2026-10-25, a `SUNDAY_PRODUCTION`
+  warning (instead of a blocker) for other Sundays, and `REWASH_ROUTE` for HOUSEHOLD (rest of
+  the body unchanged) and the dry run counts both;
   `legacy_sync_plan_household_rewash` (read-only) and `legacy_sync_import_household_rewash`
   (one Finish cell per call → one new ReWash entry with one KG line per legacy row; a cell that
   already has an ACTIVE ReWash entry is held for review, never merged or superseded). The
@@ -106,7 +108,7 @@ Entry format:
   `202610270001` 55/55 (the version on `master`). Security advisor: the only new finding is INFO
   `rls_enabled_no_policy` on the 7 private `integration.legacy_sync_*` tables (by design). On
   the local PostgreSQL 16 copy with all three migrations: `202610260002` 11/11, `202610270001`
-  57/57 (updated file), `202610270002` 38/38, all rolled back.
+  57/57 (updated file), `202610270002` 40/40, all rolled back.
 - Open / next: owner approval to apply `202610270002`; the Finish `Status` value map; the
   remaining owner decisions (two NORMAL entries in one cell, inactive customers, unmapped
   staff, the 3 ambiguous customers and 2 unmapped types); Edge Function for Apps Script.

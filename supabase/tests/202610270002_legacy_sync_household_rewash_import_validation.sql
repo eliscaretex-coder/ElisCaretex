@@ -80,8 +80,8 @@ create temporary table t_fx on commit drop as
 select d.day,
        split_part(d.cells[1],'|',1) as shift1, split_part(d.cells[1],'|',2) as table1,
        split_part(d.cells[2],'|',1) as shift2, split_part(d.cells[2],'|',2) as table2,
-       (select max(gs)::date from generate_series(current_date - 13, current_date - 1, interval '1 day') gs
-        where extract(isodow from gs) = 7) as sunday,
+       (select max(gs)::date from generate_series(current_date - 20, current_date - 1, interval '1 day') gs
+        where extract(isodow from gs) = 7 and gs::date <> date '2026-10-25') as sunday,
        c[1] as cust1, c[2] as cust2
 from t_day d,
 lateral (select array_agg(cu.customer_code order by cu.customer_code) as c
@@ -107,7 +107,8 @@ $$;
 create temporary table t_rec on commit drop as
 select 'R1'::text as k, pg_temp.hh('TEST-RW-1', day, '09:10', shift1, table1, cust1, '12.50', 'TESTRW-001') as rec from t_fx
 union all select 'R2', pg_temp.hh('TEST-RW-2', day, '10:40', shift1, table1, cust2, '7') from t_fx
-union all select 'R3', pg_temp.hh('TEST-RW-3', sunday, '11:00', shift1, table1, cust1, '3') from t_fx
+union all select 'R3', pg_temp.hh('TEST-RW-3', date '2026-10-25', '11:00', shift1, table1, cust1, '3') from t_fx
+union all select 'R9', pg_temp.hh('TEST-RW-9', sunday, '11:00', shift1, table1, cust1, '3') from t_fx
 union all select 'R4', pg_temp.hh('TEST-RW-4', day, '12:00', shift2, table2, cust1, '5', null, '2') from t_fx
 union all select 'R6', pg_temp.hh('TEST-RW-6', day, '12:30', shift1, table1, cust2, '4', null, '1') from t_fx
 union all select 'R7', pg_temp.hh('TEST-RW-7', day, '13:00', shift1, table1, cust2, '6', 'TESTRW-007') from t_fx
@@ -139,11 +140,19 @@ create function pg_temp.footprint() returns jsonb language sql as $$
 $$;
 
 -- ---------------------------------------------------------------------
--- 3. NORMAL planner: Sunday skipped, HOUSEHOLD routed
+-- 3. NORMAL planner: the 2026-10-25 test day skipped, other Sundays kept,
+--    HOUSEHOLD routed
 -- ---------------------------------------------------------------------
 select pg_temp.check(integration.legacy_sync_plan_finish_entry(
-         jsonb_set(jsonb_set(pg_temp.rec('R3'),'{entry,EntryType}','"NORMAL"'),'{entry,WashItemID}','"TEST-WI-SUN"'))->>'outcome' = 'SKIPPED',
-  'a NORMAL Sunday row is SKIPPED as test data');
+         jsonb_set(jsonb_set(pg_temp.rec('R3'),'{entry,EntryType}','"NORMAL"'),'{entry,WashItemID}','"TEST-WI-SUN"'))->>'skip_reason' = 'OWNER_TEST_DAY',
+  'a NORMAL row of 2026-10-25 is SKIPPED as the owner test day');
+create temporary table t_sun on commit drop as
+select integration.legacy_sync_plan_finish_entry(
+         jsonb_set(jsonb_set(pg_temp.rec('R9'),'{entry,EntryType}','"NORMAL"'),'{entry,WashItemID}','"TEST-WI-SUN"')) as p;
+select pg_temp.check((select p->>'outcome' <> 'SKIPPED'
+                        and pg_temp.has_blocker(jsonb_build_object('blockers',p->'warnings'),'SUNDAY_PRODUCTION')
+                        and not pg_temp.has_blocker(p,'SUNDAY_PRODUCTION_REVIEW') from t_sun),
+  'another Sunday is planned as production with a SUNDAY_PRODUCTION warning');
 select pg_temp.check(integration.legacy_sync_plan_finish_entry(pg_temp.rec('R1'))->>'outcome' = 'REWASH_ROUTE',
   'a HOUSEHOLD row is routed to ReWash by the NORMAL planner');
 
@@ -158,7 +167,12 @@ select pg_temp.check((select fp from t_before) = pg_temp.footprint(), 'ReWash dr
 select pg_temp.check((select (r->>'records')::int=4 and (r->>'ready')::int=2 and (r->>'skipped')::int=1
                         and (r->>'blocked')::int=1 and (r->>'ready_cells')::int=1 from t_dry),
   'dry run: 2 ready, 1 skipped, 1 blocked, 1 ready cell');
-select pg_temp.check((select pg_temp.plan_of(r,'TEST-RW-3')->>'skip_reason'='SUNDAY_TEST_DATA' from t_dry), 'Sunday row skipped as test data');
+select pg_temp.check((select pg_temp.plan_of(r,'TEST-RW-3')->>'skip_reason'='OWNER_TEST_DAY' from t_dry), '2026-10-25 row skipped as the owner test day');
+select pg_temp.check((select pg_temp.plan_of(integration.legacy_sync_plan_household_rewash(pg_temp.recs('R9')),'TEST-RW-9')->>'outcome' <> 'SKIPPED'
+                        and pg_temp.has_blocker(jsonb_build_object('blockers',
+                              pg_temp.plan_of(integration.legacy_sync_plan_household_rewash(pg_temp.recs('R9')),'TEST-RW-9')->'warnings'),
+                            'SUNDAY_PRODUCTION')),
+  'another Sunday HOUSEHOLD row is planned with a SUNDAY_PRODUCTION warning');
 select pg_temp.check((select pg_temp.has_blocker(pg_temp.plan_of(r,'TEST-RW-4'),'REWASH_UNITS_NOT_SUPPORTED') from t_dry),
   'units are refused for ReWash');
 select pg_temp.check((select r#>>'{cells,0,shift_code}'=f.shift1 and r#>>'{cells,0,table_code}'=f.table1
@@ -209,7 +223,7 @@ exception when sqlstate '22023' then raise notice 'ok - one Finish cell per call
 end $$;
 
 -- ---------------------------------------------------------------------
--- 6. Import the cell (R1, R2) with a Sunday row (R3)
+-- 6. Import the cell (R1, R2) with a 2026-10-25 test-day row (R3)
 -- ---------------------------------------------------------------------
 create temporary table t_imp on commit drop as
 select integration.legacy_sync_import_household_rewash((select run_id from t_run), pg_temp.recs('R1','R2','R3')) as r;
@@ -239,8 +253,8 @@ select pg_temp.check((select count(*)=1 from public.audit_log where action='IMPO
                         and entity_id=(select r->>'finish_rewash_entry_id' from t_imp) and source_application='LEGACY_SYNC_FINISH'),
   'audit row written');
 select pg_temp.check((select count(*)=1 from integration.legacy_sync_review_items
-                      where source_record_id='TEST-RW-3' and reason_code='SUNDAY_TEST_DATA' and status='REJECTED'),
-  'Sunday row recorded as rejected by owner decision');
+                      where source_record_id='TEST-RW-3' and reason_code='OWNER_TEST_DAY' and status='REJECTED'),
+  'test-day row recorded as rejected by owner decision');
 select pg_temp.check((select count(*)=3 from integration.legacy_sync_record_versions
                       where source_record_id in ('TEST-RW-1','TEST-RW-2','TEST-RW-3')), 'source versions kept for all three rows');
 select pg_temp.check((select (fp->>'finish_entries')=(pg_temp.footprint()->>'finish_entries')
@@ -293,8 +307,8 @@ end $$;
 do $$
 begin
   update integration.legacy_sync_review_items set decision='{}' where source_record_id='TEST-RW-3';
-  raise exception 'FAIL: the Sunday decision was changed';
-exception when sqlstate '55000' then raise notice 'ok - the Sunday decision cannot change';
+  raise exception 'FAIL: the test-day decision was changed';
+exception when sqlstate '55000' then raise notice 'ok - the test-day decision cannot change';
 end $$;
 
 select 'PASS: 202610270002_legacy_sync_household_rewash_import_validation' as result;

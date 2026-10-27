@@ -2,7 +2,7 @@
 
 Status (2026-10-27): `202610260002` and `202610270001` **Applied** to `ElisCaretex-dev` by the
 owner and **Validated** there with the rolled-back test files. `202610270002` (HOUSEHOLD as
-ReWash, Sunday skip) is **Prepared**. Both import switches are OFF. No import has run.
+ReWash, 2026-10-25 test day skipped) is **Prepared**. Both import switches are OFF. No import has run.
 
 The sync is temporary. When the legacy apps stop, keep the imported production data and remove
 the sync scaffolding (owner, 2026-10-27).
@@ -18,13 +18,13 @@ Migrations:
 - `supabase/migrations/202610270001_legacy_sync_finish_historical_import.sql`: switch and
   pilot limit, owner-approved value maps, planner, dry run, importer, narrow Finish trigger
   change.
-- `supabase/migrations/202610270002_legacy_sync_household_rewash_import.sql`: Sunday skip,
+- `supabase/migrations/202610270002_legacy_sync_household_rewash_import.sql`: test-day skip,
   HOUSEHOLD routed to the ReWash ledger, ReWash planner and importer.
 
 Validation (each file is one transaction, rolled back):
 `supabase/tests/202610260002_legacy_sync_identity_foundation_validation.sql` (11),
 `supabase/tests/202610270001_legacy_sync_finish_historical_import_validation.sql` (57, expects
-`202610270002`), `supabase/tests/202610270002_legacy_sync_household_rewash_import_validation.sql` (38).
+`202610270002`), `supabase/tests/202610270002_legacy_sync_household_rewash_import_validation.sql` (40).
 
 ## Why not the live Finish RPCs
 
@@ -81,7 +81,7 @@ row it references (or `null`). The database computes the fingerprint
 | `IMPORTED` | written | entry, lines, flow (if new), event, audit, links, versions |
 | `ALREADY_IMPORTED` | same `EntryID`, same fingerprint | versions only (idempotent, normally none) |
 | `BLOCKED` | at least one blocker | source versions + one open review item per blocker |
-| `SKIPPED` | Sunday business date: test data (owner, 2026-10-27) | source version only |
+| `SKIPPED` | business date 2026-10-25: owner test day | source version only |
 | `REWASH_ROUTE` | HOUSEHOLD: use the ReWash importer | source version only |
 | `RUN_LIMIT_REACHED` | run hit `max_entries_per_run` | none |
 
@@ -133,7 +133,8 @@ until the owner decides.
 
 Owner decision 2026-10-27: a legacy `HOUSEHOLD` Finish entry is ReWash. It goes into the V2
 ReWash ledger (`finish_rewash_entries` / `finish_rewash_lines`), the same place as
-`record_finish_rewash_v1`, so it is never official Clothes KG and never touches a Production
+`record_finish_rewash_v1`. ReWash is production (staff handled it) and is counted separately, per
+table and shift; it is not added to a customer's Clothes flow KG and never touches a Production
 Flow.
 
 - V2 keeps one ACTIVE ReWash entry per business date, shift and table, with one KG line per
@@ -159,9 +160,13 @@ Flow.
 
 ## Sunday rows
 
-Owner decision 2026-10-27: there was no real production on Sunday; legacy rows with a Sunday
-business date are test data. Both planners return `SKIPPED` (`SUNDAY_TEST_DATA`). The ReWash
-importer also records a review item already `REJECTED` by that decision, for traceability.
+Owner decision 2026-10-27: every legacy row of **Sunday 2026-10-25** was an owner test. Both
+planners return `SKIPPED` (`OWNER_TEST_DAY`) for that date only; the ReWash importer also
+records a review item already `REJECTED` by that decision, for traceability.
+
+Other Sundays are real production (occasional catch-up or advance work). They are imported like
+any other day, with a `SUNDAY_PRODUCTION` warning; the old `SUNDAY_PRODUCTION_REVIEW` blocker is
+gone.
 
 ## Safety gates
 
@@ -196,7 +201,7 @@ To withdraw a pilot entry, do not delete it: use a reviewed cancellation (status
 
 - Owner decisions: two legacy NORMAL entries in one cell, inactive customers, unmapped staff,
   the raw values of the 3 ambiguous customers and 2 unmapped types, the Finish `Status` values.
-  (HOUSEHOLD and Sunday decided 2026-10-27.)
+  (HOUSEHOLD, the 2026-10-25 test day and Sunday production decided 2026-10-27.)
 - Edge Function for Apps Script (HMAC-signed requests; calls only the functions above).
 - Repository copy of the live-only `integration.legacy_inbox`,
   `staging.apps_script_incremental_rows` and `legacy-sync-ingest`.
