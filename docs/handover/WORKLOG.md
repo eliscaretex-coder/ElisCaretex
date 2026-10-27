@@ -97,9 +97,16 @@ Entry format:
   17 drivers and 16 vehicles ADOPT; nothing blocked. Differences listed for the owner in the
   Claude Doc "Cadastros: diferenças entre o legado e o V2". Vehicle `legacy_registered_at`
   / `legacy_updated_at` in V2 are one hour ahead (an earlier import read Dublin time as UTC).
-- Open / next: owner publishes `LegacySyncFinish.gs` and `Index.html` (new web app version),
-  runs Preview, then turns the sync on; owner says which listed differences the legacy value
-  should win.
+- Fix: "Turn on" returned HTTP 500 (`21000 UPDATE requires a WHERE clause`): the Data API
+  session runs pg-safeupdate and the `legacy_sync_control` from `202610270007` updates every
+  switch without a WHERE. Nothing changed. `202610270012_legacy_sync_control_where_clause.sql`
+  (Prepared) recreates it with `where setting_key is not null`; test
+  `supabase/tests/202610270012_legacy_sync_control_where_clause_validation.sql` 4/4 locally.
+- Preview run by the owner (24-27 Oct) worked: Registers 931 ready; Washes 11 and Attendance 2
+  held for legacy user 112 (created by the Registers part first); MOP and Trolleys held until
+  Washes / MOP are in V2, as designed; ReWash 0.012 kg still in review.
+- Open / next: owner applies 0012 and its test, turns the sync on, then says which listed
+  differences the legacy value should win.
 
 ## 2026-10-27 — Claude — Legacy Sync: CentralDB registers join the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
