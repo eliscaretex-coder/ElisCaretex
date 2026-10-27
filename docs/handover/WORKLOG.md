@@ -80,6 +80,59 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: trolley custody and Sorting intakes join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes and MOP parts)
+- Changed: third part of the full sync (owner decision: trolley custody follows the legacy
+  sheets). One part `trolley`, in time order and after Finish and MOP: each trolley code typed on
+  a legacy Finish entry or MOP save opens the V2 customer stay (as
+  `assign_finish_trolley_to_flow`), and each CentralDB `TrolleyReturns` row becomes a V2 Sorting
+  intake (as `record_sorting_trolley_intake_v2`: stay closed or MISSING_OUTBOUND, trolley
+  AVAILABLE, products and Production Flow events, presence evidence). Legacy corrections write a
+  revision, legacy voids cancel; intakes already in V2 (2026-10-24 local import by ClientEventID,
+  or the same trolley and shift within 4 hours) are adopted. Stays left open since the 2026-09
+  inference are closed as returned before tracking when legacy production fills the trolley
+  again. Page shows a Trolleys part and "Turn on Trolleys".
+- Database: `202610270009_legacy_sync_trolley_custody.sql` prepared, not applied.
+- Validation: `supabase/tests/202610270009_legacy_sync_trolley_custody_validation.sql` 16/16 on
+  the local replica; 0006, 0007 and 0008 tests still pass; Apps Script collector on the real
+  sheets (413 records 24-27 Oct) and a local dry run of all of them without errors.
+- Open / next: owner applies 0009 after 0008 and runs its test. Next parts: attendance, master
+  data and rosters.
+
+## 2026-10-27 — Claude — Legacy Sync: MOP production joins the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes part)
+- Changed: second part of the full sync. CentralDB `MopProduction` (+ History) rows of one
+  WashItemID become one V2 MOP production, written like `save_sorting_mop_production`
+  (lines, totals, shift, operator, processed time, trolley codes as references, late-entry
+  reconciliation, Production Flow event), with corrections, legacy cancellations, adoption of a
+  production typed in V2, and the ABS batch once POSTED. Apps Script collects MOP after washes
+  and runs it through the generic `dry_run` / `import` operations (no new Edge Function deploy).
+  Page shows a MOP part and "Turn on MOP".
+- Database: `202610270008_legacy_sync_mop_production.sql` prepared, not applied.
+- Validation: `supabase/tests/202610270008_legacy_sync_mop_production_validation.sql` 16/16 on
+  the local replica; 0006 and 0007 tests still pass; Apps Script collector on the real CentralDB
+  (61 MOP customers 24-27 Oct).
+- Open / next: owner applies 0008 after 0007 and runs both tests. Next parts: trolley
+  reception/custody, attendance, master data and rosters.
+
+## 2026-10-27 — Claude — Legacy Sync: Sorting washes join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes`
+- Changed: owner decisions 2026-10-27 — everything the legacy apps record must reach V2 through
+  the sync, as if typed in V2; trolley custody follows the legacy sheets; master data is still
+  edited in the legacy sheets, so it will be synced too. First part: Sorting washes
+  (`Sorting Area` + CentralDB `WashItems` + Sorting `Staff`), written like
+  `save_sorting_wash_run_v2` with schedule snapshot, Production Flow link and corrections.
+  Generic `dry_run` / `import` Edge Function operations with a database dispatcher, so later
+  parts need no new deploy. Control ON/OFF switches every part. Apps Script page shows Washes.
+- Database: `202610270007_legacy_sync_sorting_washes.sql` prepared, not applied.
+- Validation: `supabase/tests/202610270007_legacy_sync_sorting_washes_validation.sql` 16/16 on
+  the local replica; 0006 control test still 12/12; Deno handler tests; Apps Script collector run
+  on the real Sorting workbook (147 loads 24-27 Oct, all shifts from the Staff sheet).
+- Open / next: owner applies 0007 and runs the test, approves the Edge Function deploy, replaces
+  `LegacySyncFinish.gs` and `Index.html`, enables the `sorting` source, previews, then presses
+  "Turn on Washes". Owner to confirm whether "Ryotaro Kawauchi" (legacy 112) is V2 "Ryotaro".
+  Next parts: MOP production, trolley reception/custody, attendance, master data and rosters.
+
 ## 2026-10-27 — Claude — Legacy Sync: switched ON from the Apps Script page, first Sync now
 
 - Branch / commits: `claude/legacy-sync-live-record` (docs only).

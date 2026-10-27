@@ -1,4 +1,4 @@
-# Legacy Sync: Finish Area sender
+# Legacy Sync: legacy sheets sender
 
 Temporary. When the legacy Apps Script apps stop, delete this folder, the Edge Functions
 `legacy-sync-finish` and `legacy-sync-ingest`, and the `integration.legacy_sync_*` scaffolding.
@@ -10,10 +10,10 @@ Database rules, outcomes and the live dry run: `docs/database/legacy-sync-finish
 
 | Piece | Where | What it does |
 | --- | --- | --- |
-| Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads `FinishEntries` (+ `FinishEntriesHistory`), `RewashProduction` and CentralDB `WashItems` (+ `WashItemsHistory`) for at most 7 days, normalises cell formats and sends signed requests. Never writes the sheets. |
+| Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads, for at most 7 days: Sorting `Sorting Area` and `Staff`; Finish Area `FinishEntries` (+ `FinishEntriesHistory`) and `RewashProduction`; CentralDB `WashItems` (+ `WashItemsHistory`) and `User` (name to legacy user ID only; never `UserPrivate`). Normalises cell formats and sends signed requests. Never writes the sheets. |
 | Admin page | `legacy-sync/apps-script/Index.html` | Apps Script web app page: status, preview or import a date range, source spreadsheets; the old v3.1 diagnostics are folded under "Old diagnostics". Needs `Code.gs` (v3.1) and `LegacySyncFinish.gs`. |
 | Endpoint | `supabase/functions/legacy-sync-finish/index.ts` | Checks the HMAC signature and the timestamp (5 minutes), validates the request shape and calls one `integration.legacy_sync_*` function. No mapping logic. |
-| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270006`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
+| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270007`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
 | Old inbox | `supabase/functions/legacy-sync-ingest/index.ts` | Repository copy of the live function (v2). Untouched; the new sender does not use it. |
 
 ## Request contract
@@ -36,8 +36,13 @@ Bodies (`operation` → database function):
 | `import_finish` | `runId`, `record` | `legacy_sync_import_finish_entry` |
 | `import_rewash` | `runId`, `record` | `legacy_sync_import_rewash_cell` |
 | `finish_run` | `runId`, `status` (`COMPLETED`/`FAILED`/`CANCELLED`), `summary` | `legacy_sync_finish_run` |
+| `dry_run` | `kind`, `records` (1-60) | `legacy_sync_dispatch_dry_run` (kind `wash`: `legacy_sync_wash_dry_run`) |
+| `import` | `kind`, `runId`, `record` | `legacy_sync_dispatch_import` (kind `wash`: `legacy_sync_import_wash`) |
 | `poll` | none | `legacy_sync_claim_run` (returns `{run, reason, dateFrom, dateTo}`) |
 | `control` | `action` (`STATUS`/`ON`/`OFF`), `changedBy` (required for ON/OFF) | `legacy_sync_control` |
+
+`dry_run` and `import` take a `kind`; the database dispatcher decides which function runs, so a
+new part of the sync needs a migration but no new Edge Function deploy.
 
 Responses: `200 {ok:true, result}`; `200 {ok:false, code, error}` when the database refuses on
 purpose (switch OFF `55000`, bad input `22023`, conflicts `23505`, retry `40001`); `400` bad
@@ -84,3 +89,21 @@ Setup: apply the migrations, redeploy `legacy-sync-finish`, replace `LegacySyncF
 `Index.html` in the Apps Script project and publish a new version, run
 `installLegacySyncTrigger()` once (or press Install on the page), then press "Turn on".
 `removeLegacySyncTrigger()` stops the polling.
+
+## Parts of the sync (owner decision 2026-10-27: everything the legacy apps record)
+
+Each nightly run, `Sync now` or manual import runs the parts in this order. Each part has its own
+import switch in `integration.legacy_sync_settings`; the page's ON/OFF switches all of them. A
+part whose switch is OFF is refused by the database and skipped; the others still run.
+
+| Part | Legacy sheets | V2 | Switch | Migration |
+| --- | --- | --- | --- | --- |
+| Washes | Sorting `Sorting Area` + CentralDB `WashItems` + Sorting `Staff` | `sorting_wash_runs`, `sorting_wash_run_customers`, Production Flow `WASH_RECORDED` | `SORTING_WASH_IMPORT` | `202610270007` |
+| MOP | CentralDB `MopProduction` (+ History) + `WashItems` | `sorting_mop_production_batches` (lines, trolley references), ABS batch, Production Flow `MOP_PRODUCTION_RECORDED` | `MOP_PRODUCTION_IMPORT` | `202610270008` |
+| Finish | Finish Area `FinishEntries` + CentralDB `WashItems` | Finish entries and lines | `FINISH_HISTORICAL_IMPORT` | `202610270001`-`0004` |
+| ReWash | Finish Area HOUSEHOLD entries + `RewashProduction` | ReWash entries and lines | `FINISH_REWASH_HISTORICAL_IMPORT` | `202610270003` |
+| Trolleys | Trolley codes of Finish `FinishEntries` and CentralDB `MopProduction` (out) + CentralDB `TrolleyReturns` (back), in time order | `trolley_customer_stays`, trolley status and events, `sorting_trolley_intakes` with products and Production Flow `TROLLEY_RECEIVED_*`, presence evidence | `TROLLEY_CUSTODY_IMPORT` | `202610270009` |
+
+Planned next, one migration each: attendance (Sorting `Staff`, Finish `StaffSessions`,
+`RosterNotWorking`), and master data (customers, schedules, staff, drivers, vehicles, routes,
+rosters; owner decision 2026-10-27: the legacy sheets are still where the team edits them).

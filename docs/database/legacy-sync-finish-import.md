@@ -297,6 +297,120 @@ Owner decision 2026-10-27: the switch and "Sync now" belong on the Apps Script p
   (Finish 5 IMPORTED; ReWash 3 IMPORTED, 1 BLOCKED = the known 0.012 kg record, no duplicate
   review item). From now on the sync runs every night 02:00-05:00 Dublin.
 
+## Sorting washes (Prepared 2026-10-27, migration `202610270007`)
+
+Owner decisions 2026-10-27: everything the legacy apps still record goes to V2 through the
+nightly sync, as if the team typed it in V2; trolley custody follows the legacy sheets; master
+data still lives in the legacy sheets. Washes are the first part; MOP production, trolley
+reception and custody, attendance and master data follow, one migration each.
+
+- Source per call: one `Sorting Area` row (WashID, START TIME, REGISTER TIME, MACHINE, WHO,
+  Type, KG), its CentralDB `WashItems` (one per customer: CustomerID, ScheduledDate, KGShare),
+  the operator's shifts that day from the Sorting `Staff` sheet and the operator's legacy
+  `UserID` from CentralDB `User` (name match, unique only).
+- Writes what `save_sorting_wash_run_v2` writes: a `sorting_wash_runs` row (wash_code = WashID,
+  source `LEGACY_SYNC_SORTING`) and one `sorting_wash_run_customers` row per customer with the
+  published schedule snapshot of the legacy scheduled date. The existing triggers split the
+  weight, link each customer to its Production Flow (the same customer + product + scheduled
+  date key as the Finish importer) and append `WASH_RECORDED`.
+- Shift: the operator's `Staff` sheet shift; otherwise the clock (before 14:00 Morning, else
+  Evening; up to 03:00 the previous Evening). Type OTHERS is CLOTHES. LATE_ENTRY when
+  registered more than 60 minutes after the start.
+- A changed legacy load becomes a V2 correction (old run CANCELLED, new CORRECTION run
+  `WashID-R2`...). Runs of the 2026-10-24 workbook import (wash_code = WashID) are adopted.
+- Review queue instead of the live screen checks: unknown washer, operator or customer, weight
+  over capacity, operator ABSENT in V2 attendance, inactive customer, customer twice in a load
+  with two scheduled dates. Sunday 2026-10-25 skipped; before 2026-10-24 skipped.
+- Switch `SORTING_WASH_IMPORT` (seeded OFF). `legacy_sync_control` ON/OFF now switch every
+  import switch; STATUS lists them under `imports`. Edge Function operations `dry_run` and
+  `import` with a `kind` go through `legacy_sync_dispatch_dry_run` / `legacy_sync_dispatch_import`.
+- Validation: `supabase/tests/202610270007_legacy_sync_sorting_washes_validation.sql`
+  (16 checks, passed on the local replica). Dry run of the real Sorting workbook (24-27 October,
+  147 loads) on the local replica: shifts all from the Staff sheet; the operator
+  "Ryotaro Kawauchi" (legacy UserID 112) has no V2 staff member yet (V2 has "Ryotaro", legacy
+  111): held for review until the staff master part, owner to confirm whether they are the
+  same person.
+
+## MOP production (Prepared 2026-10-27, migration `202610270008`)
+
+- Source per call: every CentralDB `MopProduction` (+ `MopProductionHistory`) row of one
+  `WashItemID` (one washed MOP customer), cancelled rows included, plus its CentralDB `WashItems`
+  row (ScheduledDate). The sender picks the WashItemIDs with a row whose BusinessDate is in the
+  range, and fills `ProcessedByUserID` from CentralDB `User` (name match, unique only).
+- Writes what `save_sorting_mop_production` writes: one `sorting_mop_production_batches` row
+  (V2 keeps one active production per Production Flow), one line per MOP variant with the legacy
+  KG and Units summed as recorded (never recalculated), the legacy trolley codes as
+  `LATE_REFERENCE_ONLY` references (custody comes from the trolley part), a
+  `PROCESSED_MISSED_ENTRY` reconciliation when the legacy row was saved more than 60 minutes after
+  ProcessedAt (entry mode `LATE_RECONCILIATION`, else `LIVE`), and `MOP_PRODUCTION_RECORDED` /
+  `_LATE_RECORDED` on the flow. Once the legacy row is ABS `POSTED`, the ABS batch number goes to
+  `production_flow_external_batches` (`ABS_BATCH_RECORDED`).
+- Production Flow: the MOP flow of the V2 wash of the same WashID and customer (washes part),
+  else the customer's MOP flow of the scheduled day, else a new flow when the V2 wash exists
+  without a flow link (2026-10-24 workbook import). A wash not in V2 yet holds the row
+  (`WASH_NOT_IN_V2`); the commit run imports washes first, so the same run clears it.
+- Shift, BusinessDate, operator and processed time are the legacy values of the first save.
+  MOP model names map through the variant `legacy_values`, plus GREY MOP WITH WHITE STRIPE and
+  SPIN MOPS (as the 2026-10-23 import mapped them).
+- A changed legacy row is a V2 correction (new revision, the old one CANCELLED/CORRECTED; an
+  active ABS batch follows the new totals as SUPERSEDED + new). Every legacy row cancelled cancels
+  the V2 production and its ABS batch. A production already in V2 on the flow is adopted.
+- Review queue: unknown customer, operator or MOP model, operator ABSENT or moved out of Sorting
+  in V2, invalid quantities. Sunday 2026-10-25 skipped; before 2026-10-24 skipped.
+- Switch `MOP_PRODUCTION_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "mop"` (no new deploy after v6).
+- Validation: `supabase/tests/202610270008_legacy_sync_mop_production_validation.sql` (16 checks,
+  passed on the local replica). Real CentralDB of 27 October: 61 washed MOP customers with a row
+  from 24 to 27 October, one save each; operators Julio Vas, Franky Gomes, Ronaldo da Silva,
+  Ryotaro (111) and Ryotaro Kawauchi (112, not in V2 yet).
+
+## Trolley custody (Prepared 2026-10-27, migration `202610270009`)
+
+Owner decision 2026-10-27: trolley custody follows the legacy sheets. One part, `kind: "trolley"`,
+with two record types that the sender orders by time (runs last, after Finish and MOP):
+
+- **OUT**, one per trolley code typed on a legacy Finish entry (`FinishEntries.Trolleys`, key
+  `EntryID:code`) or MOP save (`MopProduction.Trolleys`, key `WashItemID:code`;
+  `NO_TROLLEY_AVAILABLE` and other text ignored). Needs the Finish entry or MOP production in V2
+  (`FINISH_ENTRY_NOT_IN_V2` / `MOP_NOT_IN_V2` hold it until the same run imports them). Writes
+  what `assign_finish_trolley_to_flow` / `assign_trolley_to_customer_from_production` write: an
+  OPEN stay sent on the next distribution day with the flow's schedule snapshot, trolley
+  `IN_PRODUCTION`, `ASSIGNED_IN_PRODUCTION`, and the trolley on the V2 Finish entry
+  (`finish_production_trolleys`) or MOP production (`sorting_mop_production_trolleys.stay_id`).
+  The trolley's open stay of the same customer and production day is linked, not duplicated.
+- **RETURN**, one per CentralDB `TrolleyReturns` row (key `ReturnID`). Writes what
+  `record_sorting_trolley_intake_v2` writes: the open stay is closed (`TRACKED_MATCH`, or
+  `CUSTOMER_MISMATCH`), or a `MISSING_OUTBOUND_RECORD` stay is created; trolley `AVAILABLE`; the
+  intake with its products and Production Flows (`TROLLEY_RECEIVED_CONTENTS` / `_EMPTY`);
+  `SORTING_CONTENTS_CONFIRMED`; PRESENT attendance evidence for the operator. Legacy values for
+  BusinessDate, Shift, ReturnedAt, ReceivedBy, customer, ServiceType (Clothes/MOP) and Content
+  (`WITH_ITEMS` = laundry inside). A ScheduledDate that is not on the customer's published
+  schedule is recorded `OFF_SCHEDULE` / `NOT_ON_PUBLISHED_SCHEDULE` (V2 requires it).
+- A changed legacy row (`CorrectedAt`, for example another customer) is a V2 correction with a
+  revision row, as `correct_sorting_trolley_intake` (Clothes/MOP and contents stay fixed once the
+  trolley was washed: `INTAKE_ALREADY_WASHED`). Washes are not moved: they follow their own legacy
+  rows. `Voided = YES` cancels the intake (custody kept, as in V2).
+- An intake already in V2 is adopted and never changed except by a legacy void: the 2026-10-24
+  local import (its stays carry `ClientEventID: ...`), or any intake of the same trolley, day and
+  shift within 4 hours. A new scan inside that window is held (`DUPLICATE_SCAN_WITHIN_4H`).
+- Older custody: a stay still OPEN from before 2026-10-24 (the 2026-09 inference, 424 stays on
+  27 October) that legacy production fills again is closed `RECEIVED`, exception `OTHER`, no
+  review (the return happened before V2 tracking). An open stay from inside the window is closed
+  `REVIEW_REQUIRED` / `PENDING` (its return was never recorded). Records out of time order never
+  close newer custody: an OUT older than the trolley's last return is skipped
+  (`TROLLEY_RETURNED_LATER`), a RETURN older than the open stay gets its own stay
+  (`OPEN_STAY_IS_NEWER`).
+- Review queue: unknown trolley, customer or operator, operator ABSENT or moved out of Sorting,
+  trolley out of service, duplicate scan. Sunday 2026-10-25 skipped; before 2026-10-24 skipped.
+- Each dry-run record is planned against the current V2 state; the import re-plans each record
+  in order, so an OUT and the RETURN of the same trolley in one run apply in sequence.
+- Switch `TROLLEY_CUSTODY_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "trolley"` (no new deploy after v6).
+- Validation: `supabase/tests/202610270009_legacy_sync_trolley_custody_validation.sql` (16 checks,
+  passed on the local replica with 0006, 0007 and 0008). Real sheets of 27 October, 24 to 27
+  October: 413 records (169 returns, 168 Finish and 76 MOP trolley codes). Against the live
+  master data every return operator (Josue, legacy user 104), trolley and customer exists.
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic
