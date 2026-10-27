@@ -639,13 +639,32 @@ to Team Leader to the Driver job title. The `driver-role-transfers` and `product
 jobs run hourly.
 
 Legacy Sync, historical Finish import (2026-10-27, `202610260002_legacy_sync_identity_foundation.sql`
-and `202610270001_legacy_sync_finish_historical_import.sql`, **Prepared**, not applied; local
-rebuilt-database tests passed): one-way copy of Apps Script FinishEntries into Finish V2. Flow by
+and `202610270001_legacy_sync_finish_historical_import.sql`, **Applied** 2026-10-27 by the owner
+and **Validated** with the rolled-back test files on `ElisCaretex-dev`; import switches OFF, no
+import has run): one-way copy of Apps Script FinishEntries into Finish V2. Flow by
 customer + CLOTHES + WashItem scheduled date; entry, lines, one `FINISH_PRODUCTION_RECORDED` event
 and audit with `source_application='LEGACY_SYNC_FINISH'`; no trolley, custody, Sorting or wash
 rows. Insert-only links and review queue in schema `integration`; service_role-only RPCs; switch
 `FINISH_HISTORICAL_IMPORT` seeded OFF; `finish_enforce_new_entry_current_shift` accepts the label
 only with a per-transaction permit. Contract: `docs/database/legacy-sync-finish-import.md`.
+Owner decisions 2026-10-27: legacy HOUSEHOLD entries are ReWash; every legacy row of Sunday
+2026-10-25 was a test (skipped); other Sundays are real production (imported, with a warning). `202610270002_legacy_sync_household_rewash_import.sql` (**Applied** 2026-10-27 by the owner,
+**Validated** 40/40 on `ElisCaretex-dev`)
+imports the HOUSEHOLD rows of one Finish cell as one new `finish_rewash_entries` row with one KG
+line per legacy row (ReWash is production counted separately per table and shift, not added to the Clothes flow KG;
+an existing ACTIVE ReWash cell is held for review),
+behind switch `FINISH_REWASH_HISTORICAL_IMPORT` (seeded OFF). The sync is temporary: after the
+legacy apps stop, the owner wants the sync scaffolding removed and only production data kept.
+`202610270003_legacy_sync_finish_updates_and_rewash_lines.sql` (**Applied** 2026-10-27 by the
+owner, **Validated** 51/51 on `ElisCaretex-dev` with a rolled-back test) follows the real-sheet dry run and the owner decisions of 2026-10-27: a legacy
+entry that changes (0 kg while the table works, values changed up to dispatch) becomes a new V2
+revision, never an overwrite; entries already in V2 from the CentralDB/workbook imports are
+adopted by the EntryID in their notes (legacy value wins); `OTHERS` is Clothes; HOUSEHOLD is a
+header whose customer lines come from `RewashProduction`, summed per customer; the 202610270002
+HOUSEHOLD functions are dropped unused.
+`202610270004_legacy_sync_notes_reference_fix.sql` (**Prepared**, validated on a local copy and
+previewed live in a rolled-back transaction) makes the notes match accept the full stop that ends
+the workbook import notes; without it the 24 workbook entries of 2026-10-24 plan as BLOCKED.
 
 Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
 **Applied** 2026-10-26 by the owner and **Validated** with rolled-back RPC tests): adopts the existing table `distribution_driver_infringements` (12 records

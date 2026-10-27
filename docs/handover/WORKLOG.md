@@ -80,6 +80,87 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: 202610270003 applied and validated; notes-match fix (Prepared)
+
+- Branch / commits: `claude/legacy-sync-rewash-import` (same Pull Request).
+- Changed: the owner applied `202610270003`. Its validation fixture no longer uses
+  `session_replication_role` (not allowed on the hosted project); the workbook-like row is
+  stored as revision 2 instead. The live dry run found that the 2026-10-24 workbook notes end
+  with a full stop, so `legacy_sync_notes_reference` did not find those 24 entries. New
+  `202610270004_legacy_sync_notes_reference_fix.sql` matches the whole `EntryID` whatever
+  follows it. Results in `docs/database/legacy-sync-finish-import.md` ("Live dry run").
+- Database: `202610270003` **Applied** by the owner 2026-10-27 (SQL Editor). `202610270004`
+  Prepared, not applied. Both switches OFF, 0 runs, 0 links.
+- Validation: `202610270003` validation 51/51 on `ElisCaretex-dev`, rolled back (checked
+  afterwards: 0 runs, links, review items or test rows). `202610270004` validation 8/8 on the
+  local replica; NORMAL dry run with the fix previewed inside a rolled-back transaction:
+  99 CREATE, 21 ADOPT, 3 ADOPT_AND_UPDATE, 1 PENDING_SOURCE. ReWash: 10 CREATE,
+  2 ADOPT_AND_UPDATE (staff filled in), 1 BLOCKED (a 0.012 kg line on 26 October morning Table 3).
+- Open / next: owner applies `202610270004`; the 0.012 kg ReWash line needs correcting in the
+  sheet; Edge Function for Apps Script; how to see entries deleted in the sheet.
+
+## 2026-10-27 — Claude — Legacy Sync: real-sheet dry run, updates as revisions, ReWash from RewashProduction (Prepared)
+
+- Branch / commits: `claude/legacy-sync-rewash-import` (same Pull Request).
+- Changed: read-only dry run of the owner's Apps Script exports (24–27 October, 124 NORMAL +
+  13 HOUSEHOLD rows) against `ElisCaretex-dev`: 97 ready, 24 = the 2026-10-24 morning entries
+  already in V2 from the local workbook (2 with different kg), 3 `OTHERS`, 1 at 0 kg. Owner
+  decisions 2026-10-27: legacy entries keep changing after creation (0 kg = still working;
+  values change up to dispatch), so changes are applied as new revisions; the legacy value wins
+  over the workbook import; `OTHERS` is Clothes; HOUSEHOLD is only a header, its lines live in
+  `RewashProduction`, the same customer twice is summed. New
+  `202610270003_legacy_sync_finish_updates_and_rewash_lines.sql`: value maps (DONE, shifts,
+  tables, OTHERS→CLOTHES), Finish trigger permits importer revisions, sync window from
+  2026-10-24, staff by exact display name, NORMAL planner/importer with
+  `CREATE`/`UPDATE`/`ADOPT`/`ADOPT_AND_UPDATE` and `PENDING_SOURCE`, new ReWash
+  planner/dry run/importer per HOUSEHOLD header with its lines; drops the unused
+  `202610270002` HOUSEHOLD functions. Docs: `docs/database/legacy-sync-finish-import.md`
+  rewritten.
+- Database: none applied. `202610270003` is Prepared; both switches stay OFF.
+- Validation: local PostgreSQL 16 copy, `supabase/tests/202610270003_…_validation.sql` 51/51,
+  rolled back. The `202610270001` and `202610270002` test files no longer apply once
+  `202610270003` is in place.
+- Open / next: owner applies `202610270003`; then the validation file and a new dry run on
+  `ElisCaretex-dev`; Edge Function for Apps Script; how to see entries deleted in the sheet.
+
+## 2026-10-27 — Claude — Legacy Sync: foundation, Finish importer and HOUSEHOLD-as-ReWash applied
+
+- Branch / commits: `claude/legacy-sync-rewash-import`, Pull Request into `master`.
+- Changed: owner decisions 2026-10-27: legacy `HOUSEHOLD` Finish entries are ReWash (production
+  counted separately per table and shift); every legacy row of Sunday 2026-10-25 was an owner
+  test and is not imported; other Sundays are real (rare catch-up) production; the sync is temporary (once the legacy apps
+  stop, keep the production data and remove the sync scaffolding to save space).
+  New `202610270002_legacy_sync_household_rewash_import.sql`: link role
+  `FINISH_ENTRY_TO_REWASH_LINE`; switch `FINISH_REWASH_HISTORICAL_IMPORT` seeded OFF (limit 3
+  cells per run); the NORMAL planner returns `SKIPPED` for 2026-10-25, a `SUNDAY_PRODUCTION`
+  warning (instead of a blocker) for other Sundays, and `REWASH_ROUTE` for HOUSEHOLD (rest of
+  the body unchanged) and the dry run counts both;
+  `legacy_sync_plan_household_rewash` (read-only) and `legacy_sync_import_household_rewash`
+  (one Finish cell per call → one new ReWash entry with one KG line per legacy row; a cell that
+  already has an ACTIVE ReWash entry is held for review, never merged or superseded). The
+  `202610270001` test now expects the routing instead of `HOUSEHOLD_PENDING_DECISION`.
+- Database: the owner authorised and applied `202610260002_legacy_sync_identity_foundation.sql`
+  and `202610270001_legacy_sync_finish_historical_import.sql` to `ElisCaretex-dev` on 2026-10-27
+  through the SQL Editor (the files on `master`, unchanged; therefore not in the
+  `supabase_migrations` history). Read-only checks before applying: the live body of
+  `finish_enforce_new_entry_current_shift` was byte-identical to `202610230005` (md5
+  `b53d4782…`), no `legacy_sync` object existed, every function and column the importer uses
+  exists. After applying: both switches OFF, zero runs, links or `LEGACY_SYNC_FINISH` entries.
+  The owner then applied `202610270002_legacy_sync_household_rewash_import.sql` the same way
+  (version with the 2026-10-25-only skip; checked in the live function bodies). All switches
+  still OFF; zero runs, links, review items or value maps.
+- Validation: on `ElisCaretex-dev` (rolled back, no residue afterwards): `202610260002` 11/11,
+  `202610270001` 55/55 before and 57/57 (updated file) after `202610270002`, `202610270002`
+  40/40. Security advisor, after each apply: the only new finding is
+  INFO `rls_enabled_no_policy` on the 7 private `integration.legacy_sync_*` tables (by design). On
+  the local PostgreSQL 16 copy with all three migrations: `202610260002` 11/11, `202610270001`
+  57/57 (updated file), `202610270002` 40/40, all rolled back.
+- Open / next: the Finish `Status` value map; the
+  remaining owner decisions (two NORMAL entries in one cell, inactive customers, unmapped
+  staff, the 3 ambiguous customers and 2 unmapped types); Edge Function for Apps Script.
+  FYI: V2 already has 56 `APPS_SCRIPT_IMPORT` Finish entries on Sundays in January–February
+  2026 (not touched).
+
 ## 2026-10-27 — Claude — Production map: click opens only that customer on the Route board
 
 - Branch / commits: `claude/production-map-customer-focus`, Pull Request into `master`
