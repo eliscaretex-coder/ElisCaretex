@@ -80,6 +80,17 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: 202610270004 applied and validated
+
+- Branch / commits: `claude/legacy-sync-0004-applied` (docs only).
+- Changed: status of `202610270004` in the Finish import doc, INIT and this log.
+- Database: `202610270004_legacy_sync_notes_reference_fix.sql` **Applied** by the owner
+  2026-10-27 (SQL Editor). Switches OFF, no import has run.
+- Validation: its validation checks 8/8 on `ElisCaretex-dev`, rolled back; NORMAL dry run of the
+  24 entries of 2026-10-24 morning: 21 ADOPT, 3 ADOPT_AND_UPDATE, no blockers.
+- Open / next: the 0.012 kg ReWash line (26 October morning Table 3) needs correcting in the
+  sheet; Edge Function for Apps Script; how to see entries deleted in the sheet.
+
 ## 2026-10-27 — Claude — Legacy Sync: 202610270003 applied and validated; notes-match fix (Prepared)
 
 - Branch / commits: `claude/legacy-sync-rewash-import` (same Pull Request).

@@ -662,8 +662,8 @@ revision, never an overwrite; entries already in V2 from the CentralDB/workbook 
 adopted by the EntryID in their notes (legacy value wins); `OTHERS` is Clothes; HOUSEHOLD is a
 header whose customer lines come from `RewashProduction`, summed per customer; the 202610270002
 HOUSEHOLD functions are dropped unused.
-`202610270004_legacy_sync_notes_reference_fix.sql` (**Prepared**, validated on a local copy and
-previewed live in a rolled-back transaction) makes the notes match accept the full stop that ends
+`202610270004_legacy_sync_notes_reference_fix.sql` (**Applied** 2026-10-27 by the owner,
+**Validated** 8/8 on `ElisCaretex-dev` with a rolled-back test) makes the notes match accept the full stop that ends
 the workbook import notes; without it the 24 workbook entries of 2026-10-24 plan as BLOCKED.
 
 Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
