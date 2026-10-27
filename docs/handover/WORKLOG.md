@@ -100,8 +100,9 @@ Entry format:
   85 IMPORTED, attendance 69 IMPORTED and 1 held (Belen Vas 26/10, `WORK_OVER_13_HOURS`);
   stopped at the 5-minute budget. Open items at 21:50: 10 MOP waiting for 24/10 washes (outside
   the 3-day window), 8 trolleys waiting for MOP, ReWash 0.012 kg, Belen Vas.
-- Open / next: owner applies 0014 and its test, approves Edge Function v7, publishes the new
-  `.gs` and `Index.html`.
+- Applied: 0014 by the owner (functions verified live). Edge Function `legacy-sync-finish` v7
+  deployed by Claude on owner approval (2026-10-27 22:03, JWT verification off, from this file).
+- Open / next: owner publishes the new `.gs` and `Index.html` as a new web app version.
 
 ## 2026-10-27 — Claude — Legacy Sync: Ryotaro is one person under legacy users 111 and 112 (Prepared)
 
