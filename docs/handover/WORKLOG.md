@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: full Finish (NORMAL) import of 24-27 October
+
+- Branch / commits: `claude/legacy-sync-finish-full-run` (docs only).
+- Database: on the owner's approval `FINISH_HISTORICAL_IMPORT` enabled with limit 150; the owner
+  ran `importFinishSync('2026-10-24','2026-10-27')`. Run `9dd77a76-…` COMPLETED: 114 IMPORTED,
+  18 ADOPTED, 3 ADOPTED_AND_UPDATED. Switch OFF again, limit back to 3. ReWash switch still OFF
+  (refused with `55000`, as intended).
+- Validation: 389 links for the run (135 entry, 139 line, 115 wash item), 0 review items, 0 open
+  insert permits, both switches OFF.
+- Open / next: ReWash import after the 0.012 kg line `FE-20261026-092636-05587967::002` is
+  corrected in the sheet; owner decides.
+
 ## 2026-10-27 — Claude — Legacy Sync: sender deployed, first signed dry run and 3-record pilot
 
 - Branch / commits: `claude/legacy-sync-sender-fix`.

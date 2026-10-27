@@ -239,7 +239,13 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
    `c73c15ac-4078-4ac2-9feb-abc6268d45e3`: 3 workbook entries of 2026-10-24 morning ADOPTED
    (links and audit rows only, no new Finish rows), stopped at `RUN_LIMIT_REACHED`, run
    COMPLETED, switch OFF again.
-6. Next (owner decides): the remaining Finish entries, then ReWash.
+6. Done 2026-10-27: full NORMAL run 24-27 October. `FINISH_HISTORICAL_IMPORT` enabled with limit
+   150, run `9dd77a76-2c09-4f00-b170-f1ce26113dce` COMPLETED in 1.5 minutes: 114 IMPORTED, 18
+   ADOPTED, 3 ADOPTED_AND_UPDATED (3 more ALREADY_IMPORTED from the pilot); 389 links (135 entry,
+   139 line, 115 wash item), 0 review items, 0 open insert permits. ReWash refused with `55000`
+   (switch OFF, as intended). Switch OFF again, limit back to 3.
+7. Next (owner decides): ReWash, after the 0.012 kg line `FE-20261026-092636-05587967::002` is
+   corrected in the sheet.
 
 To withdraw an imported entry, do not delete it: use a reviewed cancellation (status
 `CANCELLED` plus an audit row). The links stay as history.
