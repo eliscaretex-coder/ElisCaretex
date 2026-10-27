@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: migrations 0007–0011 applied, Edge Function v6 deployed
+
+- Changed: no code. Live state recorded after the owner applied the pending migrations.
+- Database: the owner applied `202610270007` (washes), `202610270008` (MOP), re-ran
+  `202610270009` and `202610270010` to restore the dispatcher, then `202610270011`
+  (registers), each followed by its validation script. Verified by query: the import
+  functions for wash, mop, trolley, attendance and master exist, the dispatcher routes all
+  five kinds, `integration.legacy_sync_master_states` exists and every new switch
+  (SORTING_WASH, MOP_PRODUCTION, TROLLEY_CUSTODY, ATTENDANCE, MASTER_DATA) is still off.
+- Deploy: Edge Function `legacy-sync-finish` v6 (generic `dry_run` / `import` operations,
+  JWT verification off as before), approved by the owner on 2026-10-27.
+- Validation: read-only register dry run on the live database with the 935 CentralDB rows:
+  636 trolleys ADOPT with no differences; 153 customers ADOPT (12 active in legacy but
+  inactive in V2); staff 107 ADOPT, 1 ADOPT_BY_NAME (113), 1 CREATE (112), 4 SKIPPED;
+  17 drivers and 16 vehicles ADOPT; nothing blocked. Differences listed for the owner in the
+  Claude Doc "Cadastros: diferenças entre o legado e o V2". Vehicle `legacy_registered_at`
+  / `legacy_updated_at` in V2 are one hour ahead (an earlier import read Dublin time as UTC).
+- Open / next: owner publishes `LegacySyncFinish.gs` and `Index.html` (new web app version),
+  runs Preview, then turns the sync on; owner says which listed differences the legacy value
+  should win.
+
 ## 2026-10-27 — Claude — Legacy Sync: CentralDB registers join the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
 - Changed: fifth part of the full sync, run first. Every row of CentralDB `User`, `CustomerMaster`,
