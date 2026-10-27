@@ -441,6 +441,42 @@ One part, `kind: "attendance"`, runs first (V2 checks who worked), records in th
   (56 Finish sessions, 5 "not working", 19 Sorting staff rows). Two people are not in V2 yet:
   Ryotaro Kawauchi (legacy user 112) and Alessandra Laura (113); master data will bring them.
 
+## Registers (Prepared 2026-10-27, migration `202610270011`)
+
+One part, `kind: "master"`, runs first so new people, customers and trolleys exist before their work.
+The sender reads every row of the CentralDB registers each run (never `UserPrivate` or `DriverPrivate`):
+
+| Record type | Sheet (key) | V2 |
+| --- | --- | --- |
+| STAFF | `User` (`UserID`) | `staff_members`: name, shift, position (role, area, table), cover roles V2 allows as cover, roster, active / deactivated, joined, trainings |
+| CUSTOMER | `CustomerMaster` (`CustomerID`) | `customers`: name, Eircode, estimated kg, stops, Information (notes), active; `ServiceType` drives the product services |
+| TROLLEY | `Trolley` (`TrolleyID`) | `trolleys`: type, notes, Out of Service / Retired (with events); `RegisteredAt` only when created |
+| DRIVER | `Driver` (`DriverID`, code `DRV-nnn`) | `distribution_drivers`: name, licence categories, active, joined / deactivated, roster hidden |
+| VEHICLE | `Vehicles` (`Plate`) | `fleet_vehicles`: type, status (available / maintenance / returned), description, contract, compliance dates, km, notes |
+
+Rules (owner decision 2026-10-27, "starting point + list"):
+
+- A row with no V2 record creates it, as the V2 screens would (`CREATE`).
+- The first time a row meets an existing V2 record (same legacy id, code or plate; a person with no
+  legacy id by unique name, `ADOPT_BY_NAME`, which stores the legacy id) it is only linked
+  (`ADOPT`). Values that differ today are listed as `V2_DIFFERS` (Preview shows them) and are
+  not changed. Empty legacy cells are not listed.
+- The values synced are kept append-only in `integration.legacy_sync_master_states`. Each later
+  run writes only the fields the legacy app changed since then (`UPDATE`); a field V2 edited and
+  the legacy app did not touch keeps the V2 value. A legacy change V2 already has is `RELINK`
+  (no V2 write).
+- Deactivation as on the V2 screens: a person leaves the roster; a customer's product services end,
+  drafts are cancelled and published schedules superseded; a driver becomes unavailable. A trolley
+  at a customer cannot be put out of service or retired (`TROLLEY_AT_CUSTOMER`, review). A record
+  deleted in V2 is skipped.
+- Import in batches of up to 60 rows (`{"records": [...]}`); each row is its own subtransaction.
+  Only V2 writes (create, update, adoption by name) count toward the run limit.
+- Switch `MASTER_DATA_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "master"` (no new deploy after v6). Apply after 0007-0010.
+- Validation: `supabase/tests/202610270011_legacy_sync_master_data_validation.sql` (17 checks,
+  passed on the local replica). All 935 rows of the 2026-10-27 CentralDB imported locally without
+  errors; a second plan finds all of them already imported.
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

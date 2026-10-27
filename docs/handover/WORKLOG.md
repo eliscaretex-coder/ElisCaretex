@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: CentralDB registers join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
+- Changed: fifth part of the full sync, run first. Every row of CentralDB `User`, `CustomerMaster`,
+  `Trolley`, `Driver` and `Vehicles` is planned each night; only rows that changed are written.
+  Owner decision 2026-10-27 ("starting point + list"): a row with no V2 record creates it; the
+  first time a row meets an existing V2 record it is only linked and today's differences are
+  listed (`V2_DIFFERS`), not applied; afterwards each field the legacy app changes is written and
+  the others keep their V2 value. Deactivations follow the V2 screens (customer services ended
+  and schedules superseded; trolley service hold; driver unavailable). Page shows a Registers
+  part and the list of differences in the Preview.
+- Database: `202610270011_legacy_sync_master_data.sql` prepared, not applied (apply after
+  0007-0010). New append-only table `integration.legacy_sync_master_states`.
+- Validation: `supabase/tests/202610270011_legacy_sync_master_data_validation.sql` 17/17 on the
+  local replica; all 935 real rows imported locally without errors, a second plan finds all
+  already imported.
+- Open / next: send the owner the list of today's differences once 0011 is applied (dry run on
+  live); then customer schedules and routes (new versions), then rosters.
+- Note: on 2026-10-27 test 0010 passed live, but 0007 and 0008 were still not applied
+  (`legacy_sync_import_wash` missing). Order given again: 0007, 0008, then 0009 and 0010 again.
+
 ## 2026-10-27 — Claude — Legacy Sync: attendance joins the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
 - Changed: fourth part of the full sync, run first. Finish `StaffSessions` become Finish

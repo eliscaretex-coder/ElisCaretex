@@ -6,6 +6,8 @@
  * Postgres: this file only reads the sheets and normalises cell formats. It never writes the sheets.
  *
  * Parts of the sync, in the order they run:
+ *   master  CentralDB registers: User, CustomerMaster, Trolley, Driver, Vehicles (every row, every run;
+ *           only rows that changed since the last sync are written)
  *   attendance Finish Area StaffSessions (+ History) and RosterNotWorking, Sorting "Staff": who worked,
  *           where and when, in the order it was typed
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
@@ -74,11 +76,30 @@ const LSF = {
     'BreakMin', 'SessionType', 'Comments', 'Status'],
   notWorkingFields: ['DismissalID', 'CreatedAt', 'BusinessDate', 'Shift', 'TableID', 'UserName', 'UserID', 'Reason', 'Status'],
   sortingStaffFields: ['Name', 'Start Shift', 'End Shift', 'Break', 'Coments', 'Work position', 'Date', 'Shift'],
+  // Registers (CentralDB). Never UserPrivate or DriverPrivate. Missing optional columns are sent empty.
+  masterBatch: 60,
+  masterSheets: [
+    {type: 'STAFF', sheet: 'User', key: 'UserID', fields: ['UserID', 'Name', 'Shift', 'Position', 'Cover', 'Roster', 'Active',
+      'DeactivatedAt', 'JoinedAt', 'FireTraining', 'FirstAidTraining', 'EODCapable']},
+    {type: 'CUSTOMER', sheet: 'CustomerMaster', key: 'CustomerID', fields: ['CustomerID', 'CustomerName', 'ServiceType',
+      'CustomerType', 'Eircode', 'KGEstimated', 'Stops', 'Information', 'Active']},
+    {type: 'TROLLEY', sheet: 'Trolley', key: 'TrolleyID', fields: ['TrolleyID', 'Type', 'Status', 'RegisteredAt', 'Notes']},
+    {type: 'DRIVER', sheet: 'Driver', key: 'DriverID', fields: ['DriverID', 'Name', 'LicenseType', 'Active', 'JoinedDate',
+      'DeactivatedDate', 'RosterHidden']},
+    {type: 'VEHICLE', sheet: 'Vehicles', key: 'Plate', fields: ['Plate', 'Type', 'Notes', 'Status', 'MaintStart', 'MaintEnd',
+      'Active', 'RegisteredAt', 'UpdatedAt', 'ContractType', 'VehicleDescription', 'TachographType', 'Insurer', 'Make', 'Range',
+      'CvrtMotExpiryDate', 'TachoCalibrationDate', 'Fuel', 'LastKmRecorded', 'ContractStartDate', 'ContractEndDate', 'BodyDetail',
+      'TailLiftDetail1', 'TailLiftDetail2', 'MonthlyRentalExVat', 'TermMonths', 'CvrtLast', 'ServiceLast', 'ServiceNext',
+      'TachographLast', 'RoadFundLicenceNext', 'TlWeightTestLast', 'TlWeightTestNext', 'RegistrationDate', 'TlLolerNext',
+      'TlLolerLast']}
+  ],
+  masterInstants: ['RegisteredAt', 'UpdatedAt'],
   // Parts sent through the generic dry_run / import operations.
-  kinds: ['attendance', 'wash', 'mop', 'trolley'],
-  // Import order: attendance first (V2 checks who worked); trolleys last, because a trolley leaving
-  // production needs its Finish or MOP record in V2.
-  parts: ['attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
+  kinds: ['master', 'attendance', 'wash', 'mop', 'trolley'],
+  // Import order: registers first (new people, customers and trolleys exist before their work);
+  // attendance next (V2 checks who worked); trolleys last, because a trolley leaving production
+  // needs its Finish or MOP record in V2.
+  parts: ['master', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -503,6 +524,41 @@ function lsfCollectAttendance_(range) {
 }
 
 /** Every part of the sync for the date range. */
+/**
+ * CentralDB registers: every row of User, CustomerMaster, Trolley, Driver and Vehicles. Dates are
+ * Dublin calendar days (yyyy-MM-dd); RegisteredAt / UpdatedAt are Dublin local date-times.
+ */
+function lsfCollectMaster_() {
+  const central = lsConfig_().sources.central;
+  if (!central || !central.enabled || !central.id) return {records: [], notes: ['CentralDB is not configured or not enabled.']};
+  const css = SpreadsheetApp.openById(central.id), out = [], notes = [];
+  LSF.masterSheets.forEach(function (spec) {
+    const sh = css.getSheetByName(spec.sheet);
+    if (!sh) { notes.push('Sheet ' + spec.sheet + ' is missing.'); return; }
+    const n = sh.getLastRow() - 1, width = sh.getLastColumn();
+    if (n < 1) return;
+    const headers = sh.getRange(1, 1, 1, width).getValues()[0].map(function (h) { return String(h || '').trim(); });
+    if (headers.indexOf(spec.key) < 0) { notes.push(spec.sheet + ' has no ' + spec.key + ' column.'); return; }
+    const missing = spec.fields.filter(function (f) { return headers.indexOf(f) < 0; });
+    if (missing.length) notes.push(spec.sheet + ' has no column ' + missing.join(', ') + ' (sent empty).');
+    const values = sh.getRange(2, 1, n, width).getValues(), seen = {};
+    values.forEach(function (cells) {
+      const row = {};
+      spec.fields.forEach(function (f) {
+        const i = headers.indexOf(f), v = i < 0 ? null : cells[i];
+        if (LSF.masterInstants.indexOf(f) >= 0) row[f] = lsfLocal_(v);
+        else row[f] = lsfText_(v, v instanceof Date ? 'date' : null);
+      });
+      const id = row[spec.key];
+      if (!id) return;
+      if (seen[id]) { notes.push(spec.sheet + ': duplicate ' + spec.key + ' ' + id + ' (first row kept).'); return; }
+      seen[id] = true;
+      out.push({record_type: spec.type, source_record_id: id, row: row});
+    });
+  });
+  return {records: out, notes: notes};
+}
+
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
   const washes = lsfCollectWashes_(range);
@@ -513,6 +569,14 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.mop = [];
     collected.notes.mop = ['MOP sheets could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const master = lsfCollectMaster_();
+    collected.master = master.records;
+    if (master.notes.length) collected.notes.master = master.notes.slice(0, 20);
+  } catch (e) {
+    collected.master = [];
+    collected.notes.master = ['CentralDB registers could not be read: ' + String(e.message || e)];
   }
   try {
     const attendance = lsfCollectAttendance_(range);
@@ -576,6 +640,12 @@ function lsfSummary_(plans, notes) {
       if (p.action) lsfCount_(s.actions, p.action);
       (p.blockers || []).forEach(function (b) { lsfCount_(s.blockers, b.code); });
       if (p.outcome === 'BLOCKED' && s.held.length < 30) s.held.push({id: p.source_record_id, blockers: (p.blockers || []).map(function (b) { return b.code + (b.detail ? ': ' + b.detail : ''); })});
+      // Registers: today's differences between the legacy row and V2, listed once at adoption.
+      (p.warnings || []).forEach(function (w) {
+        if (w.code !== 'V2_DIFFERS') return;
+        s.differs = s.differs || [];
+        if (s.differs.length < 300) s.differs.push({type: p.record_type, id: p.source_record_id, detail: w.detail});
+      });
     });
     out[kind] = s;
   });
@@ -602,7 +672,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -623,6 +693,7 @@ function importFinishSync(fromDate, toDate, reason) {
     });
     for (const g of groups) {
       if (!plans[g.kind]) continue;
+      if (g.kind === 'master') { lsfImportMaster_(runId, collected.master, plans.master, result, started); continue; }
       const records = collected[g.kind];
       for (let i = 0; i < records.length && !result.stopped; i++) {
         const outcome = plans[g.kind][i].outcome;
@@ -649,6 +720,26 @@ function importFinishSync(fromDate, toDate, reason) {
   }
   Logger.log(JSON.stringify(result, null, 2));
   return result;
+}
+
+/** Registers go in batches of up to 60 (each row is still its own transaction in V2). */
+function lsfImportMaster_(runId, records, plans, result, started) {
+  const out = result.results.master, todo = [];
+  records.forEach(function (record, i) {
+    if (plans[i].outcome === 'READY' || plans[i].outcome === 'BLOCKED') todo.push(record);
+  });
+  for (let i = 0; i < todo.length && !result.stopped; i += LSF.masterBatch) {
+    if (Date.now() - started > LSF.timeBudgetMs) { result.stopped = 'TIME_BUDGET'; break; }
+    const r = lsfCall_({operation: 'import', kind: 'master', runId: runId, record: {records: todo.slice(i, i + LSF.masterBatch)}});
+    if (!r.ok) {
+      lsfCount_(out, 'REFUSED_' + r.code);
+      if (r.code === '55000') { out.refusal = r.error; return; }
+      continue;
+    }
+    const counts = (r.result || {}).counts || {};
+    Object.keys(counts).forEach(function (k) { out[k] = (out[k] || 0) + counts[k]; });
+    if (counts.RUN_LIMIT_REACHED) return;
+  }
 }
 
 /** Time trigger (every 5 minutes): asks V2 whether to run, and runs the window V2 returns. */

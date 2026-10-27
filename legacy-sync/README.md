@@ -98,6 +98,7 @@ part whose switch is OFF is refused by the database and skipped; the others stil
 
 | Part | Legacy sheets | V2 | Switch | Migration |
 | --- | --- | --- | --- | --- |
+| Registers | CentralDB `User`, `CustomerMaster`, `Trolley`, `Driver`, `Vehicles` (every row) | `staff_members` (+ cover roles), `customers` (+ product services), `trolleys`, `distribution_drivers`, `fleet_vehicles`; only fields changed in the legacy app are written | `MASTER_DATA_IMPORT` | `202610270011` |
 | Attendance | Finish `StaffSessions` (+ History) and `RosterNotWorking`, Sorting `Staff` | Finish and Sorting attendance, `work_sessions` with the legacy table, times and break, Finish table segments | `ATTENDANCE_IMPORT` | `202610270010` |
 | Washes | Sorting `Sorting Area` + CentralDB `WashItems` + Sorting `Staff` | `sorting_wash_runs`, `sorting_wash_run_customers`, Production Flow `WASH_RECORDED` | `SORTING_WASH_IMPORT` | `202610270007` |
 | MOP | CentralDB `MopProduction` (+ History) + `WashItems` | `sorting_mop_production_batches` (lines, trolley references), ABS batch, Production Flow `MOP_PRODUCTION_RECORDED` | `MOP_PRODUCTION_IMPORT` | `202610270008` |
@@ -105,5 +106,5 @@ part whose switch is OFF is refused by the database and skipped; the others stil
 | ReWash | Finish Area HOUSEHOLD entries + `RewashProduction` | ReWash entries and lines | `FINISH_REWASH_HISTORICAL_IMPORT` | `202610270003` |
 | Trolleys | Trolley codes of Finish `FinishEntries` and CentralDB `MopProduction` (out) + CentralDB `TrolleyReturns` (back), in time order | `trolley_customer_stays`, trolley status and events, `sorting_trolley_intakes` with products and Production Flow `TROLLEY_RECEIVED_*`, presence evidence | `TROLLEY_CUSTODY_IMPORT` | `202610270009` |
 
-Planned next: master data (customers, schedules, staff, drivers, vehicles, routes,
-rosters; owner decision 2026-10-27: the legacy sheets are still where the team edits them).
+Planned next: customer schedules and routes (as new schedule versions), then production and
+distribution rosters (owner decision 2026-10-27: the legacy sheets are still where the team edits them).

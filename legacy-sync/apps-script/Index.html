@@ -110,7 +110,7 @@
 
   <section class="card">
     <h2>Source spreadsheets</h2>
-    <p class="small muted">Spreadsheet IDs, not Apps Script project IDs. Washes use <b>sorting</b> and <b>central</b>; MOP uses <b>central</b>; Finish and ReWash use <b>finish</b> and <b>central</b>; Trolleys use <b>finish</b> and <b>central</b>; Attendance uses <b>finish</b>, <b>sorting</b> and <b>central</b>.</p>
+    <p class="small muted">Spreadsheet IDs, not Apps Script project IDs. Washes use <b>sorting</b> and <b>central</b>; MOP uses <b>central</b>; Finish and ReWash use <b>finish</b> and <b>central</b>; Trolleys use <b>finish</b> and <b>central</b>; Attendance uses <b>finish</b>, <b>sorting</b> and <b>central</b>; Registers (people, customers, trolleys, drivers, vehicles) use <b>central</b>.</p>
     <div id="sources"></div>
     <div class="row" style="margin-top:10px"><button id="saveSources" type="button">Save spreadsheets</button></div>
   </section>
@@ -204,7 +204,9 @@ function showResult(result) {
     const s = result.summary || {};
     PARTS.forEach(([key, name]) => {
       const part = s[key] || {};
-      out.appendChild(group(name + ' (' + (part.records || 0) + ' records)', part.outcomes, part.held, (part.notes || []).join(' ')));
+      // Registers: differences that exist today are listed, not written (V2 keeps its value).
+      const differs = (part.differs || []).map((d) => ({id: d.type + ' ' + d.id, blockers: ['V2 differs: ' + d.detail]}));
+      out.appendChild(group(name + ' (' + (part.records || 0) + ' records)', part.outcomes, (part.held || []).concat(differs), (part.notes || []).join(' ')));
     });
   } else {
     const r = result.results || {}, plan = result.plan || {};
@@ -240,8 +242,8 @@ async function importNow() {
 }
 
 // Parts of the sync, in the order they run (LSF.parts in LegacySyncFinish.gs).
-const PARTS = [['attendance', 'Attendance'], ['wash', 'Washes'], ['mop', 'MOP'], ['normal', 'Finish'], ['rewash', 'ReWash'], ['trolley', 'Trolleys']];
-const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', MOP_PRODUCTION_IMPORT: 'MOP', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash', TROLLEY_CUSTODY_IMPORT: 'Trolleys', ATTENDANCE_IMPORT: 'Attendance'};
+const PARTS = [['master', 'Registers'], ['attendance', 'Attendance'], ['wash', 'Washes'], ['mop', 'MOP'], ['normal', 'Finish'], ['rewash', 'ReWash'], ['trolley', 'Trolleys']];
+const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', MOP_PRODUCTION_IMPORT: 'MOP', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash', TROLLEY_CUSTODY_IMPORT: 'Trolleys', ATTENDANCE_IMPORT: 'Attendance', MASTER_DATA_IMPORT: 'Registers'};
 
 const RESULT_LABELS = {IMPORTED: 'new', UPDATED: 'updated', ADOPTED: 'matched', ADOPTED_AND_UPDATED: 'matched + updated', BLOCKED: 'to review', RUN_LIMIT_REACHED: 'run limit'};
 
