@@ -80,7 +80,20 @@ Entry format:
 
 ---
 
-## 2026-10-27 — Claude — Legacy Sync: on/off and Sync now on the Apps Script page (Prepared)
+## 2026-10-27 — Claude — Legacy Sync: switched ON from the Apps Script page, first Sync now
+
+- Branch / commits: `claude/legacy-sync-live-record` (docs only).
+- Database / deploy: the owner applied `202610270006` and published the new `Index.html` and
+  `LegacySyncFinish.gs`; Edge Function `legacy-sync-finish` v5 (with `control`) deployed on the
+  owner's approval, identical to `master`. The owner pressed "Turn on" (schedule and both import
+  switches ON, limit 300, changed_by `Apps Script admin page`) and "Sync now".
+- Validation: run `dc2abc81-…` (SYNC_NOW, 25-27 October) COMPLETED: Finish 5 IMPORTED, ReWash
+  3 IMPORTED + 1 BLOCKED (the known 0.012 kg record, no duplicate review item); 31 links;
+  0 open insert permits.
+- Open / next: the sync now runs every night 02:00-05:00 Dublin for the last 3 days. Still open:
+  deletions in the legacy sheet are not detected; the 0.012 kg review item waits for the owner.
+
+## 2026-10-27 — Claude — Legacy Sync: on/off and Sync now on the Apps Script page (Applied)
 
 - Branch / commits: `claude/legacy-sync-control-in-apps-script`.
 - Why: owner decision, the switch belongs on the Apps Script page, not in V2.
