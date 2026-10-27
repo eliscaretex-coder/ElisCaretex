@@ -256,6 +256,25 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 To withdraw an imported entry, do not delete it: use a reviewed cancellation (status
 `CANCELLED` plus an audit row). The links stay as history.
 
+## Nightly sync and V2 control (Prepared, migration `202610270005`)
+
+Owner request 2026-10-27: sync every night, with a switch and a "Sync now" button in V2.
+
+- `integration.legacy_sync_schedule` (one row, `FINISH_AREA`): `auto_enabled`, night window
+  02:00-05:00 Dublin, `window_days` 3, the pending request and the last poll time.
+- `integration.legacy_sync_claim_run()` (service_role, refuses any `auth.uid()`): OFF, BUSY (a
+  COMMIT run RUNNING for less than 15 minutes), REQUEST (once per press), NIGHTLY (once per Dublin
+  date), otherwise IDLE.
+- `public.legacy_sync_control_status()`, `public.legacy_sync_set_auto(boolean)`,
+  `public.legacy_sync_request_now()`: enabled ADMIN accounts only (42501 otherwise). ON enables
+  the schedule and both import switches with limit 300; OFF disables all three. "Sync now" is
+  refused (55000) while OFF.
+- Edge Function operation `poll`; Apps Script `legacySyncTick` (5-minute trigger) opens the run
+  before reading the sheets, so a sheet error shows as FAILED in V2.
+- Panel "Legacy sheet sync" on Finish Results, shown only when the status RPC succeeds.
+- Validation: `supabase/tests/202610270005_legacy_sync_schedule_validation.sql` (22 checks,
+  passed on the local replica).
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

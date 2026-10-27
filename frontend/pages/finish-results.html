@@ -9,12 +9,14 @@
   <link rel="stylesheet" href="../assets/css/finish-results.css?v=20261025-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261021-1">
+  <link rel="stylesheet" href="../assets/css/legacy-sync-control.css?v=20261027-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261024-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261021-4" defer></script>
   <script src="../assets/js/finish-results.js?v=20261025-1" defer></script>
+  <script src="../assets/js/legacy-sync-control.js?v=20261027-1" defer></script>
 </head>
 <body class="finish-results-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -35,6 +37,20 @@
       </header>
 
       <p id="finishResultsMessage" class="finish-results-message" aria-live="polite"></p>
+
+      <section id="legacySyncControl" class="finish-results-section legacy-sync-control" hidden>
+        <header>
+          <div><p>Administrator</p><h2>Legacy sheet sync</h2></div>
+          <div class="legacy-sync-actions">
+            <strong id="legacySyncState" class="legacy-sync-state">—</strong>
+            <button id="legacySyncToggle" class="secondary" type="button">—</button>
+            <button id="legacySyncNow" class="primary" type="button">Sync now</button>
+          </div>
+        </header>
+        <div id="legacySyncInfo" class="legacy-sync-info"></div>
+        <p id="legacySyncMessage" class="legacy-sync-message" aria-live="polite"></p>
+        <div id="legacySyncRuns" class="legacy-sync-runs"></div>
+      </section>
 
       <section id="finishResultsTotals" class="finish-results-totals"></section>
 

@@ -15,7 +15,10 @@
  * Entry points (run from the editor):
  *   previewFinishSync('2026-10-24','2026-10-27')  read-only dry run
  *   importFinishSync('2026-10-24','2026-10-27')   imports; refused by the database unless the
- *                                                  owner enabled the import switches
+ *                                                  Legacy Sync switch in V2 is on
+ *   installLegacySyncTrigger()                     once: polls V2 every 5 minutes (legacySyncTick)
+ *   removeLegacySyncTrigger()                      stops the polling
+ * The poll runs an import only when V2 says so: once per night, or after "Sync now" in V2.
  */
 const LSF = {
   timeZone: 'Europe/Dublin',
@@ -222,23 +225,24 @@ function previewFinishSync(fromDate, toDate) {
  * FINISH_HISTORICAL_IMPORT / FINISH_REWASH_HISTORICAL_IMPORT, and stops at max_entries_per_run.
  * READY records are written; BLOCKED records go to the review queue; others are left alone.
  */
-function importFinishSync(fromDate, toDate) {
+function importFinishSync(fromDate, toDate, reason) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', results: {normal: {}, rewash: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {normal: {}, rewash: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
+    // The run is opened first so that a sheet or network error is recorded as FAILED in V2.
+    const start = lsfCall_({operation: 'start_run', mode: 'COMMIT', dateFrom: range.from, dateTo: range.to,
+      requestedBy: 'Apps Script Legacy Sync (' + result.reason + ')'});
+    if (!start.ok) throw Error('Run refused: ' + start.error);
+    runId = start.result; result.runId = runId;
+
     const collected = lsfCollect_(range);
     const plans = lsfDryRun_(collected);
     result.plan = lsfSummary_(plans);
-
-    const start = lsfCall_({operation: 'start_run', mode: 'COMMIT', dateFrom: range.from, dateTo: range.to,
-      requestedBy: 'Apps Script Legacy Sync (LegacySyncFinish.gs)'});
-    if (!start.ok) throw Error('Run refused: ' + start.error);
-    runId = start.result; result.runId = runId;
 
     const groups = [
       {kind: 'normal', operation: 'import_finish', records: collected.normal},
@@ -270,4 +274,26 @@ function importFinishSync(fromDate, toDate) {
   }
   Logger.log(JSON.stringify(result, null, 2));
   return result;
+}
+
+/** Time trigger (every 5 minutes): asks V2 whether to run, and runs the window V2 returns. */
+function legacySyncTick() {
+  const r = lsfCall_({operation: 'poll'});
+  if (!r.ok) throw Error('Poll refused: ' + r.error);
+  const claim = r.result || {};
+  if (!claim.run) return claim;
+  return importFinishSync(claim.dateFrom, claim.dateTo, claim.reason);
+}
+
+/** Run once from the editor. Replaces any earlier legacySyncTick trigger. */
+function installLegacySyncTrigger() {
+  removeLegacySyncTrigger();
+  ScriptApp.newTrigger('legacySyncTick').timeBased().everyMinutes(5).create();
+  Logger.log('legacySyncTick will run every 5 minutes.');
+}
+
+function removeLegacySyncTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'legacySyncTick') ScriptApp.deleteTrigger(t);
+  });
 }
