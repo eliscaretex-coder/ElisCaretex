@@ -161,10 +161,11 @@ $$;
 
 select pg_temp.check((select fp from t_before) = pg_temp.footprint(), 'dry run wrote nothing');
 select pg_temp.check((select (r->>'writes_performed')::int = 0 and (r->>'records')::int = 7 from t_dry), 'dry run reports 7 records, 0 writes');
+select pg_temp.check((select (r->>'rewash_route')::int = 1 and (r->>'skipped')::int = 0 from t_dry), 'dry run counts 1 ReWash route, 0 skipped');
 select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-A'),'CELL_SHARED_IN_BATCH'), 'A and D share a Finish cell in the batch');
 select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-D'),'CELL_SHARED_IN_BATCH'), 'D is held with A');
-select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-B'),'HOUSEHOLD_PENDING_DECISION'), 'HOUSEHOLD is held for a decision');
-select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-B'),'MISSING_WASH_ITEM'), 'HOUSEHOLD without WashItem is flagged');
+-- Since 202610270002 HOUSEHOLD is ReWash (owner decision 2026-10-27): routed, not blocked here.
+select pg_temp.check(pg_temp.plan('TEST-LS-B')->>'outcome' = 'REWASH_ROUTE', 'HOUSEHOLD is routed to the ReWash importer');
 select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-C'),'CUSTOMER_NOT_FOUND'), 'unknown customer is blocked');
 select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-E'),'TOTAL_KG_MISMATCH'), 'TotalKg mismatch is blocked');
 select pg_temp.check(pg_temp.has_blocker(pg_temp.plan('TEST-LS-E'),'INVALID_QUANTITY'), 'comma decimal is refused');
@@ -280,14 +281,20 @@ select pg_temp.check((select count(*)=1 from integration.legacy_sync_review_item
 select pg_temp.check(pg_temp.has_blocker(integration.legacy_sync_import_finish_entry((select run_id from t_run), pg_temp.rec('D')),
          'CELL_HAS_ACTIVE_ENTRY'), 'D is blocked by the ACTIVE cell');
 
--- HOUSEHOLD twice: one open review item per reason.
-select pg_temp.check(integration.legacy_sync_import_finish_entry((select run_id from t_run), pg_temp.rec('B'))->>'outcome' = 'BLOCKED',
-  'HOUSEHOLD import is BLOCKED');
-select pg_temp.check(integration.legacy_sync_import_finish_entry((select run_id from t_run), pg_temp.rec('B'))->>'outcome' = 'BLOCKED',
-  'HOUSEHOLD retry is BLOCKED again');
+-- Blocked twice: one open review item per reason.
+select pg_temp.check(integration.legacy_sync_import_finish_entry((select run_id from t_run), pg_temp.rec('C'))->>'outcome' = 'BLOCKED',
+  'unknown customer import is BLOCKED');
+select pg_temp.check(integration.legacy_sync_import_finish_entry((select run_id from t_run), pg_temp.rec('C'))->>'outcome' = 'BLOCKED',
+  'unknown customer retry is BLOCKED again');
 select pg_temp.check((select count(*)=1 from integration.legacy_sync_review_items
-                      where source_record_id='TEST-LS-B' and reason_code='HOUSEHOLD_PENDING_DECISION'),
+                      where source_record_id='TEST-LS-C' and reason_code='CUSTOMER_NOT_FOUND'),
   'repeated blocked record keeps one open review item per reason');
+
+-- HOUSEHOLD sent to the NORMAL importer: routed, no Finish row, no review item.
+select pg_temp.check(integration.legacy_sync_import_finish_entry((select run_id from t_run), pg_temp.rec('B'))->>'outcome' = 'REWASH_ROUTE',
+  'NORMAL importer does not import HOUSEHOLD');
+select pg_temp.check((select count(*)=0 from integration.legacy_sync_review_items where source_record_id='TEST-LS-B'),
+  'HOUSEHOLD routed without a review item');
 
 -- Run limit.
 update integration.legacy_sync_settings set max_entries_per_run=2, changed_by='validation test' where setting_key='FINISH_HISTORICAL_IMPORT';

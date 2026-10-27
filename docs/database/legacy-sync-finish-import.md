@@ -1,6 +1,11 @@
 # Legacy sync: historical Finish import
 
-Status: **Prepared** (2026-10-27). Not applied to `ElisCaretex-dev`. No import has run.
+Status (2026-10-27): `202610260002` and `202610270001` **Applied** to `ElisCaretex-dev` by the
+owner and **Validated** there with the rolled-back test files. `202610270002` (HOUSEHOLD as
+ReWash, Sunday skip) is **Prepared**. Both import switches are OFF. No import has run.
+
+The sync is temporary. When the legacy apps stop, keep the imported production data and remove
+the sync scaffolding (owner, 2026-10-27).
 
 This is the database side of the Legacy Sync: a one-way, incremental, idempotent copy of
 legacy Apps Script Finish Area entries into Finish V2. Apps Script stays the sender and holds
@@ -13,9 +18,13 @@ Migrations:
 - `supabase/migrations/202610270001_legacy_sync_finish_historical_import.sql`: switch and
   pilot limit, owner-approved value maps, planner, dry run, importer, narrow Finish trigger
   change.
+- `supabase/migrations/202610270002_legacy_sync_household_rewash_import.sql`: Sunday skip,
+  HOUSEHOLD routed to the ReWash ledger, ReWash planner and importer.
 
-Validation: `supabase/tests/202610270001_legacy_sync_finish_historical_import_validation.sql`
-(55 assertions, transaction rolled back).
+Validation (each file is one transaction, rolled back):
+`supabase/tests/202610260002_legacy_sync_identity_foundation_validation.sql` (11),
+`supabase/tests/202610270001_legacy_sync_finish_historical_import_validation.sql` (57, expects
+`202610270002`), `supabase/tests/202610270002_legacy_sync_household_rewash_import_validation.sql` (38).
 
 ## Why not the live Finish RPCs
 
@@ -36,6 +45,8 @@ rows, and never fabricates wash events.
 | `integration.legacy_sync_start_run(source, mode, from, to, requested_by)` | one run row | open a `COMMIT` run |
 | `integration.legacy_sync_import_finish_entry(run_id, record jsonb)` | see below | one record, one transaction |
 | `integration.legacy_sync_finish_run(run_id, status, summary)` | run row | close the run |
+| `integration.legacy_sync_plan_household_rewash(records jsonb)` | nothing (STABLE) | 1–60 HOUSEHOLD rows; plans and READY cells |
+| `integration.legacy_sync_import_household_rewash(run_id, records jsonb)` | see "HOUSEHOLD as ReWash" | the HOUSEHOLD rows of one Finish cell |
 
 All are `SECURITY DEFINER`, revoked from `public`, `anon` and `authenticated`. The importer
 also refuses to run when `auth.uid()` is set.
@@ -70,6 +81,8 @@ row it references (or `null`). The database computes the fingerprint
 | `IMPORTED` | written | entry, lines, flow (if new), event, audit, links, versions |
 | `ALREADY_IMPORTED` | same `EntryID`, same fingerprint | versions only (idempotent, normally none) |
 | `BLOCKED` | at least one blocker | source versions + one open review item per blocker |
+| `SKIPPED` | Sunday business date: test data (owner, 2026-10-27) | source version only |
+| `REWASH_ROUTE` | HOUSEHOLD: use the ReWash importer | source version only |
 | `RUN_LIMIT_REACHED` | run hit `max_entries_per_run` | none |
 
 ## Mapping rules
@@ -99,10 +112,10 @@ row it references (or `null`). The database computes the fingerprint
 ## Blockers
 
 `INVALID_RECORD`, `MISSING_SOURCE_ID`, `SOURCE_ID_MISMATCH`, `SOURCE_CHANGED_AFTER_IMPORT`,
-`HOUSEHOLD_PENDING_DECISION`, `ENTRY_TYPE_NOT_SUPPORTED`, `SOURCE_STATUS_UNMAPPED`,
+`ENTRY_TYPE_NOT_SUPPORTED`, `SOURCE_STATUS_UNMAPPED`,
 `SOURCE_NOT_ACTIVE`, `MISSING_WASH_ITEM`, `WASH_ITEM_ID_MISMATCH`, `WASH_ITEM_TYPE_UNMAPPED`,
 `PRODUCT_NOT_CLOTHES`, `INVALID_SCHEDULED_DATE`, `CUSTOMER_MISMATCH`, `INVALID_BUSINESS_DATE`,
-`BUSINESS_DATE_IN_FUTURE`, `SUNDAY_PRODUCTION_REVIEW`, `BUSINESS_DATE_AFTER_DELIVERY`,
+`BUSINESS_DATE_IN_FUTURE`, `BUSINESS_DATE_AFTER_DELIVERY`,
 `INVALID_CREATED_AT`, `CREATED_AT_IN_FUTURE`, `SHIFT_UNMAPPED`, `SHIFT_NOT_FOUND`,
 `TABLE_UNMAPPED`, `TABLE_NOT_FOUND`, `MISSING_CUSTOMER_ID`, `CUSTOMER_CONFLICT`,
 `CUSTOMER_AMBIGUOUS`, `CUSTOMER_DELETED`, `CUSTOMER_NOT_FOUND`,
@@ -112,9 +125,43 @@ row it references (or `null`). The database computes the fingerprint
 `CELL_HAS_ACTIVE_ENTRY`, `BATCH_REFERENCE_IN_USE`. Dry run only: `DUPLICATE_SOURCE_ID_IN_BATCH`,
 `CELL_SHARED_IN_BATCH`, `BATCH_REFERENCE_DUPLICATE_IN_BATCH`.
 
-Two legacy entries for the same flow, date, shift and table are never merged: the second is
+Two legacy NORMAL entries for the same flow, date, shift and table are never merged: the second is
 held (`CELL_SHARED_IN_BATCH` in a dry run, `CELL_HAS_ACTIVE_ENTRY` after the first import)
 until the owner decides.
+
+## HOUSEHOLD as ReWash (`202610270002`, Prepared)
+
+Owner decision 2026-10-27: a legacy `HOUSEHOLD` Finish entry is ReWash. It goes into the V2
+ReWash ledger (`finish_rewash_entries` / `finish_rewash_lines`), the same place as
+`record_finish_rewash_v1`, so it is never official Clothes KG and never touches a Production
+Flow.
+
+- V2 keeps one ACTIVE ReWash entry per business date, shift and table, with one KG line per
+  customer row. The importer takes **all the HOUSEHOLD rows of one cell in one call** and writes
+  one new entry (revision 1) with one line per legacy row, in `CreatedAt` order.
+  `recorded_at` = the latest `CreatedAt`; processed-by = the common mapped staff, else the common
+  `StaffName`, else `Legacy Finish (Apps Script)`; notes = the legacy notes joined.
+- A cell is all-or-nothing: one blocked row holds the whole cell (`CELL_HAS_BLOCKED_RECORD`).
+- If the cell already has an ACTIVE ReWash entry (typed in V2, or imported earlier), the rows are
+  held (`REWASH_CELL_HAS_ACTIVE_ENTRY`). The importer never merges into or supersedes an entry.
+- Customer as for NORMAL, then the ReWash eligibility used by V2
+  (`finish_rewash_customer_options_v1`: active customer with a published CLOTHES/OTHERS schedule),
+  else `REWASH_CUSTOMER_NOT_ELIGIBLE`.
+- KG only: `QtyKg` > 0 (max 10 000, 2 decimals); any `QtyUnits` other than 0 is
+  `REWASH_UNITS_NOT_SUPPORTED`. `BatchNo` is optional and must be free among the day's ACTIVE
+  Finish and ReWash records.
+- Provenance: `finish_rewash_entries` has no `source_application`, so it lives in the links
+  (`FINISH_ENTRY_TO_REWASH_LINE`, key `KG:1`, metadata holds the entry id) and in
+  `audit_log` (`IMPORT_LEGACY_HOUSEHOLD_REWASH`, `source_application='LEGACY_SYNC_FINISH'`).
+- Switch `FINISH_REWASH_HISTORICAL_IMPORT` (seeded OFF); its limit counts cells per run.
+- Other blockers: `ENTRY_TYPE_NOT_HOUSEHOLD`, `IMPORTED_AS_NORMAL_ENTRY`, and the NORMAL ones
+  that apply (status, dates, shift, table, customer, staff, quantity, batch).
+
+## Sunday rows
+
+Owner decision 2026-10-27: there was no real production on Sunday; legacy rows with a Sunday
+business date are test data. Both planners return `SKIPPED` (`SUNDAY_TEST_DATA`). The ReWash
+importer also records a review item already `REJECTED` by that decision, for traceability.
 
 ## Safety gates
 
@@ -131,12 +178,9 @@ Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 
 ## Pilot runbook (after the owner approves each step)
 
-1. Read-only on `ElisCaretex-dev`: confirm the live body of
-   `finish_enforce_new_entry_current_shift` equals `202610230005` (the migration replaces it),
-   list the triggers on `finish_production_entries`, and check that no
-   `integration.legacy_sync_*` object already exists.
-2. Apply `202610260002`, then `202610270001`, from the committed files. Run the validation file
-   (it rolls back). Run the security advisors.
+1. Done 2026-10-27: read-only checks, `202610260002` and `202610270001` applied, validation
+   files and security advisors run.
+2. Apply `202610270002` and run its validation file (owner approval).
 3. Insert the owner-approved value maps (at least the Finish `Status` values).
 4. Dry run 2026-10-26 from the Edge Function and review the plans with the owner.
 5. Owner enables `FINISH_HISTORICAL_IMPORT` (limit 3), opens a `COMMIT` run, imports 1 to 3
@@ -150,8 +194,9 @@ To withdraw a pilot entry, do not delete it: use a reviewed cancellation (status
 
 ## Still open
 
-- Owner decisions: HOUSEHOLD, two legacy entries in one cell, inactive customers, Sunday
-  records, unmapped staff, the raw values of the 3 ambiguous customers and 2 unmapped types.
+- Owner decisions: two legacy NORMAL entries in one cell, inactive customers, unmapped staff,
+  the raw values of the 3 ambiguous customers and 2 unmapped types, the Finish `Status` values.
+  (HOUSEHOLD and Sunday decided 2026-10-27.)
 - Edge Function for Apps Script (HMAC-signed requests; calls only the functions above).
 - Repository copy of the live-only `integration.legacy_inbox`,
   `staging.apps_script_incremental_rows` and `legacy-sync-ingest`.

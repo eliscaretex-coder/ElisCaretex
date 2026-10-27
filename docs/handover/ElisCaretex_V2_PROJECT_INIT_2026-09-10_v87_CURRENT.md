@@ -639,13 +639,20 @@ to Team Leader to the Driver job title. The `driver-role-transfers` and `product
 jobs run hourly.
 
 Legacy Sync, historical Finish import (2026-10-27, `202610260002_legacy_sync_identity_foundation.sql`
-and `202610270001_legacy_sync_finish_historical_import.sql`, **Prepared**, not applied; local
-rebuilt-database tests passed): one-way copy of Apps Script FinishEntries into Finish V2. Flow by
+and `202610270001_legacy_sync_finish_historical_import.sql`, **Applied** 2026-10-27 by the owner
+and **Validated** with the rolled-back test files on `ElisCaretex-dev`; import switches OFF, no
+import has run): one-way copy of Apps Script FinishEntries into Finish V2. Flow by
 customer + CLOTHES + WashItem scheduled date; entry, lines, one `FINISH_PRODUCTION_RECORDED` event
 and audit with `source_application='LEGACY_SYNC_FINISH'`; no trolley, custody, Sorting or wash
 rows. Insert-only links and review queue in schema `integration`; service_role-only RPCs; switch
 `FINISH_HISTORICAL_IMPORT` seeded OFF; `finish_enforce_new_entry_current_shift` accepts the label
 only with a per-transaction permit. Contract: `docs/database/legacy-sync-finish-import.md`.
+Owner decisions 2026-10-27: legacy HOUSEHOLD entries are ReWash and legacy Sunday rows are test
+data. `202610270002_legacy_sync_household_rewash_import.sql` (**Prepared**, local tests passed)
+imports the HOUSEHOLD rows of one Finish cell as one new `finish_rewash_entries` row with one KG
+line per legacy row (never official Clothes KG; an existing ACTIVE ReWash cell is held for review),
+behind switch `FINISH_REWASH_HISTORICAL_IMPORT` (seeded OFF). The sync is temporary: after the
+legacy apps stop, the owner wants the sync scaffolding removed and only production data kept.
 
 Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
 **Applied** 2026-10-26 by the owner and **Validated** with rolled-back RPC tests): adopts the existing table `distribution_driver_infringements` (12 records

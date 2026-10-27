@@ -80,6 +80,39 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: foundation and Finish importer applied; HOUSEHOLD as ReWash (Prepared)
+
+- Branch / commits: `claude/legacy-sync-rewash-import`, Pull Request into `master`.
+- Changed: owner decisions 2026-10-27: legacy `HOUSEHOLD` Finish entries are ReWash; legacy
+  Sunday rows are test data and are not imported; the sync is temporary (once the legacy apps
+  stop, keep the production data and remove the sync scaffolding to save space).
+  New `202610270002_legacy_sync_household_rewash_import.sql` (Prepared): link role
+  `FINISH_ENTRY_TO_REWASH_LINE`; switch `FINISH_REWASH_HISTORICAL_IMPORT` seeded OFF (limit 3
+  cells per run); the NORMAL planner returns `SKIPPED` for Sunday and `REWASH_ROUTE` for
+  HOUSEHOLD (rest of the body unchanged) and the dry run counts both;
+  `legacy_sync_plan_household_rewash` (read-only) and `legacy_sync_import_household_rewash`
+  (one Finish cell per call → one new ReWash entry with one KG line per legacy row; a cell that
+  already has an ACTIVE ReWash entry is held for review, never merged or superseded). The
+  `202610270001` test now expects the routing instead of `HOUSEHOLD_PENDING_DECISION`.
+- Database: the owner authorised and applied `202610260002_legacy_sync_identity_foundation.sql`
+  and `202610270001_legacy_sync_finish_historical_import.sql` to `ElisCaretex-dev` on 2026-10-27
+  through the SQL Editor (the files on `master`, unchanged; therefore not in the
+  `supabase_migrations` history). Read-only checks before applying: the live body of
+  `finish_enforce_new_entry_current_shift` was byte-identical to `202610230005` (md5
+  `b53d4782…`), no `legacy_sync` object existed, every function and column the importer uses
+  exists. After applying: both switches OFF, zero runs, links or `LEGACY_SYNC_FINISH` entries.
+  `202610270002` is **not** applied.
+- Validation: on `ElisCaretex-dev` (rolled back, no residue afterwards): `202610260002` 11/11,
+  `202610270001` 55/55 (the version on `master`). Security advisor: the only new finding is INFO
+  `rls_enabled_no_policy` on the 7 private `integration.legacy_sync_*` tables (by design). On
+  the local PostgreSQL 16 copy with all three migrations: `202610260002` 11/11, `202610270001`
+  57/57 (updated file), `202610270002` 38/38, all rolled back.
+- Open / next: owner approval to apply `202610270002`; the Finish `Status` value map; the
+  remaining owner decisions (two NORMAL entries in one cell, inactive customers, unmapped
+  staff, the 3 ambiguous customers and 2 unmapped types); Edge Function for Apps Script.
+  FYI: V2 already has 56 `APPS_SCRIPT_IMPORT` Finish entries on Sundays in January–February
+  2026 (not touched).
+
 ## 2026-10-27 — Claude — Production map: click opens only that customer on the Route board
 
 - Branch / commits: `claude/production-map-customer-focus`, Pull Request into `master`
