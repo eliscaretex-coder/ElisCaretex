@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: ReWash import of 24-27 October
+
+- Branch / commits: `claude/legacy-sync-rewash-run` (docs only).
+- Database: on the owner's approval (keep the 0.012 kg value as is) `FINISH_REWASH_HISTORICAL_IMPORT`
+  enabled with limit 20; run `7c2e792b-…` COMPLETED: 11 IMPORTED, 2 ADOPTED_AND_UPDATED, 1 BLOCKED.
+  Switch OFF again, limit back to 3.
+- Validation: 141 links (13 header, 128 line), 1 OPEN review item
+  (`FE-20261026-092636-05587967`, `INVALID_QUANTITY` 0.012 kg), 0 open insert permits, both
+  switches OFF.
+- Open / next: 3 new Finish entries from the same afternoon are READY (Finish switch was OFF);
+  owner decides the catch-up cadence and the 0.012 kg review item.
+
 ## 2026-10-27 — Claude — Legacy Sync: full Finish (NORMAL) import of 24-27 October
 
 - Branch / commits: `claude/legacy-sync-finish-full-run` (docs only).

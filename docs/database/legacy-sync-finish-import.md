@@ -244,8 +244,14 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
    ADOPTED, 3 ADOPTED_AND_UPDATED (3 more ALREADY_IMPORTED from the pilot); 389 links (135 entry,
    139 line, 115 wash item), 0 review items, 0 open insert permits. ReWash refused with `55000`
    (switch OFF, as intended). Switch OFF again, limit back to 3.
-7. Next (owner decides): ReWash, after the 0.012 kg line `FE-20261026-092636-05587967::002` is
-   corrected in the sheet.
+7. Done 2026-10-27: ReWash run 24-27 October. The owner chose to keep the 0.012 kg value in the
+   sheet. `FINISH_REWASH_HISTORICAL_IMPORT` enabled with limit 20, run
+   `7c2e792b-4daf-42ec-b44d-ffc5250a103d` COMPLETED: 11 IMPORTED, 2 ADOPTED_AND_UPDATED, 1 BLOCKED
+   (`FE-20261026-092636-05587967`, `INVALID_QUANTITY`, now an OPEN review item with the raw record);
+   141 links (13 HOUSEHOLD header, 128 ReWash line), 0 open insert permits. Switch OFF again.
+8. Next (owner decides): new Finish entries keep appearing in the sheet (3 READY on the same
+   afternoon); each catch-up run needs the Finish switch on. The 0.012 kg review item stays open
+   until the owner decides (V2 stores 2 decimals).
 
 To withdraw an imported entry, do not delete it: use a reviewed cancellation (status
 `CANCELLED` plus an audit row). The links stay as history.
