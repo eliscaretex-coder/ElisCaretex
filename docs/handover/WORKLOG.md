@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: cleaner Apps Script admin page
+
+- Branch / commits: `claude/legacy-sync-admin-page`.
+- Changed: new `legacy-sync/apps-script/Index.html` replaces the v3.1 page (owner: "too
+  cluttered"). It shows the status (sheet reading, 5-minute trigger, V2 connection), a
+  preview/import by date range with readable counts, and the source spreadsheets; the v3.1
+  diagnostics, the old daily switch and the inbox connection are folded away. `LegacySyncFinish.gs`
+  gains `getFinishSyncPanel()`; the trigger functions return it.
+- Database / deploy: none. Migration `202610270005` was applied by the owner; Edge Function
+  `legacy-sync-finish` v4 (with `poll`) deployed on the owner's approval; the owner installed the
+  5-minute trigger.
+- Validation: page checked at 1000 px and 390 px with a mocked `google.script.run`, no script
+  errors; Apps Script harness passes.
+- Validation (live): the owner ran `supabase/tests/202610270005_legacy_sync_schedule_validation.sql`
+  in the SQL Editor: all 22 checks passed (rewritten as one DO block; the SQL Editor lost temp
+  tables between statements). The Apps Script trigger polls every 5 minutes; sync OFF until the
+  owner turns it on in V2.
+
 ## 2026-10-27 — Claude — Legacy Sync: nightly sync with V2 switch and "Sync now" (Prepared)
 
 - Branch / commits: `claude/legacy-sync-schedule`.
