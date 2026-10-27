@@ -6,6 +6,10 @@
  * Postgres: this file only reads the sheets and normalises cell formats. It never writes the sheets.
  *
  * Parts of the sync, in the order they run:
+ *   master  CentralDB registers: User, CustomerMaster, Trolley, Driver, Vehicles (every row, every run;
+ *           only rows that changed since the last sync are written)
+ *   attendance Finish Area StaffSessions (+ History) and RosterNotWorking, Sorting "Staff": who worked,
+ *           where and when, in the order it was typed
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
  *   mop     CentralDB MopProduction (+ MopProductionHistory) + WashItems: MOP production and ABS batch
  *   normal  Finish Area FinishEntries (+ FinishEntriesHistory) + CentralDB WashItems
@@ -65,10 +69,37 @@ const LSF = {
     'LastDispatchAt', 'LastDispatchCustomerID', 'CustomerMatch', 'CustomerSource', 'CreatedAt', 'BusinessDate', 'Shift',
     'ServiceType', 'Content', 'ClientEventID', 'ScheduledDate', 'Voided', 'VoidedAt', 'VoidedBy', 'VoidReason',
     'CorrectedAt', 'CorrectedBy'],
+  // Attendance
+  attendanceBatch: 60,
+  sessionSheets: ['StaffSessions', 'StaffSessionsHistory'],
+  sessionFields: ['SessionID', 'CreatedAt', 'BusinessDate', 'Shift', 'TableID', 'UserName', 'StartTime', 'EndTime',
+    'BreakMin', 'SessionType', 'Comments', 'Status'],
+  notWorkingFields: ['DismissalID', 'CreatedAt', 'BusinessDate', 'Shift', 'TableID', 'UserName', 'UserID', 'Reason', 'Status'],
+  sortingStaffFields: ['Name', 'Start Shift', 'End Shift', 'Break', 'Coments', 'Work position', 'Date', 'Shift'],
+  // Registers (CentralDB). Never UserPrivate or DriverPrivate. Missing optional columns are sent empty.
+  masterBatch: 60,
+  masterSheets: [
+    {type: 'STAFF', sheet: 'User', key: 'UserID', fields: ['UserID', 'Name', 'Shift', 'Position', 'Cover', 'Roster', 'Active',
+      'DeactivatedAt', 'JoinedAt', 'FireTraining', 'FirstAidTraining', 'EODCapable']},
+    {type: 'CUSTOMER', sheet: 'CustomerMaster', key: 'CustomerID', fields: ['CustomerID', 'CustomerName', 'ServiceType',
+      'CustomerType', 'Eircode', 'KGEstimated', 'Stops', 'Information', 'Active']},
+    {type: 'TROLLEY', sheet: 'Trolley', key: 'TrolleyID', fields: ['TrolleyID', 'Type', 'Status', 'RegisteredAt', 'Notes']},
+    {type: 'DRIVER', sheet: 'Driver', key: 'DriverID', fields: ['DriverID', 'Name', 'LicenseType', 'Active', 'JoinedDate',
+      'DeactivatedDate', 'RosterHidden']},
+    {type: 'VEHICLE', sheet: 'Vehicles', key: 'Plate', fields: ['Plate', 'Type', 'Notes', 'Status', 'MaintStart', 'MaintEnd',
+      'Active', 'RegisteredAt', 'UpdatedAt', 'ContractType', 'VehicleDescription', 'TachographType', 'Insurer', 'Make', 'Range',
+      'CvrtMotExpiryDate', 'TachoCalibrationDate', 'Fuel', 'LastKmRecorded', 'ContractStartDate', 'ContractEndDate', 'BodyDetail',
+      'TailLiftDetail1', 'TailLiftDetail2', 'MonthlyRentalExVat', 'TermMonths', 'CvrtLast', 'ServiceLast', 'ServiceNext',
+      'TachographLast', 'RoadFundLicenceNext', 'TlWeightTestLast', 'TlWeightTestNext', 'RegistrationDate', 'TlLolerNext',
+      'TlLolerLast']}
+  ],
+  masterInstants: ['RegisteredAt', 'UpdatedAt'],
   // Parts sent through the generic dry_run / import operations.
-  kinds: ['wash', 'mop', 'trolley'],
-  // Import order: trolleys last, because a trolley leaving production needs its Finish or MOP record in V2.
-  parts: ['wash', 'mop', 'normal', 'rewash', 'trolley']
+  kinds: ['master', 'attendance', 'wash', 'mop', 'trolley'],
+  // Import order: registers first (new people, customers and trolleys exist before their work);
+  // attendance next (V2 checks who worked); trolleys last, because a trolley leaving production
+  // needs its Finish or MOP record in V2.
+  parts: ['master', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -424,7 +455,110 @@ function lsfCollectTrolleys_(range, collected) {
   return out.map(function (o) { return o.record; });
 }
 
+/**
+ * Attendance of the date range (by business day), in the order it was typed: Finish StaffSessions
+ * (+ History; the current sheet wins), Finish RosterNotWorking and the Sorting "Staff" sheet
+ * (one row per person, day and shift; the last row typed wins).
+ */
+function lsfCollectAttendance_(range) {
+  const conf = lsConfig_();
+  const out = [], notes = [];
+  const css = SpreadsheetApp.openById(conf.sources.central.id);
+  const userIds = lsfUserIds_(css);
+  const inRange = function (day) { return day && day >= range.from && day <= range.to; };
+
+  const fss = SpreadsheetApp.openById(conf.sources.finish.id), ftz = fss.getSpreadsheetTimeZone();
+  const seen = {};
+  LSF.sessionSheets.forEach(function (name, sheetIndex) {
+    let rows = [];
+    try { rows = lsfReadSheet_(fss, name, LSF.sessionFields, sheetIndex === 0); } catch (e) { if (sheetIndex === 0) throw e; notes.push(String(e.message || e)); }
+    rows.forEach(function (row) {
+      const id = lsfText_(row.SessionID), day = lsfText_(row.BusinessDate, 'date');
+      if (!id || !inRange(day) || seen[id]) return;
+      seen[id] = true;
+      const r = lsfPick_(row, LSF.sessionFields);
+      r.CreatedAt = lsfLocal_(row.CreatedAt);
+      r.StartTime = lsfClock_(row.StartTime, ftz);
+      r.EndTime = lsfClock_(row.EndTime, ftz);
+      r.UserID = userIds[String(r.UserName || '').toLowerCase()] || null;
+      out.push({at: lsfEpoch_(row.CreatedAt), record: {record_type: 'FINISH_SESSION', source_record_id: id, row: r}});
+    });
+  });
+  lsfReadSheet_(fss, 'RosterNotWorking', LSF.notWorkingFields, false).forEach(function (row) {
+    const id = lsfText_(row.DismissalID), day = lsfText_(row.BusinessDate, 'date');
+    if (!id || !inRange(day) || seen[id]) return;
+    seen[id] = true;
+    const r = lsfPick_(row, LSF.notWorkingFields);
+    r.CreatedAt = lsfLocal_(row.CreatedAt);
+    out.push({at: lsfEpoch_(row.CreatedAt), record: {record_type: 'FINISH_NOT_WORKING', source_record_id: id, row: r}});
+  });
+
+  const sorting = conf.sources.sorting;
+  if (sorting && sorting.enabled && sorting.id) {
+    const sss = SpreadsheetApp.openById(sorting.id), stz = sss.getSpreadsheetTimeZone();
+    const previousDay = function (day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd'); };
+    const byKey = {};
+    lsfReadSheet_(sss, 'Staff', LSF.sortingStaffFields, true).forEach(function (row) {
+      const name = lsfText_(row.Name), shift = lsfText_(row.Shift), entered = lsfLocal_(row.Date);
+      if (!name || !shift || !entered) return;
+      // A row typed before 03:00 for the Evening belongs to the previous day.
+      const day = /^evening$/i.test(shift) && entered.slice(11, 16) < '03:00' ? previousDay(entered.slice(0, 10)) : entered.slice(0, 10);
+      if (!inRange(day)) return;
+      const key = day + '|' + shift + '|' + name.toLowerCase();
+      byKey[key] = {at: lsfEpoch_(row.Date), record: {record_type: 'SORTING_STAFF', source_record_id: key, row: {
+        BusinessDate: day, Shift: shift, Name: name, UserID: userIds[name.toLowerCase()] || null,
+        StartShift: lsfClock_(row['Start Shift'], stz), EndShift: lsfClock_(row['End Shift'], stz),
+        Break: lsfClock_(row.Break, stz), Comments: lsfText_(row.Coments), WorkPosition: lsfText_(row['Work position']),
+        EnteredAt: entered}}};
+    });
+    Object.keys(byKey).forEach(function (k) { out.push(byKey[k]); });
+  } else {
+    notes.push('Sorting spreadsheet is not configured or not enabled: Sorting staff not sent.');
+  }
+
+  out.sort(function (a, b) {
+    const x = a.at === null ? Infinity : a.at, y = b.at === null ? Infinity : b.at;
+    return x === y ? 0 : (x < y ? -1 : 1);
+  });
+  return {records: out.map(function (o) { return o.record; }), notes: notes};
+}
+
 /** Every part of the sync for the date range. */
+/**
+ * CentralDB registers: every row of User, CustomerMaster, Trolley, Driver and Vehicles. Dates are
+ * Dublin calendar days (yyyy-MM-dd); RegisteredAt / UpdatedAt are Dublin local date-times.
+ */
+function lsfCollectMaster_() {
+  const central = lsConfig_().sources.central;
+  if (!central || !central.enabled || !central.id) return {records: [], notes: ['CentralDB is not configured or not enabled.']};
+  const css = SpreadsheetApp.openById(central.id), out = [], notes = [];
+  LSF.masterSheets.forEach(function (spec) {
+    const sh = css.getSheetByName(spec.sheet);
+    if (!sh) { notes.push('Sheet ' + spec.sheet + ' is missing.'); return; }
+    const n = sh.getLastRow() - 1, width = sh.getLastColumn();
+    if (n < 1) return;
+    const headers = sh.getRange(1, 1, 1, width).getValues()[0].map(function (h) { return String(h || '').trim(); });
+    if (headers.indexOf(spec.key) < 0) { notes.push(spec.sheet + ' has no ' + spec.key + ' column.'); return; }
+    const missing = spec.fields.filter(function (f) { return headers.indexOf(f) < 0; });
+    if (missing.length) notes.push(spec.sheet + ' has no column ' + missing.join(', ') + ' (sent empty).');
+    const values = sh.getRange(2, 1, n, width).getValues(), seen = {};
+    values.forEach(function (cells) {
+      const row = {};
+      spec.fields.forEach(function (f) {
+        const i = headers.indexOf(f), v = i < 0 ? null : cells[i];
+        if (LSF.masterInstants.indexOf(f) >= 0) row[f] = lsfLocal_(v);
+        else row[f] = lsfText_(v, v instanceof Date ? 'date' : null);
+      });
+      const id = row[spec.key];
+      if (!id) return;
+      if (seen[id]) { notes.push(spec.sheet + ': duplicate ' + spec.key + ' ' + id + ' (first row kept).'); return; }
+      seen[id] = true;
+      out.push({record_type: spec.type, source_record_id: id, row: row});
+    });
+  });
+  return {records: out, notes: notes};
+}
+
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
   const washes = lsfCollectWashes_(range);
@@ -435,6 +569,22 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.mop = [];
     collected.notes.mop = ['MOP sheets could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const master = lsfCollectMaster_();
+    collected.master = master.records;
+    if (master.notes.length) collected.notes.master = master.notes.slice(0, 20);
+  } catch (e) {
+    collected.master = [];
+    collected.notes.master = ['CentralDB registers could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const attendance = lsfCollectAttendance_(range);
+    collected.attendance = attendance.records;
+    if (attendance.notes.length) collected.notes.attendance = attendance.notes;
+  } catch (e) {
+    collected.attendance = [];
+    collected.notes.attendance = ['Attendance sheets could not be read: ' + String(e.message || e)];
   }
   try {
     collected.trolley = lsfCollectTrolleys_(range, collected);
@@ -490,6 +640,12 @@ function lsfSummary_(plans, notes) {
       if (p.action) lsfCount_(s.actions, p.action);
       (p.blockers || []).forEach(function (b) { lsfCount_(s.blockers, b.code); });
       if (p.outcome === 'BLOCKED' && s.held.length < 30) s.held.push({id: p.source_record_id, blockers: (p.blockers || []).map(function (b) { return b.code + (b.detail ? ': ' + b.detail : ''); })});
+      // Registers: today's differences between the legacy row and V2, listed once at adoption.
+      (p.warnings || []).forEach(function (w) {
+        if (w.code !== 'V2_DIFFERS') return;
+        s.differs = s.differs || [];
+        if (s.differs.length < 300) s.differs.push({type: p.record_type, id: p.source_record_id, detail: w.detail});
+      });
     });
     out[kind] = s;
   });
@@ -507,7 +663,7 @@ function previewFinishSync(fromDate, toDate) {
 }
 
 /**
- * Imports the range inside one COMMIT run: washes first, then MOP, Finish, ReWash and trolleys. The database
+ * Imports the range inside one COMMIT run: attendance first, then washes, MOP, Finish, ReWash and trolleys. The database
  * refuses a part whose switch is off, and stops a part at its max_entries_per_run.
  * READY records are written; BLOCKED records go to the review queue; others are left alone.
  */
@@ -516,7 +672,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -537,6 +693,7 @@ function importFinishSync(fromDate, toDate, reason) {
     });
     for (const g of groups) {
       if (!plans[g.kind]) continue;
+      if (g.kind === 'master') { lsfImportMaster_(runId, collected.master, plans.master, result, started); continue; }
       const records = collected[g.kind];
       for (let i = 0; i < records.length && !result.stopped; i++) {
         const outcome = plans[g.kind][i].outcome;
@@ -563,6 +720,26 @@ function importFinishSync(fromDate, toDate, reason) {
   }
   Logger.log(JSON.stringify(result, null, 2));
   return result;
+}
+
+/** Registers go in batches of up to 60 (each row is still its own transaction in V2). */
+function lsfImportMaster_(runId, records, plans, result, started) {
+  const out = result.results.master, todo = [];
+  records.forEach(function (record, i) {
+    if (plans[i].outcome === 'READY' || plans[i].outcome === 'BLOCKED') todo.push(record);
+  });
+  for (let i = 0; i < todo.length && !result.stopped; i += LSF.masterBatch) {
+    if (Date.now() - started > LSF.timeBudgetMs) { result.stopped = 'TIME_BUDGET'; break; }
+    const r = lsfCall_({operation: 'import', kind: 'master', runId: runId, record: {records: todo.slice(i, i + LSF.masterBatch)}});
+    if (!r.ok) {
+      lsfCount_(out, 'REFUSED_' + r.code);
+      if (r.code === '55000') { out.refusal = r.error; return; }
+      continue;
+    }
+    const counts = (r.result || {}).counts || {};
+    Object.keys(counts).forEach(function (k) { out[k] = (out[k] || 0) + counts[k]; });
+    if (counts.RUN_LIMIT_REACHED) return;
+  }
 }
 
 /** Time trigger (every 5 minutes): asks V2 whether to run, and runs the window V2 returns. */

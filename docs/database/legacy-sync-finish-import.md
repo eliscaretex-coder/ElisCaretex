@@ -411,6 +411,72 @@ with two record types that the sender orders by time (runs last, after Finish an
   October: 413 records (169 returns, 168 Finish and 76 MOP trolley codes). Against the live
   master data every return operator (Josue, legacy user 104), trolley and customer exists.
 
+## Attendance (Prepared 2026-10-27, migration `202610270010`)
+
+One part, `kind: "attendance"`, runs first (V2 checks who worked), records in the order they were typed:
+
+- **FINISH_SESSION**, one Finish `StaffSessions` (+ History) row (key `SessionID`), written like
+  `upsert_finish_staff_actual`: Finish attendance PRESENT, a work session (`FINISH_V2`) at the legacy
+  Table with the legacy start, end and break, and its table segment. A changed row corrects the
+  session (`CORRECTED`); `Status = CANCELLED` cancels it.
+- **FINISH_NOT_WORKING**, one `RosterNotWorking` row (key `DismissalID`), written like
+  `set_finish_staff_attendance_v1`: Finish attendance ABSENT (`OTHER`, "Not working") and the
+  person's Finish work sessions of the shift cancelled. Held when the person has Finish production
+  that shift (`FINISH_PRODUCTION_RECORDED`).
+- **SORTING_STAFF**, one Sorting `Staff` row (key `<day>|<shift>|<name>`; an Evening row typed
+  before 03:00 belongs to the previous day; the last row typed wins), written like
+  `add_sorting_actual_staff` + `save_sorting_staff_work_adjustment`: Sorting attendance PRESENT
+  and a work session (`SORTING_MANUAL_POSITION`) with the legacy times and break, linked to the
+  published roster entry when there is one. The work position (Clothes / MOPs) goes to the notes.
+- The legacy value wins: an ABSENT row is set back to PRESENT by a session typed after it, and a
+  work session already typed in V2 for the person, area and shift is adopted and takes the legacy
+  times (`V2_TIMES_REPLACED`; old values in the audit log).
+- Review queue: unknown person, table or shift, invalid times, more than 13 hours in one day
+  (`WORK_OVER_13_HOURS`, all areas together), table transfers already in V2. Sunday 2026-10-25 and
+  rows before 2026-10-24 skipped.
+- Switch `ATTENDANCE_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "attendance"` (no new deploy after v6). Apply after 0007-0009.
+- Validation: `supabase/tests/202610270010_legacy_sync_attendance_validation.sql` (16 checks,
+  passed on the local replica with 0006-0009). Real sheets 24 to 27 October: 80 records
+  (56 Finish sessions, 5 "not working", 19 Sorting staff rows). Two people are not in V2 yet:
+  Ryotaro Kawauchi (legacy user 112) and Alessandra Laura (113); master data will bring them.
+
+## Registers (Prepared 2026-10-27, migration `202610270011`)
+
+One part, `kind: "master"`, runs first so new people, customers and trolleys exist before their work.
+The sender reads every row of the CentralDB registers each run (never `UserPrivate` or `DriverPrivate`):
+
+| Record type | Sheet (key) | V2 |
+| --- | --- | --- |
+| STAFF | `User` (`UserID`) | `staff_members`: name, shift, position (role, area, table), cover roles V2 allows as cover, roster, active / deactivated, joined, trainings |
+| CUSTOMER | `CustomerMaster` (`CustomerID`) | `customers`: name, Eircode, estimated kg, stops, Information (notes), active; `ServiceType` drives the product services |
+| TROLLEY | `Trolley` (`TrolleyID`) | `trolleys`: type, notes, Out of Service / Retired (with events); `RegisteredAt` only when created |
+| DRIVER | `Driver` (`DriverID`, code `DRV-nnn`) | `distribution_drivers`: name, licence categories, active, joined / deactivated, roster hidden |
+| VEHICLE | `Vehicles` (`Plate`) | `fleet_vehicles`: type, status (available / maintenance / returned), description, contract, compliance dates, km, notes |
+
+Rules (owner decision 2026-10-27, "starting point + list"):
+
+- A row with no V2 record creates it, as the V2 screens would (`CREATE`).
+- The first time a row meets an existing V2 record (same legacy id, code or plate; a person with no
+  legacy id by unique name, `ADOPT_BY_NAME`, which stores the legacy id) it is only linked
+  (`ADOPT`). Values that differ today are listed as `V2_DIFFERS` (Preview shows them) and are
+  not changed. Empty legacy cells are not listed.
+- The values synced are kept append-only in `integration.legacy_sync_master_states`. Each later
+  run writes only the fields the legacy app changed since then (`UPDATE`); a field V2 edited and
+  the legacy app did not touch keeps the V2 value. A legacy change V2 already has is `RELINK`
+  (no V2 write).
+- Deactivation as on the V2 screens: a person leaves the roster; a customer's product services end,
+  drafts are cancelled and published schedules superseded; a driver becomes unavailable. A trolley
+  at a customer cannot be put out of service or retired (`TROLLEY_AT_CUSTOMER`, review). A record
+  deleted in V2 is skipped.
+- Import in batches of up to 60 rows (`{"records": [...]}`); each row is its own subtransaction.
+  Only V2 writes (create, update, adoption by name) count toward the run limit.
+- Switch `MASTER_DATA_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "master"` (no new deploy after v6). Apply after 0007-0010.
+- Validation: `supabase/tests/202610270011_legacy_sync_master_data_validation.sql` (17 checks,
+  passed on the local replica). All 935 rows of the 2026-10-27 CentralDB imported locally without
+  errors; a second plan finds all of them already imported.
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

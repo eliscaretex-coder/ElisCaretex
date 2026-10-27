@@ -80,6 +80,41 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: CentralDB registers join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
+- Changed: fifth part of the full sync, run first. Every row of CentralDB `User`, `CustomerMaster`,
+  `Trolley`, `Driver` and `Vehicles` is planned each night; only rows that changed are written.
+  Owner decision 2026-10-27 ("starting point + list"): a row with no V2 record creates it; the
+  first time a row meets an existing V2 record it is only linked and today's differences are
+  listed (`V2_DIFFERS`), not applied; afterwards each field the legacy app changes is written and
+  the others keep their V2 value. Deactivations follow the V2 screens (customer services ended
+  and schedules superseded; trolley service hold; driver unavailable). Page shows a Registers
+  part and the list of differences in the Preview.
+- Database: `202610270011_legacy_sync_master_data.sql` prepared, not applied (apply after
+  0007-0010). New append-only table `integration.legacy_sync_master_states`.
+- Validation: `supabase/tests/202610270011_legacy_sync_master_data_validation.sql` 17/17 on the
+  local replica; all 935 real rows imported locally without errors, a second plan finds all
+  already imported.
+- Open / next: send the owner the list of today's differences once 0011 is applied (dry run on
+  live); then customer schedules and routes (new versions), then rosters.
+- Note: on 2026-10-27 test 0010 passed live, but 0007 and 0008 were still not applied
+  (`legacy_sync_import_wash` missing). Order given again: 0007, 0008, then 0009 and 0010 again.
+
+## 2026-10-27 — Claude — Legacy Sync: attendance joins the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
+- Changed: fourth part of the full sync, run first. Finish `StaffSessions` become Finish
+  attendance + work sessions at the legacy table and times, `RosterNotWorking` becomes Finish
+  ABSENT (sessions of the shift cancelled), Sorting `Staff` rows become Sorting attendance + work
+  sessions with the legacy times and break. Legacy changes correct, cancellations cancel, V2
+  sessions are adopted (legacy value wins). Page shows an Attendance part.
+- Database: `202610270010_legacy_sync_attendance.sql` prepared, not applied (apply after 0007-0009).
+- Validation: `supabase/tests/202610270010_legacy_sync_attendance_validation.sql` 16/16 on the
+  local replica; 0006-0009 tests still pass; collector on the real sheets (80 records 24-27 Oct).
+- Note: on 2026-10-27 the owner applied 0009 before 0007/0008; its test failed because the wash
+  and MOP functions were missing. Order given: 0007, 0008, then 0009 again (re-runnable), then tests.
+- Open / next: master data and rosters; Ryotaro Kawauchi (112) and Alessandra Laura (113) are not
+  in V2 yet.
+
 ## 2026-10-27 — Claude — Legacy Sync: trolley custody and Sorting intakes join the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes and MOP parts)
 - Changed: third part of the full sync (owner decision: trolley custody follows the legacy
