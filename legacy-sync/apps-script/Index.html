@@ -30,8 +30,8 @@
   button.danger{background:#fff;color:var(--red);border:1px solid #fecaca}
   button.link{background:none;color:var(--teal);padding:0;border:0}
   button:disabled{opacity:.45;cursor:not-allowed}
-  #notice,#syncNotice{min-height:20px;margin:10px 0 0;font-weight:600}
-  #syncNotice:empty{display:none}
+  #notice,#syncNotice,#pendingNotice{min-height:20px;margin:10px 0 0;font-weight:600}
+  #syncNotice:empty,#pendingNotice:empty{display:none}
   .sync-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
   .sync-head h2{margin:0 0 4px}
   .state{margin-left:6px;padding:2px 10px;border-radius:999px;font-size:12px;vertical-align:middle;background:#e2e8f0;color:#334155}
@@ -57,6 +57,14 @@
   details .card{margin-top:10px}
   .tools{display:flex;flex-wrap:wrap;gap:8px}
   pre{margin:10px 0 0;max-height:320px;overflow:auto;white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px}
+  .pending{display:grid;gap:8px;margin-top:10px}
+  .item{border:1px solid var(--line);border-radius:10px;padding:10px}
+  .item.waiting{background:#f8fafc}
+  .item h3{margin:0;font-size:13px}
+  .item p{margin:4px 0 0;font-size:12px;overflow-wrap:anywhere}
+  .item .row{margin-top:8px;align-items:center}
+  .item input[type=text]{flex:1 1 220px;width:auto}
+  .decided{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 10px;font-size:12px;margin-top:8px}
   @media(max-width:640px){.run{grid-template-columns:1fr 1fr}.run.head{display:none}.run small{grid-column:1/-1}.status{grid-template-columns:1fr}.source{grid-template-columns:24px minmax(0,1fr)}.source input[type=text],.source button{grid-column:2;justify-self:start}.source input[type=text]{justify-self:stretch}}
 </style>
 </head>
@@ -80,6 +88,17 @@
     </div>
     <p id="syncNotice"></p>
     <div id="runs" class="runs"></div>
+  </section>
+
+  <section class="card">
+    <div class="sync-head">
+      <h2>Pending <b id="pendingCount" class="state">…</b></h2>
+      <button id="pendingRefresh" class="secondary" type="button">Refresh</button>
+    </div>
+    <p class="small muted">Records the sync could not copy. Fix the row in the legacy sheet and the next sync reads it again, or choose "Do not import". Every choice is kept in V2 with who and when.</p>
+    <p id="pendingNotice"></p>
+    <div id="pendingList" class="pending"></div>
+    <details id="decidedBox" hidden><summary>Latest decisions</summary><div id="decidedList" class="decided"></div></details>
   </section>
 
   <section class="card">
@@ -422,8 +441,79 @@ document.querySelectorAll('[data-tool]').forEach((b) => {
   };
 });
 
+// Pending: review items held by the sync, with the owner's choice for each.
+const SHEETS = {FINISH_AREA: 'Finish Area sheet', SORTING_AREA: 'Sorting sheet', CENTRALDB: 'CentralDB'};
+const WAITING = {
+  WASH_NOT_IN_V2: 'Waits for its Sorting wash. It is copied by itself once the wash is in V2. If the wash is older than the nightly days, import that day with "Import now".',
+  MOP_NOT_IN_V2: 'Waits for its MOP production. It is copied by itself once the MOP is in V2.',
+  FINISH_ENTRY_NOT_IN_V2: 'Waits for its Finish entry. It is copied by itself once the entry is in V2.',
+  TROLLEY_NOT_IN_V2: 'Waits for the trolley register. It is copied by itself once the trolley is in V2.'
+};
+const ACTIONS = {FIX_IN_SOURCE: 'Will fix in the sheet', NOT_IMPORTED: 'Do not import'};
+
+function words(code) { return String(code || '').toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()); }
+function where(item) {
+  // A ReWash line (FE-…::002) lives on RewashProduction, not on its FinishEntries header.
+  const table = /::\d+ /.test(item.detail || '') && item.source_table === 'FinishEntries' ? 'RewashProduction' : item.source_table;
+  return (SHEETS[item.source_system] || item.source_system) + ', tab ' + table;
+}
+function pendingNotice(text, cls) { $('pendingNotice').textContent = text || ''; $('pendingNotice').className = cls || ''; }
+
+function drawPending(list) {
+  const open = (list && list.open) || [], decided = (list && list.decided) || [];
+  const toDecide = open.filter((i) => !i.waiting).length;
+  $('pendingCount').textContent = String(open.length);
+  $('pendingCount').className = 'state' + (toDecide ? '' : ' on');
+  $('pendingList').innerHTML = '';
+  if (!open.length) $('pendingList').appendChild(Object.assign(document.createElement('p'), {className: 'small muted', textContent: 'Nothing pending.'}));
+  open.forEach((item) => {
+    const box = document.createElement('div');
+    box.className = 'item' + (item.waiting ? ' waiting' : '');
+    box.appendChild(Object.assign(document.createElement('h3'), {textContent: words(item.reason_code) + ' · ' + item.source_record_id}));
+    if (item.detail) box.appendChild(Object.assign(document.createElement('p'), {textContent: item.detail}));
+    box.appendChild(Object.assign(document.createElement('p'), {className: 'muted',
+      textContent: item.waiting ? WAITING[item.reason_code] || 'Waits for another part of the sync.' : 'Where to fix: ' + where(item) + '.'}));
+    if (!item.waiting) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const note = Object.assign(document.createElement('input'), {type: 'text', maxLength: 500, placeholder: 'Note (optional)'});
+      row.appendChild(note);
+      [['FIX_IN_SOURCE', 'secondary'], ['NOT_IMPORTED', 'danger']].forEach(([action, cls]) => {
+        const b = Object.assign(document.createElement('button'), {type: 'button', className: cls, textContent: ACTIONS[action]});
+        b.onclick = () => decide(item, action, note.value);
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+    }
+    $('pendingList').appendChild(box);
+  });
+  $('decidedBox').hidden = !decided.length;
+  $('decidedList').innerHTML = '';
+  decided.forEach((d) => {
+    $('decidedList').appendChild(Object.assign(document.createElement('span'), {className: 'muted', textContent: when(d.decided_at)}));
+    $('decidedList').appendChild(Object.assign(document.createElement('span'), {
+      textContent: (ACTIONS[d.action] || d.action) + ' · ' + d.source_record_id + ' (' + words(d.reason_code) + ') · ' + d.decided_by + (d.note ? ' · ' + d.note : '')}));
+  });
+}
+
+async function loadPending() {
+  pendingNotice('Loading…');
+  try { drawPending(await server('getLegacySyncReviews')); pendingNotice(''); }
+  catch (e) { pendingNotice('Could not load: ' + e.message, 'bad'); }
+}
+
+async function decide(item, action, note) {
+  if (action === 'NOT_IMPORTED' && !confirm('Never import ' + item.source_record_id + ' as it is now? If the legacy row changes later, the sync reads it again.')) return;
+  busy(true); pendingNotice('Saving…');
+  try { drawPending(await server('decideLegacySyncReview', [item.review_id, action, note])); pendingNotice('Saved: ' + ACTIONS[action] + ' for ' + item.source_record_id + '.', 'ok'); }
+  catch (e) { pendingNotice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+}
+
+$('pendingRefresh').onclick = loadPending;
+
 Promise.all([server('getDashboard'), server('getFinishSyncPanel')])
-  .then(([d, p]) => { drawDashboard(d); drawPanel(p); })
+  .then(([d, p]) => { drawDashboard(d); drawPanel(p); if (p.v2) loadPending(); })
   .catch((e) => notice('Could not load: ' + e.message, 'bad'));
 </script>
 </body>

@@ -11,7 +11,7 @@ Database rules, outcomes and the live dry run: `docs/database/legacy-sync-finish
 | Piece | Where | What it does |
 | --- | --- | --- |
 | Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads, for at most 7 days: Sorting `Sorting Area` and `Staff`; Finish Area `FinishEntries` (+ `FinishEntriesHistory`) and `RewashProduction`; CentralDB `WashItems` (+ `WashItemsHistory`) and `User` (name to legacy user ID only; never `UserPrivate`). Normalises cell formats and sends signed requests. Never writes the sheets. |
-| Admin page | `legacy-sync/apps-script/Index.html` | Apps Script web app page: status, preview or import a date range, source spreadsheets; the old v3.1 diagnostics are folded under "Old diagnostics". Needs `Code.gs` (v3.1) and `LegacySyncFinish.gs`. |
+| Admin page | `legacy-sync/apps-script/Index.html` | Apps Script web app page: status, pending records with the owner's choice for each, preview or import a date range, source spreadsheets; the old v3.1 diagnostics are folded under "Old diagnostics". Needs `Code.gs` (v3.1) and `LegacySyncFinish.gs`. |
 | Endpoint | `supabase/functions/legacy-sync-finish/index.ts` | Checks the HMAC signature and the timestamp (5 minutes), validates the request shape and calls one `integration.legacy_sync_*` function. No mapping logic. |
 | Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270007`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
 | Old inbox | `supabase/functions/legacy-sync-ingest/index.ts` | Repository copy of the live function (v2). Untouched; the new sender does not use it. |
@@ -40,6 +40,8 @@ Bodies (`operation` → database function):
 | `import` | `kind`, `runId`, `record` | `legacy_sync_dispatch_import` (kind `wash`: `legacy_sync_import_wash`) |
 | `poll` | none | `legacy_sync_claim_run` (returns `{run, reason, dateFrom, dateTo}`) |
 | `control` | `action` (`STATUS`/`ON`/`OFF`), `changedBy` (required for ON/OFF) | `legacy_sync_control` |
+| `review_list` | none | `legacy_sync_review_list` (open items, latest 30 decisions; closes items imported since) |
+| `review_decide` | `reviewId`, `action` (`FIX_IN_SOURCE`/`NOT_IMPORTED`), `decidedBy`, `note` (optional, 500) | `legacy_sync_review_decide` |
 
 `dry_run` and `import` take a `kind`; the database dispatcher decides which function runs, so a
 new part of the sync needs a migration but no new Edge Function deploy.

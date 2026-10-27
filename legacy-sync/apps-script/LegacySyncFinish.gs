@@ -30,7 +30,8 @@
  *   installLegacySyncTrigger()                     once: polls V2 every 5 minutes (legacySyncTick)
  *   removeLegacySyncTrigger()                      stops the polling
  * Index.html (the web app page) calls getFinishSyncPanel, setFinishSyncEnabled, syncFinishNow,
- * previewFinishSync, importFinishSync and the two trigger functions, plus getDashboard /
+ * previewFinishSync, importFinishSync, getLegacySyncReviews, decideLegacySyncReview and the
+ * two trigger functions, plus getDashboard /
  * saveConfig / saveConnection / testSource from Code.gs.
  * The poll runs an import only when V2 says so: once per night while the sync is ON.
  * The ON/OFF switch and "Sync now" are on the web app page (Index.html).
@@ -805,4 +806,23 @@ function syncFinishNow() {
   const v2 = lsfControl_('STATUS');
   if (!v2.auto_enabled) throw Error('The sync is OFF. Turn it on first.');
   return importFinishSync(v2.date_from, v2.today, 'SYNC_NOW');
+}
+
+/** Index.html "Pending": records the sync held, plus the latest decisions. */
+function getLegacySyncReviews() {
+  const r = lsfCall_({operation: 'review_list'});
+  if (!r.ok) throw Error(r.error || ('Refused: ' + r.code));
+  return r.result;
+}
+
+/**
+ * Index.html "Pending": one choice for one held record, kept in V2 with who and when.
+ * FIX_IN_SOURCE: the row will be corrected in the legacy sheet. NOT_IMPORTED: never import it.
+ */
+function decideLegacySyncReview(reviewId, action, note) {
+  const who = String(Session.getActiveUser().getEmail() || '').trim() || 'Apps Script admin page';
+  const r = lsfCall_({operation: 'review_decide', reviewId: String(reviewId || ''), action: String(action || ''),
+    decidedBy: who, note: String(note || '').slice(0, 500)});
+  if (!r.ok) throw Error(r.error || ('Refused: ' + r.code));
+  return getLegacySyncReviews();
 }

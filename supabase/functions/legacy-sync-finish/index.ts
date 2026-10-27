@@ -101,6 +101,19 @@ export function plan(body: Record<string, unknown>): { fn: string; args: Record<
       if (action !== "STATUS" && (!changedBy || changedBy.length > 200)) return null;
       return { fn: "legacy_sync_control", args: { p_action: action, p_changed_by: changedBy || null } };
     }
+    case "review_list":
+      // Apps Script page: open review items and the latest owner decisions.
+      return { fn: "legacy_sync_review_list", args: {} };
+    case "review_decide": {
+      // Apps Script page: one owner choice for one open review item.
+      const action = String(body.action || "").toUpperCase();
+      const decidedBy = typeof body.decidedBy === "string" ? body.decidedBy.trim() : "";
+      const note = typeof body.note === "string" ? body.note.trim() : "";
+      if (typeof body.reviewId !== "string" || !UUID.test(body.reviewId)) return null;
+      if (!["FIX_IN_SOURCE", "NOT_IMPORTED"].includes(action)) return null;
+      if (!decidedBy || decidedBy.length > 200 || note.length > 500) return null;
+      return { fn: "legacy_sync_review_decide", args: { p_review_id: body.reviewId, p_action: action, p_decided_by: decidedBy, p_note: note || null } };
+    }
     case "finish_run": {
       const status = String(body.status || "").toUpperCase();
       if (typeof body.runId !== "string" || !UUID.test(body.runId) || !["COMPLETED", "FAILED", "CANCELLED"].includes(status)) return null;
