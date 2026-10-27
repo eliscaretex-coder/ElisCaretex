@@ -236,7 +236,7 @@ function importFinishSync(fromDate, toDate) {
     result.plan = lsfSummary_(plans);
 
     const start = lsfCall_({operation: 'start_run', mode: 'COMMIT', dateFrom: range.from, dateTo: range.to,
-      requestedBy: 'Apps Script ' + (Session.getEffectiveUser().getEmail() || 'Legacy Sync')});
+      requestedBy: 'Apps Script Legacy Sync (LegacySyncFinish.gs)'});
     if (!start.ok) throw Error('Run refused: ' + start.error);
     runId = start.result; result.runId = runId;
 
