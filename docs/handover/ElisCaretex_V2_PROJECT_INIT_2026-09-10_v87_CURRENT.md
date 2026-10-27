@@ -655,13 +655,16 @@ line per legacy row (ReWash is production counted separately per table and shift
 an existing ACTIVE ReWash cell is held for review),
 behind switch `FINISH_REWASH_HISTORICAL_IMPORT` (seeded OFF). The sync is temporary: after the
 legacy apps stop, the owner wants the sync scaffolding removed and only production data kept.
-`202610270003_legacy_sync_finish_updates_and_rewash_lines.sql` (**Prepared**, validated 51/51 on
-a local copy only) follows the real-sheet dry run and the owner decisions of 2026-10-27: a legacy
+`202610270003_legacy_sync_finish_updates_and_rewash_lines.sql` (**Applied** 2026-10-27 by the
+owner, **Validated** 51/51 on `ElisCaretex-dev` with a rolled-back test) follows the real-sheet dry run and the owner decisions of 2026-10-27: a legacy
 entry that changes (0 kg while the table works, values changed up to dispatch) becomes a new V2
 revision, never an overwrite; entries already in V2 from the CentralDB/workbook imports are
 adopted by the EntryID in their notes (legacy value wins); `OTHERS` is Clothes; HOUSEHOLD is a
 header whose customer lines come from `RewashProduction`, summed per customer; the 202610270002
 HOUSEHOLD functions are dropped unused.
+`202610270004_legacy_sync_notes_reference_fix.sql` (**Prepared**, validated on a local copy and
+previewed live in a rolled-back transaction) makes the notes match accept the full stop that ends
+the workbook import notes; without it the 24 workbook entries of 2026-10-24 plan as BLOCKED.
 
 Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
 **Applied** 2026-10-26 by the owner and **Validated** with rolled-back RPC tests): adopts the existing table `distribution_driver_infringements` (12 records

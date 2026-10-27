@@ -80,6 +80,25 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: 202610270003 applied and validated; notes-match fix (Prepared)
+
+- Branch / commits: `claude/legacy-sync-rewash-import` (same Pull Request).
+- Changed: the owner applied `202610270003`. Its validation fixture no longer uses
+  `session_replication_role` (not allowed on the hosted project); the workbook-like row is
+  stored as revision 2 instead. The live dry run found that the 2026-10-24 workbook notes end
+  with a full stop, so `legacy_sync_notes_reference` did not find those 24 entries. New
+  `202610270004_legacy_sync_notes_reference_fix.sql` matches the whole `EntryID` whatever
+  follows it. Results in `docs/database/legacy-sync-finish-import.md` ("Live dry run").
+- Database: `202610270003` **Applied** by the owner 2026-10-27 (SQL Editor). `202610270004`
+  Prepared, not applied. Both switches OFF, 0 runs, 0 links.
+- Validation: `202610270003` validation 51/51 on `ElisCaretex-dev`, rolled back (checked
+  afterwards: 0 runs, links, review items or test rows). `202610270004` validation 8/8 on the
+  local replica; NORMAL dry run with the fix previewed inside a rolled-back transaction:
+  99 CREATE, 21 ADOPT, 3 ADOPT_AND_UPDATE, 1 PENDING_SOURCE. ReWash: 10 CREATE,
+  2 ADOPT_AND_UPDATE (staff filled in), 1 BLOCKED (a 0.012 kg line on 26 October morning Table 3).
+- Open / next: owner applies `202610270004`; the 0.012 kg ReWash line needs correcting in the
+  sheet; Edge Function for Apps Script; how to see entries deleted in the sheet.
+
 ## 2026-10-27 — Claude — Legacy Sync: real-sheet dry run, updates as revisions, ReWash from RewashProduction (Prepared)
 
 - Branch / commits: `claude/legacy-sync-rewash-import` (same Pull Request).

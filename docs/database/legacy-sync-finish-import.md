@@ -1,10 +1,11 @@
 # Legacy sync: Finish import
 
-Status (2026-10-27): `202610260002`, `202610270001` and `202610270002` **Applied** to
-`ElisCaretex-dev` by the owner and **Validated** there with the rolled-back test files.
-`202610270003` (updates as revisions, adoption of earlier imports, ReWash from
-`RewashProduction` lines) is **Prepared**: validated on a local replica (51/51), not yet
-applied. Both import switches are OFF. No import has run.
+Status (2026-10-27): `202610260002`, `202610270001`, `202610270002` and `202610270003`
+**Applied** to `ElisCaretex-dev` by the owner and **Validated** there with the rolled-back test
+files (`202610270003`: 51/51 on the live project). `202610270004` (EntryID match in the notes of
+the workbook import) is **Prepared**: validated on a local replica (8/8) and previewed on the
+live project inside a rolled-back transaction; not yet applied. Both import switches are OFF.
+No import has run.
 
 The sync is temporary. When the legacy apps stop, keep the imported production data and remove
 the sync scaffolding (owner, 2026-10-27).
@@ -23,10 +24,14 @@ Migrations:
   warning, HOUSEHOLD routed to ReWash. Its ReWash planner and importer read the customer from
   the HOUSEHOLD row, which is wrong for the real sheets; `202610270003` drops them unused.
 - `202610270003_legacy_sync_finish_updates_and_rewash_lines.sql`: everything below.
+- `202610270004_legacy_sync_notes_reference_fix.sql`: `legacy_sync_notes_reference` matches the
+  whole `EntryID` whatever follows it. `202610270003` required `;` or the end of the notes, but
+  the workbook import ends its notes with a full stop, so its 24 entries were not found.
 
 Validation (each file is one transaction, rolled back):
 `supabase/tests/202610260002_legacy_sync_identity_foundation_validation.sql` (11) and
-`supabase/tests/202610270003_legacy_sync_finish_updates_and_rewash_lines_validation.sql` (51).
+`supabase/tests/202610270003_legacy_sync_finish_updates_and_rewash_lines_validation.sql` (51) and
+`supabase/tests/202610270004_legacy_sync_notes_reference_fix_validation.sql` (8).
 The `202610270001` and `202610270002` test files describe those migrations as applied and no
 longer pass once `202610270003` is in place (planner outcomes and ReWash functions changed).
 
@@ -129,6 +134,30 @@ A change of customer, business date, shift, table or scheduled date is never app
 held as `SOURCE_IDENTITY_CHANGED`. An entry that drops to 0 after import is held as
 `SOURCE_QUANTITY_REMOVED`. A V2 entry cancelled in V2 is held as `TARGET_NOT_ACTIVE`.
 
+## Live dry run, 2026-10-27 (read-only, sheets downloaded that morning)
+
+NORMAL, 124 entries of 24, 26 and 27 October (with `202610270004` previewed):
+
+| Result | Entries | Notes |
+| --- | --- | --- |
+| `READY` / `CREATE` | 99 | 6,624.88 kg; all other entries of 24 evening, 26 and 27 October |
+| `READY` / `ADOPT` | 21 | 2026-10-24 morning, same values as the workbook import |
+| `READY` / `ADOPT_AND_UPDATE` | 3 | KNOCKEEN 21.35 → 26.07 kg, AISLING HOUSE 22.01 → 27.47 kg, CUH batch 451 gains its 28 units |
+| `PENDING_SOURCE` | 1 | SIGNACARE 27 October, still 0 kg in the sheet |
+
+Without `202610270004` the 24 workbook entries plan as `BLOCKED` (`CELL_HAS_ACTIVE_ENTRY`,
+`BATCH_REFERENCE_IN_USE`).
+
+ReWash, 13 HOUSEHOLD headers (129 `RewashProduction` lines):
+
+| Result | Cells | Notes |
+| --- | --- | --- |
+| `READY` / `CREATE` | 10 | |
+| `READY` / `ADOPT_AND_UPDATE` | 2 | 2026-10-24 morning Table 1 and 2: same lines as the workbook import; the new revision only fills the processing staff (Lazia, Paola Cortez Galvis), which the workbook left empty |
+| `BLOCKED` (`INVALID_QUANTITY`) | 1 | 2026-10-26 morning Table 3, line 2 (CID-SWOR-6F4DF) is 0.012 kg; V2 keeps 2 decimals. The sheet needs a correction |
+
+No staff or customer warnings on the live data.
+
 ## Mapping rules
 
 - **Target of a legacy entry:** our `FINISH_ENTRY_TO_ENTRY` link; else an entry of
@@ -198,8 +227,8 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 ## Pilot runbook (after the owner approves each step)
 
 1. Done 2026-10-27: `202610260002`, `202610270001`, `202610270002` applied and validated.
-2. Apply `202610270003`; run its validation file and the security advisors.
-3. Dry run 24-27 October (NORMAL and ReWash) and review it with the owner.
+2. Done 2026-10-27: `202610270003` applied and validated; dry run 24-27 October (above).
+3. Apply `202610270004`; run its validation file and repeat the NORMAL dry run.
 4. Edge Function for Apps Script (HMAC-signed requests; calls only the functions above).
 5. Owner enables a switch (limit 3), opens a `COMMIT` run, imports 1 to 3 records, closes the
    run, turns the switch off again, and checks the result.

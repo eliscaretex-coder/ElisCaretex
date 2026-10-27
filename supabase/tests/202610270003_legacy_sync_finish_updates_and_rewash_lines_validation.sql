@@ -246,13 +246,13 @@ select pg_temp.check((select res->>'outcome'='IMPORTED' from t_i where k='filled
 -- ---------------------------------------------------------------------
 -- 5. ADOPT an entry of an earlier import that names the legacy EntryID
 -- ---------------------------------------------------------------------
--- Fixture row as the 2026-10-24 workbook import wrote it (trigger skipped for the fixture only).
-set local session_replication_role = replica;
+-- Fixture row as the 2026-10-24 workbook import wrote it. It is stored as revision 2 so the
+-- live-entry current-shift check (revision 1 only) does not apply to the fixture.
 insert into public.finish_production_entries(finish_production_entry_id, entry_group_id, revision_no, status,
   production_flow_item_id, customer_id, production_business_date, delivery_date, edit_cutoff_at, shift_id, shift_code_snapshot,
   station_id, table_code_snapshot, table_name_snapshot, notes, source_application, recorded_at, processed_by_staff_id,
   processed_by_name_snapshot, trolley_scan_status)
-select '00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2', 1, 'ACTIVE',
+select '00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2', 2, 'ACTIVE',
   f.production_flow_item_id, f.customer_id, e.production_business_date, e.delivery_date, e.edit_cutoff_at,
   sh.shift_id, 'EVENING', st.station_id, 'FINISH_TABLE_3', st.station_name,
   'Imported from local Finish workbook; source group FINISH:TEST-LS-A', 'LOCAL_FINISH_WORKBOOK_20261024',
@@ -265,14 +265,13 @@ join public.stations st on st.station_code='FINISH_TABLE_3'
 where z.k='filled';
 insert into public.finish_production_lines(finish_production_entry_id, line_no, batch_reference, unit_code, quantity)
 values ('00000000-0000-4000-8000-0000000000a1', 1, 'TESTLS-A', 'KG', 21.35);
-set local session_replication_role = origin;
 
 select pg_temp.check((select integration.legacy_sync_plan_finish_entry(pg_temp.fe('TEST-LS-A','Evening','Table 3',cust2,'21.35','TESTLS-A'))->>'action' from t_fx)='ADOPT',
   'same values as the workbook entry plan as ADOPT');
 insert into t_i select 'adopt', integration.legacy_sync_import_finish_entry(r.run_id, pg_temp.fe('TEST-LS-A','Evening','Table 3',f.cust2,'26.07','TESTLS-A'))
 from t_run r, t_fx f;
-select pg_temp.check((select res->>'outcome'='ADOPTED_AND_UPDATED' and (res->>'revision_no')::int=2 from t_i where k='adopt'),
-  'different legacy kg is ADOPTED_AND_UPDATED as revision 2 (the legacy value wins)');
+select pg_temp.check((select res->>'outcome'='ADOPTED_AND_UPDATED' and (res->>'revision_no')::int=3 from t_i where k='adopt'),
+  'different legacy kg is ADOPTED_AND_UPDATED as the next revision (the legacy value wins)');
 select pg_temp.check((select l.target_id='00000000-0000-4000-8000-0000000000a1' and l.link_metadata->>'adopted_from'='LOCAL_FINISH_WORKBOOK_20261024'
                       from integration.legacy_sync_record_links l
                       where l.source_record_id='TEST-LS-A' and l.link_role='FINISH_ENTRY_TO_ENTRY'),
