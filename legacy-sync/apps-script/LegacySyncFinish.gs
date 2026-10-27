@@ -7,6 +7,7 @@
  *
  * Parts of the sync, in the order they run:
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
+ *   mop     CentralDB MopProduction (+ MopProductionHistory) + WashItems: MOP production and ABS batch
  *   normal  Finish Area FinishEntries (+ FinishEntriesHistory) + CentralDB WashItems
  *   rewash  Finish Area HOUSEHOLD entries + RewashProduction
  *
@@ -48,7 +49,16 @@ const LSF = {
   washItemFields: ['WashItemID', 'WashID', 'CustomerID', 'ScheduledDate', 'Type', 'KGShare', 'LoadNo'],
   staffFields: ['Name', 'Shift', 'Date'],
   userFields: ['UserID', 'Name'],
-  parts: ['wash', 'normal', 'rewash']
+  // MOP production
+  mopBatch: 60,
+  mopSheets: ['MopProduction', 'MopProductionHistory'],
+  mopFields: ['MopEventID', 'WashItemID', 'WashID', 'CustomerID', 'BusinessDate', 'Shift', 'EventType', 'QtyKgDelta',
+    'QtyUnitsDelta', 'BatchNo', 'MopModel', 'MopModelID', 'Trolleys', 'ProcessedBy', 'ProcessedAt', 'CreatedAt',
+    'ABSStatus', 'ABSBatchID', 'ABSLoggedAt', 'ABSLoggedBy', 'Status'],
+  mopItemFields: ['WashItemID', 'WashID', 'CustomerID', 'CustomerName', 'ScheduledDate', 'Type'],
+  // Parts sent through the generic dry_run / import operations, in import order.
+  kinds: ['wash', 'mop'],
+  parts: ['wash', 'mop', 'normal', 'rewash']
 };
 
 function lsfConnection_() {
@@ -254,14 +264,7 @@ function lsfCollectWashes_(range) {
     (shifts[key] = shifts[key] || {})[shift] = true;
   });
 
-  // Legacy user ID of each operator name (CentralDB User; never UserPrivate). Ambiguous names get none.
-  const userIds = {};
-  lsfReadSheet_(css, 'User', LSF.userFields, false).forEach(function (row) {
-    const name = lsfText_(row.Name), id = lsfText_(row.UserID);
-    if (!name || !id) return;
-    const key = name.toLowerCase();
-    userIds[key] = userIds.hasOwnProperty(key) && userIds[key] !== id ? null : id;
-  });
+  const userIds = lsfUserIds_(css);
 
   const previousDay = function (day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd'); };
   return {duplicates: duplicates, records: loads.map(function (l) {
@@ -277,19 +280,89 @@ function lsfCollectWashes_(range) {
   })};
 }
 
+/** Legacy user ID of each name (CentralDB User; never UserPrivate). Ambiguous names get none. */
+function lsfUserIds_(css) {
+  const userIds = {};
+  lsfReadSheet_(css, 'User', LSF.userFields, false).forEach(function (row) {
+    const name = lsfText_(row.Name), id = lsfText_(row.UserID);
+    if (!name || !id) return;
+    const key = name.toLowerCase();
+    userIds[key] = userIds.hasOwnProperty(key) && userIds[key] !== id ? null : id;
+  });
+  return userIds;
+}
+
+/**
+ * MOP production of the date range (by BusinessDate): one record per washed MOP customer
+ * (WashItemID) with every legacy MOP row of that WashItemID, cancelled ones included, and its
+ * CentralDB WashItem.
+ */
+function lsfCollectMops_(range) {
+  const central = lsConfig_().sources.central;
+  const css = SpreadsheetApp.openById(central.id);
+  // MopProduction wins over MopProductionHistory for the same MopEventID. History is optional.
+  const all = [], seen = {}, wanted = {};
+  LSF.mopSheets.forEach(function (name, sheetIndex) {
+    let rows = [];
+    try { rows = lsfReadSheet_(css, name, LSF.mopFields, sheetIndex === 0); } catch (e) { if (sheetIndex === 0) throw e; }
+    rows.forEach(function (row) {
+      const id = lsfText_(row.MopEventID), item = lsfText_(row.WashItemID);
+      if (!id || !item || seen[id]) return;
+      seen[id] = true;
+      all.push(row);
+      const day = lsfText_(row.BusinessDate, 'date');
+      if (day && day >= range.from && day <= range.to) wanted[item] = true;
+    });
+  });
+  if (!Object.keys(wanted).length) return {records: []};
+
+  const userIds = lsfUserIds_(css);
+  const events = {}, order = [];
+  all.forEach(function (row) {
+    const item = lsfText_(row.WashItemID);
+    if (!wanted[item]) return;
+    const e = lsfPick_(row, LSF.mopFields);
+    ['ProcessedAt', 'CreatedAt', 'ABSLoggedAt'].forEach(function (f) { e[f] = lsfLocal_(row[f]); });
+    e.ProcessedByUserID = userIds[String(e.ProcessedBy || '').toLowerCase()] || null;
+    if (!events[item]) { events[item] = []; order.push(item); }
+    events[item].push(e);
+  });
+
+  const items = {};
+  LSF.washSheets.forEach(function (name, sheetIndex) {
+    let rows = [];
+    try { rows = lsfReadSheet_(css, name, LSF.mopItemFields, sheetIndex === 0); } catch (e) { if (sheetIndex === 0) throw e; }
+    rows.forEach(function (row) {
+      const id = lsfText_(row.WashItemID);
+      if (id && wanted[id] && !items[id]) items[id] = lsfPick_(row, LSF.mopItemFields);
+    });
+  });
+
+  return {records: order.map(function (id) {
+    return {source_record_id: id, item: items[id] || null,
+      events: events[id].sort(function (a, b) { return String(a.MopEventID).localeCompare(String(b.MopEventID)); })};
+  })};
+}
+
 /** Every part of the sync for the date range. */
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
   const washes = lsfCollectWashes_(range);
   collected.wash = washes.records;
   collected.notes = {wash: [washes.note, washes.duplicates && washes.duplicates.length ? 'Duplicate WashID ignored: ' + washes.duplicates.slice(0, 10).join(', ') : null].filter(Boolean)};
+  try {
+    collected.mop = lsfCollectMops_(range).records;
+  } catch (e) {
+    collected.mop = [];
+    collected.notes.mop = ['MOP sheets could not be read: ' + String(e.message || e)];
+  }
   return collected;
 }
 
 function lsfCount_(map, key) { map[key] = (map[key] || 0) + 1; }
 
 function lsfDryRun_(collected) {
-  const plans = {normal: [], rewash: [], wash: []};
+  const plans = {normal: [], rewash: []};
   for (let i = 0; i < collected.normal.length; i += LSF.finishBatch) {
     const r = lsfCall_({operation: 'finish_dry_run', records: collected.normal.slice(i, i + LSF.finishBatch)});
     if (!r.ok) throw Error('Finish dry run refused: ' + r.error);
@@ -301,19 +374,22 @@ function lsfDryRun_(collected) {
     plans.rewash = plans.rewash.concat(r.result.plans || []);
   }
   // A part whose database side is not installed yet is reported and skipped, never fatal.
-  const wash = collected.wash || [];
-  try {
-    for (let i = 0; i < wash.length; i += LSF.washBatch) {
-      const r = lsfCall_({operation: 'dry_run', kind: 'wash', records: wash.slice(i, i + LSF.washBatch)});
-      if (!r.ok) throw Error(r.error);
-      plans.wash = plans.wash.concat(r.result.plans || []);
+  LSF.kinds.forEach(function (kind) {
+    const records = collected[kind] || [], size = LSF[kind + 'Batch'];
+    plans[kind] = [];
+    try {
+      for (let i = 0; i < records.length; i += size) {
+        const r = lsfCall_({operation: 'dry_run', kind: kind, records: records.slice(i, i + size)});
+        if (!r.ok) throw Error(r.error);
+        plans[kind] = plans[kind].concat(r.result.plans || []);
+      }
+      if (plans[kind].length !== records.length) throw Error('Dry run response does not match the records sent');
+    } catch (e) {
+      plans[kind] = null;
+      collected.notes = collected.notes || {};
+      collected.notes[kind] = (collected.notes[kind] || []).concat(['Not available yet: ' + String(e.message || e)]);
     }
-    if (plans.wash.length !== wash.length) throw Error('Dry run response does not match the records sent');
-  } catch (e) {
-    plans.wash = null;
-    collected.notes = collected.notes || {};
-    collected.notes.wash = (collected.notes.wash || []).concat(['Washes not available yet: ' + String(e.message || e)]);
-  }
+  });
   if (plans.normal.length !== collected.normal.length || plans.rewash.length !== collected.rewash.length) throw Error('Dry run response does not match the records sent');
   return plans;
 }
@@ -345,7 +421,7 @@ function previewFinishSync(fromDate, toDate) {
 }
 
 /**
- * Imports the range inside one COMMIT run: washes first, then Finish and ReWash. The database
+ * Imports the range inside one COMMIT run: washes first, then MOP, Finish and ReWash. The database
  * refuses a part whose switch is off, and stops a part at its max_entries_per_run.
  * READY records are written; BLOCKED records go to the review queue; others are left alone.
  */
@@ -354,7 +430,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {wash: {}, normal: {}, rewash: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {wash: {}, mop: {}, normal: {}, rewash: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -368,11 +444,12 @@ function importFinishSync(fromDate, toDate, reason) {
     const plans = lsfDryRun_(collected);
     result.plan = lsfSummary_(plans, collected.notes);
 
-    const groups = [
-      {kind: 'wash', body: function (record) { return {operation: 'import', kind: 'wash', runId: runId, record: record}; }},
+    const groups = LSF.kinds.map(function (kind) {
+      return {kind: kind, body: function (record) { return {operation: 'import', kind: kind, runId: runId, record: record}; }};
+    }).concat([
       {kind: 'normal', body: function (record) { return {operation: 'import_finish', runId: runId, record: record}; }},
       {kind: 'rewash', body: function (record) { return {operation: 'import_rewash', runId: runId, record: record}; }}
-    ];
+    ]);
     for (const g of groups) {
       if (!plans[g.kind]) continue;
       const records = collected[g.kind];

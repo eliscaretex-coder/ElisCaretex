@@ -80,6 +80,22 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: MOP production joins the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes part)
+- Changed: second part of the full sync. CentralDB `MopProduction` (+ History) rows of one
+  WashItemID become one V2 MOP production, written like `save_sorting_mop_production`
+  (lines, totals, shift, operator, processed time, trolley codes as references, late-entry
+  reconciliation, Production Flow event), with corrections, legacy cancellations, adoption of a
+  production typed in V2, and the ABS batch once POSTED. Apps Script collects MOP after washes
+  and runs it through the generic `dry_run` / `import` operations (no new Edge Function deploy).
+  Page shows a MOP part and "Turn on MOP".
+- Database: `202610270008_legacy_sync_mop_production.sql` prepared, not applied.
+- Validation: `supabase/tests/202610270008_legacy_sync_mop_production_validation.sql` 16/16 on
+  the local replica; 0006 and 0007 tests still pass; Apps Script collector on the real CentralDB
+  (61 MOP customers 24-27 Oct).
+- Open / next: owner applies 0008 after 0007 and runs both tests. Next parts: trolley
+  reception/custody, attendance, master data and rosters.
+
 ## 2026-10-27 — Claude — Legacy Sync: Sorting washes join the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes`
 - Changed: owner decisions 2026-10-27 — everything the legacy apps record must reach V2 through

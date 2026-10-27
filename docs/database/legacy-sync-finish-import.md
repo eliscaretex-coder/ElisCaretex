@@ -331,6 +331,39 @@ reception and custody, attendance and master data follow, one migration each.
   111): held for review until the staff master part, owner to confirm whether they are the
   same person.
 
+## MOP production (Prepared 2026-10-27, migration `202610270008`)
+
+- Source per call: every CentralDB `MopProduction` (+ `MopProductionHistory`) row of one
+  `WashItemID` (one washed MOP customer), cancelled rows included, plus its CentralDB `WashItems`
+  row (ScheduledDate). The sender picks the WashItemIDs with a row whose BusinessDate is in the
+  range, and fills `ProcessedByUserID` from CentralDB `User` (name match, unique only).
+- Writes what `save_sorting_mop_production` writes: one `sorting_mop_production_batches` row
+  (V2 keeps one active production per Production Flow), one line per MOP variant with the legacy
+  KG and Units summed as recorded (never recalculated), the legacy trolley codes as
+  `LATE_REFERENCE_ONLY` references (custody comes from the trolley part), a
+  `PROCESSED_MISSED_ENTRY` reconciliation when the legacy row was saved more than 60 minutes after
+  ProcessedAt (entry mode `LATE_RECONCILIATION`, else `LIVE`), and `MOP_PRODUCTION_RECORDED` /
+  `_LATE_RECORDED` on the flow. Once the legacy row is ABS `POSTED`, the ABS batch number goes to
+  `production_flow_external_batches` (`ABS_BATCH_RECORDED`).
+- Production Flow: the MOP flow of the V2 wash of the same WashID and customer (washes part),
+  else the customer's MOP flow of the scheduled day, else a new flow when the V2 wash exists
+  without a flow link (2026-10-24 workbook import). A wash not in V2 yet holds the row
+  (`WASH_NOT_IN_V2`); the commit run imports washes first, so the same run clears it.
+- Shift, BusinessDate, operator and processed time are the legacy values of the first save.
+  MOP model names map through the variant `legacy_values`, plus GREY MOP WITH WHITE STRIPE and
+  SPIN MOPS (as the 2026-10-23 import mapped them).
+- A changed legacy row is a V2 correction (new revision, the old one CANCELLED/CORRECTED; an
+  active ABS batch follows the new totals as SUPERSEDED + new). Every legacy row cancelled cancels
+  the V2 production and its ABS batch. A production already in V2 on the flow is adopted.
+- Review queue: unknown customer, operator or MOP model, operator ABSENT or moved out of Sorting
+  in V2, invalid quantities. Sunday 2026-10-25 skipped; before 2026-10-24 skipped.
+- Switch `MOP_PRODUCTION_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "mop"` (no new deploy after v6).
+- Validation: `supabase/tests/202610270008_legacy_sync_mop_production_validation.sql` (16 checks,
+  passed on the local replica). Real CentralDB of 27 October: 61 washed MOP customers with a row
+  from 24 to 27 October, one save each; operators Julio Vas, Franky Gomes, Ronaldo da Silva,
+  Ryotaro (111) and Ryotaro Kawauchi (112, not in V2 yet).
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

@@ -99,10 +99,11 @@ part whose switch is OFF is refused by the database and skipped; the others stil
 | Part | Legacy sheets | V2 | Switch | Migration |
 | --- | --- | --- | --- | --- |
 | Washes | Sorting `Sorting Area` + CentralDB `WashItems` + Sorting `Staff` | `sorting_wash_runs`, `sorting_wash_run_customers`, Production Flow `WASH_RECORDED` | `SORTING_WASH_IMPORT` | `202610270007` |
+| MOP | CentralDB `MopProduction` (+ History) + `WashItems` | `sorting_mop_production_batches` (lines, trolley references), ABS batch, Production Flow `MOP_PRODUCTION_RECORDED` | `MOP_PRODUCTION_IMPORT` | `202610270008` |
 | Finish | Finish Area `FinishEntries` + CentralDB `WashItems` | Finish entries and lines | `FINISH_HISTORICAL_IMPORT` | `202610270001`-`0004` |
 | ReWash | Finish Area HOUSEHOLD entries + `RewashProduction` | ReWash entries and lines | `FINISH_REWASH_HISTORICAL_IMPORT` | `202610270003` |
 
-Planned next, one migration each: MOP production (CentralDB `MopProduction`), trolley reception
+Planned next, one migration each: trolley reception
 and custody (Sorting `ReceptionLog`, CentralDB `TrolleyReturns`; owner decision 2026-10-27:
 custody follows the legacy sheets), attendance (Sorting `Staff`, Finish `StaffSessions`,
 `RosterNotWorking`), and master data (customers, schedules, staff, drivers, vehicles, routes,
