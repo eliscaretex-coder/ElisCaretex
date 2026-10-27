@@ -638,6 +638,15 @@ to Driver -> another job title and Staff -> Driver; the latter also switches a P
 to Team Leader to the Driver job title. The `driver-role-transfers` and `production-roster-exits`
 jobs run hourly.
 
+Legacy Sync, historical Finish import (2026-10-27, `202610260002_legacy_sync_identity_foundation.sql`
+and `202610270001_legacy_sync_finish_historical_import.sql`, **Prepared**, not applied; local
+rebuilt-database tests passed): one-way copy of Apps Script FinishEntries into Finish V2. Flow by
+customer + CLOTHES + WashItem scheduled date; entry, lines, one `FINISH_PRODUCTION_RECORDED` event
+and audit with `source_application='LEGACY_SYNC_FINISH'`; no trolley, custody, Sorting or wash
+rows. Insert-only links and review queue in schema `integration`; service_role-only RPCs; switch
+`FINISH_HISTORICAL_IMPORT` seeded OFF; `finish_enforce_new_entry_current_shift` accepts the label
+only with a per-transaction permit. Contract: `docs/database/legacy-sync-finish-import.md`.
+
 Driver infringements (2026-10-26, `202610260001_distribution_driver_infringements.sql`,
 **Applied** 2026-10-26 by the owner and **Validated** with rolled-back RPC tests): adopts the existing table `distribution_driver_infringements` (12 records
 imported from CentralDB on 2026-08-17, no screen before; RLS on, no policies, grants revoked) with driver, `occurred_at`, severity (`NO_SEVERITY`, `MINOR`, `SERIOUS`, `VERY_SERIOUS`,
