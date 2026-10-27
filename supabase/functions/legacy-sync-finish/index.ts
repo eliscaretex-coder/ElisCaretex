@@ -81,6 +81,14 @@ export function plan(body: Record<string, unknown>): { fn: string; args: Record<
     case "poll":
       // Asks the schedule whether to run now (nightly or "Sync now"); claims at most one run.
       return { fn: "legacy_sync_claim_run", args: {} };
+    case "control": {
+      // Apps Script admin page: STATUS, or ON / OFF for the schedule and both import switches.
+      const action = String(body.action || "").toUpperCase();
+      const changedBy = typeof body.changedBy === "string" ? body.changedBy.trim() : "";
+      if (!["STATUS", "ON", "OFF"].includes(action)) return null;
+      if (action !== "STATUS" && (!changedBy || changedBy.length > 200)) return null;
+      return { fn: "legacy_sync_control", args: { p_action: action, p_changed_by: changedBy || null } };
+    }
     case "finish_run": {
       const status = String(body.status || "").toUpperCase();
       if (typeof body.runId !== "string" || !UUID.test(body.runId) || !["COMPLETED", "FAILED", "CANCELLED"].includes(status)) return null;

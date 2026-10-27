@@ -30,7 +30,19 @@
   button.danger{background:#fff;color:var(--red);border:1px solid #fecaca}
   button.link{background:none;color:var(--teal);padding:0;border:0}
   button:disabled{opacity:.45;cursor:not-allowed}
-  #notice{min-height:20px;margin:10px 0 0;font-weight:600}
+  #notice,#syncNotice{min-height:20px;margin:10px 0 0;font-weight:600}
+  #syncNotice:empty{display:none}
+  .sync-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .sync-head h2{margin:0 0 4px}
+  .state{margin-left:6px;padding:2px 10px;border-radius:999px;font-size:12px;vertical-align:middle;background:#e2e8f0;color:#334155}
+  .state.on{background:#dcfce7;color:#166534}
+  .runs{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .runs:empty{display:none}
+  .run{display:grid;grid-template-columns:105px 80px 110px 90px minmax(0,1fr);gap:8px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);font-size:12px}
+  .run:first-child{border-top:0}
+  .run.head{background:#f8fafc;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+  .run b.completed{color:var(--green)}.run b.failed{color:var(--red)}.run b.running{color:var(--amber)}
+  .run small{color:var(--muted);overflow-wrap:anywhere}
   .summary{margin-top:12px;display:grid;gap:10px}
   .group{border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .group h3{margin:0;padding:8px 10px;background:#f8fafc;font-size:13px;border-bottom:1px solid var(--line)}
@@ -45,16 +57,30 @@
   details .card{margin-top:10px}
   .tools{display:flex;flex-wrap:wrap;gap:8px}
   pre{margin:10px 0 0;max-height:320px;overflow:auto;white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px}
-  @media(max-width:640px){.status{grid-template-columns:1fr}.source{grid-template-columns:24px minmax(0,1fr)}.source input[type=text],.source button{grid-column:2;justify-self:start}.source input[type=text]{justify-self:stretch}}
+  @media(max-width:640px){.run{grid-template-columns:1fr 1fr}.run.head{display:none}.run small{grid-column:1/-1}.status{grid-template-columns:1fr}.source{grid-template-columns:24px minmax(0,1fr)}.source input[type=text],.source button{grid-column:2;justify-self:start}.source input[type=text]{justify-self:stretch}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>ElisCaretex Legacy Sync</h1>
-    <p>Copies the legacy Finish sheets into V2. The on/off switch, "Sync now" and the run history are in
-      <a href="https://eliscaretex-coder.github.io/ElisCaretex/pages/finish-results.html" target="_blank" rel="noopener">V2 → Finish Results</a>.</p>
+    <p>Copies the legacy Finish sheets into V2 every night while the sync is ON.</p>
   </header>
+
+  <section class="card">
+    <div class="sync-head">
+      <div>
+        <h2>Sync to V2 <b id="syncState" class="state">…</b></h2>
+        <div id="syncInfo" class="small muted"></div>
+      </div>
+      <div class="row">
+        <button id="syncToggle" class="secondary" type="button" disabled>…</button>
+        <button id="syncNow" type="button" disabled>Sync now</button>
+      </div>
+    </div>
+    <p id="syncNotice"></p>
+    <div id="runs" class="runs"></div>
+  </section>
 
   <section class="card">
     <h2>Status</h2>
@@ -76,7 +102,7 @@
       <button id="previewButton" type="button">Preview</button>
       <button id="importButton" class="secondary" type="button">Import now</button>
     </div>
-    <p class="small muted">Preview changes nothing. Import writes to V2 only while the sync is ON in V2. At most 7 days.</p>
+    <p class="small muted">Preview changes nothing. Import writes to V2 only while the sync is ON. At most 7 days.</p>
     <p id="notice"></p>
     <div id="summary" class="summary"></div>
     <details id="rawBox" hidden><summary>Technical details</summary><pre id="raw"></pre></details>
@@ -134,7 +160,10 @@ function server(name, args) {
 
 function notice(text, cls) { $('notice').textContent = text || ''; $('notice').className = cls || ''; }
 
-function busy(on) { document.querySelectorAll('button').forEach((b) => { b.disabled = on; }); }
+function busy(on) {
+  document.querySelectorAll('button').forEach((b) => { b.disabled = on; });
+  if (!on && panel) drawSync(panel); // the sync buttons depend on the V2 state
+}
 
 function pill(key, value) {
   const label = LABELS[key] || (key.indexOf('REFUSED_') === 0 ? ['refused', 'stop'] : [key.toLowerCase().replace(/_/g, ' '), '']);
@@ -209,8 +238,79 @@ async function importNow() {
   finally { busy(false); }
 }
 
+const RESULT_LABELS = {IMPORTED: 'new', UPDATED: 'updated', ADOPTED: 'matched', ADOPTED_AND_UPDATED: 'matched + updated', BLOCKED: 'to review', RUN_LIMIT_REACHED: 'run limit'};
+
+function when(v) {
+  return v ? new Intl.DateTimeFormat('en-IE', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Dublin'}).format(new Date(v)) : '—';
+}
+
+function day(v) {
+  return v ? new Intl.DateTimeFormat('en-IE', {day: '2-digit', month: 'short', timeZone: 'UTC'}).format(new Date(v + 'T12:00:00Z')) : '—';
+}
+
+function runResult(summary) {
+  if (!summary) return '';
+  if (summary.error) return 'Error: ' + summary.error;
+  const results = summary.results || {};
+  return [['normal', 'Finish'], ['rewash', 'ReWash']].map(([key, name]) => {
+    const counts = results[key] || {};
+    const parts = Object.keys(counts).filter((k) => k !== 'refusal' && Number(counts[k]) > 0)
+      .map((k) => counts[k] + ' ' + (RESULT_LABELS[k] || (k.indexOf('REFUSED_') === 0 ? 'refused' : k.toLowerCase())));
+    return parts.length ? name + ': ' + parts.join(', ') : '';
+  }).filter(Boolean).join(' · ') || 'Nothing new';
+}
+
+function runType(requestedBy) {
+  const m = /\((NIGHTLY|SYNC_NOW|REQUEST|MANUAL)\)/.exec(String(requestedBy || ''));
+  return m ? {NIGHTLY: 'Nightly', SYNC_NOW: 'Sync now', REQUEST: 'Sync now', MANUAL: 'Manual'}[m[1]] : 'Manual';
+}
+
+function drawSync(p) {
+  const v2 = p.v2;
+  $('syncToggle').disabled = !v2;
+  $('syncNow').disabled = !v2 || !v2.auto_enabled;
+  if (!v2) {
+    $('syncState').textContent = '?';
+    $('syncState').className = 'state';
+    $('syncInfo').textContent = p.v2Error ? 'Could not reach V2: ' + p.v2Error : 'Configure the V2 connection first.';
+    $('runs').innerHTML = '';
+    return;
+  }
+  const on = Boolean(v2.auto_enabled);
+  $('syncState').textContent = on ? 'ON' : 'OFF';
+  $('syncState').className = 'state' + (on ? ' on' : '');
+  $('syncToggle').textContent = on ? 'Turn off' : 'Turn on';
+  $('syncToggle').className = on ? 'danger' : '';
+  $('syncNow').className = on ? '' : 'secondary';
+  const seen = v2.last_poll_at ? Math.round((Date.now() - new Date(v2.last_poll_at).getTime()) / 60000) : null;
+  $('syncInfo').textContent = (on
+    ? 'Every night between ' + v2.night_from + ' and ' + v2.night_until + ' (Dublin), last ' + v2.window_days + ' days. '
+    : 'OFF: nothing is copied to V2. ')
+    + (seen === null ? 'The automatic check has not run yet.' : 'Last automatic check ' + (seen < 1 ? 'less than a minute' : seen + ' min') + ' ago.')
+    + ' ' + Number(v2.open_review_items || 0) + ' record(s) waiting for review.';
+  const runs = v2.runs || [];
+  $('runs').innerHTML = '';
+  if (!runs.length) return;
+  const head = document.createElement('div');
+  head.className = 'run head';
+  ['Started', 'Type', 'Days', 'Status', 'Result'].forEach((t) => head.appendChild(Object.assign(document.createElement('span'), {textContent: t})));
+  $('runs').appendChild(head);
+  runs.forEach((r) => {
+    const row = document.createElement('div');
+    row.className = 'run';
+    const status = String(r.status || '');
+    [[ 'span', when(r.started_at)], ['span', runType(r.requested_by)], ['span', day(r.date_from) + '–' + day(r.date_to)], ['b', status], ['small', runResult(r.summary)]]
+      .forEach(([tag, text]) => row.appendChild(Object.assign(document.createElement(tag), {textContent: text})));
+    row.children[3].className = status.toLowerCase();
+    $('runs').appendChild(row);
+  });
+}
+
+function syncNotice(text, cls) { $('syncNotice').textContent = text || ''; $('syncNotice').className = cls || ''; }
+
 function drawPanel(p) {
   panel = p;
+  drawSync(p);
   $('triggerText').textContent = p.triggerInstalled ? 'Installed' : 'Not installed';
   $('triggerText').className = p.triggerInstalled ? 'ok' : 'warn';
   $('triggerButton').textContent = p.triggerInstalled ? 'Remove' : 'Install';
@@ -268,6 +368,24 @@ $('importButton').onclick = importNow;
 $('saveSources').onclick = () => saveConfig('Spreadsheets saved.');
 $('master').onchange = () => saveConfig($('master').checked ? 'The sheets can be read.' : 'Reading the sheets is blocked.');
 $('daily').onchange = () => saveConfig('Saved.');
+$('syncToggle').onclick = async () => {
+  const on = !(panel.v2 && panel.v2.auto_enabled);
+  if (!on && !confirm('Turn the sync off? Nothing will be copied to V2 until it is turned on again.')) return;
+  busy(true); syncNotice(on ? 'Turning on…' : 'Turning off…');
+  try { drawPanel(await server('setFinishSyncEnabled', [on])); syncNotice(on ? 'Sync is ON. It runs every night.' : 'Sync is OFF.', 'ok'); }
+  catch (e) { syncNotice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+};
+$('syncNow').onclick = async () => {
+  busy(true); syncNotice('Syncing… this can take a few minutes.');
+  try {
+    const result = await server('syncFinishNow');
+    drawPanel(await server('getFinishSyncPanel'));
+    syncNotice(result.error ? 'Stopped: ' + result.error : result.stopped === 'TIME_BUDGET' ? 'Stopped after 5 minutes. Press Sync now again to continue.' : 'Sync finished.', result.error ? 'bad' : 'ok');
+  }
+  catch (e) { syncNotice('Error: ' + e.message, 'bad'); }
+  finally { busy(false); }
+};
 $('triggerButton').onclick = async () => {
   const install = !panel.triggerInstalled;
   if (!install && !confirm('Stop the automatic check? Nightly sync and "Sync now" will stop working.')) return;
