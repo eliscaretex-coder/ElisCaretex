@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: real-sheet dry run, updates as revisions, ReWash from RewashProduction (Prepared)
+
+- Branch / commits: `claude/legacy-sync-rewash-import` (same Pull Request).
+- Changed: read-only dry run of the owner's Apps Script exports (24–27 October, 124 NORMAL +
+  13 HOUSEHOLD rows) against `ElisCaretex-dev`: 97 ready, 24 = the 2026-10-24 morning entries
+  already in V2 from the local workbook (2 with different kg), 3 `OTHERS`, 1 at 0 kg. Owner
+  decisions 2026-10-27: legacy entries keep changing after creation (0 kg = still working;
+  values change up to dispatch), so changes are applied as new revisions; the legacy value wins
+  over the workbook import; `OTHERS` is Clothes; HOUSEHOLD is only a header, its lines live in
+  `RewashProduction`, the same customer twice is summed. New
+  `202610270003_legacy_sync_finish_updates_and_rewash_lines.sql`: value maps (DONE, shifts,
+  tables, OTHERS→CLOTHES), Finish trigger permits importer revisions, sync window from
+  2026-10-24, staff by exact display name, NORMAL planner/importer with
+  `CREATE`/`UPDATE`/`ADOPT`/`ADOPT_AND_UPDATE` and `PENDING_SOURCE`, new ReWash
+  planner/dry run/importer per HOUSEHOLD header with its lines; drops the unused
+  `202610270002` HOUSEHOLD functions. Docs: `docs/database/legacy-sync-finish-import.md`
+  rewritten.
+- Database: none applied. `202610270003` is Prepared; both switches stay OFF.
+- Validation: local PostgreSQL 16 copy, `supabase/tests/202610270003_…_validation.sql` 51/51,
+  rolled back. The `202610270001` and `202610270002` test files no longer apply once
+  `202610270003` is in place.
+- Open / next: owner applies `202610270003`; then the validation file and a new dry run on
+  `ElisCaretex-dev`; Edge Function for Apps Script; how to see entries deleted in the sheet.
+
 ## 2026-10-27 — Claude — Legacy Sync: foundation, Finish importer and HOUSEHOLD-as-ReWash applied
 
 - Branch / commits: `claude/legacy-sync-rewash-import`, Pull Request into `master`.

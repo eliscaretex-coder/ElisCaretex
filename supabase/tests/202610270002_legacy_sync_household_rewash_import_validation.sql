@@ -1,4 +1,6 @@
 -- ElisCaretex V2 - Validation - 202610270002_legacy_sync_household_rewash_import
+-- Historical: describes the migration as applied on 2026-10-27. Superseded by
+-- 202610270003 (planner outcomes and ReWash functions changed); run that validation instead.
 -- Runs entirely inside one transaction and ends with ROLLBACK: nothing is kept.
 -- Plain SQL assertions (pgTAP is not installed on the remote project).
 -- Run as the database owner (postgres), the role the service_role RPC executes as.
