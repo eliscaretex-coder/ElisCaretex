@@ -12,7 +12,8 @@ Database rules, outcomes and the live dry run: `docs/database/legacy-sync-finish
 | --- | --- | --- |
 | Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads `FinishEntries` (+ `FinishEntriesHistory`), `RewashProduction` and CentralDB `WashItems` (+ `WashItemsHistory`) for at most 7 days, normalises cell formats and sends signed requests. Never writes the sheets. |
 | Endpoint | `supabase/functions/legacy-sync-finish/index.ts` | Checks the HMAC signature and the timestamp (5 minutes), validates the request shape and calls one `integration.legacy_sync_*` function. No mapping logic. |
-| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270004`) | Planner, dry run, importer, switches, run limit, review queue, links. |
+| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270005`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
+| Control | Finish Results page, "Legacy sheet sync" panel (`frontend/assets/js/legacy-sync-control.js`) | ADMIN only: on/off, "Sync now", last runs. |
 | Old inbox | `supabase/functions/legacy-sync-ingest/index.ts` | Repository copy of the live function (v2). Untouched; the new sender does not use it. |
 
 ## Request contract
@@ -35,6 +36,7 @@ Bodies (`operation` → database function):
 | `import_finish` | `runId`, `record` | `legacy_sync_import_finish_entry` |
 | `import_rewash` | `runId`, `record` | `legacy_sync_import_rewash_cell` |
 | `finish_run` | `runId`, `status` (`COMPLETED`/`FAILED`/`CANCELLED`), `summary` | `legacy_sync_finish_run` |
+| `poll` | none | `legacy_sync_claim_run` (returns `{run, reason, dateFrom, dateTo}`) |
 
 Responses: `200 {ok:true, result}`; `200 {ok:false, code, error}` when the database refuses on
 purpose (switch OFF `55000`, bad input `22023`, conflicts `23505`, retry `40001`); `400` bad
@@ -65,3 +67,19 @@ returns `ALREADY_IMPORTED`.
 `importFinishSync` opens one `COMMIT` run, sends `READY` records to be written and `BLOCKED`
 records to the review queue, skips the rest, stops at the run limit or after 5 minutes, and
 closes the run with a summary. With the switches OFF the database refuses every write.
+
+## Nightly sync (migration `202610270005`)
+
+The Apps Script trigger `legacySyncTick` runs every 5 minutes and sends `poll`. The database
+answers `run:false` (OFF, BUSY or IDLE) or claims one run:
+
+- `REQUEST`: an administrator pressed "Sync now" in V2 (picked up within 5 minutes);
+- `NIGHTLY`: once per Dublin night between 02:00 and 05:00.
+
+Each run imports the last 3 days (today included). The V2 switch controls everything: ON
+enables the schedule and both import switches (limit 300 per run); OFF disables all of them, so
+nothing is written, not even by a manual run from the editor.
+
+Setup: apply the migration, redeploy `legacy-sync-finish`, replace `LegacySyncFinish.gs` in the
+Apps Script project, run `installLegacySyncTrigger()` once, then turn the sync on in V2.
+`removeLegacySyncTrigger()` stops the polling.

@@ -78,6 +78,9 @@ export function plan(body: Record<string, unknown>): { fn: string; args: Record<
       const args = oneRecord(body);
       return args && { fn: "legacy_sync_import_rewash_cell", args };
     }
+    case "poll":
+      // Asks the schedule whether to run now (nightly or "Sync now"); claims at most one run.
+      return { fn: "legacy_sync_claim_run", args: {} };
     case "finish_run": {
       const status = String(body.status || "").toUpperCase();
       if (typeof body.runId !== "string" || !UUID.test(body.runId) || !["COMPLETED", "FAILED", "CANCELLED"].includes(status)) return null;

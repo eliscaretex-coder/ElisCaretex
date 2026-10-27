@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: nightly sync with V2 switch and "Sync now" (Prepared)
+
+- Branch / commits: `claude/legacy-sync-schedule`.
+- Changed: migration `202610270005_legacy_sync_schedule.sql` (schedule row, claim, three ADMIN
+  RPCs); Edge Function `legacy-sync-finish` gains `poll`; `LegacySyncFinish.gs` gains
+  `legacySyncTick` / `installLegacySyncTrigger` / `removeLegacySyncTrigger` and opens the run
+  before reading the sheets; Finish Results gets the ADMIN-only "Legacy sheet sync" panel.
+- Database: nothing applied. Needs the owner: apply the migration, approve the redeploy, update
+  the Apps Script and install the trigger.
+- Validation: 22/22 SQL checks on the local replica; Edge Function handler tests (23) and
+  Apps Script harness (tick, window, FAILED recording, trigger install) pass; panel checked at
+  1200 px and 390 px with a mocked client; `node scripts/validate-repository.mjs` passes.
+- Open / next: run the validation file on the live project after the migration is applied.
+
 ## 2026-10-27 — Claude — Legacy Sync: ReWash import of 24-27 October
 
 - Branch / commits: `claude/legacy-sync-rewash-run` (docs only).
