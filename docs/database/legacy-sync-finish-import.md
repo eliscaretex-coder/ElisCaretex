@@ -364,6 +364,53 @@ reception and custody, attendance and master data follow, one migration each.
   from 24 to 27 October, one save each; operators Julio Vas, Franky Gomes, Ronaldo da Silva,
   Ryotaro (111) and Ryotaro Kawauchi (112, not in V2 yet).
 
+## Trolley custody (Prepared 2026-10-27, migration `202610270009`)
+
+Owner decision 2026-10-27: trolley custody follows the legacy sheets. One part, `kind: "trolley"`,
+with two record types that the sender orders by time (runs last, after Finish and MOP):
+
+- **OUT**, one per trolley code typed on a legacy Finish entry (`FinishEntries.Trolleys`, key
+  `EntryID:code`) or MOP save (`MopProduction.Trolleys`, key `WashItemID:code`;
+  `NO_TROLLEY_AVAILABLE` and other text ignored). Needs the Finish entry or MOP production in V2
+  (`FINISH_ENTRY_NOT_IN_V2` / `MOP_NOT_IN_V2` hold it until the same run imports them). Writes
+  what `assign_finish_trolley_to_flow` / `assign_trolley_to_customer_from_production` write: an
+  OPEN stay sent on the next distribution day with the flow's schedule snapshot, trolley
+  `IN_PRODUCTION`, `ASSIGNED_IN_PRODUCTION`, and the trolley on the V2 Finish entry
+  (`finish_production_trolleys`) or MOP production (`sorting_mop_production_trolleys.stay_id`).
+  The trolley's open stay of the same customer and production day is linked, not duplicated.
+- **RETURN**, one per CentralDB `TrolleyReturns` row (key `ReturnID`). Writes what
+  `record_sorting_trolley_intake_v2` writes: the open stay is closed (`TRACKED_MATCH`, or
+  `CUSTOMER_MISMATCH`), or a `MISSING_OUTBOUND_RECORD` stay is created; trolley `AVAILABLE`; the
+  intake with its products and Production Flows (`TROLLEY_RECEIVED_CONTENTS` / `_EMPTY`);
+  `SORTING_CONTENTS_CONFIRMED`; PRESENT attendance evidence for the operator. Legacy values for
+  BusinessDate, Shift, ReturnedAt, ReceivedBy, customer, ServiceType (Clothes/MOP) and Content
+  (`WITH_ITEMS` = laundry inside). A ScheduledDate that is not on the customer's published
+  schedule is recorded `OFF_SCHEDULE` / `NOT_ON_PUBLISHED_SCHEDULE` (V2 requires it).
+- A changed legacy row (`CorrectedAt`, for example another customer) is a V2 correction with a
+  revision row, as `correct_sorting_trolley_intake` (Clothes/MOP and contents stay fixed once the
+  trolley was washed: `INTAKE_ALREADY_WASHED`). Washes are not moved: they follow their own legacy
+  rows. `Voided = YES` cancels the intake (custody kept, as in V2).
+- An intake already in V2 is adopted and never changed except by a legacy void: the 2026-10-24
+  local import (its stays carry `ClientEventID: ...`), or any intake of the same trolley, day and
+  shift within 4 hours. A new scan inside that window is held (`DUPLICATE_SCAN_WITHIN_4H`).
+- Older custody: a stay still OPEN from before 2026-10-24 (the 2026-09 inference, 424 stays on
+  27 October) that legacy production fills again is closed `RECEIVED`, exception `OTHER`, no
+  review (the return happened before V2 tracking). An open stay from inside the window is closed
+  `REVIEW_REQUIRED` / `PENDING` (its return was never recorded). Records out of time order never
+  close newer custody: an OUT older than the trolley's last return is skipped
+  (`TROLLEY_RETURNED_LATER`), a RETURN older than the open stay gets its own stay
+  (`OPEN_STAY_IS_NEWER`).
+- Review queue: unknown trolley, customer or operator, operator ABSENT or moved out of Sorting,
+  trolley out of service, duplicate scan. Sunday 2026-10-25 skipped; before 2026-10-24 skipped.
+- Each dry-run record is planned against the current V2 state; the import re-plans each record
+  in order, so an OUT and the RETURN of the same trolley in one run apply in sequence.
+- Switch `TROLLEY_CUSTODY_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "trolley"` (no new deploy after v6).
+- Validation: `supabase/tests/202610270009_legacy_sync_trolley_custody_validation.sql` (16 checks,
+  passed on the local replica with 0006, 0007 and 0008). Real sheets of 27 October, 24 to 27
+  October: 413 records (169 returns, 168 Finish and 76 MOP trolley codes). Against the live
+  master data every return operator (Josue, legacy user 104), trolley and customer exists.
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

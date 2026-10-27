@@ -80,6 +80,25 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: trolley custody and Sorting intakes join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes and MOP parts)
+- Changed: third part of the full sync (owner decision: trolley custody follows the legacy
+  sheets). One part `trolley`, in time order and after Finish and MOP: each trolley code typed on
+  a legacy Finish entry or MOP save opens the V2 customer stay (as
+  `assign_finish_trolley_to_flow`), and each CentralDB `TrolleyReturns` row becomes a V2 Sorting
+  intake (as `record_sorting_trolley_intake_v2`: stay closed or MISSING_OUTBOUND, trolley
+  AVAILABLE, products and Production Flow events, presence evidence). Legacy corrections write a
+  revision, legacy voids cancel; intakes already in V2 (2026-10-24 local import by ClientEventID,
+  or the same trolley and shift within 4 hours) are adopted. Stays left open since the 2026-09
+  inference are closed as returned before tracking when legacy production fills the trolley
+  again. Page shows a Trolleys part and "Turn on Trolleys".
+- Database: `202610270009_legacy_sync_trolley_custody.sql` prepared, not applied.
+- Validation: `supabase/tests/202610270009_legacy_sync_trolley_custody_validation.sql` 16/16 on
+  the local replica; 0006, 0007 and 0008 tests still pass; Apps Script collector on the real
+  sheets (413 records 24-27 Oct) and a local dry run of all of them without errors.
+- Open / next: owner applies 0009 after 0008 and runs its test. Next parts: attendance, master
+  data and rosters.
+
 ## 2026-10-27 — Claude — Legacy Sync: MOP production joins the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes part)
 - Changed: second part of the full sync. CentralDB `MopProduction` (+ History) rows of one

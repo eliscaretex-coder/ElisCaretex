@@ -102,9 +102,8 @@ part whose switch is OFF is refused by the database and skipped; the others stil
 | MOP | CentralDB `MopProduction` (+ History) + `WashItems` | `sorting_mop_production_batches` (lines, trolley references), ABS batch, Production Flow `MOP_PRODUCTION_RECORDED` | `MOP_PRODUCTION_IMPORT` | `202610270008` |
 | Finish | Finish Area `FinishEntries` + CentralDB `WashItems` | Finish entries and lines | `FINISH_HISTORICAL_IMPORT` | `202610270001`-`0004` |
 | ReWash | Finish Area HOUSEHOLD entries + `RewashProduction` | ReWash entries and lines | `FINISH_REWASH_HISTORICAL_IMPORT` | `202610270003` |
+| Trolleys | Trolley codes of Finish `FinishEntries` and CentralDB `MopProduction` (out) + CentralDB `TrolleyReturns` (back), in time order | `trolley_customer_stays`, trolley status and events, `sorting_trolley_intakes` with products and Production Flow `TROLLEY_RECEIVED_*`, presence evidence | `TROLLEY_CUSTODY_IMPORT` | `202610270009` |
 
-Planned next, one migration each: trolley reception
-and custody (Sorting `ReceptionLog`, CentralDB `TrolleyReturns`; owner decision 2026-10-27:
-custody follows the legacy sheets), attendance (Sorting `Staff`, Finish `StaffSessions`,
+Planned next, one migration each: attendance (Sorting `Staff`, Finish `StaffSessions`,
 `RosterNotWorking`), and master data (customers, schedules, staff, drivers, vehicles, routes,
 rosters; owner decision 2026-10-27: the legacy sheets are still where the team edits them).

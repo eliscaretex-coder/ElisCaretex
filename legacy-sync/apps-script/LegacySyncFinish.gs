@@ -10,6 +10,8 @@
  *   mop     CentralDB MopProduction (+ MopProductionHistory) + WashItems: MOP production and ABS batch
  *   normal  Finish Area FinishEntries (+ FinishEntriesHistory) + CentralDB WashItems
  *   rewash  Finish Area HOUSEHOLD entries + RewashProduction
+ *   trolley trolley codes typed on Finish entries and MOP saves (out to the customer) and CentralDB
+ *           TrolleyReturns (back at Sorting), in time order: custody and Sorting intakes
  *
  * Script Properties (Project Settings > Script Properties; never in code):
  *   LSF_ENDPOINT  https://<project-ref>.supabase.co/functions/v1/legacy-sync-finish
@@ -56,9 +58,17 @@ const LSF = {
     'QtyUnitsDelta', 'BatchNo', 'MopModel', 'MopModelID', 'Trolleys', 'ProcessedBy', 'ProcessedAt', 'CreatedAt',
     'ABSStatus', 'ABSBatchID', 'ABSLoggedAt', 'ABSLoggedBy', 'Status'],
   mopItemFields: ['WashItemID', 'WashID', 'CustomerID', 'CustomerName', 'ScheduledDate', 'Type'],
-  // Parts sent through the generic dry_run / import operations, in import order.
-  kinds: ['wash', 'mop'],
-  parts: ['wash', 'mop', 'normal', 'rewash']
+  // Trolley custody
+  trolleyBatch: 60,
+  returnSheet: 'TrolleyReturns',
+  returnFields: ['ReturnID', 'TrolleyID', 'ReturnedAt', 'FromCustomerID', 'FromCustomerName', 'ReceivedBy', 'Notes',
+    'LastDispatchAt', 'LastDispatchCustomerID', 'CustomerMatch', 'CustomerSource', 'CreatedAt', 'BusinessDate', 'Shift',
+    'ServiceType', 'Content', 'ClientEventID', 'ScheduledDate', 'Voided', 'VoidedAt', 'VoidedBy', 'VoidReason',
+    'CorrectedAt', 'CorrectedBy'],
+  // Parts sent through the generic dry_run / import operations.
+  kinds: ['wash', 'mop', 'trolley'],
+  // Import order: trolleys last, because a trolley leaving production needs its Finish or MOP record in V2.
+  parts: ['wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -344,6 +354,76 @@ function lsfCollectMops_(range) {
   })};
 }
 
+/** A date-time cell or text (Dublin local, or ISO with zone) as milliseconds, for ordering. */
+function lsfEpoch_(v) {
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.getTime();
+  const t = lsfText_(v);
+  if (!t) return null;
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(t)) { const ms = Date.parse(t); return isNaN(ms) ? null : ms; }
+  const m = t.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
+  return m ? Utilities.parseDate(m[1] + ' ' + m[2] + ':' + (m[3] || '00'), LSF.timeZone, 'yyyy-MM-dd HH:mm:ss').getTime() : null;
+}
+
+/** Trolley codes of a legacy Trolleys cell ("T0292025T,T3012025T"); NO_TROLLEY_AVAILABLE and other text are ignored. */
+function lsfTrolleyCodes_(v) {
+  const seen = {};
+  return String(lsfText_(v) || '').toUpperCase().split(/[\s,;|]+/).filter(function (c) {
+    if (!/^T\d{1,10}T$/.test(c) || seen[c]) return false;
+    seen[c] = true;
+    return true;
+  });
+}
+
+/**
+ * Trolley custody of the date range, in time order: OUT records (each trolley code of a Finish
+ * entry or of a MOP save) and RETURN records (CentralDB TrolleyReturns rows, by BusinessDate).
+ */
+function lsfCollectTrolleys_(range, collected) {
+  const out = [];
+  (collected.normal || []).forEach(function (r) {
+    const e = r.entry;
+    lsfTrolleyCodes_(e.Trolleys).forEach(function (code) {
+      out.push({at: lsfEpoch_(e.CreatedAt), record: {record_type: 'OUT', area: 'FINISH', source_id: r.source_record_id,
+        source_record_id: r.source_record_id + ':' + code, trolley_code: code, customer_id: e.CustomerID,
+        business_date: e.BusinessDate, at: e.CreatedAt}});
+    });
+  });
+  (collected.mop || []).forEach(function (r) {
+    const codes = {}, active = r.events.filter(function (e) {
+      return String(e.Status || '').toUpperCase() === 'ACTIVE' && String(e.EventType || 'PRODUCTION').toUpperCase() === 'PRODUCTION';
+    });
+    if (!active.length) return;
+    active.sort(function (a, b) { return (lsfEpoch_(a.ProcessedAt) || 0) - (lsfEpoch_(b.ProcessedAt) || 0); });
+    active.forEach(function (e) { lsfTrolleyCodes_(e.Trolleys).forEach(function (c) { codes[c] = true; }); });
+    Object.keys(codes).sort().forEach(function (code) {
+      out.push({at: lsfEpoch_(active[0].ProcessedAt), record: {record_type: 'OUT', area: 'MOP', source_id: r.source_record_id,
+        source_record_id: r.source_record_id + ':' + code, trolley_code: code, customer_id: active[0].CustomerID,
+        business_date: active[0].BusinessDate, at: active[0].ProcessedAt}});
+    });
+  });
+
+  const central = lsConfig_().sources.central;
+  const css = SpreadsheetApp.openById(central.id);
+  const userIds = lsfUserIds_(css), seen = {};
+  lsfReadSheet_(css, LSF.returnSheet, LSF.returnFields, true).forEach(function (row) {
+    const id = lsfText_(row.ReturnID), day = lsfText_(row.BusinessDate, 'date');
+    if (!id || !day || day < range.from || day > range.to || seen[id]) return;
+    seen[id] = true;
+    const r = lsfPick_(row, LSF.returnFields);
+    ['ReturnedAt', 'LastDispatchAt', 'CreatedAt', 'VoidedAt', 'CorrectedAt'].forEach(function (f) { r[f] = lsfLocal_(row[f]); });
+    r.ReceivedByUserID = userIds[String(r.ReceivedBy || '').toLowerCase()] || null;
+    out.push({at: lsfEpoch_(row.ReturnedAt), record: {record_type: 'RETURN', source_record_id: id, row: r}});
+  });
+
+  // Time order; a record without a time goes last. Same instant: the return first (it frees the trolley).
+  out.sort(function (a, b) {
+    const x = a.at === null ? Infinity : a.at, y = b.at === null ? Infinity : b.at;
+    if (x !== y) return x < y ? -1 : 1;
+    return a.record.record_type === b.record.record_type ? 0 : (a.record.record_type === 'RETURN' ? -1 : 1);
+  });
+  return out.map(function (o) { return o.record; });
+}
+
 /** Every part of the sync for the date range. */
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
@@ -355,6 +435,12 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.mop = [];
     collected.notes.mop = ['MOP sheets could not be read: ' + String(e.message || e)];
+  }
+  try {
+    collected.trolley = lsfCollectTrolleys_(range, collected);
+  } catch (e) {
+    collected.trolley = [];
+    collected.notes.trolley = ['Trolley sheets could not be read: ' + String(e.message || e)];
   }
   return collected;
 }
@@ -421,7 +507,7 @@ function previewFinishSync(fromDate, toDate) {
 }
 
 /**
- * Imports the range inside one COMMIT run: washes first, then MOP, Finish and ReWash. The database
+ * Imports the range inside one COMMIT run: washes first, then MOP, Finish, ReWash and trolleys. The database
  * refuses a part whose switch is off, and stops a part at its max_entries_per_run.
  * READY records are written; BLOCKED records go to the review queue; others are left alone.
  */
@@ -430,7 +516,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {wash: {}, mop: {}, normal: {}, rewash: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -444,12 +530,11 @@ function importFinishSync(fromDate, toDate, reason) {
     const plans = lsfDryRun_(collected);
     result.plan = lsfSummary_(plans, collected.notes);
 
-    const groups = LSF.kinds.map(function (kind) {
+    const groups = LSF.parts.map(function (kind) {
+      if (kind === 'normal') return {kind: kind, body: function (record) { return {operation: 'import_finish', runId: runId, record: record}; }};
+      if (kind === 'rewash') return {kind: kind, body: function (record) { return {operation: 'import_rewash', runId: runId, record: record}; }};
       return {kind: kind, body: function (record) { return {operation: 'import', kind: kind, runId: runId, record: record}; }};
-    }).concat([
-      {kind: 'normal', body: function (record) { return {operation: 'import_finish', runId: runId, record: record}; }},
-      {kind: 'rewash', body: function (record) { return {operation: 'import_rewash', runId: runId, record: record}; }}
-    ]);
+    });
     for (const g of groups) {
       if (!plans[g.kind]) continue;
       const records = collected[g.kind];
