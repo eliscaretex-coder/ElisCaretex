@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: Edge Function and Apps Script sender for Finish (Prepared)
+
+- Branch / commits: `claude/legacy-sync-edge-function`, Pull Request into `master`.
+- Changed: new Edge Function `supabase/functions/legacy-sync-finish` (HMAC-SHA256 over
+  timestamp + body, 5-minute window, 512 KB limit; maps six operations to the
+  `integration.legacy_sync_*` functions through the service role; no mapping logic). New Apps
+  Script file `legacy-sync/apps-script/LegacySyncFinish.gs`: `previewFinishSync` (read-only) and
+  `importFinishSync` (one COMMIT run; READY written, BLOCKED to review, stops at the run limit).
+  Repository copy of the live `legacy-sync-ingest` (v2), unchanged. Setup in `legacy-sync/README.md`.
+- Database: none. Nothing deployed; no secret created.
+- Validation: Deno tests of the handler (21 checks: signature, clock, sizes, operations, error
+  mapping) and `deno check`; Node harness running the `.gs` against the 2026-10-27 sheet exports:
+  the 124 NORMAL and 13 HOUSEHOLD records it builds are identical, field by field, to the records
+  validated on `ElisCaretex-dev` in the live dry run; signature verified on each call.
+- Open / next: owner creates `LEGACY_SYNC_HMAC_SECRET`, deploys with JWT verification off, adds
+  the `.gs` and Script Properties, runs `previewFinishSync`; then the pilot import.
+
 ## 2026-10-27 — Claude — Legacy Sync: 202610270004 applied and validated
 
 - Branch / commits: `claude/legacy-sync-0004-applied` (docs only).

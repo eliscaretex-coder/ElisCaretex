@@ -67,6 +67,9 @@ live correction does.
 
 ## Entry points (service_role only)
 
+The Apps Script reaches them only through the Edge Function `legacy-sync-finish` (HMAC-signed
+requests, one operation per call). Sender, contract and setup: `legacy-sync/README.md`.
+
 | Function | Writes | Use |
 | --- | --- | --- |
 | `integration.legacy_sync_finish_dry_run(records jsonb)` | nothing (STABLE) | 1–60 NORMAL records |
@@ -228,7 +231,9 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 1. Done 2026-10-27: `202610260002`, `202610270001`, `202610270002` applied and validated.
 2. Done 2026-10-27: `202610270003` applied and validated; dry run 24-27 October (above).
 3. Done 2026-10-27: `202610270004` applied, validated, NORMAL dry run repeated.
-4. Edge Function for Apps Script (HMAC-signed requests; calls only the functions above).
+4. Prepared 2026-10-27: Edge Function `legacy-sync-finish` and Apps Script sender
+   `LegacySyncFinish.gs` (`legacy-sync/README.md`). Owner sets the secret, deploys, runs
+   `previewFinishSync`.
 5. Owner enables a switch (limit 3), opens a `COMMIT` run, imports 1 to 3 records, closes the
    run, turns the switch off again, and checks the result.
 
@@ -239,9 +244,10 @@ To withdraw an imported entry, do not delete it: use a reviewed cancellation (st
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic
   "still present" check from the sender, or an owner decision.
-- Edge Function and the Apps Script sender.
-- Repository copy of the live-only `integration.legacy_inbox`,
-  `staging.apps_script_incremental_rows` and `legacy-sync-ingest`.
+- Deploy and first signed dry run of `legacy-sync-finish` (owner).
+- Repository copy of the live-only `integration.legacy_inbox` and
+  `staging.apps_script_incremental_rows` (`legacy-sync-ingest` is now copied in
+  `supabase/functions/legacy-sync-ingest/`).
 - How the `LOCAL_FINISH_WORKBOOK_20261024` rows passed the Finish trigger.
 - 2026-10-23 ReWash cells differ between V2 (CentralDB import) and the current legacy sheet
   (Morning Table 1: 21 lines / 38.90 kg in V2, 11 / 20.96 in the sheet; Morning Table 3:
