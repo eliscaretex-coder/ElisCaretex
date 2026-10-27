@@ -80,6 +80,22 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: Ryotaro is one person under legacy users 111 and 112 (Prepared)
+
+- Changed: owner confirmed that legacy user 111 "Ryotaro" (deactivated 2026-10-24) and 112
+  "Ryotaro Kawauchi" are the same person, named "Ryotaro Kawauchi". New value map domain
+  `STAFF_USER_ALIAS` (append-only, retire to undo) maps 111 -> 112; `legacy_sync_resolve_staff`
+  reads it first, so washes, MOP, trolley intakes and attendance under either ID reach the same
+  V2 person; the register sync skips 111 (`LEGACY_USER_ALIAS`) instead of creating a second
+  person. The V2 person moves from `legacy_user_id` 111 to 112 and is renamed.
+- Database: `202610270013_legacy_sync_staff_user_alias.sql` prepared, not applied. Live check
+  before: one V2 person "Ryotaro" with legacy 111, none with 112. Migration 0012 was applied by
+  the owner.
+- Validation: `supabase/tests/202610270013_legacy_sync_staff_user_alias_validation.sql` 8/8 on
+  the local replica (with a "Ryotaro" 111 fixture); 0007, 0008, 0009, 0010 and 0012 tests still pass.
+- Open / next: owner applies 0013 and its test; the 11 washes and 2 attendance rows held for
+  user 112 then import.
+
 ## 2026-10-27 — Claude — Legacy Sync: migrations 0007–0011 applied, Edge Function v6 deployed
 
 - Changed: no code. Live state recorded after the owner applied the pending migrations.
