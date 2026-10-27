@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: attendance joins the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-sorting-washes` (same PR)
+- Changed: fourth part of the full sync, run first. Finish `StaffSessions` become Finish
+  attendance + work sessions at the legacy table and times, `RosterNotWorking` becomes Finish
+  ABSENT (sessions of the shift cancelled), Sorting `Staff` rows become Sorting attendance + work
+  sessions with the legacy times and break. Legacy changes correct, cancellations cancel, V2
+  sessions are adopted (legacy value wins). Page shows an Attendance part.
+- Database: `202610270010_legacy_sync_attendance.sql` prepared, not applied (apply after 0007-0009).
+- Validation: `supabase/tests/202610270010_legacy_sync_attendance_validation.sql` 16/16 on the
+  local replica; 0006-0009 tests still pass; collector on the real sheets (80 records 24-27 Oct).
+- Note: on 2026-10-27 the owner applied 0009 before 0007/0008; its test failed because the wash
+  and MOP functions were missing. Order given: 0007, 0008, then 0009 again (re-runnable), then tests.
+- Open / next: master data and rosters; Ryotaro Kawauchi (112) and Alessandra Laura (113) are not
+  in V2 yet.
+
 ## 2026-10-27 — Claude — Legacy Sync: trolley custody and Sorting intakes join the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-sorting-washes` (same PR as the washes and MOP parts)
 - Changed: third part of the full sync (owner decision: trolley custody follows the legacy

@@ -411,6 +411,36 @@ with two record types that the sender orders by time (runs last, after Finish an
   October: 413 records (169 returns, 168 Finish and 76 MOP trolley codes). Against the live
   master data every return operator (Josue, legacy user 104), trolley and customer exists.
 
+## Attendance (Prepared 2026-10-27, migration `202610270010`)
+
+One part, `kind: "attendance"`, runs first (V2 checks who worked), records in the order they were typed:
+
+- **FINISH_SESSION**, one Finish `StaffSessions` (+ History) row (key `SessionID`), written like
+  `upsert_finish_staff_actual`: Finish attendance PRESENT, a work session (`FINISH_V2`) at the legacy
+  Table with the legacy start, end and break, and its table segment. A changed row corrects the
+  session (`CORRECTED`); `Status = CANCELLED` cancels it.
+- **FINISH_NOT_WORKING**, one `RosterNotWorking` row (key `DismissalID`), written like
+  `set_finish_staff_attendance_v1`: Finish attendance ABSENT (`OTHER`, "Not working") and the
+  person's Finish work sessions of the shift cancelled. Held when the person has Finish production
+  that shift (`FINISH_PRODUCTION_RECORDED`).
+- **SORTING_STAFF**, one Sorting `Staff` row (key `<day>|<shift>|<name>`; an Evening row typed
+  before 03:00 belongs to the previous day; the last row typed wins), written like
+  `add_sorting_actual_staff` + `save_sorting_staff_work_adjustment`: Sorting attendance PRESENT
+  and a work session (`SORTING_MANUAL_POSITION`) with the legacy times and break, linked to the
+  published roster entry when there is one. The work position (Clothes / MOPs) goes to the notes.
+- The legacy value wins: an ABSENT row is set back to PRESENT by a session typed after it, and a
+  work session already typed in V2 for the person, area and shift is adopted and takes the legacy
+  times (`V2_TIMES_REPLACED`; old values in the audit log).
+- Review queue: unknown person, table or shift, invalid times, more than 13 hours in one day
+  (`WORK_OVER_13_HOURS`, all areas together), table transfers already in V2. Sunday 2026-10-25 and
+  rows before 2026-10-24 skipped.
+- Switch `ATTENDANCE_IMPORT` (seeded OFF); Edge Function `dry_run` / `import` with
+  `kind: "attendance"` (no new deploy after v6). Apply after 0007-0009.
+- Validation: `supabase/tests/202610270010_legacy_sync_attendance_validation.sql` (16 checks,
+  passed on the local replica with 0006-0009). Real sheets 24 to 27 October: 80 records
+  (56 Finish sessions, 5 "not working", 19 Sorting staff rows). Two people are not in V2 yet:
+  Ryotaro Kawauchi (legacy user 112) and Alessandra Laura (113); master data will bring them.
+
 ## Still open
 
 - An entry deleted in the legacy sheet cannot be seen by a per-record sync. Needs a periodic

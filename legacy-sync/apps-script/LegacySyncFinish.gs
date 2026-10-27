@@ -6,6 +6,8 @@
  * Postgres: this file only reads the sheets and normalises cell formats. It never writes the sheets.
  *
  * Parts of the sync, in the order they run:
+ *   attendance Finish Area StaffSessions (+ History) and RosterNotWorking, Sorting "Staff": who worked,
+ *           where and when, in the order it was typed
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
  *   mop     CentralDB MopProduction (+ MopProductionHistory) + WashItems: MOP production and ABS batch
  *   normal  Finish Area FinishEntries (+ FinishEntriesHistory) + CentralDB WashItems
@@ -65,10 +67,18 @@ const LSF = {
     'LastDispatchAt', 'LastDispatchCustomerID', 'CustomerMatch', 'CustomerSource', 'CreatedAt', 'BusinessDate', 'Shift',
     'ServiceType', 'Content', 'ClientEventID', 'ScheduledDate', 'Voided', 'VoidedAt', 'VoidedBy', 'VoidReason',
     'CorrectedAt', 'CorrectedBy'],
+  // Attendance
+  attendanceBatch: 60,
+  sessionSheets: ['StaffSessions', 'StaffSessionsHistory'],
+  sessionFields: ['SessionID', 'CreatedAt', 'BusinessDate', 'Shift', 'TableID', 'UserName', 'StartTime', 'EndTime',
+    'BreakMin', 'SessionType', 'Comments', 'Status'],
+  notWorkingFields: ['DismissalID', 'CreatedAt', 'BusinessDate', 'Shift', 'TableID', 'UserName', 'UserID', 'Reason', 'Status'],
+  sortingStaffFields: ['Name', 'Start Shift', 'End Shift', 'Break', 'Coments', 'Work position', 'Date', 'Shift'],
   // Parts sent through the generic dry_run / import operations.
-  kinds: ['wash', 'mop', 'trolley'],
-  // Import order: trolleys last, because a trolley leaving production needs its Finish or MOP record in V2.
-  parts: ['wash', 'mop', 'normal', 'rewash', 'trolley']
+  kinds: ['attendance', 'wash', 'mop', 'trolley'],
+  // Import order: attendance first (V2 checks who worked); trolleys last, because a trolley leaving
+  // production needs its Finish or MOP record in V2.
+  parts: ['attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -424,6 +434,74 @@ function lsfCollectTrolleys_(range, collected) {
   return out.map(function (o) { return o.record; });
 }
 
+/**
+ * Attendance of the date range (by business day), in the order it was typed: Finish StaffSessions
+ * (+ History; the current sheet wins), Finish RosterNotWorking and the Sorting "Staff" sheet
+ * (one row per person, day and shift; the last row typed wins).
+ */
+function lsfCollectAttendance_(range) {
+  const conf = lsConfig_();
+  const out = [], notes = [];
+  const css = SpreadsheetApp.openById(conf.sources.central.id);
+  const userIds = lsfUserIds_(css);
+  const inRange = function (day) { return day && day >= range.from && day <= range.to; };
+
+  const fss = SpreadsheetApp.openById(conf.sources.finish.id), ftz = fss.getSpreadsheetTimeZone();
+  const seen = {};
+  LSF.sessionSheets.forEach(function (name, sheetIndex) {
+    let rows = [];
+    try { rows = lsfReadSheet_(fss, name, LSF.sessionFields, sheetIndex === 0); } catch (e) { if (sheetIndex === 0) throw e; notes.push(String(e.message || e)); }
+    rows.forEach(function (row) {
+      const id = lsfText_(row.SessionID), day = lsfText_(row.BusinessDate, 'date');
+      if (!id || !inRange(day) || seen[id]) return;
+      seen[id] = true;
+      const r = lsfPick_(row, LSF.sessionFields);
+      r.CreatedAt = lsfLocal_(row.CreatedAt);
+      r.StartTime = lsfClock_(row.StartTime, ftz);
+      r.EndTime = lsfClock_(row.EndTime, ftz);
+      r.UserID = userIds[String(r.UserName || '').toLowerCase()] || null;
+      out.push({at: lsfEpoch_(row.CreatedAt), record: {record_type: 'FINISH_SESSION', source_record_id: id, row: r}});
+    });
+  });
+  lsfReadSheet_(fss, 'RosterNotWorking', LSF.notWorkingFields, false).forEach(function (row) {
+    const id = lsfText_(row.DismissalID), day = lsfText_(row.BusinessDate, 'date');
+    if (!id || !inRange(day) || seen[id]) return;
+    seen[id] = true;
+    const r = lsfPick_(row, LSF.notWorkingFields);
+    r.CreatedAt = lsfLocal_(row.CreatedAt);
+    out.push({at: lsfEpoch_(row.CreatedAt), record: {record_type: 'FINISH_NOT_WORKING', source_record_id: id, row: r}});
+  });
+
+  const sorting = conf.sources.sorting;
+  if (sorting && sorting.enabled && sorting.id) {
+    const sss = SpreadsheetApp.openById(sorting.id), stz = sss.getSpreadsheetTimeZone();
+    const previousDay = function (day) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd'); };
+    const byKey = {};
+    lsfReadSheet_(sss, 'Staff', LSF.sortingStaffFields, true).forEach(function (row) {
+      const name = lsfText_(row.Name), shift = lsfText_(row.Shift), entered = lsfLocal_(row.Date);
+      if (!name || !shift || !entered) return;
+      // A row typed before 03:00 for the Evening belongs to the previous day.
+      const day = /^evening$/i.test(shift) && entered.slice(11, 16) < '03:00' ? previousDay(entered.slice(0, 10)) : entered.slice(0, 10);
+      if (!inRange(day)) return;
+      const key = day + '|' + shift + '|' + name.toLowerCase();
+      byKey[key] = {at: lsfEpoch_(row.Date), record: {record_type: 'SORTING_STAFF', source_record_id: key, row: {
+        BusinessDate: day, Shift: shift, Name: name, UserID: userIds[name.toLowerCase()] || null,
+        StartShift: lsfClock_(row['Start Shift'], stz), EndShift: lsfClock_(row['End Shift'], stz),
+        Break: lsfClock_(row.Break, stz), Comments: lsfText_(row.Coments), WorkPosition: lsfText_(row['Work position']),
+        EnteredAt: entered}}};
+    });
+    Object.keys(byKey).forEach(function (k) { out.push(byKey[k]); });
+  } else {
+    notes.push('Sorting spreadsheet is not configured or not enabled: Sorting staff not sent.');
+  }
+
+  out.sort(function (a, b) {
+    const x = a.at === null ? Infinity : a.at, y = b.at === null ? Infinity : b.at;
+    return x === y ? 0 : (x < y ? -1 : 1);
+  });
+  return {records: out.map(function (o) { return o.record; }), notes: notes};
+}
+
 /** Every part of the sync for the date range. */
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
@@ -435,6 +513,14 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.mop = [];
     collected.notes.mop = ['MOP sheets could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const attendance = lsfCollectAttendance_(range);
+    collected.attendance = attendance.records;
+    if (attendance.notes.length) collected.notes.attendance = attendance.notes;
+  } catch (e) {
+    collected.attendance = [];
+    collected.notes.attendance = ['Attendance sheets could not be read: ' + String(e.message || e)];
   }
   try {
     collected.trolley = lsfCollectTrolleys_(range, collected);
@@ -507,7 +593,7 @@ function previewFinishSync(fromDate, toDate) {
 }
 
 /**
- * Imports the range inside one COMMIT run: washes first, then MOP, Finish, ReWash and trolleys. The database
+ * Imports the range inside one COMMIT run: attendance first, then washes, MOP, Finish, ReWash and trolleys. The database
  * refuses a part whose switch is off, and stops a part at its max_entries_per_run.
  * READY records are written; BLOCKED records go to the review queue; others are left alone.
  */
@@ -516,7 +602,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
