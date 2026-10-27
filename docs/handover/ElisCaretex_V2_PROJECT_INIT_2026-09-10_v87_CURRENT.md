@@ -648,7 +648,8 @@ rows. Insert-only links and review queue in schema `integration`; service_role-o
 `FINISH_HISTORICAL_IMPORT` seeded OFF; `finish_enforce_new_entry_current_shift` accepts the label
 only with a per-transaction permit. Contract: `docs/database/legacy-sync-finish-import.md`.
 Owner decisions 2026-10-27: legacy HOUSEHOLD entries are ReWash; every legacy row of Sunday
-2026-10-25 was a test (skipped); other Sundays are real production (imported, with a warning). `202610270002_legacy_sync_household_rewash_import.sql` (**Prepared**, local tests passed)
+2026-10-25 was a test (skipped); other Sundays are real production (imported, with a warning). `202610270002_legacy_sync_household_rewash_import.sql` (**Applied** 2026-10-27 by the owner,
+**Validated** 40/40 on `ElisCaretex-dev`)
 imports the HOUSEHOLD rows of one Finish cell as one new `finish_rewash_entries` row with one KG
 line per legacy row (ReWash is production counted separately per table and shift, not added to the Clothes flow KG;
 an existing ACTIVE ReWash cell is held for review),

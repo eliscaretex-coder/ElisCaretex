@@ -2,7 +2,8 @@
 
 Status (2026-10-27): `202610260002` and `202610270001` **Applied** to `ElisCaretex-dev` by the
 owner and **Validated** there with the rolled-back test files. `202610270002` (HOUSEHOLD as
-ReWash, 2026-10-25 test day skipped) is **Prepared**. Both import switches are OFF. No import has run.
+ReWash, 2026-10-25 test day skipped) was **Applied** the same day by the owner and **Validated**
+there (40/40). Both import switches are OFF. No import has run.
 
 The sync is temporary. When the legacy apps stop, keep the imported production data and remove
 the sync scaffolding (owner, 2026-10-27).
@@ -129,7 +130,7 @@ Two legacy NORMAL entries for the same flow, date, shift and table are never mer
 held (`CELL_SHARED_IN_BATCH` in a dry run, `CELL_HAS_ACTIVE_ENTRY` after the first import)
 until the owner decides.
 
-## HOUSEHOLD as ReWash (`202610270002`, Prepared)
+## HOUSEHOLD as ReWash (`202610270002`, Applied)
 
 Owner decision 2026-10-27: a legacy `HOUSEHOLD` Finish entry is ReWash. It goes into the V2
 ReWash ledger (`finish_rewash_entries` / `finish_rewash_lines`), the same place as
@@ -185,7 +186,7 @@ Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 
 1. Done 2026-10-27: read-only checks, `202610260002` and `202610270001` applied, validation
    files and security advisors run.
-2. Apply `202610270002` and run its validation file (owner approval).
+2. Done 2026-10-27: `202610270002` applied by the owner and validated (40/40).
 3. Insert the owner-approved value maps (at least the Finish `Status` values).
 4. Dry run 2026-10-26 from the Edge Function and review the plans with the owner.
 5. Owner enables `FINISH_HISTORICAL_IMPORT` (limit 3), opens a `COMMIT` run, imports 1 to 3

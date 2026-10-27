@@ -80,14 +80,14 @@ Entry format:
 
 ---
 
-## 2026-10-27 — Claude — Legacy Sync: foundation and Finish importer applied; HOUSEHOLD as ReWash (Prepared)
+## 2026-10-27 — Claude — Legacy Sync: foundation, Finish importer and HOUSEHOLD-as-ReWash applied
 
 - Branch / commits: `claude/legacy-sync-rewash-import`, Pull Request into `master`.
 - Changed: owner decisions 2026-10-27: legacy `HOUSEHOLD` Finish entries are ReWash (production
   counted separately per table and shift); every legacy row of Sunday 2026-10-25 was an owner
   test and is not imported; other Sundays are real (rare catch-up) production; the sync is temporary (once the legacy apps
   stop, keep the production data and remove the sync scaffolding to save space).
-  New `202610270002_legacy_sync_household_rewash_import.sql` (Prepared): link role
+  New `202610270002_legacy_sync_household_rewash_import.sql`: link role
   `FINISH_ENTRY_TO_REWASH_LINE`; switch `FINISH_REWASH_HISTORICAL_IMPORT` seeded OFF (limit 3
   cells per run); the NORMAL planner returns `SKIPPED` for 2026-10-25, a `SUNDAY_PRODUCTION`
   warning (instead of a blocker) for other Sundays, and `REWASH_ROUTE` for HOUSEHOLD (rest of
@@ -103,13 +103,16 @@ Entry format:
   `finish_enforce_new_entry_current_shift` was byte-identical to `202610230005` (md5
   `b53d4782…`), no `legacy_sync` object existed, every function and column the importer uses
   exists. After applying: both switches OFF, zero runs, links or `LEGACY_SYNC_FINISH` entries.
-  `202610270002` is **not** applied.
+  The owner then applied `202610270002_legacy_sync_household_rewash_import.sql` the same way
+  (version with the 2026-10-25-only skip; checked in the live function bodies). All switches
+  still OFF; zero runs, links, review items or value maps.
 - Validation: on `ElisCaretex-dev` (rolled back, no residue afterwards): `202610260002` 11/11,
-  `202610270001` 55/55 (the version on `master`). Security advisor: the only new finding is INFO
-  `rls_enabled_no_policy` on the 7 private `integration.legacy_sync_*` tables (by design). On
+  `202610270001` 55/55 before and 57/57 (updated file) after `202610270002`, `202610270002`
+  40/40. Security advisor, after each apply: the only new finding is
+  INFO `rls_enabled_no_policy` on the 7 private `integration.legacy_sync_*` tables (by design). On
   the local PostgreSQL 16 copy with all three migrations: `202610260002` 11/11, `202610270001`
   57/57 (updated file), `202610270002` 40/40, all rolled back.
-- Open / next: owner approval to apply `202610270002`; the Finish `Status` value map; the
+- Open / next: the Finish `Status` value map; the
   remaining owner decisions (two NORMAL entries in one cell, inactive customers, unmapped
   staff, the 3 ambiguous customers and 2 unmapped types); Edge Function for Apps Script.
   FYI: V2 already has 56 `APPS_SCRIPT_IMPORT` Finish entries on Sundays in January–February
