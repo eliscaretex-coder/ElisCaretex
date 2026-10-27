@@ -93,8 +93,10 @@ Entry format:
   5-minute trigger.
 - Validation: page checked at 1000 px and 390 px with a mocked `google.script.run`, no script
   errors; Apps Script harness passes.
-- Open / next: owner runs `supabase/tests/202610270005_legacy_sync_schedule_validation.sql` in the
-  SQL Editor (the MCP call needed a confirmation that never arrived).
+- Validation (live): the owner ran `supabase/tests/202610270005_legacy_sync_schedule_validation.sql`
+  in the SQL Editor: all 22 checks passed (rewritten as one DO block; the SQL Editor lost temp
+  tables between statements). The Apps Script trigger polls every 5 minutes; sync OFF until the
+  owner turns it on in V2.
 
 ## 2026-10-27 — Claude — Legacy Sync: nightly sync with V2 switch and "Sync now" (Prepared)
 

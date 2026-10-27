@@ -256,7 +256,7 @@ refused. Live behaviour and the 2026-10-23 Apps Script exception are unchanged.
 To withdraw an imported entry, do not delete it: use a reviewed cancellation (status
 `CANCELLED` plus an audit row). The links stay as history.
 
-## Nightly sync and V2 control (Prepared, migration `202610270005`)
+## Nightly sync and V2 control (Applied and Validated 2026-10-27, migration `202610270005`)
 
 Owner request 2026-10-27: sync every night, with a switch and a "Sync now" button in V2.
 
@@ -273,7 +273,9 @@ Owner request 2026-10-27: sync every night, with a switch and a "Sync now" butto
   before reading the sheets, so a sheet error shows as FAILED in V2.
 - Panel "Legacy sheet sync" on Finish Results, shown only when the status RPC succeeds.
 - Validation: `supabase/tests/202610270005_legacy_sync_schedule_validation.sql` (22 checks,
-  passed on the local replica).
+  passed on the local replica and on the live project, run by the owner in the SQL Editor).
+- Live state 2026-10-27 17:48: Edge Function v4 deployed, Apps Script trigger installed and
+  polling every 5 minutes, sync OFF until the owner turns it on in V2.
 
 ## Still open
 
