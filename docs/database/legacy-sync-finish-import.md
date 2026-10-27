@@ -278,7 +278,7 @@ Owner request 2026-10-27: sync every night, with a switch and a "Sync now" butto
 - Live state 2026-10-27 17:48: Edge Function v4 deployed, Apps Script trigger installed and
   polling every 5 minutes, sync OFF until the owner turns it on in V2.
 
-## Control moved to the Apps Script page (Prepared, migration `202610270006`)
+## Control moved to the Apps Script page (Applied 2026-10-27, migration `202610270006`)
 
 Owner decision 2026-10-27: the switch and "Sync now" belong on the Apps Script page, not in V2.
 
@@ -292,6 +292,10 @@ Owner decision 2026-10-27: the switch and "Sync now" belong on the Apps Script p
   `supabase/tests/202610270006_legacy_sync_control_from_apps_script_validation.sql` (12 checks,
   passed on the local replica). The 202610270005 validation file uses the dropped RPCs and no
   longer applies after this migration.
+- Live 2026-10-27 18:14: Edge Function v5 deployed; the owner turned the sync ON from the Apps
+  Script page and pressed "Sync now": run `dc2abc81-5806-4c0d-badf-16e9e3d250c3` COMPLETED
+  (Finish 5 IMPORTED; ReWash 3 IMPORTED, 1 BLOCKED = the known 0.012 kg record, no duplicate
+  review item). From now on the sync runs every night 02:00-05:00 Dublin.
 
 ## Still open
 
