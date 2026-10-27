@@ -80,6 +80,31 @@ Entry format:
 
 ---
 
+## 2026-10-27 — Claude — Legacy Sync: identity foundation and historical Finish importer (Prepared)
+
+- Branch / commits: `claude/legacy-sync-finish-import`, Pull Request into `master`.
+- Changed: owner handed over the Legacy Sync (Apps Script → V2). `202610260002` adds the
+  `integration.legacy_sync_*` identity layer (runs, insert-only record versions and links with
+  `source_line_key`, review queue). `202610270001` adds the historical Finish importer:
+  read-only planner and dry run, `legacy_sync_import_finish_entry` (service_role only, switch
+  `FINISH_HISTORICAL_IMPORT` seeded OFF, pilot limit 3 per run), owner-approved value maps, and
+  a narrow branch in `finish_enforce_new_entry_current_shift` that accepts a
+  `LEGACY_SYNC_FINISH` row only with a per-transaction permit. Contract and pilot runbook:
+  `docs/database/legacy-sync-finish-import.md`.
+- Database: none. Both migrations are **Prepared**, not applied.
+- Validation: both migrations and both test files run on a local PostgreSQL 16 copy rebuilt
+  from this repository's migrations and seeds (skipped: the broken `202609160003`, the
+  regex rewrite `202610230001` and the data-only `202610250006`; `202610230005` loaded early).
+  `202610260002` test 11/11, `202610270001` test 55/55, both rolled back; both migrations
+  re-run without changes. Not run against `ElisCaretex-dev`.
+- Open / next: owner approval to apply; read-only check that the live body of
+  `finish_enforce_new_entry_current_shift` still equals `202610230005` before applying;
+  owner decisions (HOUSEHOLD, two entries in one cell, inactive customers, Sunday rows,
+  staff, the 3 ambiguous customers and 2 unmapped types, Finish `Status` value map); Edge
+  Function for Apps Script; commit the live-only `integration.legacy_inbox`,
+  `staging.apps_script_incremental_rows` and `legacy-sync-ingest`; explain how
+  `LOCAL_FINISH_WORKBOOK_20261024` rows passed the Finish trigger.
+
 ## 2026-10-26 — Claude — Production Tracker: weekly Production map
 
 - Branch / commits: `claude/production-map`, Pull Request into `master`
