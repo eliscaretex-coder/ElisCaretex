@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>My PPE &amp; Uniform | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
-  <link rel="stylesheet" href="../assets/css/stock.css?v=20261028-2">
+  <link rel="stylesheet" href="../assets/css/stock.css?v=20261028-3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
-  <script src="../assets/js/my-stock.js?v=20261028-1" defer></script>
+  <script src="../assets/js/my-stock.js?v=20261028-2" defer></script>
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
 </head>
 <body>
@@ -27,43 +27,61 @@
   </header>
 
   <p id="myMessage" class="stk-message hidden" role="status"></p>
+  <div id="myLeaving" class="my-leaving hidden" role="alert"></div>
 
-  <div class="my-grid">
-    <div class="my-col">
-      <section class="stk-panel">
-        <div class="stk-panel-head">
-          <div><h2>Request items</h2><p>Choose the size and quantity, then add the item to your request.</p></div>
-        </div>
-        <div id="myCategories" class="stk-toolbar hidden"><div id="myCategoryChips" class="stk-chips"></div></div>
-        <div id="myItems" class="my-items"><p class="stk-empty">Loading…</p></div>
-      </section>
-
-      <section class="stk-panel my-requests">
-        <div class="stk-panel-head"><div><h2>My requests</h2><p>Open requests and answers from the last six months.</p></div></div>
-        <div id="myRequests" class="stk-requests"><p class="stk-empty">Loading…</p></div>
-      </section>
-    </div>
-
-    <div class="my-col">
-      <section id="myCart" class="stk-panel my-cart">
-        <div class="stk-panel-head"><div><h2>My request</h2><p id="myCartHint">No items added yet.</p></div></div>
-        <ul id="myCartList"></ul>
-        <textarea id="myReason" rows="2" maxlength="500" placeholder="Reason (optional), e.g. worn out, new starter, wrong size"></textarea>
-        <div class="stk-form-foot"><span id="myCartStatus" role="status"></span><button id="mySubmit" type="button" class="stk-button stk-primary" disabled>Send request</button></div>
-      </section>
-
-      <section class="stk-panel">
-        <div class="stk-panel-head"><div><h2>What I hold</h2><p>Company items registered in your name. Return them when you leave.</p></div></div>
-        <ul id="myHolding" class="stk-list"><li class="stk-muted">Loading…</li></ul>
-      </section>
-
-      <section class="stk-panel">
-        <div class="stk-panel-head"><div><h2>History</h2><p>Items handed over to you and returned.</p></div></div>
-        <ul id="myHistory" class="stk-list"><li class="stk-muted">Loading…</li></ul>
-      </section>
-    </div>
+  <div class="my-top">
+    <section class="stk-panel my-locker">
+      <div class="stk-panel-head"><div><h2>My locker key</h2><p>Check that this is your locker.</p></div></div>
+      <div id="myLocker" class="my-locker-body"><p class="stk-muted">Loading…</p></div>
+    </section>
+    <section class="stk-panel">
+      <div class="stk-panel-head"><div><h2>What I hold</h2><p>Uniforms and PPE registered in your name.</p></div></div>
+      <ul id="myHolding" class="stk-list my-scroll"><li class="stk-muted">Loading…</li></ul>
+    </section>
   </div>
+
+  <nav id="myTabs" class="stk-tabs" aria-label="My PPE &amp; Uniform">
+    <button type="button" class="active" data-my-tab="request">Request items</button>
+    <button type="button" data-my-tab="requests">My requests <b id="myOpenCount" class="hidden">0</b></button>
+    <button type="button" data-my-tab="history">History</button>
+  </nav>
+
+  <div data-my-panel="request" class="my-request">
+    <section class="stk-panel">
+      <div class="stk-panel-head"><div><h2>Choose items</h2><p>Choose the size and quantity, then add the item to your request.</p></div></div>
+      <div id="myCategories" class="stk-toolbar hidden"><div id="myCategoryChips" class="stk-chips"></div></div>
+      <div id="myItems" class="my-items"><p class="stk-empty">Loading…</p></div>
+    </section>
+    <section id="myCart" class="stk-panel my-cart">
+      <div class="stk-panel-head"><div><h2>My request</h2><p id="myCartHint">No items added yet.</p></div></div>
+      <ul id="myCartList"></ul>
+      <textarea id="myReason" rows="2" maxlength="500" placeholder="Reason (optional), e.g. worn out, new starter, wrong size"></textarea>
+      <div class="stk-form-foot"><span id="myCartStatus" role="status"></span><button id="mySubmit" type="button" class="stk-button stk-primary" disabled>Send request</button></div>
+    </section>
+  </div>
+
+  <section data-my-panel="requests" class="stk-panel hidden">
+    <div class="stk-panel-head"><div><h2>My requests</h2><p>Open requests and answers from the last six months.</p></div></div>
+    <div id="myRequests" class="stk-requests"><p class="stk-empty">Loading…</p></div>
+  </section>
+
+  <section data-my-panel="history" class="stk-panel hidden">
+    <div class="stk-panel-head"><div><h2>History</h2><p>Items handed over to you and returned.</p></div></div>
+    <ul id="myHistory" class="stk-list"><li class="stk-muted">Loading…</li></ul>
+    <div id="myHistoryMore" class="my-more hidden"><button type="button" class="stk-button">Show all</button></div>
+  </section>
 </main>
+
+<dialog id="myLockerDialog" class="stk-dialog">
+  <form id="myLockerForm" method="dialog">
+    <div class="stk-dialog-head"><div><small>LOCKER KEY</small><strong id="myLockerTitle">Request a locker key</strong><span id="myLockerMeta"></span></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <div id="myLockerReasons" class="my-reasons" role="radiogroup" aria-label="What is the problem"></div>
+      <label><span>Note for your supervisor <em id="myLockerNoteHint">(optional)</em></span><textarea id="myLockerNote" rows="3" maxlength="500" placeholder="For example: my locker is M-12, not M-20"></textarea></label>
+    </div>
+    <div class="stk-form-foot"><span id="myLockerStatus" role="status"></span><button id="myLockerSave" type="submit" class="stk-button stk-primary">Send to supervisor</button></div>
+  </form>
+</dialog>
 </div></div>
 </body>
 </html>
