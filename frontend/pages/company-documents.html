@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Company Documents | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261028-2" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20261028-1" defer></script>
+  <script src="../assets/js/company-documents.js?v=20261028-1" defer></script>
+  <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
+</head>
+<body>
+<div class="shell-page-root" data-operational-shell-root><div class="shell-page">
+<main class="docs-shell">
+  <header class="docs-head">
+    <div>
+      <span>STAFF INFORMATION</span>
+      <h1>Company Documents</h1>
+      <p>Company policies and SSOW (safe systems of work). Read each document and confirm that you understood it.</p>
+    </div>
+    <div id="docsHeadStats" class="docs-head-stats" aria-live="polite"></div>
+  </header>
+
+  <nav id="docsTabs" class="docs-tabs hidden" aria-label="Company Documents views">
+    <button type="button" class="active" data-tab="mine">My documents</button>
+    <button type="button" data-tab="manage" class="hidden">Manage documents</button>
+    <button type="button" data-tab="people" class="hidden">Read status by staff</button>
+  </nav>
+
+  <p id="docsMessage" class="docs-message hidden" role="status"></p>
+
+  <!-- Staff: read and confirm -->
+  <section id="tabMine" class="docs-panel">
+    <div class="docs-toolbar">
+      <div class="docs-segment" role="group" aria-label="Show">
+        <button type="button" class="active" data-mine-filter="all">All</button>
+        <button type="button" data-mine-filter="pending">To confirm <b id="minePendingCount">0</b></button>
+      </div>
+      <input id="mineSearch" type="search" placeholder="Search documents" aria-label="Search documents">
+    </div>
+    <div id="mineList" class="docs-sections"><p class="docs-empty">Loading documents…</p></div>
+  </section>
+
+  <!-- Managers: publish and follow up -->
+  <section id="tabManage" class="docs-panel hidden">
+    <div class="docs-toolbar">
+      <button id="addDocument" type="button" class="docs-primary hidden">+ Add document</button>
+      <select id="manageCategory" aria-label="Section">
+        <option value="">All sections</option>
+        <option value="POLICY">Company policies</option>
+        <option value="SSOW">SSOW</option>
+      </select>
+      <label class="docs-inline-check"><input id="manageArchived" type="checkbox"> Show archived</label>
+      <input id="manageSearch" type="search" placeholder="Search title or reference" aria-label="Search title or reference">
+    </div>
+    <div id="manageList" class="docs-manage-list"><p class="docs-empty">Loading documents…</p></div>
+  </section>
+
+  <section id="tabPeople" class="docs-panel hidden">
+    <div class="docs-toolbar">
+      <div class="docs-segment" role="group" aria-label="Show">
+        <button type="button" class="active" data-people-filter="pending">With documents to confirm</button>
+        <button type="button" data-people-filter="all">Everyone</button>
+      </div>
+      <input id="peopleSearch" type="search" placeholder="Search staff" aria-label="Search staff">
+      <button id="peopleExport" type="button">Export CSV</button>
+    </div>
+    <div id="peopleList" class="docs-people-list"><p class="docs-empty">Loading staff…</p></div>
+  </section>
+</main>
+
+<!-- Document viewer with confirmation -->
+<dialog id="viewer" class="docs-dialog docs-viewer" aria-labelledby="viewerTitle">
+  <div class="docs-dialog-head">
+    <div>
+      <small id="viewerSection"></small>
+      <strong id="viewerTitle"></strong>
+      <span id="viewerMeta"></span>
+    </div>
+    <div class="docs-dialog-actions">
+      <a id="viewerOpen" class="docs-button" target="_blank" rel="noopener">Open full screen</a>
+      <button type="button" class="docs-close" data-close aria-label="Close">×</button>
+    </div>
+  </div>
+  <p id="viewerNotice" class="docs-viewer-notice hidden"></p>
+  <div id="viewerBody" class="docs-viewer-body"></div>
+  <form id="ackForm" class="docs-ack hidden">
+    <label class="docs-ack-check"><input id="ackCheck" type="checkbox" required> <span id="ackLabel">I have read and understood this document.</span></label>
+    <button id="ackButton" type="submit" class="docs-primary" disabled>Confirm</button>
+  </form>
+  <p id="ackDone" class="docs-ack-done hidden"></p>
+</dialog>
+
+<!-- Add or edit a document -->
+<dialog id="docDialog" class="docs-dialog docs-form-dialog" aria-labelledby="docDialogTitle">
+  <form id="docForm" class="docs-form">
+    <div class="docs-dialog-head">
+      <div><small>COMPANY DOCUMENTS</small><strong id="docDialogTitle">Add document</strong></div>
+      <button type="button" class="docs-close" data-close aria-label="Close">×</button>
+    </div>
+    <div class="docs-form-grid">
+      <label>Section
+        <select id="docCategory" required>
+          <option value="POLICY">Company policy</option>
+          <option value="SSOW">SSOW (safe system of work)</option>
+        </select>
+      </label>
+      <label>Reference <em>(optional)</em><input id="docReference" maxlength="40" placeholder="e.g. SSOW-07"></label>
+    </div>
+    <label>Title<input id="docTitle" maxlength="160" required></label>
+    <label>Short description <em>(optional)</em><textarea id="docDescription" maxlength="1000" rows="2" placeholder="What this document covers and who it applies to"></textarea></label>
+    <div id="docFileField" class="docs-file-field">
+      <span>File</span>
+      <label class="docs-drop" for="docFile">
+        <input id="docFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp">
+        <strong>Choose a PDF or photo</strong>
+        <small id="docFileName">PDF, JPG, PNG or WebP up to 20 MB. Large photos are reduced automatically.</small>
+      </label>
+    </div>
+    <label class="docs-inline-check"><input id="docRequiresAck" type="checkbox" checked> Staff must confirm they have read it</label>
+    <div class="docs-form-foot"><span id="docFormStatus" role="status"></span><button id="docSave" type="submit" class="docs-primary">Publish document</button></div>
+  </form>
+</dialog>
+
+<!-- Upload a new version -->
+<dialog id="versionDialog" class="docs-dialog docs-form-dialog" aria-labelledby="versionDialogTitle">
+  <form id="versionForm" class="docs-form">
+    <div class="docs-dialog-head">
+      <div><small id="versionDocTitle">NEW VERSION</small><strong id="versionDialogTitle">Upload a new version</strong></div>
+      <button type="button" class="docs-close" data-close aria-label="Close">×</button>
+    </div>
+    <p class="docs-form-hint">The new file replaces the current one. The current file is deleted to save space; its details stay in the update log.</p>
+    <div class="docs-file-field">
+      <span>New file</span>
+      <label class="docs-drop" for="versionFile">
+        <input id="versionFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required>
+        <strong>Choose a PDF or photo</strong>
+        <small id="versionFileName">PDF, JPG, PNG or WebP up to 20 MB.</small>
+      </label>
+    </div>
+    <label>What changed?<textarea id="versionNote" maxlength="500" rows="2" required placeholder="e.g. New PPE requirement for the tunnel area"></textarea></label>
+    <fieldset class="docs-choice">
+      <legend>Confirmations</legend>
+      <label><input type="radio" name="reconfirm" value="yes" checked> <span><strong>Staff must read and confirm again</strong><small>Use this when the content or rules changed.</small></span></label>
+      <label><input type="radio" name="reconfirm" value="no"> <span><strong>Small correction, keep confirmations</strong><small>For typos or layout fixes. Earlier confirmations still count.</small></span></label>
+    </fieldset>
+    <div class="docs-form-foot"><span id="versionFormStatus" role="status"></span><button id="versionSave" type="submit" class="docs-primary">Publish new version</button></div>
+  </form>
+</dialog>
+
+<!-- Who read a document -->
+<dialog id="readersDialog" class="docs-dialog docs-wide-dialog" aria-labelledby="readersTitle">
+  <div class="docs-dialog-head">
+    <div><small id="readersSection"></small><strong id="readersTitle"></strong><span id="readersMeta"></span></div>
+    <div class="docs-dialog-actions">
+      <button id="readersExport" type="button" class="docs-button">Export CSV</button>
+      <button type="button" class="docs-close" data-close aria-label="Close">×</button>
+    </div>
+  </div>
+  <div id="readersFilters" class="docs-chip-row"></div>
+  <div class="docs-dialog-search"><input id="readersSearch" type="search" placeholder="Search staff" aria-label="Search staff"></div>
+  <div id="readersList" class="docs-readers"></div>
+</dialog>
+
+<!-- Update log -->
+<dialog id="historyDialog" class="docs-dialog docs-form-dialog" aria-labelledby="historyTitle">
+  <div class="docs-dialog-head">
+    <div><small>UPDATE LOG</small><strong id="historyTitle"></strong></div>
+    <button type="button" class="docs-close" data-close aria-label="Close">×</button>
+  </div>
+  <ol id="historyList" class="docs-history"></ol>
+</dialog>
+</div></div>
+</body>
+</html>

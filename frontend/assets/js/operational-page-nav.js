@@ -10,6 +10,9 @@
 
   let shell = null;
 
+  // Workspaces whose menu entry shows a count of items waiting for the user.
+  const BADGE_MODULES = Object.freeze({ notifications: "Notifications", "company-documents": "Company Documents" });
+
   function currentPage() {
     return location.pathname.split("/").pop() || "index.html";
   }
@@ -237,7 +240,7 @@
       item.innerHTML = `
         <span class="operational-nav-icon">${policy.ICONS[module.icon] || policy.ICONS.home}</span>
         <span class="operational-nav-copy"><strong>${escapeHtml(module.label)}</strong><small>${escapeHtml(module.description)}</small></span>
-        ${module.id === "notifications" ? '<span class="operational-nav-badge" hidden></span>' : ""}`;
+        ${BADGE_MODULES[module.id] ? '<span class="operational-nav-badge" hidden></span>' : ""}`;
       return item;
     }
 
@@ -317,17 +320,25 @@
       aside.querySelector(".operational-user-copy span").textContent = roleName || "";
     }
 
-    function setNotificationCount(count) {
-      const item = nav.querySelector('[data-module-id="notifications"]');
+    const attentionCounts = {};
+
+    function setAttentionCount(moduleId, count) {
+      attentionCounts[moduleId] = count;
+      const item = nav.querySelector(`[data-module-id="${moduleId}"]`);
       const badge = item?.querySelector(".operational-nav-badge");
       const attention = count > 0;
       item?.classList.toggle("has-attention", attention);
-      menuButton.classList.toggle("has-attention", attention);
+      menuButton.classList.toggle("has-attention", Object.values(attentionCounts).some((value) => value > 0));
       if (badge) {
         badge.hidden = !attention;
         badge.textContent = count > 99 ? "99+" : String(count);
       }
-      if (item) item.title = attention ? `Notifications (${count} need attention)` : "Notifications";
+      const label = BADGE_MODULES[moduleId];
+      if (item && label) item.title = attention ? `${label} (${count} ${moduleId === "notifications" ? "need attention" : "to confirm"})` : label;
+    }
+
+    function setNotificationCount(count) {
+      setAttentionCount("notifications", count);
     }
 
     nav.addEventListener("click", (event) => {
@@ -367,7 +378,7 @@
       document.body.classList.remove("elis-operational-mode", "elis-operational-tool-page", "nav-drawer-open");
     }
 
-    return { renderNavigation, renderUser, setNotificationCount, remove };
+    return { renderNavigation, renderUser, setNotificationCount, setAttentionCount, remove };
   }
 
   function cacheNavigationProfile(profile, roleCodes) {
@@ -420,6 +431,17 @@
       shell?.setNotificationCount(Number(data?.attention_count || 0));
     } catch (error) {
       console.warn("Notification summary could not be loaded.", error);
+    }
+  }
+
+  async function loadCompanyDocumentCount(client, policy, access) {
+    if (!access.can(policy.NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS)) return;
+    try {
+      const { data, error } = await client.rpc("get_my_company_document_summary");
+      if (error) throw error;
+      shell?.setAttentionCount("company-documents", Number(data?.pending_count || 0));
+    } catch (error) {
+      console.warn("Company document summary could not be loaded.", error);
     }
   }
 
@@ -623,6 +645,7 @@
     cacheNavigationProfile(profile, codes);
     if (client) {
       loadNotificationCount(client, policy, access);
+      loadCompanyDocumentCount(client, policy, access);
       startTrolleyChecks(client, () => loadNotificationCount(client, policy, access));
     }
     return access;
