@@ -192,26 +192,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const { data, error } = await client.rpc("get_my_notification_summary");
       if (error) throw error;
-      const count = Number(data?.attention_count || 0);
-      const card = operationalModuleGrid.querySelector('[data-module-id="notifications"]');
-      if (!card) return;
-      card.classList.toggle("has-attention", count > 0);
-      let badge = card.querySelector(".notification-home-badge");
-      if (!badge && count > 0) {
-        badge = document.createElement("b");
-        badge.className = "notification-home-badge";
-        card.appendChild(badge);
-      }
-      if (badge) {
-        badge.textContent = count > 99 ? "99+" : String(count);
-        badge.classList.toggle("hidden", count === 0);
-      }
-      if (count > 0) {
-        card.querySelector(".operational-module-card-copy span").textContent =
-          `${count} notification${count === 1 ? "" : "s"} need your attention`;
-      }
+      showHomeCardAttention("notifications", Number(data?.attention_count || 0),
+        (count) => `${count} notification${count === 1 ? "" : "s"} need your attention`);
     } catch (error) {
       console.warn("Notification summary could not be loaded:", error);
+    }
+  }
+
+  async function renderCompanyDocumentAttention(canReadDocuments) {
+    if (!canReadDocuments) return;
+
+    try {
+      const { data, error } = await client.rpc("get_my_company_document_summary");
+      if (error) throw error;
+      showHomeCardAttention("company-documents", Number(data?.pending_count || 0),
+        (count) => `${count} document${count === 1 ? "" : "s"} to read and confirm`);
+    } catch (error) {
+      console.warn("Company document summary could not be loaded:", error);
+    }
+  }
+
+  function showHomeCardAttention(moduleId, count, describe) {
+    const card = operationalModuleGrid.querySelector(`[data-module-id="${moduleId}"]`);
+    if (!card) return;
+    card.classList.toggle("has-attention", count > 0);
+    let badge = card.querySelector(".notification-home-badge");
+    if (!badge && count > 0) {
+      badge = document.createElement("b");
+      badge.className = "notification-home-badge";
+      card.appendChild(badge);
+    }
+    if (badge) {
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.classList.toggle("hidden", count === 0);
+    }
+    if (count > 0) {
+      card.querySelector(".operational-module-card-copy span").textContent = describe(count);
     }
   }
 
@@ -250,9 +266,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderHome(profile, roleCodes);
     showHome();
-    await renderNotificationAttention(
-      access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS)
-    );
+    await Promise.all([
+      renderNotificationAttention(access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS)),
+      renderCompanyDocumentAttention(access.can(shellPolicy.NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS))
+    ]);
   }
 
   if (window.ELIS_SUPABASE_ERROR || !client || !shellPolicy) {
