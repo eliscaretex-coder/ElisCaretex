@@ -4657,3 +4657,127 @@ body.customers-modal-open {
 .customers-history-report-link:hover{background:#e7f2f9}
 .customers-history-report-waiting{margin-right:auto;align-self:center;color:#a96a07;font-size:12px;font-weight:600}
 @media(max-width:700px){.customers-history-report-source{white-space:normal}}
+
+/* Customer Master: required change reason and change history (2026-10-28). */
+.customers-link-button {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--customers-teal);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.customers-link-button:hover,
+.customers-link-button:focus-visible {
+  color: var(--customers-teal-dark);
+}
+
+.customers-reason-section.is-required .customers-form-field > span::after {
+  content: " *";
+  color: #b42318;
+}
+
+.customers-reason-help {
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.customers-history-modal {
+  width: min(760px, 98vw);
+}
+
+.customers-history-body {
+  display: grid;
+  gap: 10px;
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+}
+
+.customers-history-entry {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5ea;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.customers-history-entry header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.customers-history-entry header strong {
+  color: #0f2f36;
+  font-size: 0.86rem;
+}
+
+.customers-history-entry header span {
+  color: #52727a;
+  font-size: 0.74rem;
+}
+
+.customers-history-reason {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--customers-teal);
+  border-radius: 6px;
+  background: #f1f7f6;
+  color: #1f3b41;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.customers-history-changes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.customers-history-changes li {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) 1fr;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.customers-history-changes li > span {
+  color: #52727a;
+  font-weight: 700;
+}
+
+.customers-history-changes del {
+  color: #9f1239;
+  overflow-wrap: anywhere;
+}
+
+.customers-history-changes ins {
+  color: #166534;
+  text-decoration: none;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.customers-history-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 620px) {
+  .customers-history-changes li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
