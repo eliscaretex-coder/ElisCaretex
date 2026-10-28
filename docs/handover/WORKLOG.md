@@ -80,6 +80,25 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Install ElisCaretex on phones as an app (PWA)
+
+- Branch / commits: `claude/pwa-install`, Pull Request
+- Changed: added `frontend/manifest.webmanifest`, `frontend/sw.js`, `frontend/offline.html`,
+  `frontend/assets/js/pwa.js` and PNG icons in `frontend/assets/img/icons/` (Elis emblem on white,
+  plus a maskable and an Apple touch icon). Every page now links the manifest, icons and `pwa.js`.
+  The service worker only handles page navigations and only to show `offline.html` when there
+  is no connection; it caches nothing else, so pages, scripts and every Supabase request
+  (auth included) always come from the network. No stale data, no change to login.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs` passed. Local Chromium test served under
+  `/ElisCaretex/`: service worker registered with scope `/ElisCaretex/`, Chrome reports no
+  installability errors and no manifest errors, offline navigation shows the offline page,
+  online navigation is unaffected. Not yet tested on a real Android or iPhone (Owner).
+- Open / next: after merge, install from Chrome (Android: menu > Install app) and Safari
+  (iPhone: Share > Add to Home Screen) and log in once inside the installed app. On iPhone
+  the installed app keeps its own login, separate from Safari. Bump `CACHE_VERSION` in
+  `sw.js` only when `offline.html` changes.
+
 ## 2026-10-28 — Claude — List version footer on the Cloth + MOP print, same as Print
 
 - Branch / commits: `claude/combined-print-list-version`, Pull Request into `master`.
