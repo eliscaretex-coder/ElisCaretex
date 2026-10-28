@@ -80,7 +80,31 @@ Entry format:
 
 ---
 
-## 2026-10-28 — Claude — Company Documents by area (Prepared)
+## 2026-10-28 — Claude — Company Documents: revision number and date, re-read on every new file (Prepared)
+
+- Branch / commits: `claude/company-documents-revision`, Pull Request into `master`.
+- Changed: owner asked for the revision number and revision date printed in each document footer,
+  so anyone can tell whether a copy is current, and that every new file of a published document
+  makes everyone read and confirm it again. Add document and New version now require both (a new
+  version needs a different number and a date not earlier than the current one, never in the
+  future); Edit details can correct a typo and logs it. The revision shows on staff cards, the
+  viewer, the confirmation sentence, Manage documents, Who read, the update log and both CSV
+  exports. The "small correction, keep confirmations" option is gone.
+- Database: `202610280007_company_document_revisions.sql`: `revision_number`/`revision_date` on
+  `company_documents` and `company_document_history`; new internal helpers
+  `company_document_check_revision` and `company_document_revision_label`;
+  `replace_company_document_file(uuid,jsonb,text,integer)` replaces the 5-argument version (dropped)
+  and always moves `acknowledgement_version`; `get_my_company_documents`, `create_company_document`
+  and `update_company_document_details` carry the revision. **Not applied** yet. No documents
+  existed live when it was written.
+- Validation: `supabase/tests/202610280007_company_document_revisions_validation.sql` passed on the
+  local PostgreSQL 16 replica (0001 + 0006 + 0007). The 0001 and 0006 validations call the RPCs
+  without a revision, so they now describe the earlier state. Page driven in Chromium with stub
+  data, no console errors; `node scripts/validate-repository.mjs` passed.
+- Open / next: owner applies the migration together with the merge (the old page calls the
+  removed 5-argument RPC, so publish the page and the migration close together).
+
+## 2026-10-28 — Claude — Company Documents by area (Applied)
 
 - Branch / commits: `claude/company-documents-areas`.
 - Changed: owner asked to limit SSOW (and any document) to areas: Sorting, Finish, MOP,
@@ -95,7 +119,7 @@ Entry format:
   DISTRIBUTION), primary operational role (CLEANER, LABEL, MAINTENANCE, SORTING_AREA, DRIVER),
   account job title (CLEANER, LABEL_OPERATIVE, MAINTENANCE, DRIVER, LOGISTICS_MANAGER) and an
   active Distribution driver record (`company_document_person_areas`).
-- Database: `202610280006_company_document_areas.sql` prepared, not applied (replaces
+- Database: `202610280006_company_document_areas.sql` applied by the owner on 2026-10-28 (replaces
   `company_document_audience`, which gains an `areas` column, and the staff/manager RPCs).
 - Validation: `supabase/tests/202610280006_company_document_areas_validation.sql` and the 0001
   validation both pass on a local PostgreSQL 16 replica with 0001 + 0005 applied. Pages rendered
