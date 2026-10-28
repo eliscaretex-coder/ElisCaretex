@@ -80,6 +80,16 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Stock Control layout matches the platform (Prepared)
+
+- Branch / commits: `claude/stock-control-layout`, Pull Request into `master`.
+- Changed: owner asked to keep the same layout as the rest of the platform. `stock.css` now uses
+  the standard teal banner (as Company Documents), underlined tabs (as Customer Service and
+  Production Intelligence), teal accents instead of blue and the full-width work area. Applies to
+  Stock Control and My PPE & Uniform. CSS only; no database change.
+- Validation: both pages rendered in Chromium against the local test database;
+  `node scripts/validate-repository.mjs` passed.
+
 ## 2026-10-28 — Claude — Stock Control: PPE/uniforms, chemicals, miscellaneous, staff requests and locker keys (Applied)
 
 - Branch / commits: `claude/stock-control`.
