@@ -453,7 +453,10 @@ on conflict (batch_id,sheet_name,source_key) do nothing;
 
 -- 2. Map people ----------------------------------------------------------
 
-create temporary table stock_import_people on commit drop as
+-- A plain temporary table (no ON COMMIT DROP): the SQL Editor may run the
+-- script without the outer transaction, and the table must survive until the end.
+drop table if exists pg_temp.stock_import_people;
+create temporary table stock_import_people as
 select r.source_key emp_id,trim(r.raw->>'NAME') source_name,
   s.staff_id,d.driver_id,coalesce(s.display_name,d.display_name,trim(r.raw->>'NAME')) holder_name
 from staging.apps_script_stock_rows r
@@ -581,5 +584,7 @@ begin
   ) x where got<>expected;
   if v_missing is not null then raise exception 'Stock import reconciliation failed: %',v_missing; end if;
 end $$;
+
+drop table if exists pg_temp.stock_import_people;
 
 commit;

@@ -80,7 +80,7 @@ Entry format:
 
 ---
 
-## 2026-10-28 — Claude — Stock Control: PPE/uniforms, chemicals, miscellaneous, staff requests and locker keys (Prepared)
+## 2026-10-28 — Claude — Stock Control: PPE/uniforms, chemicals, miscellaneous, staff requests and locker keys (Applied)
 
 - Branch / commits: `claude/stock-control`.
 - Changed: owner asked to bring the "Elis Stock Control" Apps Script into the platform (areas
@@ -106,14 +106,19 @@ Entry format:
   raw rows landed in `staging.apps_script_stock_rows`, people matched only by legacy ids, 72 of
   73 matched; EMP-0070 "Ryotaro" has no Staff Master record and holds nothing; 33 items, 96
   movements, 15 counts, 8 uniform records, 80 lockers with 24 assigned, 24 key events; CONFIG
-  (API key) and CUSTOMERS not imported). **Not applied** yet: waiting for the owner.
+  (API key) and CUSTOMERS not imported). **Applied** by the owner in the SQL Editor on
+  2026-10-28. The editor ran the script without the outer transaction, so the import's
+  `on commit drop` temporary table reported 42P01; checked afterwards that every object and
+  every imported row is present (reconciliation counts match). The import now uses a plain
+  temporary table so a re-run is safe.
 - Validation: `supabase/tests/202610280003_stock_control_validation.sql` passed on a local
   PostgreSQL 16 with stub auth/staff tables (fixtures created and rolled back inside the test);
   the import was run twice locally (idempotent, reconciliation block passed). Both pages were
   driven in Chromium against that local database (request -> hand over -> stock and holdings
   updated, count with chemical usage, locker return, PPE issue) with no console errors.
-  `node scripts/validate-repository.mjs` passed. Not yet run against `ElisCaretex-dev`.
-- Open / next: owner runs the test-without-saving file, then applies. Low-stock emails, the
+  `node scripts/validate-repository.mjs` passed. On `ElisCaretex-dev` the owner ran the
+  test file (PASSED, rolled back) before applying.
+- Open / next: merge the Pull Request to publish the pages. Low-stock emails, the
   daily digest and the weekly chemical reminder from the Apps Script are not ported (no e-mail
   job for this module yet); stock is per item, sizes are recorded on issue and request but not
   stocked per size. INIT handover not refreshed for this module yet (Codex refresh).
