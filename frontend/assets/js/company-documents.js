@@ -7,7 +7,7 @@
 // one is removed. A document can be limited to areas; staff see and confirm
 // only the documents of their areas. Authorization is enforced by the RPCs
 // and Storage policies (202610280001_company_documents.sql,
-// 202610280005_company_document_areas.sql).
+// 202610280006_company_document_areas.sql).
 (() => {
   const BUCKET = "company-documents";
   const MAX_BYTES = 20 * 1024 * 1024;

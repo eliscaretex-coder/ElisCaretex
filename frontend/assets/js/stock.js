@@ -126,6 +126,11 @@
     state.canOperate = !!state.data.can_operate;
     state.canManage = !!state.data.can_manage;
     state.answered = null;
+    if (!state.countReady) {
+      state.countReady = true;
+      state.countCategory = state.data.overdue_counts.length ? "DUE" : "CHEMICAL";
+      restoreCountDraft();
+    }
     document.querySelectorAll("[data-operate]").forEach((element) => element.classList.toggle("hidden", !state.canOperate));
     document.querySelectorAll("[data-manage]").forEach((element) => element.classList.toggle("hidden", !state.canManage));
     renderAll();
@@ -143,43 +148,63 @@
     renderHistoryItems();
   }
 
+  function returnsDue() { return state.data.pending_returns || []; }
+
   function renderStats() {
-    const { items, requests, lockers } = state.data;
-    const active = items.filter((item) => item.active);
-    const low = active.filter((item) => item.is_low).length;
-    $("stkStats").innerHTML = `
-      <div class="${requests.length ? "warn" : ""}"><b>${requests.length}</b><small>requests</small></div>
-      <div class="${low ? "bad" : ""}"><b>${low}</b><small>low stock</small></div>
-      <div><b>${active.length}</b><small>items</small></div>
-      <div><b>${lockers.filter((locker) => locker.locker_status === "ASSIGNED").length}</b><small>keys out</small></div>`;
+    const { requests } = state.data;
     $("tabRequestCount").textContent = requests.length;
     $("tabRequestCount").classList.toggle("hidden", !requests.length);
   }
 
   // ---------------------------------------------------------------- Overview
 
+  function tile(id, value, tone, hint) {
+    const element = $(id);
+    element.className = `ov-tile ${value ? tone : "clear"}`;
+    element.querySelector("b").textContent = value;
+    if (hint) element.querySelector("small").textContent = hint;
+  }
+
+  function requestSummary(request) {
+    if (request.request_kind === "LOCKER_KEY") return `Locker key: ${request.reason || "needs a key"}`;
+    return request.lines.map((line) => `${qty(line.qty)} × ${line.item_name}${line.size ? ` (${line.size})` : ""}`).join(", ");
+  }
+
+  function attentionGroup(title, count, button, rows) {
+    if (!count) return "";
+    return `<div class="ov-group">
+      <div class="ov-group-head"><h3>${esc(title)} <b>${count}</b></h3>${button}</div>
+      <ul class="stk-list">${rows.join("")}</ul>
+    </div>`;
+  }
+
   function renderOverview() {
-    const { requests, overdue_counts: overdue, pending_returns: returns, items, recent, settings } = state.data;
-    $("ovRequests").innerHTML = requests.slice(0, 6).map((request) => `
-      <li class="clickable" data-goto="requests"><div><strong>${esc(request.staff_name)}</strong>
-        <small>${esc(request.lines.map((line) => `${qty(line.qty)} × ${line.item_name}${line.size ? ` (${line.size})` : ""}`).join(", "))}</small></div>
-        ${pill((REQUEST[request.request_status] || REQUEST.REQUESTED).label, (REQUEST[request.request_status] || REQUEST.REQUESTED).tone)}</li>`).join("")
-      || '<li class="stk-muted">No requests waiting.</li>';
-    $("ovChemicalsHint").textContent = `Chemical usage comes from the counts. Count every ${settings.chemical_count_days} days.`;
-    $("ovChemicals").innerHTML = overdue.slice(0, 8).map((item) => `
-      <li><div><strong>${esc(item.item_name)}</strong><small>${item.last_counted_at ? `Last counted ${esc(date(item.last_counted_at))}` : "Never counted"}</small></div></li>`).join("")
-      || '<li class="stk-muted">All chemicals were counted recently.</li>';
-    $("ovReturns").innerHTML = returns.map((person) => `
-      <li class="clickable" data-person="${esc(personKey(person))}"><div><strong>${esc(person.display_name)}</strong>
-        <small>${esc([...person.locker_labels.map((label) => `Key ${label}`), ...person.ppe.map((item) => `${qty(item.qty)} × ${item.description}${item.size ? ` (${item.size})` : ""}`)].join(", "))}</small></div>
-        ${pill("To collect", "warn")}</li>`).join("")
-      || '<li class="stk-muted">Nobody who left still holds items.</li>';
+    const { requests, overdue_counts: overdue, items, recent, settings } = state.data;
+    const returns = returnsDue();
     const low = items.filter((item) => item.is_low).sort((a, b) => a.item_name.localeCompare(b.item_name));
-    $("ovLow").innerHTML = low.map((item) => `
-      <li class="clickable" data-move="IN" data-item="${esc(item.item_id)}"><div><strong>${esc(item.item_name)}</strong><small>${esc(item.category_name)} · minimum ${qty(item.min_stock)} · ${esc(item.supplier || "no supplier")}</small></div>
-        <span class="stk-qty low">${qty(item.stock_qty)} ${esc(item.unit)}</span></li>`).join("")
-      || '<li class="stk-muted">No item is at or below its minimum.</li>';
-    $("ovRecent").innerHTML = recent.slice(0, 12).map(movementLine).join("") || '<li class="stk-muted">No movements yet.</li>';
+    tile("ovTileRequests", requests.length, "warn");
+    tile("ovTileCount", overdue.length, "warn", `not counted in ${settings.chemical_count_days} days`);
+    tile("ovTileLow", low.length, "bad");
+    tile("ovTileReturns", returns.length, "warn");
+    const today = isoDate(new Date());
+    const groups = [
+      attentionGroup("Staff requests", requests.length, '<button type="button" class="stk-button" data-goto="requests">Answer</button>',
+        requests.slice(0, 4).map((request) => `<li class="clickable" data-goto="requests"><div><strong>${esc(request.staff_name)}</strong>
+          <small>${esc(requestSummary(request))}</small></div>${pill((REQUEST[request.request_status] || REQUEST.REQUESTED).label, (REQUEST[request.request_status] || REQUEST.REQUESTED).tone)}</li>`)),
+      attentionGroup("Chemicals to count", overdue.length, '<button type="button" class="stk-button stk-primary" data-quick="chemicals" data-operate>Count now</button>',
+        overdue.slice(0, 4).map((item) => `<li class="clickable" data-quick="chemicals"><div><strong>${esc(item.item_name)}</strong>
+          <small>${item.last_counted_at ? `Last counted ${esc(date(item.last_counted_at))}` : "Never counted"}</small></div></li>`)),
+      attentionGroup("Returns due", returns.length, '<button type="button" class="stk-button" data-returns>See all</button>',
+        returns.slice(0, 4).map((person) => `<li class="clickable" data-person="${esc(personKey(person))}"><div><strong>${esc(person.display_name)}</strong>
+          <small>${esc([...person.locker_labels.map((label) => `Key ${label}`), ...person.ppe.map((item) => `${qty(item.qty)} × ${item.description}${item.size ? ` (${item.size})` : ""}`)].join(", "))}</small></div>
+          ${person.is_active && person.leaving_on ? pill(person.leaving_on >= today ? `Leaves ${date(person.leaving_on)}` : `Left ${date(person.leaving_on)}`, "warn") : pill("Left", "bad")}</li>`)),
+      attentionGroup("Low stock", low.length, '<button type="button" class="stk-button" data-low-stock>See all</button>',
+        low.slice(0, 4).map((item) => `<li class="clickable" data-move="IN" data-item="${esc(item.item_id)}"><div><strong>${esc(item.item_name)}</strong><small>${esc(item.category_name)} · minimum ${qty(item.min_stock)}${item.supplier ? ` · ${esc(item.supplier)}` : ""}</small></div>
+          <span class="stk-qty low">${qty(item.stock_qty)} ${esc(item.unit)}</span></li>`))
+    ].join("");
+    $("ovAttention").innerHTML = groups || '<p class="stk-empty">Nothing needs attention right now.</p>';
+    if (!state.canOperate) $("ovAttention").querySelectorAll("[data-operate]").forEach((element) => element.classList.add("hidden"));
+    $("ovRecent").innerHTML = recent.slice(0, 10).map(movementLine).join("") || '<li class="stk-muted">No movements yet.</li>';
   }
 
   function movementLine(move) {
@@ -203,7 +228,7 @@
   function renderRequests() {
     const source = state.requestFilter === "open" ? state.data.requests : (state.answered || []);
     const words = $("requestSearch").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const list = source.filter((request) => words.every((word) => `${request.staff_name} ${request.employee_code || ""} ${request.lines.map((line) => line.item_name).join(" ")}`.toLowerCase().includes(word)));
+    const list = source.filter((request) => words.every((word) => `${request.staff_name} ${request.employee_code || ""} ${requestSummary(request)}`.toLowerCase().includes(word)));
     if (state.requestFilter === "answered" && !state.answered) { $("requestList").innerHTML = '<p class="stk-empty">Loading…</p>'; return; }
     $("requestList").innerHTML = list.map(requestCard).join("")
       || `<p class="stk-empty">${state.requestFilter === "open" ? "No requests waiting. New requests from staff appear here." : "No answered requests in the last 90 days."}</p>`;
@@ -213,18 +238,27 @@
     const status = REQUEST[request.request_status] || REQUEST.REQUESTED;
     const open = ["REQUESTED", "APPROVED"].includes(request.request_status);
     const issued = request.request_status === "ISSUED";
+    const locker = request.request_kind === "LOCKER_KEY";
     return `<article class="stk-request ${status.tone}">
       <div class="stk-request-head">
         <div><strong>${esc(request.staff_name)}</strong> <small>#${esc(request.request_number)}${request.employee_code ? ` · ${esc(request.employee_code)}` : ""} · asked ${esc(dateTime(request.created_at))}</small></div>
         ${pill(status.label, status.tone)}
       </div>
-      <ul class="stk-request-lines">${request.lines.map((line) => `<li><span>${esc(line.item_name)}${line.size ? ` · size <b>${esc(line.size)}</b>` : ""}
+      ${locker
+        ? `<ul class="stk-request-lines"><li><span><b>Locker key</b> · ${request.current_lockers.length ? `holds key ${esc(request.current_lockers.join(", "))}` : "no key registered"}</span>
+            ${request.locker_label ? `<b>Locker ${esc(request.locker_label)}</b>` : ""}</li></ul>`
+        : `<ul class="stk-request-lines">${request.lines.map((line) => `<li><span>${esc(line.item_name)}${line.size ? ` · size <b>${esc(line.size)}</b>` : ""}
         <small class="stk-muted">(${qty(line.stock_qty)} ${esc(line.unit)} in stock)</small></span>
-        <b>${issued ? `${qty(line.issued_qty)} of ${qty(line.qty)}` : qty(line.qty)}</b></li>`).join("")}</ul>
+        <b>${issued ? `${qty(line.issued_qty)} of ${qty(line.qty)}` : qty(line.qty)}</b></li>`).join("")}</ul>`}
       ${request.reason ? `<p class="stk-request-note">Reason: ${esc(request.reason)}</p>` : ""}
       ${request.decision_note ? `<p class="stk-request-note"><b>${esc(request.decided_by_name || "")}:</b> ${esc(request.decision_note)}</p>` : ""}
       ${!open && request.issued_at ? `<p class="stk-request-note">Handed over ${esc(dateTime(request.issued_at))} by ${esc(request.issued_by_name || "—")}</p>` : ""}
-      ${open && state.canOperate ? `<div class="stk-request-actions">
+      ${open && state.canOperate && locker ? `<div class="stk-request-actions">
+        <button type="button" class="stk-button stk-ghost-red" data-request-action="REJECT" data-request="${esc(request.request_id)}">Decline</button>
+        <button type="button" class="stk-button" data-request-action="SOLVED" data-request="${esc(request.request_id)}">Mark as solved</button>
+        <button type="button" class="stk-button stk-green" data-request-action="LOCKER" data-request="${esc(request.request_id)}">Assign a locker</button>
+      </div>` : ""}
+      ${open && state.canOperate && !locker ? `<div class="stk-request-actions">
         <button type="button" class="stk-button stk-ghost-red" data-request-action="REJECT" data-request="${esc(request.request_id)}">Decline</button>
         ${request.request_status === "REQUESTED" ? `<button type="button" class="stk-button" data-request-action="APPROVE" data-request="${esc(request.request_id)}">Approve, hand over later</button>` : ""}
         <button type="button" class="stk-button stk-green" data-request-action="ISSUE" data-request="${esc(request.request_id)}">Hand over now</button>
@@ -236,7 +270,10 @@
     const request = state.data.requests.find((entry) => entry.request_id === requestId);
     if (!request) return;
     state.issue = { request, mode };
-    const titles = { ISSUE: ["HAND OVER", "Hand over", "stk-green"], APPROVE: ["APPROVE", "Approve", "stk-primary"], REJECT: ["DECLINE", "Decline request", "stk-red"] };
+    const titles = {
+      ISSUE: ["HAND OVER", "Hand over", "stk-green"], APPROVE: ["APPROVE", "Approve", "stk-primary"], REJECT: ["DECLINE", "Decline request", "stk-red"],
+      LOCKER: ["LOCKER KEY", "Assign locker", "stk-green"], SOLVED: ["LOCKER KEY", "Mark as solved", "stk-primary"]
+    };
     const [kind, button, tone] = titles[mode];
     $("issueKind").textContent = kind;
     $("issueTitle").textContent = `${request.staff_name} · request #${request.request_number}`;
@@ -244,8 +281,19 @@
     $("issueSave").textContent = button;
     $("issueSave").className = `stk-button ${tone}`;
     $("issueHint").classList.toggle("hidden", mode !== "ISSUE");
-    $("issueNoteLabel").innerHTML = mode === "REJECT" ? "Reason (the person sees it)" : 'Note for the person <em>(optional)</em>';
-    $("issueNote").required = mode === "REJECT";
+    $("issueNoteLabel").innerHTML = mode === "REJECT" ? "Reason (the person sees it)" : mode === "SOLVED" ? "What was done (the person sees it)" : 'Note for the person <em>(optional)</em>';
+    $("issueNote").required = mode === "REJECT" || mode === "SOLVED";
+    $("issueLockerField").classList.toggle("hidden", mode !== "LOCKER");
+    if (request.request_kind === "LOCKER_KEY") {
+      $("issueLines").innerHTML = `<p class="stk-form-hint">${esc(request.reason || "Needs a locker key.")}<br>${request.current_lockers.length ? `Key registered now: <b>${esc(request.current_lockers.join(", "))}</b>` : "No key is registered for this person."}</p>`;
+      $("issueReturnWrap").classList.toggle("hidden", !request.current_lockers.length);
+      $("issueReturnCurrent").checked = true;
+      $("issueReturnLabel").textContent = `Return the key held now (${request.current_lockers.join(", ")}): wrong locker or key swapped`;
+      if (mode === "LOCKER") picker("issueLocker", state.data.lockers.filter((entry) => entry.locker_status === "AVAILABLE")
+        .map((entry) => ({ key: entry.locker_id, label: `Locker ${entry.label}`, sub: entry.notes || "" })), "Search a free locker");
+      $("issueDialog").showModal();
+      return;
+    }
     $("issueNote").value = "";
     $("issueStatus").textContent = "";
     $("issueLines").innerHTML = request.lines.map((line) => mode !== "ISSUE"
@@ -269,6 +317,17 @@
     $("issueSave").disabled = true;
     $("issueStatus").textContent = "Saving…";
     try {
+      if (mode === "LOCKER" || mode === "SOLVED") {
+        const locker = pickers.issueLocker?.value;
+        if (mode === "LOCKER" && !locker) throw new Error("Choose a free locker.");
+        await rpc("resolve_locker_request", { p_request_id: request.request_id, p_action: mode === "LOCKER" ? "ASSIGN" : "SOLVED",
+          p_locker_id: mode === "LOCKER" ? locker.key : null, p_note: $("issueNote").value.trim() || null, p_row_version: request.row_version,
+          p_return_current: mode === "LOCKER" && request.current_lockers.length > 0 && $("issueReturnCurrent").checked });
+        $("issueDialog").close();
+        await load();
+        message(mode === "LOCKER" ? `${locker.label} assigned to ${request.staff_name}.` : `Locker key request from ${request.staff_name} closed.`, "good");
+        return;
+      }
       await rpc("decide_stock_request", { p_request_id: request.request_id, p_decision: mode, p_note: $("issueNote").value.trim() || null, p_lines: lines, p_row_version: request.row_version });
       $("issueDialog").close();
       await load();
@@ -433,6 +492,20 @@
 
   // ---------------------------------------------------------------- Count
 
+  const COUNT_DRAFT = "stockCountDraft";
+  const unitLabel = (item) => item.stock_area === "CHEMICAL" && /^units?$/i.test(item.unit || "") ? "drums" : item.unit;
+
+  function saveCountDraft() {
+    try { localStorage.setItem(COUNT_DRAFT, JSON.stringify([...state.counts.entries()])); } catch (_) { /* optional */ }
+  }
+
+  function restoreCountDraft() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(COUNT_DRAFT) || "[]");
+      saved.filter(([id]) => itemById(id)).forEach(([id, value]) => state.counts.set(id, value));
+    } catch (_) { /* optional */ }
+  }
+
   function countItems() {
     const words = $("countSearch").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const overdue = new Set(state.data.overdue_counts.map((item) => item.item_id));
@@ -441,39 +514,85 @@
       && words.every((word) => item.item_name.toLowerCase().includes(word)));
   }
 
+  function countDiff(item, value) {
+    if (value === undefined) return "";
+    const diff = Number(value) - Number(item.stock_qty);
+    if (!diff) return '<span class="cnt-diff same">No change</span>';
+    const used = item.track_by === "NONE" && diff < 0;
+    return `<span class="cnt-diff ${diff > 0 ? "plus" : "minus"}">${diff > 0 ? "+" : "−"}${qty(Math.abs(diff))} ${esc(unitLabel(item))}${used ? " used" : ""}</span>`;
+  }
+
+  function countCard(item) {
+    const value = state.counts.get(item.item_id);
+    return `<article class="cnt-card ${value === undefined ? "" : "counted"}" data-count-card="${esc(item.item_id)}">
+      <div class="cnt-card-head"><strong>${esc(item.item_name)}</strong><small>${esc([item.category_name, item.location].filter(Boolean).join(" · "))}</small></div>
+      <p class="cnt-last">System <b>${qty(item.stock_qty)} ${esc(unitLabel(item))}</b> · ${item.last_counted_at ? `last count ${esc(date(item.last_counted_at))}` : "never counted"}</p>
+      <div class="cnt-stepper">
+        <button type="button" data-count-step="-1" aria-label="One less" ${state.canOperate ? "" : "disabled"}>−</button>
+        <input data-count="${esc(item.item_id)}" type="number" min="0" step="any" inputmode="decimal" placeholder="?" value="${value ?? ""}" aria-label="Counted ${esc(item.item_name)}" ${state.canOperate ? "" : "disabled"}>
+        <button type="button" data-count-step="1" aria-label="One more" ${state.canOperate ? "" : "disabled"}>+</button>
+      </div>
+      <div class="cnt-card-foot">
+        <button type="button" class="stk-button" data-count-same ${state.canOperate ? "" : "disabled"}>Same (${qty(item.stock_qty)})</button>
+        <span data-count-diff>${countDiff(item, value)}</span>
+      </div>
+    </article>`;
+  }
+
   function renderCount() {
     const due = state.data.overdue_counts.length;
-    $("countChips").innerHTML = [["", "All"], ["DUE", `Chemicals due (${due})`], ...Object.entries(AREAS)].map(([code, label]) =>
+    $("countChips").innerHTML = [["DUE", `Chemicals due (${due})`], ...Object.entries(AREAS), ["", "Everything"]].map(([code, label]) =>
       `<button type="button" data-count-category="${esc(code)}" class="${state.countCategory === code ? "active" : ""}">${esc(label)}</button>`).join("");
     const list = countItems();
-    $("countRows").innerHTML = list.map((item) => {
-      const value = state.counts.get(item.item_id);
-      const diff = value === undefined ? null : Number(value) - Number(item.stock_qty);
-      return `<tr><td><strong>${esc(item.item_name)}</strong><small>${esc(item.category_name)} · ${esc(item.unit)}</small></td>
-        <td class="num">${qty(item.stock_qty)}</td>
-        <td class="num"><input class="stk-count-input ${value === undefined ? "" : "changed"}" data-count="${esc(item.item_id)}" type="number" min="0" step="any" inputmode="decimal" value="${value ?? ""}" aria-label="Counted ${esc(item.item_name)}" ${state.canOperate ? "" : "disabled"}></td>
-        <td class="num" data-diff="${esc(item.item_id)}">${diff === null ? "" : `<span class="stk-qty ${diff > 0 ? "plus" : diff < 0 ? "minus" : ""}">${diff > 0 ? "+" : ""}${qty(diff)}</span>`}</td>
-        <td class="optional">${esc(item.last_counted_at ? date(item.last_counted_at) : "Never")}</td></tr>`;
-    }).join("") || '<tr><td colspan="5"><p class="stk-empty">No items match.</p></td></tr>';
+    $("countCards").innerHTML = list.map(countCard).join("")
+      || `<p class="stk-empty cnt-empty">${state.countCategory === "DUE" ? "All chemicals were counted recently. Choose Chemicals to count again." : "No items match."}</p>`;
     updateCountSummary();
   }
 
   function updateCountSummary() {
+    const list = countItems();
+    const done = list.filter((item) => state.counts.has(item.item_id)).length;
+    $("countProgress").textContent = list.length ? `${done} of ${list.length} counted in this list` : "";
+    $("countBar").style.width = list.length ? `${Math.round(done / list.length * 100)}%` : "0";
     const entries = [...state.counts.entries()];
     const changed = entries.filter(([id, value]) => Number(value) !== Number(itemById(id)?.stock_qty)).length;
-    $("countSummary").textContent = entries.length ? `${entries.length} counted · ${changed} with a difference` : "";
+    $("countSummary").textContent = entries.length ? `${entries.length} counted · ${changed} with a difference` : "Nothing counted yet";
     $("countSave").disabled = !entries.length || !state.canOperate;
+    $("countClear").disabled = !entries.length;
+  }
+
+  function setCount(itemId, value) {
+    const item = itemById(itemId);
+    const card = document.querySelector(`[data-count-card="${CSS.escape(itemId)}"]`);
+    if (value === "" || value === null || Number.isNaN(Number(value))) state.counts.delete(itemId);
+    else state.counts.set(itemId, String(Math.max(0, Number(value))));
+    const current = state.counts.get(itemId);
+    if (card) {
+      const input = card.querySelector("[data-count]");
+      if (document.activeElement !== input) input.value = current ?? "";
+      card.classList.toggle("counted", current !== undefined);
+      card.querySelector("[data-count-diff]").innerHTML = countDiff(item, current);
+    }
+    saveCountDraft();
+    updateCountSummary();
+  }
+
+  function onCountClick(event) {
+    const card = event.target.closest("[data-count-card]");
+    if (!card || !state.canOperate) return;
+    const itemId = card.dataset.countCard;
+    const item = itemById(itemId);
+    const step = event.target.closest("[data-count-step]");
+    if (step) {
+      const start = state.counts.has(itemId) ? Number(state.counts.get(itemId)) : Number(item.stock_qty);
+      setCount(itemId, Math.max(0, start + Number(step.dataset.countStep)));
+    }
+    if (event.target.closest("[data-count-same]")) setCount(itemId, item.stock_qty);
   }
 
   function onCountInput(event) {
     const input = event.target.closest("[data-count]");
-    if (!input) return;
-    const item = itemById(input.dataset.count);
-    if (input.value === "") state.counts.delete(item.item_id); else state.counts.set(item.item_id, input.value);
-    input.classList.toggle("changed", input.value !== "");
-    const diff = input.value === "" ? null : Number(input.value) - Number(item.stock_qty);
-    document.querySelector(`[data-diff="${CSS.escape(item.item_id)}"]`).innerHTML = diff === null ? "" : `<span class="stk-qty ${diff > 0 ? "plus" : diff < 0 ? "minus" : ""}">${diff > 0 ? "+" : ""}${qty(diff)}</span>`;
-    updateCountSummary();
+    if (input) setCount(input.dataset.count, input.value);
   }
 
   async function saveCount() {
@@ -483,6 +602,7 @@
     try {
       const session = await rpc("save_stock_count", { p_entries: entries, p_notes: $("countNotes").value.trim() || null });
       state.counts.clear();
+      saveCountDraft();
       $("countNotes").value = "";
       await load();
       message(`Count ${session.session_code} saved: ${session.items_counted} counted, ${session.items_adjusted} adjusted (${money(session.variance_value)}), ${session.consumption_lines} chemical usage lines (${money(session.consumption_value)}).`, "good");
@@ -497,14 +617,19 @@
   function renderPeople() {
     const words = $("peopleSearch").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const list = state.data.people.filter((person) => (state.peopleFilter === "all" ? person.is_active
-      : state.peopleFilter === "leavers" ? !person.is_active : (Number(person.ppe_items) > 0 || person.locker_labels.length))
+      : state.peopleFilter === "leavers" ? returnsDue().some((entry) => personKey(entry) === personKey(person)) : (Number(person.ppe_items) > 0 || person.locker_labels.length))
       && words.every((word) => `${person.display_name} ${person.employee_code || ""}`.toLowerCase().includes(word)));
     $("peopleList").innerHTML = list.map((person) => `
       <button type="button" class="stk-card ${person.is_active ? "" : "inactive"}" data-person="${esc(personKey(person))}">
         <strong>${esc(person.display_name)}</strong>
-        <small>${esc([person.person_group, person.employee_code, person.is_active ? "" : "Left the company"].filter(Boolean).join(" · "))}</small>
+        <small>${esc([person.person_group, person.employee_code, person.is_active ? leavingText(person) : "Left the company"].filter(Boolean).join(" · "))}</small>
         <span class="stk-tags">${Number(person.ppe_items) ? pill(`${qty(person.ppe_items)} PPE / uniform`, "approved") : ""}${person.locker_labels.map((label) => pill(`Key ${label}`, person.is_active ? "muted" : "warn")).join("")}</span>
       </button>`).join("") || '<p class="stk-empty">Nobody matches.</p>';
+  }
+
+  function leavingText(person) {
+    const entry = returnsDue().find((row) => personKey(row) === personKey(person));
+    return entry?.leaving_on ? `Last day ${date(entry.leaving_on)}` : "";
   }
 
   async function openPerson(key) {
@@ -532,7 +657,7 @@
           <small>${esc(dateTime(event.recorded_at))} · ${esc(event.recorded_by_name || "—")}${event.notes ? ` · ${esc(event.notes)}` : ""}</small></div>
           ${pill(`${event.ppe_action === "ISSUED" ? "Issued" : "Returned"} ${qty(event.qty)}`, event.ppe_action === "ISSUED" ? "issued" : "muted")}</li>`).join("") || '<li class="stk-muted">No records.</li>'}</ul>
         <p class="stk-section-title">Requests</p>
-        <ul class="stk-list">${profile.requests.map((request) => `<li><div><strong>#${esc(request.request_number)} · ${esc(request.lines.map((line) => `${qty(line.qty)} × ${line.item_name}${line.size ? ` (${line.size})` : ""}`).join(", "))}</strong>
+        <ul class="stk-list">${profile.requests.map((request) => `<li><div><strong>#${esc(request.request_number)} · ${esc(requestSummary(request))}</strong>
           <small>${esc(dateTime(request.created_at))}</small></div>${pill((REQUEST[request.request_status] || REQUEST.REQUESTED).label, (REQUEST[request.request_status] || REQUEST.REQUESTED).tone)}</li>`).join("") || '<li class="stk-muted">No requests.</li>'}</ul>
         <p class="stk-section-title">Other stock taken</p>
         <ul class="stk-list">${profile.stock_taken.map((move) => `<li><div><strong>${esc(move.item_name)}</strong><small>${esc(dateTime(move.recorded_at))}${move.notes ? ` · ${esc(move.notes)}` : ""}</small></div>
@@ -812,9 +937,24 @@
     const quick = target.closest("[data-quick]");
     if (quick) {
       const action = quick.dataset.quick;
-      if (action === "count" || action === "chemicals") { state.countCategory = action === "chemicals" ? "DUE" : ""; renderCount(); return showTab("count"); }
+      if (action === "count" || action === "chemicals") {
+        state.countCategory = action === "chemicals" ? (state.data.overdue_counts.length ? "DUE" : "CHEMICAL") : "";
+        renderCount();
+        return showTab("count");
+      }
       if (action === "ppe") return openPpe(null, "ISSUED");
       return openMove(action);
+    }
+    if (target.closest("[data-low-stock]")) {
+      $("itemLowOnly").checked = true; $("itemArea").value = ""; $("itemSearch").value = "";
+      renderItems();
+      return showTab("items");
+    }
+    if (target.closest("[data-returns]")) {
+      state.peopleFilter = "leavers";
+      document.querySelectorAll("[data-people-filter]").forEach((item) => item.classList.toggle("active", item.dataset.peopleFilter === "leavers"));
+      renderPeople();
+      return showTab("people");
     }
     const person = target.closest("[data-person]");
     if (person) return openPerson(person.dataset.person);
@@ -840,7 +980,7 @@
     document.querySelectorAll("dialog [data-close]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
     document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
     $("stkTabs").addEventListener("click", (event) => { const button = event.target.closest("[data-tab]"); if (button) showTab(button.dataset.tab); });
-    ["movePerson", "moveCustomer", "ppePerson", "lockerPerson"].forEach(bindPicker);
+    ["movePerson", "moveCustomer", "ppePerson", "lockerPerson", "issueLocker"].forEach(bindPicker);
 
     document.querySelectorAll("[data-request-filter]").forEach((button) => button.addEventListener("click", async () => {
       state.requestFilter = button.dataset.requestFilter;
@@ -873,7 +1013,14 @@
 
     $("countChips").addEventListener("click", (event) => { const chip = event.target.closest("[data-count-category]"); if (chip) { state.countCategory = chip.dataset.countCategory; renderCount(); } });
     $("countSearch").addEventListener("input", renderCount);
-    $("countRows").addEventListener("input", onCountInput);
+    $("countCards").addEventListener("input", onCountInput);
+    $("countCards").addEventListener("click", onCountClick);
+    $("countClear").addEventListener("click", () => {
+      if (!window.confirm("Clear the numbers typed in this count?")) return;
+      state.counts.clear();
+      saveCountDraft();
+      renderCount();
+    });
     $("countSave").addEventListener("click", saveCount);
 
     document.querySelectorAll("[data-people-filter]").forEach((button) => button.addEventListener("click", () => {

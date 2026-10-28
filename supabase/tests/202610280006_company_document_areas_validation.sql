@@ -1,4 +1,4 @@
--- ElisCaretex V2 - Validation - 202610280005_company_document_areas
+-- ElisCaretex V2 - Validation - 202610280006_company_document_areas
 -- One DO block, so it runs the same way in the Supabase SQL Editor, psql or the MCP.
 -- It always ends with an exception, which rolls everything back:
 --   success: ERROR "PASSED: all company document area checks (nothing was kept)"
@@ -21,7 +21,7 @@ begin
   if v_admin is null or v_staff is null then raise exception 'FAIL: fixtures (admin %, staff %)',v_admin,v_staff; end if;
   if cardinality(public.company_document_person_areas(v_staff))=0 then
     if not exists(select 1 from public.staff_members where auth_user_id=v_staff and deleted_at is null) then
-      insert into public.staff_members(auth_user_id,employee_code,display_name,active) values (v_staff,'VAL-0005','Validation 0005',true);
+      insert into public.staff_members(auth_user_id,employee_code,display_name,active) values (v_staff,'VAL-0006','Validation 0006',true);
     end if;
     update public.staff_members set default_area_id=(select area_id from public.areas where area_code='FINISH')
     where auth_user_id=v_staff and deleted_at is null;

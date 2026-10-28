@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Stock Control | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
-  <link rel="stylesheet" href="../assets/css/stock.css?v=20261028-2">
+  <link rel="stylesheet" href="../assets/css/stock.css?v=20261028-3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
-  <script src="../assets/js/stock.js?v=20261028-1" defer></script>
+  <script src="../assets/js/stock.js?v=20261028-2" defer></script>
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
 </head>
 <body>
@@ -23,7 +23,12 @@
       <h1>Stock Control</h1>
       <p>PPE and uniforms, chemicals and miscellaneous stock. Staff requests, stock counts, what each person holds and locker keys.</p>
     </div>
-    <div id="stkStats" class="stk-head-stats" aria-live="polite"></div>
+    <div class="stk-head-actions hidden" data-operate>
+      <button type="button" data-quick="IN">+ Receive delivery</button>
+      <button type="button" data-quick="OUT">− Take item</button>
+      <button type="button" data-quick="chemicals">Count chemicals</button>
+      <button type="button" data-quick="ppe">Issue / return PPE</button>
+    </div>
   </header>
 
   <nav id="stkTabs" class="stk-tabs" aria-label="Stock Control views">
@@ -41,34 +46,19 @@
 
   <!-- Overview -->
   <section id="tabOverview" data-panel="overview">
-    <div class="stk-overview">
-      <section class="stk-panel" data-operate>
-        <div class="stk-panel-head"><h2>Quick actions</h2></div>
-        <div class="stk-quick">
-          <button type="button" class="stk-button stk-green" data-quick="IN">+ Receive delivery</button>
-          <button type="button" class="stk-button stk-red" data-quick="OUT">− Take item</button>
-          <button type="button" class="stk-button" data-quick="count">Stock count</button>
-          <button type="button" class="stk-button" data-quick="ppe">Issue / return PPE</button>
-        </div>
+    <div class="ov-tiles">
+      <button type="button" id="ovTileRequests" class="ov-tile" data-goto="requests"><span>Staff requests</span><b>0</b><small>waiting for an answer</small></button>
+      <button type="button" id="ovTileCount" class="ov-tile" data-quick="chemicals"><span>Chemicals to count</span><b>0</b><small>not counted recently</small></button>
+      <button type="button" id="ovTileLow" class="ov-tile" data-low-stock><span>Low stock</span><b>0</b><small>at or below the minimum</small></button>
+      <button type="button" id="ovTileReturns" class="ov-tile" data-returns><span>Returns due</span><b>0</b><small>leaving or left, still holding items</small></button>
+    </div>
+    <div class="ov-grid">
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>Needs attention</h2><p>What to do next, most urgent first.</p></div></div>
+        <div id="ovAttention"></div>
       </section>
       <section class="stk-panel">
-        <div class="stk-panel-head"><div><h2>Staff requests waiting</h2><p>PPE and uniforms asked for by staff.</p></div><button type="button" class="stk-button" data-goto="requests">Open</button></div>
-        <ul id="ovRequests" class="stk-list"></ul>
-      </section>
-      <section id="ovChemicalsPanel" class="stk-panel">
-        <div class="stk-panel-head"><div><h2>Chemicals due to count</h2><p id="ovChemicalsHint">Chemical usage comes from the counts.</p></div><button type="button" class="stk-button stk-primary" data-quick="chemicals" data-operate>Count chemicals</button></div>
-        <ul id="ovChemicals" class="stk-list"></ul>
-      </section>
-      <section class="stk-panel">
-        <div class="stk-panel-head"><div><h2>Pending returns</h2><p>People who left and still hold company items.</p></div></div>
-        <ul id="ovReturns" class="stk-list"></ul>
-      </section>
-      <section class="stk-panel">
-        <div class="stk-panel-head"><div><h2>Low stock</h2><p>At or below the minimum.</p></div></div>
-        <ul id="ovLow" class="stk-list"></ul>
-      </section>
-      <section class="stk-panel">
-        <div class="stk-panel-head"><div><h2>Recent activity</h2></div><button type="button" class="stk-button" data-goto="history">History</button></div>
+        <div class="stk-panel-head"><div><h2>Recent activity</h2><p>Last stock movements.</p></div><button type="button" class="stk-button" data-goto="history">History</button></div>
         <ul id="ovRecent" class="stk-list"></ul>
       </section>
     </div>
@@ -109,20 +99,21 @@
   </section>
 
   <!-- Count -->
-  <section id="tabCount" data-panel="count" class="stk-panel hidden">
-    <div class="stk-panel-head"><div><h2>Stock count</h2><p>Type the quantity found on the shelf. Leave blank to skip an item. Differences are adjusted and logged; a drop in chemicals is booked as usage.</p></div></div>
-    <div class="stk-toolbar">
-      <div id="countChips" class="stk-chips"></div>
-      <input id="countSearch" type="search" placeholder="Search item" aria-label="Search items to count">
-    </div>
-    <div class="stk-table-wrap"><table class="stk-table">
-      <thead><tr><th>Item</th><th class="num">Expected</th><th class="num">Counted</th><th class="num">Difference</th><th class="optional">Last count</th></tr></thead>
-      <tbody id="countRows"></tbody>
-    </table></div>
-    <div class="stk-count-foot">
+  <section id="tabCount" data-panel="count" class="hidden">
+    <section class="stk-panel">
+      <div class="stk-panel-head"><div><h2>Stock count</h2><p>Count what is on the shelf. Use + and − or type the number, and tap <b>Same</b> when nothing changed. Items you skip are not counted. A drop in chemicals is booked as usage.</p></div></div>
+      <div class="stk-toolbar">
+        <div id="countChips" class="stk-chips"></div>
+        <input id="countSearch" type="search" placeholder="Search item" aria-label="Search items to count">
+      </div>
+      <div class="cnt-progress"><div class="cnt-bar"><i id="countBar"></i></div><span id="countProgress"></span></div>
+    </section>
+    <div id="countCards" class="cnt-cards"></div>
+    <div class="cnt-foot">
       <input id="countNotes" maxlength="500" placeholder="Notes (optional)">
       <span id="countSummary" class="stk-muted"></span>
-      <button id="countSave" type="button" class="stk-button stk-primary" disabled>Finish count</button>
+      <button id="countClear" type="button" class="stk-button">Clear</button>
+      <button id="countSave" type="button" class="stk-button stk-primary" disabled>Save count</button>
     </div>
   </section>
 
@@ -131,7 +122,7 @@
     <div class="stk-toolbar">
       <div class="stk-chips" role="group" aria-label="Show">
         <button type="button" class="active" data-people-filter="holding">Holding items</button>
-        <button type="button" data-people-filter="leavers">Left the company</button>
+        <button type="button" data-people-filter="leavers">Returns due</button>
         <button type="button" data-people-filter="all">Everyone active</button>
       </div>
       <input id="peopleSearch" type="search" placeholder="Search name" aria-label="Search people">
@@ -251,6 +242,8 @@
     <div class="stk-dialog-head"><div><small id="issueKind">HAND OVER</small><strong id="issueTitle"></strong><span id="issueMeta"></span></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
     <div class="stk-form">
       <div id="issueLines"></div>
+      <div id="issueLockerField" class="stk-picker hidden"><span class="stk-section-title">Free locker</span><div id="issueLocker"></div>
+        <label id="issueReturnWrap" class="stk-check"><input id="issueReturnCurrent" type="checkbox" checked> <span id="issueReturnLabel"></span></label></div>
       <p id="issueHint" class="stk-form-hint">Change the size or hand over fewer items if needed. Each item leaves stock and is registered in the person's name.</p>
       <label><span id="issueNoteLabel">Note for the person <em>(optional)</em></span><textarea id="issueNote" rows="2" maxlength="500"></textarea></label>
     </div>
