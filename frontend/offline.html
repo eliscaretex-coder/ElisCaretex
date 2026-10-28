@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b8b8c">
+  <title>Offline | ElisCaretex</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      background: #f4f7f9;
+      color: #1f2d3a;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .offline-card {
+      max-width: 360px;
+      text-align: center;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 32px 24px;
+      box-shadow: 0 8px 24px rgba(15, 35, 55, 0.08);
+    }
+    .offline-card h1 { font-size: 1.3rem; margin: 0 0 8px; }
+    .offline-card p { margin: 0 0 24px; color: #4f657a; line-height: 1.5; }
+    .offline-card button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: #0b8b8c;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="offline-card">
+    <h1>No connection</h1>
+    <p>ElisCaretex needs the internet to show live data. Check your connection and try again.</p>
+    <button type="button" onclick="window.location.reload()">Try again</button>
+  </main>
+</body>
+</html>
