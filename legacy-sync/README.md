@@ -10,10 +10,10 @@ Database rules, outcomes and the live dry run: `docs/database/legacy-sync-finish
 
 | Piece | Where | What it does |
 | --- | --- | --- |
-| Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads, for at most 7 days: Sorting `Sorting Area` and `Staff`; Finish Area `FinishEntries` (+ `FinishEntriesHistory`) and `RewashProduction`; CentralDB `WashItems` (+ `WashItemsHistory`) and `User` (name to legacy user ID only; never `UserPrivate`). Normalises cell formats and sends signed requests. Never writes the sheets. |
+| Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads, for at most 7 days: Sorting `Sorting Area` and `Staff`; Finish Area `FinishEntries` (+ `FinishEntriesHistory`) and `RewashProduction`; CentralDB `WashItems` (+ `WashItemsHistory`) and `User` (name to legacy user ID only; never `UserPrivate`); every row of the CentralDB registers (`User`, `CustomerMaster`, `Trolley`, `Driver`, `Vehicles`) and of `Routes` (name and colour) and `CustomerSchedule` (one record per customer; a change becomes a new published schedule revision). Normalises cell formats and sends signed requests. Never writes the sheets. |
 | Admin page | `legacy-sync/apps-script/Index.html` | Apps Script web app page: status, pending records with the owner's choice for each, preview or import a date range, source spreadsheets; the old v3.1 diagnostics are folded under "Old diagnostics". Needs `Code.gs` (v3.1) and `LegacySyncFinish.gs`. |
 | Endpoint | `supabase/functions/legacy-sync-finish/index.ts` | Checks the HMAC signature and the timestamp (5 minutes), validates the request shape and calls one `integration.legacy_sync_*` function. No mapping logic. |
-| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610270007`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
+| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610280002`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
 | Old inbox | `supabase/functions/legacy-sync-ingest/index.ts` | Repository copy of the live function (v2). Untouched; the new sender does not use it. |
 
 ## Request contract

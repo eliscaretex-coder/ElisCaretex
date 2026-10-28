@@ -80,6 +80,33 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Legacy Sync: customer schedules and routes join the nightly sync (Prepared)
+- Branch / commits: `claude/legacy-sync-schedules`, Pull Request into `master`.
+- Changed: sixth part of the full sync, run after the registers. CentralDB `Routes` (one record per
+  RouteID; name and colour only, owner decision 2026-10-28: KM and hours stay as edited in V2) and
+  `CustomerSchedule` (one record per CustomerID with all its production days). A schedule change is a
+  new published revision (source `LEGACY_IMPORT`, effective from the current business date) built
+  from the current V2 revision; published revisions are never edited. Same rule as the registers:
+  a value the legacy app changed since the baseline is written, every other value keeps V2. First
+  baseline is the customer's latest `LEGACY_IMPORT` revision (the 2026-10-23 dist1 import), so
+  legacy changes since then are written and hand corrections in V2 (for example Orwell's Friday
+  route) are kept and listed as `V2_DIFFERS`. Delivery weekday is not synced (V2 derives it). An
+  open draft or a future revision in V2 holds the customer for review. Apps Script page shows a
+  Schedules part; review items for V2-side holds say "fix in Customer Studio".
+- Database: `202610280002_legacy_sync_customer_schedules.sql` prepared, not applied. New switch
+  `SCHEDULE_IMPORT` (seeded OFF, limit 200); link roles `ROUTE_MASTER` and `CUSTOMER_SCHEDULE`;
+  `legacy_sync_review_list` also closes items whose record was synced again (states, not only links).
+  No Edge Function deploy needed (generic `dry_run` / `import` kinds).
+- Validation: `supabase/tests/202610280002_legacy_sync_customer_schedules_validation.sql` 11/11 on
+  the local replica; all 146 real records (9 routes, 137 customers, CentralDB of 27/10) planned and
+  imported locally without errors, and a second plan finds them all already imported; 0013 and 0014
+  tests still pass. Comparison with live on 28/10: same 137 customers and 434 days; 26 customers
+  differ (31 delivery orders, 3 routes, 3 trolleys, 2 delivery notes; 3 delivery weekdays are V2's
+  automatic rule).
+- Open / next: owner applies 0002 and its test, publishes the new `.gs` and `Index.html`, runs
+  Preview, then Turn on (switches the new part on with the others). Then production and
+  distribution rosters.
+
 ## 2026-10-28 — Claude — Production Tracker: Production map is the main view; Operational list removed
 
 - Branch / commits: `claude/tracker-map-default`, Pull Request into `master`

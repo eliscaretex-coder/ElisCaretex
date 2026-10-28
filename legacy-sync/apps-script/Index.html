@@ -261,8 +261,8 @@ async function importNow() {
 }
 
 // Parts of the sync, in the order they run (LSF.parts in LegacySyncFinish.gs).
-const PARTS = [['master', 'Registers'], ['attendance', 'Attendance'], ['wash', 'Washes'], ['mop', 'MOP'], ['normal', 'Finish'], ['rewash', 'ReWash'], ['trolley', 'Trolleys']];
-const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', MOP_PRODUCTION_IMPORT: 'MOP', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash', TROLLEY_CUSTODY_IMPORT: 'Trolleys', ATTENDANCE_IMPORT: 'Attendance', MASTER_DATA_IMPORT: 'Registers'};
+const PARTS = [['master', 'Registers'], ['schedule', 'Schedules'], ['attendance', 'Attendance'], ['wash', 'Washes'], ['mop', 'MOP'], ['normal', 'Finish'], ['rewash', 'ReWash'], ['trolley', 'Trolleys']];
+const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', MOP_PRODUCTION_IMPORT: 'MOP', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash', TROLLEY_CUSTODY_IMPORT: 'Trolleys', ATTENDANCE_IMPORT: 'Attendance', MASTER_DATA_IMPORT: 'Registers', SCHEDULE_IMPORT: 'Schedules'};
 
 const RESULT_LABELS = {IMPORTED: 'new', UPDATED: 'updated', ADOPTED: 'matched', ADOPTED_AND_UPDATED: 'matched + updated', BLOCKED: 'to review', RUN_LIMIT_REACHED: 'run limit'};
 
@@ -447,7 +447,14 @@ const WAITING = {
   WASH_NOT_IN_V2: 'Waits for its Sorting wash. It is copied by itself once the wash is in V2. If the wash is older than the nightly days, import that day with "Import now".',
   MOP_NOT_IN_V2: 'Waits for its MOP production. It is copied by itself once the MOP is in V2.',
   FINISH_ENTRY_NOT_IN_V2: 'Waits for its Finish entry. It is copied by itself once the entry is in V2.',
-  TROLLEY_NOT_IN_V2: 'Waits for the trolley register. It is copied by itself once the trolley is in V2.'
+  TROLLEY_NOT_IN_V2: 'Waits for the trolley register. It is copied by itself once the trolley is in V2.',
+  CUSTOMER_NOT_IN_V2: 'Waits for the customer register. It is copied by itself once the customer is in V2.',
+  ROUTE_NOT_IN_V2: 'Waits for the route list. It is copied by itself once the route is in V2.'
+};
+// Held because of work in V2, not because of the sheet.
+const FIX_IN_V2 = {
+  SCHEDULE_DRAFT_OPEN_IN_V2: 'Where to fix: V2 Customer Studio. This customer has an unpublished schedule draft; publish or discard it, and the next sync copies the legacy change.',
+  SCHEDULE_FUTURE_VERSION_IN_V2: 'Where to fix: V2 Customer Studio. This customer has a schedule published for a future date; the legacy change waits until that date or until it is cancelled.'
 };
 const ACTIONS = {FIX_IN_SOURCE: 'Will fix in the sheet', NOT_IMPORTED: 'Do not import'};
 
@@ -472,7 +479,7 @@ function drawPending(list) {
     box.appendChild(Object.assign(document.createElement('h3'), {textContent: words(item.reason_code) + ' · ' + item.source_record_id}));
     if (item.detail) box.appendChild(Object.assign(document.createElement('p'), {textContent: item.detail}));
     box.appendChild(Object.assign(document.createElement('p'), {className: 'muted',
-      textContent: item.waiting ? WAITING[item.reason_code] || 'Waits for another part of the sync.' : 'Where to fix: ' + where(item) + '.'}));
+      textContent: item.waiting ? WAITING[item.reason_code] || 'Waits for another part of the sync.' : FIX_IN_V2[item.reason_code] || 'Where to fix: ' + where(item) + '.'}));
     if (!item.waiting) {
       const row = document.createElement('div');
       row.className = 'row';

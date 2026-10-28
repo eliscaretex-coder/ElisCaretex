@@ -8,6 +8,8 @@
  * Parts of the sync, in the order they run:
  *   master  CentralDB registers: User, CustomerMaster, Trolley, Driver, Vehicles (every row, every run;
  *           only rows that changed since the last sync are written)
+ *   schedule CentralDB Routes (route list: name and colour) and CustomerSchedule (one record per
+ *           customer with all its production days); a change is a new published schedule revision
  *   attendance Finish Area StaffSessions (+ History) and RosterNotWorking, Sorting "Staff": who worked,
  *           where and when, in the order it was typed
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
@@ -95,12 +97,18 @@ const LSF = {
       'TlLolerLast']}
   ],
   masterInstants: ['RegisteredAt', 'UpdatedAt'],
+  // Customer schedules (CentralDB): routes first, so a schedule can use a new route.
+  scheduleBatch: 40,
+  routeFields: ['RouteID', 'DisplayName', 'Colour'],
+  scheduleFields: ['CustomerID', 'CustomerName', 'ProductionDay', 'Route', 'DeliveryTime', 'QtyClothes', 'ClothesOrder',
+    'TrolleyMop', 'MopOrder', 'MopProducts', 'ClothesNotes', 'MopInstructions', 'Information', 'DeliveryOrder', 'DeliveryNotes'],
   // Parts sent through the generic dry_run / import operations.
-  kinds: ['master', 'attendance', 'wash', 'mop', 'trolley'],
-  // Import order: registers first (new people, customers and trolleys exist before their work);
+  kinds: ['master', 'schedule', 'attendance', 'wash', 'mop', 'trolley'],
+  // Import order: registers first (new people, customers and trolleys exist before their work),
+  // then customer schedules (they need the customers);
   // attendance next (V2 checks who worked); trolleys last, because a trolley leaving production
   // needs its Finish or MOP record in V2.
-  parts: ['master', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
+  parts: ['master', 'schedule', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -560,6 +568,31 @@ function lsfCollectMaster_() {
   return {records: out, notes: notes};
 }
 
+/**
+ * CentralDB Routes (one record per RouteID; the sheet has a row per route and weekday, the last one is
+ * kept: only the name and colour are synced) and CustomerSchedule (one record per CustomerID with all
+ * its rows as production days).
+ */
+function lsfCollectSchedules_() {
+  const central = lsConfig_().sources.central;
+  if (!central || !central.enabled || !central.id) return {records: [], notes: ['CentralDB is not configured or not enabled.']};
+  const css = SpreadsheetApp.openById(central.id), notes = [], routes = {}, customers = {}, order = [];
+  lsfReadSheet_(css, 'Routes', LSF.routeFields, true).forEach(function (r) {
+    const row = lsfPick_(r, LSF.routeFields);
+    if (row.RouteID) routes[row.RouteID] = row;
+  });
+  lsfReadSheet_(css, 'CustomerSchedule', LSF.scheduleFields, true).forEach(function (r) {
+    const row = lsfPick_(r, LSF.scheduleFields), id = row.CustomerID;
+    if (!id) { if (row.ProductionDay) notes.push('CustomerSchedule row ' + r._row + ' has no CustomerID.'); return; }
+    if (!customers[id]) { customers[id] = {CustomerID: id, CustomerName: row.CustomerName, days: []}; order.push(id); }
+    delete row.CustomerID; delete row.CustomerName;
+    customers[id].days.push(row);
+  });
+  const records = Object.keys(routes).map(function (id) { return {record_type: 'ROUTE', source_record_id: id, row: routes[id]}; })
+    .concat(order.map(function (id) { return {record_type: 'SCHEDULE', source_record_id: id, row: customers[id]}; }));
+  return {records: records, notes: notes.slice(0, 20)};
+}
+
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
   const washes = lsfCollectWashes_(range);
@@ -578,6 +611,14 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.master = [];
     collected.notes.master = ['CentralDB registers could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const schedules = lsfCollectSchedules_();
+    collected.schedule = schedules.records;
+    if (schedules.notes.length) collected.notes.schedule = schedules.notes;
+  } catch (e) {
+    collected.schedule = [];
+    collected.notes.schedule = ['CentralDB schedules could not be read: ' + String(e.message || e)];
   }
   try {
     const attendance = lsfCollectAttendance_(range);
@@ -673,7 +714,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, schedule: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -694,7 +735,7 @@ function importFinishSync(fromDate, toDate, reason) {
     });
     for (const g of groups) {
       if (!plans[g.kind]) continue;
-      if (g.kind === 'master') { lsfImportMaster_(runId, collected.master, plans.master, result, started); continue; }
+      if (g.kind === 'master' || g.kind === 'schedule') { lsfImportBatches_(g.kind, runId, collected[g.kind], plans[g.kind], result, started); continue; }
       const records = collected[g.kind];
       for (let i = 0; i < records.length && !result.stopped; i++) {
         const outcome = plans[g.kind][i].outcome;
@@ -723,15 +764,15 @@ function importFinishSync(fromDate, toDate, reason) {
   return result;
 }
 
-/** Registers go in batches of up to 60 (each row is still its own transaction in V2). */
-function lsfImportMaster_(runId, records, plans, result, started) {
-  const out = result.results.master, todo = [];
+/** Registers and schedules go in batches (each record is still its own transaction in V2). */
+function lsfImportBatches_(kind, runId, records, plans, result, started) {
+  const out = result.results[kind], todo = [], size = LSF[kind + 'Batch'];
   records.forEach(function (record, i) {
     if (plans[i].outcome === 'READY' || plans[i].outcome === 'BLOCKED') todo.push(record);
   });
-  for (let i = 0; i < todo.length && !result.stopped; i += LSF.masterBatch) {
+  for (let i = 0; i < todo.length && !result.stopped; i += size) {
     if (Date.now() - started > LSF.timeBudgetMs) { result.stopped = 'TIME_BUDGET'; break; }
-    const r = lsfCall_({operation: 'import', kind: 'master', runId: runId, record: {records: todo.slice(i, i + LSF.masterBatch)}});
+    const r = lsfCall_({operation: 'import', kind: kind, runId: runId, record: {records: todo.slice(i, i + size)}});
     if (!r.ok) {
       lsfCount_(out, 'REFUSED_' + r.code);
       if (r.code === '55000') { out.refusal = r.error; return; }
