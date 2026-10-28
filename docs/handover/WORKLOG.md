@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Production Tracker: Production map is the main view; Operational list removed
+
+- Branch / commits: `claude/tracker-map-default`, Pull Request into `master`
+- Changed: owner request. Production Tracker now opens on the Production map (page, side menu
+  and the Tracker embedded in Sorting); the Operational list view, its JS and CSS are removed
+  (old `?view=list` links open the map). Views are now Production map and Route board.
+  "Back to map" on the Route board (after clicking a customer on the map) returns to the exact
+  place: same week, same search/status/type filters, same scroll position, and the customer
+  that was opened gets a short highlight.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright with the stubbed Supabase client
+  and the 19–24 Oct 2026 flow items, desktop and 390 px mobile: default view is the map, old
+  list URL opens the map, Back to map restores scroll (1323 px desktop, 9330 px mobile) and the
+  CLOTHES filter, no console errors. Not validated against the live RPC with a signed-in user.
+- Open / next: none. Browsers holding a cached `app-shell-policy.js` may show the old
+  "Operational list" menu item for a few minutes; it now opens the map.
+
 ## 2026-10-27 — Claude — Legacy Sync: pending records and owner choices on the Apps Script page (Prepared)
 
 - Changed: owner asked to see each record the sync holds and keep his choice. New "Pending"
