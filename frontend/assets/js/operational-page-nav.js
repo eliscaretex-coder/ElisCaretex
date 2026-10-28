@@ -11,7 +11,7 @@
   let shell = null;
 
   // Workspaces whose menu entry shows a count of items waiting for the user.
-  const BADGE_MODULES = Object.freeze({ notifications: "Notifications", "company-documents": "Company Documents" });
+  const BADGE_MODULES = Object.freeze({ notifications: "Notifications", "company-documents": "Company Documents", stock: "Stock Control" });
 
   function currentPage() {
     return location.pathname.split("/").pop() || "index.html";
@@ -334,7 +334,7 @@
         badge.textContent = count > 99 ? "99+" : String(count);
       }
       const label = BADGE_MODULES[moduleId];
-      if (item && label) item.title = attention ? `${label} (${count} ${moduleId === "notifications" ? "need attention" : "to confirm"})` : label;
+      if (item && label) item.title = attention ? `${label} (${count} ${moduleId === "notifications" ? "need attention" : moduleId === "stock" ? "requests waiting" : "to confirm"})` : label;
     }
 
     function setNotificationCount(count) {
@@ -442,6 +442,18 @@
       shell?.setAttentionCount("company-documents", Number(data?.pending_count || 0));
     } catch (error) {
       console.warn("Company document summary could not be loaded.", error);
+    }
+  }
+
+  // Staff requests for PPE and uniforms waiting for a supervisor or manager.
+  async function loadStockRequestCount(client, policy, access) {
+    if (!access.can(policy.NAVIGATION_PERMISSIONS.STOCK)) return;
+    try {
+      const { data, error } = await client.rpc("get_stock_attention");
+      if (error) throw error;
+      shell?.setAttentionCount("stock", Number(data?.pending_requests || 0));
+    } catch (error) {
+      console.warn("Stock request summary could not be loaded.", error);
     }
   }
 
@@ -646,6 +658,7 @@
     if (client) {
       loadNotificationCount(client, policy, access);
       loadCompanyDocumentCount(client, policy, access);
+      loadStockRequestCount(client, policy, access);
       startTrolleyChecks(client, () => loadNotificationCount(client, policy, access));
     }
     return access;
