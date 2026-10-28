@@ -80,6 +80,32 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Company Documents by area (Prepared)
+
+- Branch / commits: `claude/company-documents-areas`.
+- Changed: owner asked to limit SSOW (and any document) to areas: Sorting, Finish, MOP,
+  Distribution, Cleaner, Label, Maintenance; one document can be for several areas, none means
+  everyone. New table `company_document_areas`; area picker in the add/edit form; area tags on
+  cards and rows; area filters on Manage documents and Read status by staff; CSV exports carry
+  document and staff areas. Staff see and confirm only their areas' documents (list, Storage
+  file, open, confirm and the pending count all check it). Managers and status viewers still see
+  every document; one outside their areas shows as "Other area" and is not pending for them.
+  "Who read" counts only the people of the document's areas.
+- A person's areas: Staff Master default area (SORTING/WASHING -> Sorting, FINISH, MOP,
+  DISTRIBUTION), primary operational role (CLEANER, LABEL, MAINTENANCE, SORTING_AREA, DRIVER),
+  account job title (CLEANER, LABEL_OPERATIVE, MAINTENANCE, DRIVER, LOGISTICS_MANAGER) and an
+  active Distribution driver record (`company_document_person_areas`).
+- Database: `202610280006_company_document_areas.sql` prepared, not applied (replaces
+  `company_document_audience`, which gains an `areas` column, and the staff/manager RPCs).
+- Validation: `supabase/tests/202610280006_company_document_areas_validation.sql` and the 0001
+  validation both pass on a local PostgreSQL 16 replica with 0001 + 0005 applied. Pages rendered
+  in Chromium with stub data (staff of Finish does not see a Sorting SSOW; admin sees it as
+  Other area).
+- Open / next: owner applies the migration. Live data on 2026-10-28: Staff Master default areas
+  are set only for Finish (34) and Sorting (7); nobody has MOP, Distribution, Cleaner or
+  Maintenance yet, so documents for those areas reach only people whose job title, role or driver
+  record says so.
+
 ## 2026-10-28 — Claude — Stock Control: locker key requests, leaving dates, chemical count screen, new overview (Prepared)
 
 - Branch / commits: `claude/stock-improvements`, Pull Request into `master`.

@@ -207,3 +207,18 @@ body{margin:0}
   .docs-person summary{grid-template-columns:auto 1fr}
   .docs-person-count{grid-column:2;justify-items:start}
 }
+
+/* Areas */
+.docs-area-tag{padding:2px 6px;border-radius:6px;background:#fff3e0!important;color:#8a4b00!important;font-size:10px;font-style:normal;font-weight:800}
+.docs-area-tag.all{background:#eef3f6!important;color:#5d7387!important}
+.docs-area-row{display:flex;flex-wrap:wrap;gap:4px}
+.docs-card.other{background:#fafbfc}
+.docs-card.other .docs-card-go{background:#eef2f5;color:#5d7387}
+.docs-area-select{max-width:170px}
+.docs-form .docs-areas{display:grid;gap:7px;margin:0 18px;padding:0;border:0}
+.docs-areas legend{margin-bottom:6px;font-size:11px;font-weight:900;color:#345069}
+.docs-area-picker{display:flex;flex-wrap:wrap;gap:6px}
+.docs-form .docs-area-option{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid #cfdde7;border-radius:20px;background:#fff;color:#3e586d;font-size:12px;font-weight:800;cursor:pointer}
+.docs-area-option input{width:15px;height:15px;margin:0;accent-color:#079da3}
+.docs-area-option.checked{border-color:#079da3;background:#e3f4f4;color:#07777b}
+.docs-areas small{color:#6a8093;font-size:11px;font-weight:600}
