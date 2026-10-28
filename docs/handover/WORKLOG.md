@@ -80,7 +80,26 @@ Entry format:
 
 ---
 
-## 2026-10-28 — Claude — Company Documents: revision number and date, re-read on every new file (Prepared)
+## 2026-10-28 — Claude — Company Documents: confirming on a phone no longer freezes (Prepared)
+
+- Branch / commits: `claude/company-documents-speed`, Pull Request into `master`.
+- Changed: owner reported the page slow and the confirmation stuck on a phone with a staff account.
+  Cause 1: after opening a document the page recorded the opening only once the file was loaded,
+  then redrew the confirmation box, clearing a tick the person had already given and disabling
+  Confirm again (reproduced in Chromium with a 900 ms network). The opening is now recorded at the
+  same time as the file loads and a refresh never clears an existing tick; Confirm cannot be sent
+  twice and shows an error inline. Cause 2: on phones the PDF was still loaded in a hidden frame
+  and the viewer used `100vh`, which puts the Confirm button behind the browser bar. Phones now get
+  an "Open the document" button (the phone's own PDF viewer) and the viewer uses `100dvh` and the
+  safe area.
+- Database: none. Live timings checked as a staff account: `get_my_company_documents` 24 ms,
+  summary 3 ms, Storage read check 6 ms.
+- Validation: iPhone 13 emulation with slow RPCs (tick before the opening is recorded, then
+  Confirm) passes and fails on the previous code; desktop screenshots unchanged, no console errors;
+  `node scripts/validate-repository.mjs` passed.
+- Open / next: none.
+
+## 2026-10-28 — Claude — Company Documents: revision number and date, re-read on every new file (Applied)
 
 - Branch / commits: `claude/company-documents-revision`, Pull Request into `master`.
 - Changed: owner asked for the revision number and revision date printed in each document footer,
@@ -95,7 +114,7 @@ Entry format:
   `company_document_check_revision` and `company_document_revision_label`;
   `replace_company_document_file(uuid,jsonb,text,integer)` replaces the 5-argument version (dropped)
   and always moves `acknowledgement_version`; `get_my_company_documents`, `create_company_document`
-  and `update_company_document_details` carry the revision. **Not applied** yet. No documents
+  and `update_company_document_details` carry the revision. Applied by the owner on 2026-10-28. No documents
   existed live when it was written.
 - Validation: `supabase/tests/202610280007_company_document_revisions_validation.sql` passed on the
   local PostgreSQL 16 replica (0001 + 0006 + 0007). The 0001 and 0006 validations call the RPCs
