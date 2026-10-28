@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Company Documents | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
-  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-2">
+  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
-  <script src="../assets/js/company-documents.js?v=20261028-2" defer></script>
+  <script src="../assets/js/company-documents.js?v=20261028-3" defer></script>
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
 </head>
 <body>
@@ -115,6 +115,14 @@
       <label>Reference <em>(optional)</em><input id="docReference" maxlength="40" placeholder="e.g. SSOW-07"></label>
     </div>
     <label>Title<input id="docTitle" maxlength="160" required></label>
+    <fieldset class="docs-revision">
+      <legend>Revision</legend>
+      <div class="docs-form-grid">
+        <label>Revision number<input id="docRevision" maxlength="20" required placeholder="e.g. 3"></label>
+        <label>Revision date<input id="docRevisionDate" type="date" required></label>
+      </div>
+      <small id="docRevisionHint">As printed in the document footer, so everyone can tell whether a copy is current.</small>
+    </fieldset>
     <label>Short description <em>(optional)</em><textarea id="docDescription" maxlength="1000" rows="2" placeholder="What this document covers and who it applies to"></textarea></label>
     <div id="docFileField" class="docs-file-field">
       <span>File</span>
@@ -150,12 +158,16 @@
         <small id="versionFileName">PDF, JPG, PNG or WebP up to 20 MB.</small>
       </label>
     </div>
-    <label>What changed?<textarea id="versionNote" maxlength="500" rows="2" required placeholder="e.g. New PPE requirement for the tunnel area"></textarea></label>
-    <fieldset class="docs-choice">
-      <legend>Confirmations</legend>
-      <label><input type="radio" name="reconfirm" value="yes" checked> <span><strong>Staff must read and confirm again</strong><small>Use this when the content or rules changed.</small></span></label>
-      <label><input type="radio" name="reconfirm" value="no"> <span><strong>Small correction, keep confirmations</strong><small>For typos or layout fixes. Earlier confirmations still count.</small></span></label>
+    <fieldset class="docs-revision">
+      <legend>Revision of the new file</legend>
+      <div class="docs-form-grid">
+        <label>Revision number<input id="versionRevision" maxlength="20" required placeholder="e.g. 4"></label>
+        <label>Revision date<input id="versionRevisionDate" type="date" required></label>
+      </div>
+      <small id="versionCurrent"></small>
     </fieldset>
+    <label>What changed?<textarea id="versionNote" maxlength="500" rows="2" required placeholder="e.g. New PPE requirement for the tunnel area"></textarea></label>
+    <p id="versionWho" class="docs-reread-note"></p>
     <div class="docs-form-foot"><span id="versionFormStatus" role="status"></span><button id="versionSave" type="submit" class="docs-primary">Publish new version</button></div>
   </form>
 </dialog>

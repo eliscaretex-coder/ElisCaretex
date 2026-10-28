@@ -150,6 +150,12 @@ body{margin:0}
 .docs-drop input{position:absolute;width:1px;height:1px;opacity:0}
 .docs-drop strong{font-size:14px;color:#07777b}
 .docs-drop small{font-size:11px;font-weight:600;color:#6a8093}
+.docs-form .docs-revision{display:grid;gap:7px;padding:0;border:0}
+.docs-form .docs-revision .docs-form-grid{margin:0}
+.docs-revision legend{margin-bottom:6px;font-size:11px;font-weight:900;color:#345069}
+.docs-revision small{color:#6a8093;font-size:11px;font-weight:600}
+.docs-form>.docs-reread-note{margin:0 18px;padding:10px 12px;border:1px solid #f1d29b;border-radius:10px;background:#fff8ea;color:#7a4b00;font-size:12px;font-weight:700;line-height:1.45}
+.docs-rev{color:#17334c;font-weight:800}
 .docs-choice{display:grid;gap:8px;padding:0;border:0}
 .docs-choice legend{margin-bottom:6px;font-size:11px;font-weight:900;color:#345069}
 .docs-form .docs-choice label{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #d3e0e9;border-radius:10px;cursor:pointer}

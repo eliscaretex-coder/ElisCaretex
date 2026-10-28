@@ -37,6 +37,10 @@
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const date = (value) => value ? new Intl.DateTimeFormat("en-IE", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)) : "—";
   const dateTime = (value) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+  // Revision as printed in the document footer, e.g. "Rev 4 · 12 Oct 2026".
+  const revision = (doc) => doc.revision_number || doc.revision_date
+    ? `Rev ${doc.revision_number || "?"}${doc.revision_date ? ` · ${date(`${doc.revision_date}T12:00:00`)}` : ""}` : "No revision recorded";
+  const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const section = (code) => SECTIONS.find((item) => item.code === code) || SECTIONS[0];
   const areaName = (code) => AREAS.find((area) => area.code === code)?.label || code;
   const areaLabel = (areas) => (areas || []).length ? areas.map(areaName).join(", ") : "All areas";
@@ -139,14 +143,14 @@
       ? `Confirmed ${date(doc.acknowledged_at)}`
       : doc.status === "RECONFIRM" ? `Updated ${date(doc.version_published_at)}${doc.last_change_note ? `: ${doc.last_change_note}` : ""}`
       : doc.status === "OTHER_AREA" ? `For ${areaLabel(doc.areas)} · not on your list to confirm`
-      : `Version ${doc.current_version} · ${date(doc.version_published_at)}`;
+      : `Published ${date(doc.version_published_at)}`;
     return `<button type="button" class="docs-card${action ? " action" : ""}${doc.status === "OTHER_AREA" ? " other" : ""}" data-open="${esc(doc.document_id)}">
       ${fileBadge(doc.mime_type)}
       <span class="docs-card-copy">
         <span class="docs-card-top">${doc.reference_code ? `<em>${esc(doc.reference_code)}</em>` : ""}${(doc.areas || []).length ? areaTags(doc.areas) : ""}${statusPill(doc.status)}</span>
         <strong>${esc(doc.title)}</strong>
         ${doc.description ? `<span class="docs-card-desc">${esc(doc.description)}</span>` : ""}
-        <small>${esc(detail)}</small>
+        <small><b class="docs-rev">${esc(revision(doc))}</b> · ${esc(detail)}</small>
       </span>
       <span class="docs-card-go">${action ? "Read" : "Open"}</span>
     </button>`;
@@ -164,7 +168,7 @@
     const dialog = $("viewer");
     $("viewerSection").textContent = `${section(doc.category).short.toUpperCase()}${doc.reference_code ? ` · ${doc.reference_code}` : ""}`;
     $("viewerTitle").textContent = doc.title;
-    $("viewerMeta").textContent = `Version ${doc.current_version} · published ${date(doc.version_published_at)} · ${areaLabel(doc.areas)}`;
+    $("viewerMeta").textContent = `${revision(doc)} · version ${doc.current_version} · published ${date(doc.version_published_at)} · ${areaLabel(doc.areas)}`;
     $("viewerBody").innerHTML = '<p class="docs-empty">Opening document…</p>';
     $("viewerOpen").removeAttribute("href");
     $("viewerNotice").classList.toggle("hidden", doc.status !== "RECONFIRM");
@@ -200,7 +204,7 @@
     if (!mine) return;
     $("ackCheck").checked = false;
     $("ackButton").disabled = true;
-    $("ackLabel").textContent = `I have read and understood "${mine.title}" (version ${mine.current_version}).`;
+    $("ackLabel").textContent = `I have read and understood "${mine.title}" (${revision(mine).replace(" · ", " of ")}).`;
     done.innerHTML = mine.status === "ACKNOWLEDGED"
       ? `<span class="docs-pill done">Confirmed</span> You confirmed this document on ${esc(dateTime(mine.acknowledged_at))}.`
       : mine.status === "OTHER_AREA"
@@ -318,7 +322,7 @@
           <small>${esc(doc.original_file_name || "")}${doc.file_size_bytes ? ` · ${size(doc.file_size_bytes)}` : ""}</small>
         </div>
       </div>
-      <div class="docs-row-version"><strong>v${doc.current_version}</strong><small>${esc(date(doc.version_published_at))}${doc.updated_by_name ? ` · ${esc(doc.updated_by_name)}` : ""}</small></div>
+      <div class="docs-row-version"><strong>${esc(doc.revision_number ? `Rev ${doc.revision_number}` : "No rev.")}</strong><small>${doc.revision_date ? `${esc(date(`${doc.revision_date}T12:00:00`))} · ` : ""}v${doc.current_version}${doc.updated_by_name ? ` · ${esc(doc.updated_by_name)}` : ""}</small></div>
       <div class="docs-row-status">${readStatus}</div>
       <div class="docs-row-actions">
         <button type="button" data-action="view">View</button>
@@ -394,7 +398,7 @@
     $("readersSearch").value = "";
     $("readersSection").textContent = `${section(doc.category).short.toUpperCase()}${doc.reference_code ? ` · ${doc.reference_code}` : ""}`;
     $("readersTitle").textContent = doc.title;
-    $("readersMeta").textContent = `Version ${doc.current_version} · published ${date(doc.version_published_at)} · For ${areaLabel(doc.areas)}`;
+    $("readersMeta").textContent = `${revision(doc)} · version ${doc.current_version} · published ${date(doc.version_published_at)} · For ${areaLabel(doc.areas)}`;
     renderReaders();
     $("readersDialog").showModal();
   }
@@ -479,8 +483,8 @@
     const doc = state.readersDoc;
     if (!doc) return;
     downloadCsv(`${(doc.reference_code || doc.title).replace(/[^a-z0-9-]+/gi, "-")}-read-status.csv`, [
-      ["Document", "Version", "Document areas", "Staff", "Job title", "Employee code", "Staff areas", "Status", "Opened", "Confirmed", "Confirmed version"],
-      ...personStatusRows(doc).map((row) => [doc.title, doc.current_version, areaLabel(doc.areas), row.person.display_name, row.person.job_title_name, row.person.employee_code, (row.person.areas || []).map(areaName).join(", "),
+      ["Document", "Revision", "Revision date", "Version", "Document areas", "Staff", "Job title", "Employee code", "Staff areas", "Status", "Opened", "Confirmed", "Confirmed version"],
+      ...personStatusRows(doc).map((row) => [doc.title, doc.revision_number || "", doc.revision_date || "", doc.current_version, areaLabel(doc.areas), row.person.display_name, row.person.job_title_name, row.person.employee_code, (row.person.areas || []).map(areaName).join(", "),
         STATUS[row.status]?.label || row.status, row.opened_at ? dateTime(row.opened_at) : "", row.acknowledged_at ? dateTime(row.acknowledged_at) : "", row.acknowledged_version || ""])
     ]);
   }
@@ -490,11 +494,11 @@
     const people = new Map((state.admin.people || []).map((person) => [person.auth_user_id, person]));
     const docs = new Map((state.admin.documents || []).map((doc) => [doc.document_id, doc]));
     downloadCsv(`company-documents-read-status-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ["Staff", "Job title", "Employee code", "Staff areas", "Section", "Reference", "Document", "Document areas", "Version", "Status", "Opened", "Confirmed"],
+      ["Staff", "Job title", "Employee code", "Staff areas", "Section", "Reference", "Document", "Document areas", "Revision", "Revision date", "Version", "Status", "Opened", "Confirmed"],
       ...(state.admin.statuses || []).map((row) => ({ row, person: people.get(row.auth_user_id) || {}, doc: docs.get(row.document_id) || {} }))
         .sort((a, b) => String(a.person.display_name).localeCompare(b.person.display_name) || String(a.doc.title).localeCompare(b.doc.title))
         .map(({ row, person, doc }) => [person.display_name, person.job_title_name, person.employee_code, (person.areas || []).map(areaName).join(", "), section(doc.category).short, doc.reference_code, doc.title, areaLabel(doc.areas),
-          doc.current_version, STATUS[row.status]?.label || row.status, row.opened_at ? dateTime(row.opened_at) : "", row.acknowledged_at ? dateTime(row.acknowledged_at) : ""])
+          doc.revision_number || "", doc.revision_date || "", doc.current_version, STATUS[row.status]?.label || row.status, row.opened_at ? dateTime(row.opened_at) : "", row.acknowledged_at ? dateTime(row.acknowledged_at) : ""])
     ]);
   }
 
@@ -513,11 +517,11 @@
       const rows = await rpc("get_company_document_history", { p_document_id: doc.document_id });
       $("historyList").innerHTML = rows.length ? rows.map((row) => `
         <li class="${esc(String(row.event_type).toLowerCase())}">
-          <div><strong>${esc(HISTORY_LABELS[row.event_type] || row.event_type)}${["PUBLISHED", "NEW_VERSION"].includes(row.event_type) ? ` · v${row.version_number}` : ""}</strong>
+          <div><strong>${esc(HISTORY_LABELS[row.event_type] || row.event_type)}${["PUBLISHED", "NEW_VERSION"].includes(row.event_type) ? ` · v${row.version_number}` : ""}${row.revision_number && ["PUBLISHED", "NEW_VERSION"].includes(row.event_type) ? ` · ${esc(revision(row))}` : ""}</strong>
           <small>${esc(dateTime(row.recorded_at))}${row.recorded_by_name ? ` · ${esc(row.recorded_by_name)}` : ""}</small></div>
           ${row.change_note ? `<p>${esc(row.change_note)}</p>` : ""}
           ${row.original_file_name && ["PUBLISHED", "NEW_VERSION"].includes(row.event_type) ? `<span>${esc(row.original_file_name)}${row.file_size_bytes ? ` · ${size(row.file_size_bytes)}` : ""}</span>` : ""}
-          ${row.event_type === "NEW_VERSION" ? `<span>${row.reconfirmation_required ? "Staff asked to confirm again" : "Earlier confirmations kept"}</span>` : ""}
+          ${row.event_type === "NEW_VERSION" ? `<span>${row.reconfirmation_required ? "Everyone asked to read and confirm again" : "Earlier confirmations kept"}</span>` : ""}
         </li>`).join("") : '<li class="docs-empty">No updates recorded.</li>';
     } catch (error) {
       $("historyList").innerHTML = `<li class="docs-empty error">${esc(friendly(error))}</li>`;
@@ -567,6 +571,10 @@
   function openDocForm(doc = null) {
     state.editing = doc;
     $("docForm").reset();
+    $("docRevisionDate").max = today();
+    $("docRevisionHint").textContent = doc
+      ? "Correct a typo here. A new file with a new revision goes through New version, which asks everyone to read it again."
+      : "As printed in the document footer, so everyone can tell whether a copy is current.";
     $("docDialogTitle").textContent = doc ? "Edit document details" : "Add document";
     $("docSave").textContent = doc ? "Save changes" : "Publish document";
     $("docFileField").classList.toggle("hidden", !!doc);
@@ -579,6 +587,8 @@
       $("docReference").value = doc.reference_code || "";
       $("docTitle").value = doc.title;
       $("docDescription").value = doc.description || "";
+      $("docRevision").value = doc.revision_number || "";
+      $("docRevisionDate").value = doc.revision_date || "";
       $("docRequiresAck").checked = !!doc.requires_acknowledgement;
     }
     setPickedAreas(doc?.areas || []);
@@ -596,9 +606,12 @@
       title: $("docTitle").value.trim(),
       description: $("docDescription").value.trim(),
       requires_acknowledgement: $("docRequiresAck").checked,
+      revision_number: $("docRevision").value.trim(),
+      revision_date: $("docRevisionDate").value,
       areas: pickedAreas()
     };
     if (!details.title) return void (status.textContent = "Enter the document title.");
+    if (!details.revision_number || !details.revision_date) return void (status.textContent = "Enter the revision number and date shown on the document.");
     button.disabled = true;
     let uploaded = null;
     try {
@@ -662,6 +675,12 @@
     $("versionForm").reset();
     $("versionDocTitle").textContent = `${doc.title} · now v${doc.current_version}`.toUpperCase();
     $("versionFormStatus").textContent = "";
+    $("versionCurrent").textContent = `Current file: ${revision(doc)}. Enter the revision printed on the new file.`;
+    $("versionRevisionDate").max = today();
+    $("versionRevisionDate").min = doc.revision_date || "";
+    $("versionWho").textContent = doc.requires_acknowledgement
+      ? "Everyone who must read this document will see it as updated and must read and confirm it again."
+      : "Staff will see this document as updated.";
     $("versionFileName").textContent = "PDF, JPG, PNG or WebP up to 20 MB.";
     $("versionFile").closest(".docs-drop").classList.remove("has-file");
     $("versionDialog").showModal();
@@ -673,6 +692,10 @@
     const button = $("versionSave");
     const status = $("versionFormStatus");
     const note = $("versionNote").value.trim();
+    const revisionNumber = $("versionRevision").value.trim();
+    const revisionDate = $("versionRevisionDate").value;
+    if (!revisionNumber || !revisionDate) return void (status.textContent = "Enter the revision number and date of the new file.");
+    if (doc.revision_number && revisionNumber.toLowerCase() === doc.revision_number.toLowerCase()) return void (status.textContent = `The current file is already Rev ${doc.revision_number}. Enter the revision of the new file.`);
     if (!note) return void (status.textContent = "Describe what changed in this version.");
     button.disabled = true;
     let uploaded = null;
@@ -683,8 +706,7 @@
       uploaded = await upload(doc.document_id, file);
       status.textContent = "Publishing…";
       const result = await rpc("replace_company_document_file", {
-        p_document_id: doc.document_id, p_file: uploaded, p_change_note: note,
-        p_require_reconfirmation: document.querySelector('input[name="reconfirm"]:checked').value === "yes",
+        p_document_id: doc.document_id, p_file: { ...uploaded, revision_number: revisionNumber, revision_date: revisionDate }, p_change_note: note,
         p_row_version: doc.row_version
       });
       uploaded = null;
@@ -695,7 +717,7 @@
         if (error) console.warn("The previous file will be removed on the next visit.", error);
       }
       $("versionDialog").close();
-      message(`Version ${result?.document?.current_version || ""} of "${doc.title}" is published.`, "good");
+      message(`"${doc.title}" Rev ${revisionNumber} is published.${doc.requires_acknowledgement ? " Everyone who must read it has been asked to read and confirm it again." : ""}`, "good");
       await Promise.all([loadAdmin(true), loadMine()]);
     } catch (error) {
       status.textContent = friendly(error);
