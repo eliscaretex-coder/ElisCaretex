@@ -79,6 +79,7 @@ body{margin:0}
 .docs-row-main small,.docs-row-version small,.docs-row-status small{overflow:hidden;color:#72869a;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
 .docs-section-tag.ssow{background:#e8e6fb!important;color:#4a3aa8!important}
 .docs-section-tag.policy{background:#e1f4f5!important;color:#08777c!important}
+.docs-section-tag.risk{background:#fdeee0!important;color:#9a4a00!important}
 .docs-row-version{display:grid;gap:2px}
 .docs-row-status{display:grid;gap:5px}
 .docs-row-status .warn{color:#a45c00;font-weight:800}

@@ -109,6 +109,21 @@ Entry format:
 - Validation: `node scripts/validate-repository.mjs`; Playwright at 390×844 with the drawer open: every point of the drawer is the drawer on all 19 shell pages (before the fix the banner was on top on both roster pages); with the drawer closed the leave request button is still on top.
 - Open / next: owner to confirm on a phone after merge.
 
+## 2026-10-28 — Claude — Company Documents: Risk assessment section (Prepared)
+
+- Branch / commits: `claude/company-documents-risk-assessment`, Pull Request into `master`.
+- Changed: owner asked for a section to attach Risk assessment documents. New section
+  `RISK_ASSESSMENT` ("Risk assessments") next to Company policies and SSOW, with the same rules
+  (areas, revision, confirmation, one stored file). Section filter, form option, orange section
+  tag; the home card description mentions risk assessments.
+- Database: `202610280009_company_document_risk_assessment.sql`: `company_documents_category_check`
+  accepts RISK_ASSESSMENT; `create_company_document` and `update_company_document_details`
+  (redefined from 0007) accept and log it and refuse unknown sections. **Not applied** yet.
+- Validation: `supabase/tests/202610280009_company_document_risk_assessment_validation.sql` and the
+  0007 validation passed on the local PostgreSQL 16 replica; pages rendered in Chromium with stub
+  data, no console errors; `node scripts/validate-repository.mjs` passed.
+- Open / next: owner applies the migration, then merges.
+
 ## 2026-10-28 — Claude — Company Documents: confirming on a phone no longer freezes (Prepared)
 
 - Branch / commits: `claude/company-documents-speed`, Pull Request into `master`.
