@@ -80,7 +80,24 @@ Entry format:
 
 ---
 
-## 2026-10-28 — Claude — Company Documents: policies and SSOW with read confirmation (Prepared)
+## 2026-10-28 — Claude — Production Tracker: Production map is the main view; Operational list removed
+
+- Branch / commits: `claude/tracker-map-default`, Pull Request into `master`
+- Changed: owner request. Production Tracker now opens on the Production map (page, side menu
+  and the Tracker embedded in Sorting); the Operational list view, its JS and CSS are removed
+  (old `?view=list` links open the map). Views are now Production map and Route board.
+  "Back to map" on the Route board (after clicking a customer on the map) returns to the exact
+  place: same week, same search/status/type filters, same scroll position, and the customer
+  that was opened gets a short highlight.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright with the stubbed Supabase client
+  and the 19–24 Oct 2026 flow items, desktop and 390 px mobile: default view is the map, old
+  list URL opens the map, Back to map restores scroll (1323 px desktop, 9330 px mobile) and the
+  CLOTHES filter, no console errors. Not validated against the live RPC with a signed-in user.
+- Open / next: none. Browsers holding a cached `app-shell-policy.js` may show the old
+  "Operational list" menu item for a few minutes; it now opens the map.
+
+## 2026-10-28 — Claude — Company Documents: policies and SSOW with read confirmation (Applied)
 
 - Branch / commits: `claude/company-documents`.
 - Changed: owner asked for company policies and SSOW (PDF or photo) available to every staff
@@ -103,7 +120,8 @@ Entry format:
 - Also: `.operational-nav-badge[hidden]` now stays hidden when the sidebar is open (a zero
   Notifications count showed as "0"). Cache versions bumped for `app-shell-policy.js`,
   `operational-page-nav.js`, `app.js` and `navigation.css`.
-- Database: `202610280001_company_documents.sql` prepared, not applied.
+- Database: `202610280001_company_documents.sql` applied by the owner (tables, bucket and 18
+  functions verified live on 2026-10-28); PR #109 merged.
 - Validation: `supabase/tests/202610280001_company_documents_validation.sql` passes on a local
   PostgreSQL 16 with stub `auth`/`storage` schemas (staff cannot publish, missing file refused,
   open/confirm, wrong version refused, correction keeps confirmations, new version asks again,
@@ -111,8 +129,8 @@ Entry format:
   Storage policies checked as `authenticated` on the same replica. Pages rendered in Chromium
   with stub data at 1440 px and 390 px. PDF preview inside the page is not shown by headless
   Chromium; real browsers show it.
-- Open / next: owner applies the migration and runs the validation; then publish a first
-  document and confirm it from a staff account.
+- Open / next: run the validation on `ElisCaretex-dev`; publish a first document and confirm it
+  from a staff account.
 
 ## 2026-10-27 — Claude — Legacy Sync: pending records and owner choices on the Apps Script page (Prepared)
 
