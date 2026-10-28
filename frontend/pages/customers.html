@@ -8,7 +8,7 @@
 
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css?v=20261017-1">
-  <link rel="stylesheet" href="../assets/css/customers.css?v=20261025-1">
+  <link rel="stylesheet" href="../assets/css/customers.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
 
@@ -18,7 +18,7 @@
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
   <script src="../assets/js/schedule-combined-print.js?v=20261024-1" defer></script>
-  <script src="../assets/js/customers.js?v=20261025-1" defer></script>
+  <script src="../assets/js/customers.js?v=20261028-1" defer></script>
 </head>
 
 <body class="customers-page">
@@ -174,6 +174,9 @@
           <p class="customers-modal-code">Customer Master</p>
           <h2 id="customerFormTitle">Add Customer</h2>
           <p id="customerFormSubtitle" class="customers-modal-subtitle"></p>
+          <button id="customerFormHistory" class="customers-link-button hidden" type="button">
+            View change history
+          </button>
         </div>
 
         <button
@@ -265,16 +268,11 @@
         </section>
 
         <section class="customers-form-section customers-reason-section">
-          <details id="customerFormAuditDetails" class="customers-audit-details">
-            <summary>
-              <span>Audit note</span>
-              <small>Optional — a clear note is generated automatically.</small>
-            </summary>
-            <label class="customers-form-field">
-              <span id="customerFormReasonLabel">Custom audit note</span>
-              <textarea id="customerFormReason" rows="2" maxlength="1000" placeholder="Add extra context only when needed."></textarea>
-            </label>
-          </details>
+          <label class="customers-form-field">
+            <span id="customerFormReasonLabel">Creation note</span>
+            <textarea id="customerFormReason" rows="2" maxlength="1000"></textarea>
+            <small id="customerFormReasonHelp" class="customers-reason-help"></small>
+          </label>
         </section>
 
         <footer class="customers-modal-footer customers-master-form-footer">
@@ -340,6 +338,37 @@
           Deactivate Customer
         </button>
       </footer>
+    </section>
+  </div>
+
+  <!-- Customer Master change history -->
+  <div id="customerHistoryModal" class="customers-modal hidden" role="dialog" aria-modal="true">
+    <button
+      id="customerHistoryBackdrop"
+      class="customers-modal-backdrop"
+      type="button"
+      aria-label="Close change history"
+    ></button>
+
+    <section class="customers-modal-card customers-history-modal">
+      <header class="customers-modal-header">
+        <div>
+          <p class="customers-modal-code">Customer Master</p>
+          <h2>Change history</h2>
+          <p id="customerHistorySubtitle" class="customers-modal-subtitle"></p>
+        </div>
+
+        <button
+          id="customerHistoryClose"
+          class="customers-icon-button"
+          type="button"
+          aria-label="Close change history"
+        >
+          ×
+        </button>
+      </header>
+
+      <div id="customerHistoryBody" class="customers-modal-body customers-history-body"></div>
     </section>
   </div>
 

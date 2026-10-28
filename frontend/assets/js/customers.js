@@ -60,7 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const formOpenSchedule = document.getElementById("customerFormOpenSchedule");
   const formOpenScheduleTitle = document.getElementById("customerFormOpenScheduleTitle");
   const formOpenScheduleHelp = document.getElementById("customerFormOpenScheduleHelp");
-  const formAuditDetails = document.getElementById("customerFormAuditDetails");
+  const formReasonSection = formReason.closest(".customers-reason-section");
+  const formReasonHelp = document.getElementById("customerFormReasonHelp");
+  const formHistoryButton = document.getElementById("customerFormHistory");
   const formSaveHint = document.getElementById("customerFormSaveHint");
 
   const deactivateModal = document.getElementById("customerDeactivateModal");
@@ -71,6 +73,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const deactivateName = document.getElementById("customerDeactivateName");
   const deactivateReason = document.getElementById("customerDeactivateReason");
   const deactivateAlert = document.getElementById("customerDeactivateAlert");
+
+  const historyModal = document.getElementById("customerHistoryModal");
+  const historyBackdrop = document.getElementById("customerHistoryBackdrop");
+  const historyClose = document.getElementById("customerHistoryClose");
+  const historySubtitle = document.getElementById("customerHistorySubtitle");
+  const historyBody = document.getElementById("customerHistoryBody");
+  const MIN_CHANGE_REASON_LENGTH = 10;
 
   const DAYS = [
     { number: 1, name: "Monday", className: "customers-day-mon" },
@@ -395,6 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
       scheduleModal.classList.contains("hidden") &&
       formModal.classList.contains("hidden") &&
       deactivateModal.classList.contains("hidden") &&
+      historyModal.classList.contains("hidden") &&
       scheduleActionModal.classList.contains("hidden")
     ) {
       document.body.classList.remove("customers-modal-open");
@@ -4949,6 +4959,17 @@ document.addEventListener("DOMContentLoaded", () => {
       </button>
     `;
 
+    actions += `
+      <button
+        class="customers-action-icon history"
+        type="button"
+        data-master-history="${escapeHtml(item.customer_id)}"
+        title="Change history"
+      >
+        ⏱
+      </button>
+    `;
+
     if (item.active && canEdit) {
       actions += `
         <button
@@ -5053,6 +5074,12 @@ document.addEventListener("DOMContentLoaded", () => {
     mainPanel.querySelectorAll("[data-master-edit]").forEach((button) => {
       button.addEventListener("click", () => {
         openCustomerForm("edit", button.dataset.masterEdit);
+      });
+    });
+
+    mainPanel.querySelectorAll("[data-master-history]").forEach((button) => {
+      button.addEventListener("click", () => {
+        openCustomerHistory(button.dataset.masterHistory);
       });
     });
 
@@ -5655,7 +5682,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return "Stops must be a whole number of zero or greater.";
     }
 
+    if (
+      customerFormReasonRequired() &&
+      (state.form.dirty || state.form.mode === "reactivate") &&
+      formReason.value.trim().length < MIN_CHANGE_REASON_LENGTH
+    ) {
+      return `Write the reason for this change (at least ${MIN_CHANGE_REASON_LENGTH} characters).`;
+    }
+
     return "";
+  }
+
+  // Edits and reactivations are recorded with the reason the person writes.
+  function customerFormReasonRequired() {
+    return state.form.mode === "edit" || state.form.mode === "reactivate";
   }
 
   function serviceChangeSummary() {
@@ -5794,7 +5834,7 @@ document.addEventListener("DOMContentLoaded", () => {
     formNotes.disabled = false;
     formOperationalAlert.disabled = false;
     formOpenSchedule.checked = true;
-    formAuditDetails.open = false;
+    formHistoryButton.classList.add("hidden");
     formNextStepSection.classList.remove("hidden");
     formServiceImpact.classList.add("hidden");
     formStatus.className = "customers-form-status";
@@ -5835,7 +5875,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (mode === "create") {
       formTitle.textContent = "Add Customer";
       formSubtitle.textContent = "Create the Customer Master record, then continue directly to schedule setup.";
-      formReasonLabel.textContent = "Custom creation note";
+      formReasonLabel.textContent = "Creation note";
+      formReasonSection.classList.remove("is-required");
+      formReason.placeholder = "Optional. A note is generated automatically.";
+      formReasonHelp.textContent = "Every new customer is recorded in the change history.";
       formSave.textContent = "Add Customer";
       formOpenScheduleTitle.textContent = "Open schedule setup after saving";
       formOpenScheduleHelp.textContent = "Continue directly to the weekly production schedule.";
@@ -5846,7 +5889,13 @@ document.addEventListener("DOMContentLoaded", () => {
     formTitle.textContent = mode === "edit" ? "Edit Customer" : "Reactivate Customer";
     formSubtitle.textContent = "Loading Customer Master record...";
     formSave.textContent = mode === "edit" ? "Save Changes" : "Reactivate Customer";
-    formReasonLabel.textContent = mode === "edit" ? "Custom change note" : "Custom reactivation note";
+    formReasonLabel.textContent = mode === "edit" ? "Reason for this change" : "Reason for reactivation";
+    formReasonSection.classList.add("is-required");
+    formReason.placeholder = mode === "edit"
+      ? "Why is this customer being changed? For example: customer asked to correct the name on invoices."
+      : "Why is this customer being reactivated?";
+    formReasonHelp.textContent = "Required. Saved with your name, the date and the old and new values in the change history.";
+    formHistoryButton.classList.toggle("hidden", !customerId);
     formNextStepSection.classList.toggle("hidden", mode === "edit");
     formOpenScheduleTitle.textContent = mode === "reactivate"
       ? "Open schedule setup after reactivation"
@@ -5929,7 +5978,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const services = selectedServiceCodes();
-      const reason = formReason.value.trim() || autoCustomerChangeReason();
+      const reason = customerFormReasonRequired()
+        ? formReason.value.trim()
+        : formReason.value.trim() || autoCustomerChangeReason();
       const shouldOpenSchedule =
         !formNextStepSection.classList.contains("hidden") && formOpenSchedule.checked;
       const saveLabel =
@@ -6015,6 +6066,69 @@ document.addEventListener("DOMContentLoaded", () => {
             : "Reactivate Customer";
 
       setFormBusy(false, label);
+    }
+  }
+
+  const HISTORY_ACTION_LABELS = {
+    CREATE_CUSTOMER: "Customer created",
+    UPDATE_CUSTOMER: "Customer edited",
+    DEACTIVATE_CUSTOMER: "Customer deactivated",
+    REACTIVATE_CUSTOMER: "Customer reactivated",
+    UPDATE_LEGACY_MASTER: "Updated by legacy sync",
+    IMPORT_APPS_SCRIPT_MASTER: "Imported from Apps Script",
+    IMPORT_HISTORICAL_CUSTOMER: "Imported from history"
+  };
+
+  function historyActionLabel(action) {
+    return HISTORY_ACTION_LABELS[action] ||
+      String(action || "Change").toLowerCase().replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+  }
+
+  function historyChangeValue(field, value) {
+    if (value === null || value === undefined || value === "") return "empty";
+    if (Array.isArray(value)) return value.length ? value.join(" + ") : "none";
+    if (field === "active") return value ? "Active" : "Inactive";
+    return String(value);
+  }
+
+  function renderCustomerHistoryEntry(entry) {
+    const changes = Array.isArray(entry.changes) ? entry.changes : [];
+    const changesHtml = changes.length
+      ? `<ul class="customers-history-changes">${changes.map((change) => `
+          <li>
+            <span>${escapeHtml(change.label)}</span>
+            <div><del>${escapeHtml(historyChangeValue(change.field, change.before))}</del> → <ins>${escapeHtml(historyChangeValue(change.field, change.after))}</ins></div>
+          </li>`).join("")}</ul>`
+      : "";
+
+    return `
+      <article class="customers-history-entry">
+        <header>
+          <strong>${escapeHtml(historyActionLabel(entry.action))}</strong>
+          <span>${escapeHtml(entry.actor_name || "Unknown user")} · ${escapeHtml(formatDateTime(entry.occurred_at))}</span>
+        </header>
+        ${entry.reason ? `<p class="customers-history-reason">${escapeHtml(entry.reason)}</p>` : ""}
+        ${changesHtml}
+      </article>
+    `;
+  }
+
+  async function openCustomerHistory(customerId) {
+    historySubtitle.textContent = "Loading...";
+    historyBody.innerHTML = loadingHtml("Loading change history...");
+    openModal(historyModal);
+
+    try {
+      const history = await rpc("get_customer_master_change_history", { p_customer_id: customerId });
+      const entries = Array.isArray(history?.entries) ? history.entries : [];
+      historySubtitle.textContent = `${history?.customer_name || "Customer"} · ${history?.customer_code || ""}`;
+      historyBody.innerHTML = entries.length
+        ? entries.map(renderCustomerHistoryEntry).join("")
+        : '<p class="customers-history-empty">No recorded changes for this customer yet.</p>';
+    } catch (error) {
+      console.error("Customer history load failed:", error);
+      historySubtitle.textContent = "";
+      historyBody.innerHTML = `<div class="customers-form-alert">${escapeHtml(errorMessage(error))}</div>`;
     }
   }
 
@@ -6194,12 +6308,20 @@ document.addEventListener("DOMContentLoaded", () => {
   deactivateCancel.addEventListener("click", () => closeModal(deactivateModal));
   deactivateConfirm.addEventListener("click", confirmDeactivate);
 
+  formHistoryButton.addEventListener("click", () => {
+    if (state.form.customerId) openCustomerHistory(state.form.customerId);
+  });
+  historyBackdrop.addEventListener("click", () => closeModal(historyModal));
+  historyClose.addEventListener("click", () => closeModal(historyModal));
+
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
       return;
     }
 
-    if (!scheduleActionModal.classList.contains("hidden")) {
+    if (!historyModal.classList.contains("hidden")) {
+      closeModal(historyModal);
+    } else if (!scheduleActionModal.classList.contains("hidden")) {
       closeScheduleActionDialog();
     } else if (!deactivateModal.classList.contains("hidden")) {
       closeModal(deactivateModal);

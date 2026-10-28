@@ -80,6 +80,14 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Customer Master: written reason on every edit and visible change history (Prepared)
+
+- Branch / commits: `claude/customer-master-change-history`, Pull Request into `master`
+- Changed: owner renamed a customer and was not asked anything, and saw no history. `update_customer` already wrote `audit_log`, but the page filled the reason in automatically and nothing showed the rows. Edit and Reactivate now require a reason typed by the person (at least 10 characters; Save stays disabled until then). New "Change history" (⏱ on every Customer Master row and "View change history" in the edit window) lists every recorded change of the customer: who, when, the reason and each changed field with old → new values, including imports and legacy sync.
+- Database: `202610280008_customer_master_change_history.sql`: replaces `update_customer` (reason of at least 10 characters that is not the old automatic text, refuses an edit that changes nothing, stores `product_services` before/after in the audit row); new `get_customer_master_change_history(uuid)`, CUSTOMERS:VIEW, read-only. **Not applied yet**: waiting for the owner.
+- Validation: `supabase/tests/202610280008_customer_master_change_history_validation.sql` (17 assertions) passed against ElisCaretex-dev inside a transaction that was rolled back (verified afterwards: function absent, no renamed customer). Page driven in Chromium at 1366×900 and 390×844 with stub data: Save disabled without a reason, the typed reason is sent, history opens over the edit window and Escape closes it; no page errors. `node scripts/validate-repository.mjs` passed.
+- Open / next: apply the migration together with the merge. Until it is applied the History button shows an error, and edits keep working (the old function accepts the typed reason).
+
 ## 2026-10-28 — Claude — My Production / Driver Roster: phone menu no longer hidden by the roster banner (Prepared)
 
 - Branch / commits: `claude/roster-mobile-menu-overlap`, Pull Request into `master`
