@@ -366,7 +366,7 @@
           </tbody>
         </table>
         <footer class="print-version-footer">
-          ${escapeHtml(title)} · List version ${escapeHtml(version)} · Effective ${escapeHtml(effectiveDate)} · Generated ${escapeHtml(printedAt)}
+          List version ${escapeHtml(version)} · Effective ${escapeHtml(effectiveDate)} · Generated ${escapeHtml(printedAt)}
         </footer>
       </section>
     `).join("");
@@ -474,10 +474,14 @@
             .route-count { font-weight: 700; opacity: 0.65; }
             .print-version-footer {
               position: absolute;
+              z-index: 1;
               left: 4mm;
-              right: 4mm;
+              right: auto;
               bottom: 2.2mm;
+              width: 98mm;
+              max-width: 98mm;
               overflow: hidden;
+              background: #FFFFFF;
               color: #64748B;
               font-size: 5.4pt;
               font-weight: 600;

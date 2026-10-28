@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — List version footer on the Cloth + MOP print, same as Print
+
+- Branch / commits: `claude/combined-print-list-version`, Pull Request into `master`.
+- Changed: both Cloth + MOP prints (production and delivery) now end each page with the
+  same footer as the single-service Print: "List version … · Effective … · Generated …",
+  bottom left, 98 mm wide, on a white background. Before, the footer started with the
+  planner title, which pushed the list version to the middle. Codes stay `CMP-` (production)
+  and `CMD-` (delivery).
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed; both prints rendered to PDF
+  in Chromium from live planner data (read-only), footer text present on all 3 pages.
+- Open / next: owner to confirm on paper.
+
 ## 2026-10-28 — Claude — Customer Master: written reason on every edit and visible change history (Prepared)
 
 - Branch / commits: `claude/customer-master-change-history`, Pull Request into `master`
