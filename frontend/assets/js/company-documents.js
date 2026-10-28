@@ -163,6 +163,10 @@
     return data.signedUrl;
   }
 
+  // Phones open PDFs in their own viewer: an embedded (even hidden) PDF frame
+  // makes mobile browsers download and render the whole file inside the page.
+  const isPhone = () => window.matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 1024px)").matches;
+
   async function openViewer(doc, { record = true } = {}) {
     state.viewing = doc;
     const dialog = $("viewer");
@@ -175,35 +179,48 @@
     $("viewerNotice").textContent = doc.status === "RECONFIRM"
       ? `This document was updated on ${date(doc.version_published_at)}${doc.last_change_note ? `: ${doc.last_change_note.replace(/[.\s]+$/, "")}` : ""}. Please read it and confirm again.`
       : "";
-    renderAck(doc);
+    renderAck(doc, true);
     if (!dialog.open) dialog.showModal();
+    // Record the opening alongside loading the file, not after it.
+    if (record && state.mine.some((item) => item.document_id === doc.document_id)) recordOpen(doc);
     try {
       const url = await signedUrl(doc);
+      if (state.viewing !== doc) return;
       $("viewerOpen").href = url;
-      $("viewerBody").innerHTML = doc.mime_type === "application/pdf"
-        ? `<iframe title="${esc(doc.title)}" src="${esc(url)}#view=FitH"></iframe>
-           <a class="docs-mobile-open" href="${esc(url)}" target="_blank" rel="noopener">Tap to open the PDF</a>`
-        : `<img alt="${esc(doc.title)}" src="${esc(url)}">`;
-      if (record && state.mine.some((item) => item.document_id === doc.document_id)) {
-        const status = await rpc("record_company_document_open", { p_document_id: doc.document_id });
-        Object.assign(doc, status);
-        renderAck(doc);
-        renderMine();
-      }
+      $("viewerBody").innerHTML = doc.mime_type !== "application/pdf"
+        ? `<img alt="${esc(doc.title)}" src="${esc(url)}" decoding="async">`
+        : isPhone()
+          ? `<div class="docs-phone-open">${fileBadge(doc.mime_type)}<strong>${esc(doc.original_file_name || doc.title)}</strong>
+               <small>${esc(revision(doc))}${doc.file_size_bytes ? ` · ${size(doc.file_size_bytes)}` : ""}</small>
+               <a class="docs-primary" href="${esc(url)}" target="_blank" rel="noopener">Open the document</a>
+               <small>It opens in your phone's PDF viewer. Come back here to confirm.</small></div>`
+          : `<iframe title="${esc(doc.title)}" src="${esc(url)}#view=FitH"></iframe>`;
     } catch (error) {
-      $("viewerBody").innerHTML = `<p class="docs-empty error">${esc(friendly(error))}</p>`;
+      if (state.viewing === doc) $("viewerBody").innerHTML = `<p class="docs-empty error">${esc(friendly(error))}</p>`;
     }
   }
 
-  function renderAck(doc) {
+  async function recordOpen(doc) {
+    try {
+      const status = await rpc("record_company_document_open", { p_document_id: doc.document_id });
+      Object.assign(doc, status);
+      if (state.viewing === doc) renderAck(doc);
+      renderMine();
+    } catch (error) {
+      console.warn("Opening not recorded.", error);
+    }
+  }
+
+  function renderAck(doc, reset = false) {
     const mine = state.mine.find((item) => item.document_id === doc.document_id);
     const form = $("ackForm");
     const done = $("ackDone");
     form.classList.toggle("hidden", !mine || !NEEDS_ACTION.has(mine.status));
     done.classList.toggle("hidden", !mine || NEEDS_ACTION.has(mine.status));
     if (!mine) return;
-    $("ackCheck").checked = false;
-    $("ackButton").disabled = true;
+    // A status refresh (opened) must not clear a tick the person already gave.
+    if (reset || !NEEDS_ACTION.has(mine.status)) $("ackCheck").checked = false;
+    if (!state.confirming) $("ackButton").disabled = !$("ackCheck").checked;
     $("ackLabel").textContent = `I have read and understood "${mine.title}" (${revision(mine).replace(" · ", " of ")}).`;
     done.innerHTML = mine.status === "ACKNOWLEDGED"
       ? `<span class="docs-pill done">Confirmed</span> You confirmed this document on ${esc(dateTime(mine.acknowledged_at))}.`
@@ -215,24 +232,31 @@
   async function acknowledge(event) {
     event.preventDefault();
     const doc = state.viewing;
-    if (!doc || !$("ackCheck").checked) return;
+    if (!doc || !$("ackCheck").checked || state.confirming) return;
     const button = $("ackButton");
+    state.confirming = true;
     button.disabled = true;
     button.textContent = "Confirming…";
     try {
       const status = await rpc("acknowledge_company_document", { p_document_id: doc.document_id, p_version: doc.current_version });
       Object.assign(doc, status);
+      const mine = state.mine.find((item) => item.document_id === doc.document_id);
+      if (mine && mine !== doc) Object.assign(mine, status);
+      state.confirming = false;
+      button.textContent = "Confirm";
       renderAck(doc);
-      renderMine();
-      refreshNavBadge();
       message(`Thank you. "${doc.title}" is confirmed.`, "good");
       state.adminLoaded = false;
+      // Redraw the list behind the viewer after the confirmation is shown.
+      window.requestAnimationFrame(() => { renderMine(); refreshNavBadge(); });
     } catch (error) {
-      message(friendly(error), "error");
-      if (error?.code === "40001") await loadMine().catch(() => {});
-    } finally {
+      state.confirming = false;
       button.textContent = "Confirm";
       button.disabled = !$("ackCheck").checked;
+      message(friendly(error), "error");
+      $("ackDone").classList.remove("hidden");
+      $("ackDone").innerHTML = `<span class="docs-pill reconfirm">Not confirmed</span> ${esc(friendly(error))}`;
+      if (error?.code === "40001") await loadMine().catch(() => {});
     }
   }
 
@@ -761,7 +785,7 @@
       renderPeople();
     }));
     $("mineSearch").addEventListener("input", renderMine);
-    $("ackCheck").addEventListener("change", () => { $("ackButton").disabled = !$("ackCheck").checked; });
+    $("ackCheck").addEventListener("change", () => { if (!state.confirming) $("ackButton").disabled = !$("ackCheck").checked; });
     $("ackForm").addEventListener("submit", acknowledge);
     $("manageList").addEventListener("click", onManageClick);
     ["manageSearch", "manageCategory", "manageArchived"].forEach((id) => $(id).addEventListener(id === "manageSearch" ? "input" : "change", renderManage));
