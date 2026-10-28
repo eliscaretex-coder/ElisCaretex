@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Stock Control: locker key requests, leaving dates, chemical count screen, new overview (Prepared)
+
+- Branch / commits: `claude/stock-improvements`, Pull Request into `master`.
+- Changed (owner feedback after trying a staff account): My PPE & Uniform was reorganised (locker key
+  and what I hold at the top; tabs Request items / My requests / History; history shows 12 rows
+  with Show all). Staff now see their locker key. Without one, or with a problem (lost, wrong
+  locker, broken), they send a locker key request; Stock Control answers it with Assign a locker
+  (optionally returning the key held now), Mark as solved (note required) or Decline. When Staff
+  Master has a last working day (`staff_members.deactivated_on`, also a scheduled one), staff see
+  a notice listing every item and key to return, and Stock Control lists them under Returns due
+  before they leave. Stock count is now a card per item with large − / + buttons, "Same" for an
+  unchanged item, a progress bar, chemicals due first and a draft kept in the browser until saved.
+  The Overview now has four tiles (requests, chemicals to count, low stock, returns due), one
+  "Needs attention" list and recent activity; quick actions moved to the banner.
+- Database: `202610280005_stock_control_locker_requests_and_leavers.sql`: `stock_requests` gets
+  `request_kind` (ITEMS / LOCKER_KEY) and `locker_id`; new `submit_my_locker_request(text)` and
+  `resolve_locker_request(uuid,text,uuid,text,integer,boolean)`; `decide_stock_request` only
+  declines locker requests; `get_my_stock` returns `leaving_on`; `get_stock_workspace` returns
+  people leaving or left who still hold items with `leaving_on`. **Not applied** yet.
+- Validation: `supabase/tests/202610280005_stock_control_locker_requests_validation.sql` and the
+  earlier stock test passed on the local PostgreSQL; both pages driven in Chromium (phone count,
+  locker assign with the old key returned, staff report) with no console errors;
+  `node scripts/validate-repository.mjs` passed.
+
 ## 2026-10-28 — Claude — Stock Control layout matches the platform (Prepared)
 
 - Branch / commits: `claude/stock-control-layout`, Pull Request into `master`.
