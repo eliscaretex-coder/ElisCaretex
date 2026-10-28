@@ -4,8 +4,10 @@
 // Staff read each document and confirm it; managers publish, replace and
 // follow up. Files live in the private "company-documents" Storage bucket,
 // one file per document: a new version replaces the file and the previous
-// one is removed. Authorization is enforced by the RPCs and Storage policies
-// (202610280001_company_documents.sql).
+// one is removed. A document can be limited to areas; staff see and confirm
+// only the documents of their areas. Authorization is enforced by the RPCs
+// and Storage policies (202610280001_company_documents.sql,
+// 202610280005_company_document_areas.sql).
 (() => {
   const BUCKET = "company-documents";
   const MAX_BYTES = 20 * 1024 * 1024;
@@ -19,8 +21,15 @@
     OPENED: { label: "Opened, not confirmed", tone: "opened" },
     RECONFIRM: { label: "Updated, confirm again", tone: "reconfirm" },
     ACKNOWLEDGED: { label: "Confirmed", tone: "done" },
-    INFORMATION: { label: "For information", tone: "info" }
+    INFORMATION: { label: "For information", tone: "info" },
+    OTHER_AREA: { label: "Other area", tone: "muted" }
   };
+  // Areas a document can be limited to (company_document_areas.area_code).
+  const AREAS = [
+    { code: "SORTING", label: "Sorting" }, { code: "FINISH", label: "Finish" }, { code: "MOP", label: "MOP" },
+    { code: "DISTRIBUTION", label: "Distribution" }, { code: "CLEANER", label: "Cleaner" },
+    { code: "LABEL", label: "Label" }, { code: "MAINTENANCE", label: "Maintenance" }
+  ];
   const NEEDS_ACTION = new Set(["PENDING", "OPENED", "RECONFIRM"]);
 
   const client = window.elisSupabase;
@@ -29,6 +38,13 @@
   const date = (value) => value ? new Intl.DateTimeFormat("en-IE", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)) : "—";
   const dateTime = (value) => value ? new Intl.DateTimeFormat("en-IE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
   const section = (code) => SECTIONS.find((item) => item.code === code) || SECTIONS[0];
+  const areaName = (code) => AREAS.find((area) => area.code === code)?.label || code;
+  const areaLabel = (areas) => (areas || []).length ? areas.map(areaName).join(", ") : "All areas";
+  const areaTags = (areas) => (areas || []).length
+    ? areas.map((code) => `<em class="docs-area-tag">${esc(areaName(code))}</em>`).join("")
+    : '<em class="docs-area-tag all">All areas</em>';
+  // A document with no area is for everyone.
+  const forArea = (docAreas, personAreas) => !(docAreas || []).length || (docAreas || []).some((code) => (personAreas || []).includes(code));
   const size = (bytes) => !bytes ? "" : bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
   const state = {
@@ -88,7 +104,7 @@
     $("docsHeadStats").innerHTML = `
       <div class="${pending ? "warn" : "good"}"><b>${pending}</b><small>to confirm</small></div>
       <div><b>${confirmed}</b><small>confirmed</small></div>
-      <div><b>${state.mine.length}</b><small>documents</small></div>`;
+      <div><b>${state.mine.filter((doc) => doc.for_me !== false).length}</b><small>documents</small></div>`;
     $("minePendingCount").textContent = pending;
   }
 
@@ -108,7 +124,9 @@
       return;
     }
     $("mineList").innerHTML = SECTIONS.map((item) => {
-      const docs = list.filter((doc) => doc.category === item.code);
+      // Managers also see other areas' documents; theirs come first.
+      const docs = list.filter((doc) => doc.category === item.code)
+        .sort((a, b) => Number(b.for_me !== false) - Number(a.for_me !== false));
       if (!docs.length) return "";
       return `<section class="docs-section"><h2>${esc(item.title)} <b>${docs.length}</b></h2>
         <div class="docs-cards">${docs.map(mineCard).join("")}</div></section>`;
@@ -120,11 +138,12 @@
     const detail = doc.status === "ACKNOWLEDGED"
       ? `Confirmed ${date(doc.acknowledged_at)}`
       : doc.status === "RECONFIRM" ? `Updated ${date(doc.version_published_at)}${doc.last_change_note ? `: ${doc.last_change_note}` : ""}`
+      : doc.status === "OTHER_AREA" ? `For ${areaLabel(doc.areas)} · not on your list to confirm`
       : `Version ${doc.current_version} · ${date(doc.version_published_at)}`;
-    return `<button type="button" class="docs-card${action ? " action" : ""}" data-open="${esc(doc.document_id)}">
+    return `<button type="button" class="docs-card${action ? " action" : ""}${doc.status === "OTHER_AREA" ? " other" : ""}" data-open="${esc(doc.document_id)}">
       ${fileBadge(doc.mime_type)}
       <span class="docs-card-copy">
-        <span class="docs-card-top">${doc.reference_code ? `<em>${esc(doc.reference_code)}</em>` : ""}${statusPill(doc.status)}</span>
+        <span class="docs-card-top">${doc.reference_code ? `<em>${esc(doc.reference_code)}</em>` : ""}${(doc.areas || []).length ? areaTags(doc.areas) : ""}${statusPill(doc.status)}</span>
         <strong>${esc(doc.title)}</strong>
         ${doc.description ? `<span class="docs-card-desc">${esc(doc.description)}</span>` : ""}
         <small>${esc(detail)}</small>
@@ -145,7 +164,7 @@
     const dialog = $("viewer");
     $("viewerSection").textContent = `${section(doc.category).short.toUpperCase()}${doc.reference_code ? ` · ${doc.reference_code}` : ""}`;
     $("viewerTitle").textContent = doc.title;
-    $("viewerMeta").textContent = `Version ${doc.current_version} · published ${date(doc.version_published_at)}`;
+    $("viewerMeta").textContent = `Version ${doc.current_version} · published ${date(doc.version_published_at)} · ${areaLabel(doc.areas)}`;
     $("viewerBody").innerHTML = '<p class="docs-empty">Opening document…</p>';
     $("viewerOpen").removeAttribute("href");
     $("viewerNotice").classList.toggle("hidden", doc.status !== "RECONFIRM");
@@ -184,7 +203,9 @@
     $("ackLabel").textContent = `I have read and understood "${mine.title}" (version ${mine.current_version}).`;
     done.innerHTML = mine.status === "ACKNOWLEDGED"
       ? `<span class="docs-pill done">Confirmed</span> You confirmed this document on ${esc(dateTime(mine.acknowledged_at))}.`
-      : '<span class="docs-pill info">For information</span> This document does not need a confirmation.';
+      : mine.status === "OTHER_AREA"
+        ? `<span class="docs-pill muted">Other area</span> This document is for ${esc(areaLabel(mine.areas))}. It is not on your list to confirm.`
+        : '<span class="docs-pill info">For information</span> This document does not need a confirmation.';
   }
 
   async function acknowledge(event) {
@@ -258,9 +279,11 @@
     if (!state.admin) return;
     const term = $("manageSearch").value.trim().toLowerCase();
     const category = $("manageCategory").value;
+    const area = $("manageArea").value;
     const archived = $("manageArchived").checked;
     const docs = (state.admin.documents || []).filter((doc) =>
       (archived || doc.document_status === "ACTIVE") && (!category || doc.category === category) &&
+      (!area || forArea(doc.areas, [area])) &&
       (!term || `${doc.title} ${doc.reference_code || ""}`.toLowerCase().includes(term)));
     if (!docs.length) {
       $("manageList").innerHTML = (state.admin.documents || []).length
@@ -278,6 +301,8 @@
     const percent = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const readStatus = !active
       ? '<span class="docs-pill muted">Archived</span>'
+      : !p.total
+        ? `<span class="docs-pill muted">Nobody yet</span><small>No account with a login in ${esc(areaLabel(doc.areas))}</small>`
       : !doc.requires_acknowledgement
         ? `<span class="docs-pill info">For information</span><small>${p.total} staff can read it</small>`
         : `<div class="docs-progress" role="img" aria-label="${p.done} of ${p.total} confirmed"><i style="width:${percent}%"></i></div>
@@ -289,6 +314,7 @@
         <div>
           <span class="docs-card-top"><em class="docs-section-tag ${doc.category === "SSOW" ? "ssow" : "policy"}">${esc(section(doc.category).short)}</em>${doc.reference_code ? `<em>${esc(doc.reference_code)}</em>` : ""}</span>
           <strong>${esc(doc.title)}</strong>
+          <span class="docs-area-row">${areaTags(doc.areas)}</span>
           <small>${esc(doc.original_file_name || "")}${doc.file_size_bytes ? ` · ${size(doc.file_size_bytes)}` : ""}</small>
         </div>
       </div>
@@ -368,7 +394,7 @@
     $("readersSearch").value = "";
     $("readersSection").textContent = `${section(doc.category).short.toUpperCase()}${doc.reference_code ? ` · ${doc.reference_code}` : ""}`;
     $("readersTitle").textContent = doc.title;
-    $("readersMeta").textContent = `Version ${doc.current_version} · published ${date(doc.version_published_at)}`;
+    $("readersMeta").textContent = `Version ${doc.current_version} · published ${date(doc.version_published_at)} · For ${areaLabel(doc.areas)}`;
     renderReaders();
     $("readersDialog").showModal();
   }
@@ -392,7 +418,7 @@
     $("readersList").innerHTML = filtered.length ? filtered.map((row) => `
       <div class="docs-reader">
         <span class="docs-avatar" aria-hidden="true">${esc(initials(row.person.display_name))}</span>
-        <span class="docs-reader-name"><strong>${esc(row.person.display_name)}</strong><small>${esc([row.person.job_title_name, row.person.employee_code].filter(Boolean).join(" · ") || "Staff")}</small></span>
+        <span class="docs-reader-name"><strong>${esc(row.person.display_name)}</strong><small>${esc(personLine(row.person))}</small></span>
         ${statusPill(row.status)}
         <small class="docs-reader-when">${esc(readerWhen(row))}</small>
       </div>`).join("") : '<p class="docs-empty">Nobody in this list.</p>';
@@ -405,6 +431,10 @@
     return "Not opened yet";
   }
 
+  function personLine(person) {
+    return [person.job_title_name, person.employee_code, (person.areas || []).length ? person.areas.map(areaName).join(", ") : ""].filter(Boolean).join(" · ") || "Staff";
+  }
+
   function initials(name) {
     return String(name || "").trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase() || "—";
   }
@@ -413,7 +443,8 @@
     if (!state.admin) return;
     const docs = new Map((state.admin.documents || []).filter((doc) => doc.document_status === "ACTIVE" && doc.requires_acknowledgement).map((doc) => [doc.document_id, doc]));
     const term = $("peopleSearch").value.trim().toLowerCase();
-    const people = (state.admin.people || []).map((person) => {
+    const area = $("peopleArea").value;
+    const people = (state.admin.people || []).filter((person) => !area || (person.areas || []).includes(area)).map((person) => {
       const rows = (state.admin.statuses || []).filter((row) => row.auth_user_id === person.auth_user_id && docs.has(row.document_id));
       return { person, total: rows.length, done: rows.filter((row) => row.status === "ACKNOWLEDGED").length,
         missing: rows.filter((row) => NEEDS_ACTION.has(row.status)).map((row) => ({ ...row, doc: docs.get(row.document_id) })) };
@@ -428,7 +459,7 @@
       <details class="docs-person"${item.missing.length ? "" : " data-complete"}>
         <summary>
           <span class="docs-avatar" aria-hidden="true">${esc(initials(item.person.display_name))}</span>
-          <span class="docs-reader-name"><strong>${esc(item.person.display_name)}</strong><small>${esc([item.person.job_title_name, item.person.employee_code].filter(Boolean).join(" · ") || "Staff")}</small></span>
+          <span class="docs-reader-name"><strong>${esc(item.person.display_name)}</strong><small>${esc(personLine(item.person))}</small></span>
           <span class="docs-person-count">${item.missing.length ? `<span class="docs-pill pending">${item.missing.length} to confirm</span>` : '<span class="docs-pill done">All confirmed</span>'}<small>${item.done} of ${item.total} confirmed</small></span>
         </summary>
         ${item.missing.length ? `<ul>${item.missing.map((row) => `<li><span>${esc(row.doc.title)}${row.doc.reference_code ? ` <em>${esc(row.doc.reference_code)}</em>` : ""}</span>${statusPill(row.status)}</li>`).join("")}</ul>` : '<p class="docs-person-ok">Every document requiring confirmation is confirmed.</p>'}
@@ -448,8 +479,8 @@
     const doc = state.readersDoc;
     if (!doc) return;
     downloadCsv(`${(doc.reference_code || doc.title).replace(/[^a-z0-9-]+/gi, "-")}-read-status.csv`, [
-      ["Document", "Version", "Staff", "Job title", "Employee code", "Status", "Opened", "Confirmed", "Confirmed version"],
-      ...personStatusRows(doc).map((row) => [doc.title, doc.current_version, row.person.display_name, row.person.job_title_name, row.person.employee_code,
+      ["Document", "Version", "Document areas", "Staff", "Job title", "Employee code", "Staff areas", "Status", "Opened", "Confirmed", "Confirmed version"],
+      ...personStatusRows(doc).map((row) => [doc.title, doc.current_version, areaLabel(doc.areas), row.person.display_name, row.person.job_title_name, row.person.employee_code, (row.person.areas || []).map(areaName).join(", "),
         STATUS[row.status]?.label || row.status, row.opened_at ? dateTime(row.opened_at) : "", row.acknowledged_at ? dateTime(row.acknowledged_at) : "", row.acknowledged_version || ""])
     ]);
   }
@@ -459,10 +490,10 @@
     const people = new Map((state.admin.people || []).map((person) => [person.auth_user_id, person]));
     const docs = new Map((state.admin.documents || []).map((doc) => [doc.document_id, doc]));
     downloadCsv(`company-documents-read-status-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ["Staff", "Job title", "Employee code", "Section", "Reference", "Document", "Version", "Status", "Opened", "Confirmed"],
+      ["Staff", "Job title", "Employee code", "Staff areas", "Section", "Reference", "Document", "Document areas", "Version", "Status", "Opened", "Confirmed"],
       ...(state.admin.statuses || []).map((row) => ({ row, person: people.get(row.auth_user_id) || {}, doc: docs.get(row.document_id) || {} }))
         .sort((a, b) => String(a.person.display_name).localeCompare(b.person.display_name) || String(a.doc.title).localeCompare(b.doc.title))
-        .map(({ row, person, doc }) => [person.display_name, person.job_title_name, person.employee_code, section(doc.category).short, doc.reference_code, doc.title,
+        .map(({ row, person, doc }) => [person.display_name, person.job_title_name, person.employee_code, (person.areas || []).map(areaName).join(", "), section(doc.category).short, doc.reference_code, doc.title, areaLabel(doc.areas),
           doc.current_version, STATUS[row.status]?.label || row.status, row.opened_at ? dateTime(row.opened_at) : "", row.acknowledged_at ? dateTime(row.acknowledged_at) : ""])
     ]);
   }
@@ -550,6 +581,7 @@
       $("docDescription").value = doc.description || "";
       $("docRequiresAck").checked = !!doc.requires_acknowledgement;
     }
+    setPickedAreas(doc?.areas || []);
     $("docDialog").showModal();
   }
 
@@ -563,7 +595,8 @@
       reference_code: $("docReference").value.trim(),
       title: $("docTitle").value.trim(),
       description: $("docDescription").value.trim(),
-      requires_acknowledgement: $("docRequiresAck").checked
+      requires_acknowledgement: $("docRequiresAck").checked,
+      areas: pickedAreas()
     };
     if (!details.title) return void (status.textContent = "Enter the document title.");
     button.disabled = true;
@@ -592,6 +625,36 @@
     } finally {
       button.disabled = false;
     }
+  }
+
+  // Area picker: "All areas" or one or more areas.
+  function renderAreaPicker() {
+    $("docAreas").innerHTML = `<label class="docs-area-option all"><input type="checkbox" value="" checked> All areas</label>` +
+      AREAS.map((area) => `<label class="docs-area-option"><input type="checkbox" value="${area.code}"> ${esc(area.label)}</label>`).join("");
+  }
+
+  function pickedAreas() {
+    return [...$("docAreas").querySelectorAll("input[value]:checked")].map((input) => input.value).filter(Boolean);
+  }
+
+  function setPickedAreas(areas) {
+    $("docAreas").querySelectorAll("input").forEach((input) => { input.checked = input.value ? areas.includes(input.value) : !areas.length; });
+    updateAreaHint();
+  }
+
+  function onAreaPick(event) {
+    const input = event.target.closest("input");
+    if (!input) return;
+    if (!input.value) setPickedAreas([]);
+    else setPickedAreas(pickedAreas());
+  }
+
+  function updateAreaHint() {
+    const areas = pickedAreas();
+    $("docAreas").querySelectorAll("label").forEach((label) => label.classList.toggle("checked", label.querySelector("input").checked));
+    const people = (state.admin?.people || []).filter((person) => forArea(areas, person.areas)).length;
+    const who = areas.length ? `Only staff of ${areaLabel(areas)} see this document.` : "Everyone with a login sees this document.";
+    $("docAreasHint").textContent = state.admin ? `${who} ${people} account${people === 1 ? "" : "s"} today.` : who;
   }
 
   function openVersion(doc) {
@@ -681,6 +744,13 @@
     $("manageList").addEventListener("click", onManageClick);
     ["manageSearch", "manageCategory", "manageArchived"].forEach((id) => $(id).addEventListener(id === "manageSearch" ? "input" : "change", renderManage));
     $("peopleSearch").addEventListener("input", renderPeople);
+    const areaOptions = AREAS.map((area) => `<option value="${area.code}">${esc(area.label)}</option>`).join("");
+    $("manageArea").insertAdjacentHTML("beforeend", areaOptions);
+    $("peopleArea").insertAdjacentHTML("beforeend", areaOptions);
+    $("manageArea").addEventListener("change", renderManage);
+    $("peopleArea").addEventListener("change", renderPeople);
+    renderAreaPicker();
+    $("docAreas").addEventListener("change", onAreaPick);
     $("peopleExport").addEventListener("click", exportPeople);
     $("addDocument").addEventListener("click", () => openDocForm());
     $("docForm").addEventListener("submit", saveDoc);

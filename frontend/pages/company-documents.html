@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Company Documents | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
-  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-1">
+  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-2">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
-  <script src="../assets/js/company-documents.js?v=20261028-1" defer></script>
+  <script src="../assets/js/company-documents.js?v=20261028-2" defer></script>
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
 </head>
 <body>
@@ -55,6 +55,7 @@
         <option value="POLICY">Company policies</option>
         <option value="SSOW">SSOW</option>
       </select>
+      <select id="manageArea" class="docs-area-select" aria-label="Area"><option value="">All areas</option></select>
       <label class="docs-inline-check"><input id="manageArchived" type="checkbox"> Show archived</label>
       <input id="manageSearch" type="search" placeholder="Search title or reference" aria-label="Search title or reference">
     </div>
@@ -67,6 +68,7 @@
         <button type="button" class="active" data-people-filter="pending">With documents to confirm</button>
         <button type="button" data-people-filter="all">Everyone</button>
       </div>
+      <select id="peopleArea" class="docs-area-select" aria-label="Area"><option value="">All areas</option></select>
       <input id="peopleSearch" type="search" placeholder="Search staff" aria-label="Search staff">
       <button id="peopleExport" type="button">Export CSV</button>
     </div>
@@ -122,6 +124,11 @@
         <small id="docFileName">PDF, JPG, PNG or WebP up to 20 MB. Large photos are reduced automatically.</small>
       </label>
     </div>
+    <fieldset class="docs-areas">
+      <legend>Who must read it</legend>
+      <div id="docAreas" class="docs-area-picker"></div>
+      <small id="docAreasHint">Everyone with a login sees this document.</small>
+    </fieldset>
     <label class="docs-inline-check"><input id="docRequiresAck" type="checkbox" checked> Staff must confirm they have read it</label>
     <div class="docs-form-foot"><span id="docFormStatus" role="status"></span><button id="docSave" type="submit" class="docs-primary">Publish document</button></div>
   </form>
