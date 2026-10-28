@@ -454,6 +454,11 @@ body.elis-operational-mode .operational-sidebar {
   display: inline-flex;
 }
 
+/* A zero count stays hidden even when the sidebar is open. */
+.operational-nav-badge[hidden] {
+  display: none !important;
+}
+
 :is(.sidebar-expanded, .sidebar-hover-expanded) .operational-nav-item.has-attention .operational-nav-icon::after {
   display: none;
 }

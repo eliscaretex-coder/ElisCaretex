@@ -80,6 +80,40 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Company Documents: policies and SSOW with read confirmation (Prepared)
+
+- Branch / commits: `claude/company-documents`.
+- Changed: owner asked for company policies and SSOW (PDF or photo) available to every staff
+  member with a login, with a way to confirm each one, managers publishing and replacing them,
+  an update log, only one physical file per document and a view of who read what. New page
+  `pages/company-documents.html` (My documents / Manage documents / Read status by staff), home
+  card and sidebar entry "Company Documents" in My work with a count of documents to confirm.
+  Files go to the private Storage bucket `company-documents` (20 MB, PDF/JPG/PNG/WebP; large
+  photos are reduced in the browser). A new version uploads the new file, the RPC switches the
+  document and returns the old path, and the browser deletes the old file; files left behind are
+  listed in `orphan_paths` and removed on the next manager visit. Confirmations are per version:
+  the manager chooses "confirm again" (default) or "small correction, keep confirmations".
+  Archive hides a document and keeps its file; Delete removes the file and keeps the log and the
+  confirmations.
+- Permissions: reading and confirming needs no grant (every enabled personal account; never
+  production terminals). New module `COMPANY_DOCUMENTS`: VIEW = read status of everyone,
+  MANAGE = publish, replace, edit, archive, delete. Templates: Administrator, IT Manager,
+  General Manager, Production Manager and Logistics Manager MANAGE; Production Supervisor and
+  Auditor VIEW; existing accounts of those titles receive the grant (additions only).
+- Also: `.operational-nav-badge[hidden]` now stays hidden when the sidebar is open (a zero
+  Notifications count showed as "0"). Cache versions bumped for `app-shell-policy.js`,
+  `operational-page-nav.js`, `app.js` and `navigation.css`.
+- Database: `202610280001_company_documents.sql` prepared, not applied.
+- Validation: `supabase/tests/202610280001_company_documents_validation.sql` passes on a local
+  PostgreSQL 16 with stub `auth`/`storage` schemas (staff cannot publish, missing file refused,
+  open/confirm, wrong version refused, correction keeps confirmations, new version asks again,
+  VIEW cannot change, terminal refused, archive/delete, 5 log events, anon and audience closed);
+  Storage policies checked as `authenticated` on the same replica. Pages rendered in Chromium
+  with stub data at 1440 px and 390 px. PDF preview inside the page is not shown by headless
+  Chromium; real browsers show it.
+- Open / next: owner applies the migration and runs the validation; then publish a first
+  document and confirm it from a staff account.
+
 ## 2026-10-27 — Claude — Legacy Sync: pending records and owner choices on the Apps Script page (Prepared)
 
 - Changed: owner asked to see each record the sync holds and keep his choice. New "Pending"
