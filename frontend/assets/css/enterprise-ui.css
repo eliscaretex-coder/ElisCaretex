@@ -1459,6 +1459,9 @@ body.elis-operational-tool-page a.distribution-tab {
 .operational-shell .shell-page .rv-header {
   position: relative;
   top: auto;
+  /* roster-view.css gives the old sticky header z-index 100, which put the banner
+     (shift tabs, leave request) above the mobile navigation drawer. */
+  z-index: auto;
   margin: 12px 16px;
   padding: 14px 20px;
   border-radius: 11px;

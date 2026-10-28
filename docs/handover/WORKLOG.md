@@ -80,6 +80,14 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — My Production / Driver Roster: phone menu no longer hidden by the roster banner (Prepared)
+
+- Branch / commits: `claude/roster-mobile-menu-overlap`, Pull Request into `master`
+- Changed: inside the shared shell the roster banner (`.rv-header`) kept `z-index: 100` from `roster-view.css`, above the phone navigation drawer (`z-index: 60`). The banner with the Morning/Evening tabs and the leave request button covered the drawer, so its items under the banner could not be tapped. `enterprise-ui.css` now resets that z-index to `auto` for the in-shell banner; both roster pages load the stylesheet with a new version query so phones get the fix.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright at 390×844 with the drawer open: every point of the drawer is the drawer on all 19 shell pages (before the fix the banner was on top on both roster pages); with the drawer closed the leave request button is still on top.
+- Open / next: owner to confirm on a phone after merge.
+
 ## 2026-10-28 — Claude — Company Documents: confirming on a phone no longer freezes (Prepared)
 
 - Branch / commits: `claude/company-documents-speed`, Pull Request into `master`.
