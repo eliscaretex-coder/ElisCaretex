@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>My PPE &amp; Uniform | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="../assets/css/stock.css?v=20261028-1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
+  <script src="../assets/js/my-stock.js?v=20261028-1" defer></script>
+  <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
+</head>
+<body>
+<div class="shell-page-root" data-operational-shell-root><div class="shell-page">
+<main class="stk-shell">
+  <header class="stk-head">
+    <div>
+      <span>MY WORK</span>
+      <h1>My PPE &amp; Uniform</h1>
+      <p id="myIntro">Ask for uniforms, safety shoes and PPE. A supervisor or manager approves the request and hands the items over.</p>
+    </div>
+    <div id="myStats" class="stk-head-stats" aria-live="polite"></div>
+  </header>
+
+  <p id="myMessage" class="stk-message hidden" role="status"></p>
+
+  <div class="my-grid">
+    <div class="my-col">
+      <section class="stk-panel">
+        <div class="stk-panel-head">
+          <div><h2>Request items</h2><p>Choose the size and quantity, then add the item to your request.</p></div>
+        </div>
+        <div id="myCategories" class="stk-toolbar hidden"><div id="myCategoryChips" class="stk-chips"></div></div>
+        <div id="myItems" class="my-items"><p class="stk-empty">Loading…</p></div>
+      </section>
+
+      <section class="stk-panel my-requests">
+        <div class="stk-panel-head"><div><h2>My requests</h2><p>Open requests and answers from the last six months.</p></div></div>
+        <div id="myRequests" class="stk-requests"><p class="stk-empty">Loading…</p></div>
+      </section>
+    </div>
+
+    <div class="my-col">
+      <section id="myCart" class="stk-panel my-cart">
+        <div class="stk-panel-head"><div><h2>My request</h2><p id="myCartHint">No items added yet.</p></div></div>
+        <ul id="myCartList"></ul>
+        <textarea id="myReason" rows="2" maxlength="500" placeholder="Reason (optional), e.g. worn out, new starter, wrong size"></textarea>
+        <div class="stk-form-foot"><span id="myCartStatus" role="status"></span><button id="mySubmit" type="button" class="stk-button stk-primary" disabled>Send request</button></div>
+      </section>
+
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>What I hold</h2><p>Company items registered in your name. Return them when you leave.</p></div></div>
+        <ul id="myHolding" class="stk-list"><li class="stk-muted">Loading…</li></ul>
+      </section>
+
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>History</h2><p>Items handed over to you and returned.</p></div></div>
+        <ul id="myHistory" class="stk-list"><li class="stk-muted">Loading…</li></ul>
+      </section>
+    </div>
+  </div>
+</main>
+</div></div>
+</body>
+</html>

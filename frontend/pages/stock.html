@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stock Control | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="../assets/css/stock.css?v=20261028-1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
+  <script src="../assets/js/stock.js?v=20261028-1" defer></script>
+  <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
+</head>
+<body>
+<div class="shell-page-root" data-operational-shell-root><div class="shell-page">
+<main class="stk-shell">
+  <header class="stk-head">
+    <div>
+      <span>MANAGEMENT</span>
+      <h1>Stock Control</h1>
+      <p>PPE and uniforms, chemicals and miscellaneous stock. Staff requests, stock counts, what each person holds and locker keys.</p>
+    </div>
+    <div id="stkStats" class="stk-head-stats" aria-live="polite"></div>
+  </header>
+
+  <nav id="stkTabs" class="stk-tabs" aria-label="Stock Control views">
+    <button type="button" class="active" data-tab="overview">Overview</button>
+    <button type="button" data-tab="requests">Staff requests <b id="tabRequestCount" class="hidden">0</b></button>
+    <button type="button" data-tab="items">Items</button>
+    <button type="button" data-tab="count">Stock count</button>
+    <button type="button" data-tab="people">PPE &amp; keys by person</button>
+    <button type="button" data-tab="lockers">Locker keys</button>
+    <button type="button" data-tab="usage">Usage &amp; forecast</button>
+    <button type="button" data-tab="history">History</button>
+  </nav>
+
+  <p id="stkMessage" class="stk-message hidden" role="status"></p>
+
+  <!-- Overview -->
+  <section id="tabOverview" data-panel="overview">
+    <div class="stk-overview">
+      <section class="stk-panel" data-operate>
+        <div class="stk-panel-head"><h2>Quick actions</h2></div>
+        <div class="stk-quick">
+          <button type="button" class="stk-button stk-green" data-quick="IN">+ Receive delivery</button>
+          <button type="button" class="stk-button stk-red" data-quick="OUT">− Take item</button>
+          <button type="button" class="stk-button" data-quick="count">Stock count</button>
+          <button type="button" class="stk-button" data-quick="ppe">Issue / return PPE</button>
+        </div>
+      </section>
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>Staff requests waiting</h2><p>PPE and uniforms asked for by staff.</p></div><button type="button" class="stk-button" data-goto="requests">Open</button></div>
+        <ul id="ovRequests" class="stk-list"></ul>
+      </section>
+      <section id="ovChemicalsPanel" class="stk-panel">
+        <div class="stk-panel-head"><div><h2>Chemicals due to count</h2><p id="ovChemicalsHint">Chemical usage comes from the counts.</p></div><button type="button" class="stk-button stk-primary" data-quick="chemicals" data-operate>Count chemicals</button></div>
+        <ul id="ovChemicals" class="stk-list"></ul>
+      </section>
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>Pending returns</h2><p>People who left and still hold company items.</p></div></div>
+        <ul id="ovReturns" class="stk-list"></ul>
+      </section>
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>Low stock</h2><p>At or below the minimum.</p></div></div>
+        <ul id="ovLow" class="stk-list"></ul>
+      </section>
+      <section class="stk-panel">
+        <div class="stk-panel-head"><div><h2>Recent activity</h2></div><button type="button" class="stk-button" data-goto="history">History</button></div>
+        <ul id="ovRecent" class="stk-list"></ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- Requests -->
+  <section id="tabRequests" data-panel="requests" class="stk-panel hidden">
+    <div class="stk-toolbar">
+      <div class="stk-chips" role="group" aria-label="Show">
+        <button type="button" class="active" data-request-filter="open">Waiting</button>
+        <button type="button" data-request-filter="answered">Answered (90 days)</button>
+      </div>
+      <input id="requestSearch" type="search" placeholder="Search staff or item" aria-label="Search requests">
+    </div>
+    <div id="requestList" class="stk-requests"></div>
+  </section>
+
+  <!-- Items -->
+  <section id="tabItems" data-panel="items" class="stk-panel hidden">
+    <div class="stk-toolbar">
+      <input id="itemSearch" type="search" placeholder="Search item, code or supplier" aria-label="Search items">
+      <select id="itemArea" aria-label="Area">
+        <option value="">All areas</option>
+        <option value="PPE_UNIFORM">PPE &amp; uniforms</option>
+        <option value="CHEMICAL">Chemicals</option>
+        <option value="MISCELLANEOUS">Miscellaneous</option>
+      </select>
+      <label class="stk-muted"><input id="itemLowOnly" type="checkbox"> Low stock only</label>
+      <label class="stk-muted"><input id="itemInactive" type="checkbox"> Show inactive</label>
+      <button id="itemExport" type="button">Export CSV</button>
+      <button id="settingsOpen" type="button" class="hidden" data-manage>Settings</button>
+      <button id="itemAdd" type="button" class="stk-button stk-primary hidden" data-manage>+ New item</button>
+    </div>
+    <div class="stk-table-wrap"><table class="stk-table">
+      <thead><tr><th>Item</th><th class="num">Stock</th><th class="num">Minimum</th><th class="optional">Booked to</th><th class="optional">Supplier</th><th class="num optional">Value</th><th></th></tr></thead>
+      <tbody id="itemRows"></tbody>
+    </table></div>
+  </section>
+
+  <!-- Count -->
+  <section id="tabCount" data-panel="count" class="stk-panel hidden">
+    <div class="stk-panel-head"><div><h2>Stock count</h2><p>Type the quantity found on the shelf. Leave blank to skip an item. Differences are adjusted and logged; a drop in chemicals is booked as usage.</p></div></div>
+    <div class="stk-toolbar">
+      <div id="countChips" class="stk-chips"></div>
+      <input id="countSearch" type="search" placeholder="Search item" aria-label="Search items to count">
+    </div>
+    <div class="stk-table-wrap"><table class="stk-table">
+      <thead><tr><th>Item</th><th class="num">Expected</th><th class="num">Counted</th><th class="num">Difference</th><th class="optional">Last count</th></tr></thead>
+      <tbody id="countRows"></tbody>
+    </table></div>
+    <div class="stk-count-foot">
+      <input id="countNotes" maxlength="500" placeholder="Notes (optional)">
+      <span id="countSummary" class="stk-muted"></span>
+      <button id="countSave" type="button" class="stk-button stk-primary" disabled>Finish count</button>
+    </div>
+  </section>
+
+  <!-- People -->
+  <section id="tabPeople" data-panel="people" class="stk-panel hidden">
+    <div class="stk-toolbar">
+      <div class="stk-chips" role="group" aria-label="Show">
+        <button type="button" class="active" data-people-filter="holding">Holding items</button>
+        <button type="button" data-people-filter="leavers">Left the company</button>
+        <button type="button" data-people-filter="all">Everyone active</button>
+      </div>
+      <input id="peopleSearch" type="search" placeholder="Search name" aria-label="Search people">
+      <button type="button" class="stk-button stk-primary" data-quick="ppe" data-operate>Issue / return PPE</button>
+    </div>
+    <div id="peopleList" class="stk-cards"></div>
+  </section>
+
+  <!-- Lockers -->
+  <section id="tabLockers" data-panel="lockers" class="stk-panel hidden">
+    <div class="stk-toolbar">
+      <div class="stk-chips" role="group" aria-label="Show">
+        <button type="button" class="active" data-locker-filter="all">All</button>
+        <button type="button" data-locker-filter="AVAILABLE">Available</button>
+        <button type="button" data-locker-filter="ASSIGNED">Assigned</button>
+        <button type="button" data-locker-filter="leavers">Held by leavers</button>
+      </div>
+      <input id="lockerSearch" type="search" placeholder="Search locker or name" aria-label="Search lockers">
+      <button id="lockerAdd" type="button" class="hidden" data-manage>+ Add lockers</button>
+    </div>
+    <div id="lockerList" class="stk-lockers"></div>
+  </section>
+
+  <!-- Usage -->
+  <section id="tabUsage" data-panel="usage" class="stk-panel hidden">
+    <div class="stk-panel-head"><div><h2>Usage &amp; forecast</h2><p id="usageHint">Average use per week and how many weeks of stock are left. For chemicals this comes from the counts.</p></div></div>
+    <div class="stk-toolbar">
+      <select id="usageArea" aria-label="Area">
+        <option value="">All areas</option>
+        <option value="PPE_UNIFORM">PPE &amp; uniforms</option>
+        <option value="CHEMICAL">Chemicals</option>
+        <option value="MISCELLANEOUS">Miscellaneous</option>
+      </select>
+    </div>
+    <div class="stk-table-wrap"><table class="stk-table">
+      <thead><tr><th>Item</th><th class="num">Stock</th><th class="num">Used / week</th><th class="num">Weeks left</th><th class="optional">Supplier</th><th class="optional">Last count</th></tr></thead>
+      <tbody id="usageRows"></tbody>
+    </table></div>
+  </section>
+
+  <!-- History -->
+  <section id="tabHistory" data-panel="history" class="stk-panel hidden">
+    <div class="stk-toolbar">
+      <select id="historyKind" aria-label="History">
+        <option value="MOVEMENTS">Stock movements</option>
+        <option value="PPE">PPE &amp; uniforms</option>
+        <option value="LOCKERS">Locker keys</option>
+        <option value="COUNTS">Stock counts</option>
+        <option value="REQUESTS">Staff requests</option>
+      </select>
+      <input id="historyFrom" type="date" aria-label="From">
+      <input id="historyTo" type="date" aria-label="To">
+      <select id="historyItem" aria-label="Item"><option value="">All items</option></select>
+      <button id="historyLoad" type="button" class="stk-button stk-primary">Show</button>
+      <button id="historyExport" type="button">Export CSV</button>
+    </div>
+    <div class="stk-table-wrap"><table class="stk-table"><thead id="historyHead"></thead><tbody id="historyRows"></tbody></table></div>
+  </section>
+</main>
+
+<!-- Receive / take / adjust -->
+<dialog id="moveDialog" class="stk-dialog" aria-labelledby="moveTitle">
+  <form id="moveForm">
+    <div class="stk-dialog-head"><div><small id="moveKind">TAKE</small><strong id="moveTitle">Take item</strong><span id="moveStock"></span></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <label id="moveItemField">Item<select id="moveItem" required></select></label>
+      <label><span id="moveQtyLabel">Quantity</span>
+        <div class="stk-stepper"><button type="button" data-step="-1" aria-label="Less">−</button><input id="moveQty" type="number" min="0" step="any" required><button type="button" data-step="1" aria-label="More">+</button></div>
+      </label>
+      <div id="movePersonField" class="stk-picker hidden"><span class="stk-section-title">Who is taking it?</span><div id="movePerson"></div></div>
+      <label id="moveSizeField" class="hidden">Size <em>(optional)</em><input id="moveSize" maxlength="20"></label>
+      <div id="moveCustomerField" class="stk-picker hidden"><span class="stk-section-title">Customer this material is for</span><div id="moveCustomer"></div></div>
+      <p id="moveNoneHint" class="stk-form-hint hidden">Internal use item: no person or customer needed. Usage is normally captured by the stock count.</p>
+      <label id="movePoField" class="hidden">P.O. number <em>(optional)</em><input id="movePo" maxlength="60" placeholder="e.g. 1870-500"></label>
+      <label>Notes <em id="moveNotesHint">(optional)</em><input id="moveNotes" maxlength="500"></label>
+    </div>
+    <div class="stk-form-foot"><span id="moveStatus" role="status"></span><button id="moveSave" type="submit" class="stk-button stk-primary">Confirm</button></div>
+  </form>
+</dialog>
+
+<!-- Item -->
+<dialog id="itemDialog" class="stk-dialog" aria-labelledby="itemTitle">
+  <form id="itemForm">
+    <div class="stk-dialog-head"><div><small>ITEM</small><strong id="itemTitle">New item</strong></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <label>Name<input id="itemName" maxlength="120" required></label>
+      <div class="stk-form-grid">
+        <label>Category<select id="itemCategory" required></select></label>
+        <label>Booked to when taken<select id="itemTrack">
+          <option value="STAFF">A person (uniforms, PPE, tools)</option>
+          <option value="CUSTOMER">A customer (packing material)</option>
+          <option value="NONE">Nobody, internal use counted weekly (chemicals)</option>
+        </select></label>
+      </div>
+      <div class="stk-form-grid three">
+        <label>Code <em>(optional)</em><input id="itemCode" maxlength="40"></label>
+        <label>Unit<input id="itemUnit" maxlength="20" value="unit" required></label>
+        <label>Unit price (€)<input id="itemPrice" type="number" min="0" step="0.01" value="0"></label>
+      </div>
+      <div class="stk-form-grid three">
+        <label id="itemStockField">Opening stock<input id="itemStock" type="number" min="0" step="any" value="0"></label>
+        <label>Minimum stock<input id="itemMin" type="number" min="0" step="any" value="0"></label>
+        <label>Location <em>(optional)</em><input id="itemLocation" maxlength="60"></label>
+      </div>
+      <label>Supplier <em>(optional)</em><input id="itemSupplier" maxlength="80"></label>
+      <label class="stk-check"><input id="itemRequestable" type="checkbox"> Staff can request this item (PPE and uniforms booked to a person)</label>
+      <label id="itemSizesField">Sizes staff choose from <em>(optional, separated by commas)</em><input id="itemSizes" placeholder="e.g. S, M, L, XL or 38, 39, 40"></label>
+      <label id="itemActiveField" class="stk-check hidden"><input id="itemActive" type="checkbox" checked> Active</label>
+    </div>
+    <div class="stk-form-foot"><span id="itemStatus" role="status"></span><button type="submit" class="stk-button stk-primary">Save item</button></div>
+  </form>
+</dialog>
+
+<!-- Hand over a staff request -->
+<dialog id="issueDialog" class="stk-dialog" aria-labelledby="issueTitle">
+  <form id="issueForm">
+    <div class="stk-dialog-head"><div><small id="issueKind">HAND OVER</small><strong id="issueTitle"></strong><span id="issueMeta"></span></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <div id="issueLines"></div>
+      <p id="issueHint" class="stk-form-hint">Change the size or hand over fewer items if needed. Each item leaves stock and is registered in the person's name.</p>
+      <label><span id="issueNoteLabel">Note for the person <em>(optional)</em></span><textarea id="issueNote" rows="2" maxlength="500"></textarea></label>
+    </div>
+    <div class="stk-form-foot"><span id="issueStatus" role="status"></span><button id="issueSave" type="submit" class="stk-button stk-green">Hand over</button></div>
+  </form>
+</dialog>
+
+<!-- Issue / return PPE -->
+<dialog id="ppeDialog" class="stk-dialog" aria-labelledby="ppeTitle">
+  <form id="ppeForm">
+    <div class="stk-dialog-head"><div><small>UNIFORMS &amp; PPE</small><strong id="ppeTitle">Issue or return</strong></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <div class="stk-chips" role="group" aria-label="Action">
+        <button type="button" class="active" data-ppe-action="ISSUED">Issue (give out)</button>
+        <button type="button" data-ppe-action="RETURNED">Return</button>
+      </div>
+      <div class="stk-picker"><span class="stk-section-title">Person</span><div id="ppePerson"></div></div>
+      <label id="ppeHeldField" class="hidden">Item they hold<select id="ppeHeld"></select></label>
+      <label id="ppeItemField">Stock item<select id="ppeItem"></select></label>
+      <div id="ppeFreeFields" class="stk-form-grid hidden">
+        <label>Type<select id="ppeType"><option>Uniform</option><option>Safety Shoes</option><option>PPE</option><option>Hi-Vis</option><option>Other</option></select></label>
+        <label>Description<input id="ppeDesc" maxlength="120" placeholder="e.g. Polo shirt"></label>
+      </div>
+      <div class="stk-form-grid">
+        <label>Size <em>(optional)</em><input id="ppeSize" maxlength="20" list="ppeSizeList"><datalist id="ppeSizeList"></datalist></label>
+        <label>Quantity<input id="ppeQty" type="number" min="1" max="50" value="1" required></label>
+      </div>
+      <label id="ppeRestockField" class="stk-check hidden"><input id="ppeRestock" type="checkbox"> Put it back in stock (item in good condition)</label>
+      <label>Notes <em>(optional)</em><input id="ppeNotes" maxlength="500"></label>
+    </div>
+    <div class="stk-form-foot"><span id="ppeStatus" role="status"></span><button type="submit" class="stk-button stk-primary">Register</button></div>
+  </form>
+</dialog>
+
+<!-- Person profile -->
+<dialog id="personDialog" class="stk-dialog wide" aria-labelledby="personTitle">
+  <div class="stk-dialog-head"><div><small id="personKind">PERSON</small><strong id="personTitle"></strong><span id="personMeta"></span></div>
+    <div class="stk-row-actions"><button id="personIssue" type="button" class="stk-button stk-primary" data-operate>Issue / return</button><button type="button" class="stk-close" data-close aria-label="Close">×</button></div></div>
+  <div id="personBody" class="stk-profile"></div>
+</dialog>
+
+<!-- Locker -->
+<dialog id="lockerDialog" class="stk-dialog" aria-labelledby="lockerTitle">
+  <form id="lockerForm">
+    <div class="stk-dialog-head"><div><small>LOCKER KEY</small><strong id="lockerTitle"></strong><span id="lockerMeta"></span></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <div id="lockerPersonField" class="stk-picker"><span class="stk-section-title">Give the key to</span><div id="lockerPerson"></div></div>
+      <label>Notes <em>(optional)</em><input id="lockerNotes" maxlength="300"></label>
+      <div id="lockerLog"></div>
+    </div>
+    <div class="stk-form-foot"><span id="lockerStatus" role="status"></span>
+      <div class="stk-row-actions">
+        <button id="lockerService" type="button" class="stk-button hidden" data-manage></button>
+        <button id="lockerSave" type="submit" class="stk-button stk-primary">Assign key</button>
+      </div></div>
+  </form>
+</dialog>
+
+<dialog id="lockersAddDialog" class="stk-dialog" aria-labelledby="lockersAddTitle">
+  <form id="lockersAddForm">
+    <div class="stk-dialog-head"><div><small>LOCKER KEYS</small><strong id="lockersAddTitle">Add lockers</strong></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <label>Labels <em>(one per line or separated by commas)</em><textarea id="lockersAddLabels" rows="4" placeholder="M-81, M-82"></textarea></label>
+      <div class="stk-form-grid three">
+        <label>Or a range: prefix<input id="lockersPrefix" maxlength="10" placeholder="M-"></label>
+        <label>From<input id="lockersFrom" type="number" min="1" max="999"></label>
+        <label>To<input id="lockersTo" type="number" min="1" max="999"></label>
+      </div>
+    </div>
+    <div class="stk-form-foot"><span id="lockersAddStatus" role="status"></span><button type="submit" class="stk-button stk-primary">Add lockers</button></div>
+  </form>
+</dialog>
+
+<dialog id="settingsDialog" class="stk-dialog" aria-labelledby="settingsTitle">
+  <form id="settingsForm">
+    <div class="stk-dialog-head"><div><small>STOCK CONTROL</small><strong id="settingsTitle">Settings</strong></div><button type="button" class="stk-close" data-close aria-label="Close">×</button></div>
+    <div class="stk-form">
+      <div class="stk-form-grid">
+        <label>Chemicals must be counted every (days)<input id="setCountDays" type="number" min="1" max="60" required></label>
+        <label>Weeks of history used for usage averages<input id="setWeeks" type="number" min="1" max="52" required></label>
+      </div>
+    </div>
+    <div class="stk-form-foot"><span id="settingsStatus" role="status"></span><button type="submit" class="stk-button stk-primary">Save settings</button></div>
+  </form>
+</dialog>
+</div></div>
+</body>
+</html>

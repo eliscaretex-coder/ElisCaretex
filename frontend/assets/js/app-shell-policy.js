@@ -76,6 +76,8 @@
     roster: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9h18"/><path d="M7 13h3M14 13h3M7 17h3M14 17h3"/></svg>',
     insights: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5h18"/><path d="m4 16 5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg>',
     documents: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4"/><path d="m9.5 14 1.8 1.8 3.4-3.6"/></svg>',
+    stock: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>',
+    uniform: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5 4 6l1.5 4.5L8 9.5V20h8V9.5l2.5 1L20 6l-5-2.5a3 3 0 0 1-6 0z"/></svg>',
     checklist: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="m8.5 12 1.5 1.5 3-3M8.5 17h7"/></svg>',
     menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
     user: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
@@ -135,6 +137,8 @@
     MY_DRIVER_ROSTER: "self.my-driver-roster",
     NOTIFICATIONS: "self.notifications",
     COMPANY_DOCUMENTS: "self.company-documents",
+    MY_STOCK: "self.my-stock",
+    STOCK: "operations.stock",
     STAFF_MASTER: "staff.master",
     PRODUCTION_ROSTER: "production.roster",
     SORTING: "operations.sorting",
@@ -148,8 +152,10 @@
   });
 
   const MODULE_NAVIGATION_PERMISSIONS = Object.freeze({
-    MY_ROSTER: [NAVIGATION_PERMISSIONS.MY_ROSTER],
-    MY_DRIVER_ROSTER: [NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER],
+    // Staff with a roster login can request PPE and uniforms (202610280003).
+    MY_ROSTER: [NAVIGATION_PERMISSIONS.MY_ROSTER,NAVIGATION_PERMISSIONS.MY_STOCK],
+    MY_DRIVER_ROSTER: [NAVIGATION_PERMISSIONS.MY_DRIVER_ROSTER,NAVIGATION_PERMISSIONS.MY_STOCK],
+    STOCK: [NAVIGATION_PERMISSIONS.STOCK,NAVIGATION_PERMISSIONS.MY_STOCK],
     NOTIFICATIONS: [NAVIGATION_PERMISSIONS.NOTIFICATIONS],
     COMPANY_DOCUMENTS: [NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS],
     CUSTOMERS: [NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE],
@@ -191,6 +197,11 @@
       id: "company-documents", label: "Company Documents", description: "Company policies and SSOW to read and confirm",
       href: "./pages/company-documents.html", icon: "documents", group: "My work",
       permission: NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS
+    },
+    {
+      id: "my-stock", label: "My PPE & Uniform", description: "Request PPE and uniforms and see what you hold",
+      href: "./pages/my-stock.html", icon: "uniform", group: "My work",
+      permission: NAVIGATION_PERMISSIONS.MY_STOCK
     },
     {
       id: "customer-workspace", label: "Customer Workspace",
@@ -311,6 +322,22 @@
       ]
     },
     {
+      id: "stock", label: "Stock Control",
+      description: "PPE, uniforms, chemicals and other stock, staff requests and locker keys",
+      href: "./pages/stock.html", icon: "stock", group: "Management",
+      permission: NAVIGATION_PERMISSIONS.STOCK,
+      children: [
+        { id:"stock-overview", label:"Overview", href:"./pages/stock.html#overview" },
+        { id:"stock-requests", label:"Staff requests", href:"./pages/stock.html#requests" },
+        { id:"stock-items", label:"Items", href:"./pages/stock.html#items" },
+        { id:"stock-count", label:"Stock count", href:"./pages/stock.html#count" },
+        { id:"stock-people", label:"PPE & keys by person", href:"./pages/stock.html#people" },
+        { id:"stock-lockers", label:"Locker keys", href:"./pages/stock.html#lockers" },
+        { id:"stock-usage", label:"Usage & forecast", href:"./pages/stock.html#usage" },
+        { id:"stock-history", label:"History", href:"./pages/stock.html#history" }
+      ]
+    },
+    {
       id: "staff-master", label: "Staff Master",
       description: "Operational staff and work roles",
       href: "./pages/staff.html", icon: "user", group: "Management",
@@ -333,6 +360,8 @@
     "driver-roster.html": "my-driver-roster",
     "notifications.html": "notifications",
     "company-documents.html": "company-documents",
+    "my-stock.html": "my-stock",
+    "stock.html": "stock",
     "customers.html": "customer-workspace",
     "customer-service.html": "customer-service",
     "roster.html": "production-roster",
@@ -360,7 +389,8 @@
       NAVIGATION_PERMISSIONS.STAFF_MASTER,
       NAVIGATION_PERMISSIONS.PRODUCTION_ROSTER,
       NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER,
-      NAVIGATION_PERMISSIONS.TROLLEYS
+      NAVIGATION_PERMISSIONS.TROLLEYS,
+      NAVIGATION_PERMISSIONS.STOCK
     ],
     SUPERVISOR: [
       NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE,
@@ -372,7 +402,9 @@
       NAVIGATION_PERMISSIONS.MOP_PRODUCTION,
       NAVIGATION_PERMISSIONS.DISTRIBUTION,
       NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER,
-      NAVIGATION_PERMISSIONS.TROLLEYS
+      NAVIGATION_PERMISSIONS.TROLLEYS,
+      NAVIGATION_PERMISSIONS.STOCK,
+      NAVIGATION_PERMISSIONS.MY_STOCK
     ],
     SORTING_OPERATOR: [
       NAVIGATION_PERMISSIONS.CUSTOMER_WORKSPACE,

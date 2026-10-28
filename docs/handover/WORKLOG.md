@@ -80,6 +80,44 @@ Entry format:
 
 ---
 
+## 2026-10-28 — Claude — Stock Control: PPE/uniforms, chemicals, miscellaneous, staff requests and locker keys (Prepared)
+
+- Branch / commits: `claude/stock-control`.
+- Changed: owner asked to bring the "Elis Stock Control" Apps Script into the platform (areas
+  PPE & uniforms, chemicals and miscellaneous) and to let every staff member with a roster
+  login (production and distribution) request PPE and uniforms. New page
+  `pages/stock.html` (Management > Stock Control: Overview, Staff requests, Items, Stock count,
+  PPE & keys by person, Locker keys, Usage & forecast, History) and `pages/my-stock.html`
+  (My work > My PPE & Uniform: request with size and quantity, follow the answer, see what is
+  held). Same rules as the Apps Script: items are booked to a person, to a customer (packing) or
+  to nobody (chemicals, usage comes from the count: a drop is CONSUMPTION); immediate low-stock
+  and chemicals-due lists; leavers still holding PPE or a locker key are listed as pending
+  returns. Requests: REQUESTED -> APPROVED -> ISSUED, or REJECTED (reason required) or
+  CANCELLED by the person; handing over takes the items out of stock and registers them in the
+  person's name. Sidebar badge and Home card count requests waiting.
+- Permissions: module `STOCK` (already in `application_modules`). VIEW = read the workspace;
+  EDIT or APPROVE = movements, counts, PPE, keys and requests; MANAGE = catalogue, lockers,
+  settings. Templates: Administrator, General Manager, Production Manager MANAGE; Logistics
+  Manager and Production Supervisor approve/edit; Auditor VIEW. Requesting needs no STOCK grant:
+  an enabled personal account linked to an active Staff Master record with My Roster or My
+  Driver Roster access. Tables closed to clients; every RPC checks access.
+- Database: `202610280003_stock_control.sql` (tables, RPCs, permissions) and
+  `202610280004_stock_control_apps_script_import.sql` (batch `APPS_SCRIPT_STOCK_20261028_001`:
+  raw rows landed in `staging.apps_script_stock_rows`, people matched only by legacy ids, 72 of
+  73 matched; EMP-0070 "Ryotaro" has no Staff Master record and holds nothing; 33 items, 96
+  movements, 15 counts, 8 uniform records, 80 lockers with 24 assigned, 24 key events; CONFIG
+  (API key) and CUSTOMERS not imported). **Not applied** yet: waiting for the owner.
+- Validation: `supabase/tests/202610280003_stock_control_validation.sql` passed on a local
+  PostgreSQL 16 with stub auth/staff tables (fixtures created and rolled back inside the test);
+  the import was run twice locally (idempotent, reconciliation block passed). Both pages were
+  driven in Chromium against that local database (request -> hand over -> stock and holdings
+  updated, count with chemical usage, locker return, PPE issue) with no console errors.
+  `node scripts/validate-repository.mjs` passed. Not yet run against `ElisCaretex-dev`.
+- Open / next: owner runs the test-without-saving file, then applies. Low-stock emails, the
+  daily digest and the weekly chemical reminder from the Apps Script are not ported (no e-mail
+  job for this module yet); stock is per item, sizes are recorded on issue and request but not
+  stocked per size. INIT handover not refreshed for this module yet (Codex refresh).
+
 ## 2026-10-28 — Claude — Legacy Sync: customer schedules and routes join the nightly sync (Prepared)
 - Branch / commits: `claude/legacy-sync-schedules`, Pull Request into `master`.
 - Changed: sixth part of the full sync, run after the registers. CentralDB `Routes` (one record per

@@ -212,6 +212,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  async function renderStockAttention(canViewStock) {
+    if (!canViewStock) return;
+
+    try {
+      const { data, error } = await client.rpc("get_stock_attention");
+      if (error) throw error;
+      showHomeCardAttention("stock", Number(data?.pending_requests || 0),
+        (count) => `${count} PPE or uniform request${count === 1 ? "" : "s"} waiting`);
+    } catch (error) {
+      console.warn("Stock summary could not be loaded:", error);
+    }
+  }
+
   function showHomeCardAttention(moduleId, count, describe) {
     const card = operationalModuleGrid.querySelector(`[data-module-id="${moduleId}"]`);
     if (!card) return;
@@ -268,7 +281,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     showHome();
     await Promise.all([
       renderNotificationAttention(access.can(shellPolicy.NAVIGATION_PERMISSIONS.NOTIFICATIONS)),
-      renderCompanyDocumentAttention(access.can(shellPolicy.NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS))
+      renderCompanyDocumentAttention(access.can(shellPolicy.NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS)),
+      renderStockAttention(access.can(shellPolicy.NAVIGATION_PERMISSIONS.STOCK))
     ]);
   }
 
