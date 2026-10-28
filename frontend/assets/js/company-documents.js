@@ -1,6 +1,6 @@
 "use strict";
 
-// Company Documents: company policies and SSOW.
+// Company Documents: company policies, SSOW and risk assessments.
 // Staff read each document and confirm it; managers publish, replace and
 // follow up. Files live in the private "company-documents" Storage bucket,
 // one file per document: a new version replaces the file and the previous
@@ -14,7 +14,8 @@
   const FILE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
   const SECTIONS = [
     { code: "POLICY", title: "Company policies", short: "Company policy" },
-    { code: "SSOW", title: "SSOW · Safe systems of work", short: "SSOW" }
+    { code: "SSOW", title: "SSOW · Safe systems of work", short: "SSOW" },
+    { code: "RISK_ASSESSMENT", title: "Risk assessments", short: "Risk assessment", tag: "risk" }
   ];
   const STATUS = {
     PENDING: { label: "To read", tone: "pending" },
@@ -316,7 +317,7 @@
     if (!docs.length) {
       $("manageList").innerHTML = (state.admin.documents || []).length
         ? '<p class="docs-empty">No documents match these filters.</p>'
-        : `<div class="docs-empty"><strong>No documents yet.</strong><br>${state.canManage ? "Use “Add document” to publish the first company policy or SSOW." : "Managers have not published any document yet."}</div>`;
+        : `<div class="docs-empty"><strong>No documents yet.</strong><br>${state.canManage ? "Use “Add document” to publish the first company policy, SSOW or risk assessment." : "Managers have not published any document yet."}</div>`;
       return;
     }
     $("manageList").innerHTML = `<div class="docs-table-head"><span>Document</span><span>Version</span><span>Read status</span><span></span></div>` +
@@ -340,7 +341,7 @@
       <div class="docs-row-main">
         ${fileBadge(doc.mime_type)}
         <div>
-          <span class="docs-card-top"><em class="docs-section-tag ${doc.category === "SSOW" ? "ssow" : "policy"}">${esc(section(doc.category).short)}</em>${doc.reference_code ? `<em>${esc(doc.reference_code)}</em>` : ""}</span>
+          <span class="docs-card-top"><em class="docs-section-tag ${section(doc.category).tag || (doc.category === "SSOW" ? "ssow" : "policy")}">${esc(section(doc.category).short)}</em>${doc.reference_code ? `<em>${esc(doc.reference_code)}</em>` : ""}</span>
           <strong>${esc(doc.title)}</strong>
           <span class="docs-area-row">${areaTags(doc.areas)}</span>
           <small>${esc(doc.original_file_name || "")}${doc.file_size_bytes ? ` · ${size(doc.file_size_bytes)}` : ""}</small>

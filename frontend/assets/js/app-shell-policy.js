@@ -194,7 +194,7 @@
       permission: NAVIGATION_PERMISSIONS.NOTIFICATIONS
     },
     {
-      id: "company-documents", label: "Company Documents", description: "Company policies and SSOW to read and confirm",
+      id: "company-documents", label: "Company Documents", description: "Company policies, SSOW and risk assessments to read and confirm",
       href: "./pages/company-documents.html", icon: "documents", group: "My work",
       permission: NAVIGATION_PERMISSIONS.COMPANY_DOCUMENTS
     },

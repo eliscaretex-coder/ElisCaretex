@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Company Documents | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
-  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-4">
+  <link rel="stylesheet" href="../assets/css/company-documents.css?v=20261028-5">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
-  <script src="../assets/js/company-documents.js?v=20261028-4" defer></script>
+  <script src="../assets/js/company-documents.js?v=20261028-5" defer></script>
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
 </head>
 <body>
@@ -21,7 +21,7 @@
     <div>
       <span>STAFF INFORMATION</span>
       <h1>Company Documents</h1>
-      <p>Company policies and SSOW (safe systems of work). Read each document and confirm that you understood it.</p>
+      <p>Company policies, SSOW (safe systems of work) and risk assessments. Read each document and confirm that you understood it.</p>
     </div>
     <div id="docsHeadStats" class="docs-head-stats" aria-live="polite"></div>
   </header>
@@ -54,6 +54,7 @@
         <option value="">All sections</option>
         <option value="POLICY">Company policies</option>
         <option value="SSOW">SSOW</option>
+        <option value="RISK_ASSESSMENT">Risk assessments</option>
       </select>
       <select id="manageArea" class="docs-area-select" aria-label="Area"><option value="">All areas</option></select>
       <label class="docs-inline-check"><input id="manageArchived" type="checkbox"> Show archived</label>
@@ -110,9 +111,10 @@
         <select id="docCategory" required>
           <option value="POLICY">Company policy</option>
           <option value="SSOW">SSOW (safe system of work)</option>
+          <option value="RISK_ASSESSMENT">Risk assessment</option>
         </select>
       </label>
-      <label>Reference <em>(optional)</em><input id="docReference" maxlength="40" placeholder="e.g. SSOW-07"></label>
+      <label>Reference <em>(optional)</em><input id="docReference" maxlength="40" placeholder="e.g. SSOW-07 or RA-03"></label>
     </div>
     <label>Title<input id="docTitle" maxlength="160" required></label>
     <fieldset class="docs-revision">
