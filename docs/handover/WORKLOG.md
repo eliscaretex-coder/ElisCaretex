@@ -88,7 +88,8 @@ Entry format:
   already set). The chosen day is used by the Distribution planner and overview, the
   Finish queue, cutoff, entry lock and delivery reconciliation, MOP Production (due date,
   reconciliation, save) and trolley custody planned delivery.
-- Database: `202610290003_customer_delivery_day_choice.sql` **Prepared, not applied**.
+- Database: `202610290003_customer_delivery_day_choice.sql` **Applied** by the owner on
+  2026-10-29 (verified: `schedule_delivery_date` exists and the Finish context is patched).
   New `schedule_delivery_date(day, date)` and `customer_delivery_date(customer, date)`;
   trigger `set_automatic_schedule_delivery_weekday` now only defaults an empty delivery
   day and refuses the production weekday itself; 14 live functions are patched in place
@@ -98,7 +99,7 @@ Entry format:
   12/12 in a rolled-back run on ElisCaretex-dev: every production item of the last 60
   days keeps its delivery date; BLOOMFIELD Monday delivered Wednesday is stored, shown and
   used after publishing. validate-repository passes; mocked Playwright run of the selector.
-- Open / next: owner applies the migration and merges.
+- Open / next: PR #130 merged 2026-10-29.
 
 ## 2026-10-29 — Claude — Customers search box no longer loses the cursor
 
