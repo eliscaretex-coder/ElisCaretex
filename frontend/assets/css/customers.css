@@ -4937,3 +4937,6 @@ body.customers-modal-open {
 .customers-studio-plate-row{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px}
 .customers-studio-plate-row select{min-width:0;width:100%;min-height:30px;font-size:12px;padding:3px 4px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f2742}
 .customers-studio-plate-row select.is-set{border-color:#fdba74;background:#fff7ed;color:#b45309;font-weight:800}
+.customers-studio-delivery-select{grid-column:1/-1}
+.customers-studio-delivery-select.is-later select{border-color:#fdba74;background:#fff7ed;color:#9a3412;font-weight:800}
+.customers-studio-delivery-select small{color:#9a3412;font-size:11px;font-weight:700}

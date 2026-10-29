@@ -735,6 +735,13 @@ holds a signature of trolleys, plates and active units, so changing any of them 
 check. Customer Studio requires the "Units checked" tick to publish such a change; Customer
 Master lists and filters the customers to check.
 
+Delivery day choice (2026-10-29, `202610290003_customer_delivery_day_choice.sql`,
+**Prepared**, not applied; 12/12 in a rolled-back run): `customer_schedule_days.delivery_weekday`
+is no longer forced to the next day; it defaults to it and can be later (never the production
+weekday). Production and Distribution read it through `schedule_delivery_date(day, date)` /
+`customer_delivery_date(customer, date)` instead of `next_distribution_business_date`, except
+the legacy Apps Script sync functions.
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.

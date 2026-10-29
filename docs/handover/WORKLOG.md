@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Delivery day can be chosen per production day
+
+- Branch / commits: `claude/delivery-day-choice`, Pull Request
+- Changed: owner decision ("apply everywhere"): Edit Schedule has a Delivery day selector
+  per production day (next day by default, later days shown as "+n days", no Sunday unless
+  already set). The chosen day is used by the Distribution planner and overview, the
+  Finish queue, cutoff, entry lock and delivery reconciliation, MOP Production (due date,
+  reconciliation, save) and trolley custody planned delivery.
+- Database: `202610290003_customer_delivery_day_choice.sql` **Prepared, not applied**.
+  New `schedule_delivery_date(day, date)` and `customer_delivery_date(customer, date)`;
+  trigger `set_automatic_schedule_delivery_weekday` now only defaults an empty delivery
+  day and refuses the production weekday itself; 14 live functions are patched in place
+  (each replacement must match its expected count). `integration.legacy_sync_*` and
+  `get_trolley_production_customers` keep the next-day rule on purpose.
+- Validation: `supabase/tests/202610290003_customer_delivery_day_choice_validation.sql`
+  12/12 in a rolled-back run on ElisCaretex-dev: every production item of the last 60
+  days keeps its delivery date; BLOOMFIELD Monday delivered Wednesday is stored, shown and
+  used after publishing. validate-repository passes; mocked Playwright run of the selector.
+- Open / next: owner applies the migration and merges.
+
 ## 2026-10-29 — Claude — Customers search box no longer loses the cursor
 
 - Branch / commits: `claude/customers-search-focus`, Pull Request
