@@ -472,8 +472,41 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // The views are rebuilt with innerHTML after each search, which replaced the
+  // search box while the person was still typing. Keep its focus, caret and raw text.
+  let searchDraft = null;
+
+  mainPanel.addEventListener("input", (event) => {
+    if (event.target.matches?.('input[type="search"][id]')) {
+      searchDraft = { id: event.target.id, value: event.target.value };
+    }
+  }, true);
+
+  function captureSearchFocus() {
+    const active = document.activeElement;
+    if (!active || !mainPanel.contains(active) || !active.matches('input[type="search"][id]')) return null;
+    return { id: active.id, start: active.selectionStart, end: active.selectionEnd };
+  }
+
+  function restoreSearchFocus(focus) {
+    if (!focus) return;
+    const input = document.getElementById(focus.id);
+    if (!input || document.activeElement === input) return;
+    if (searchDraft?.id === focus.id && searchDraft.value.trim() === input.value.trim()) {
+      input.value = searchDraft.value;
+    }
+    input.focus();
+    const end = input.value.length;
+    try {
+      input.setSelectionRange(Math.min(focus.start ?? end, end), Math.min(focus.end ?? end, end));
+    } catch (error) {
+      // Some input types do not support a caret position.
+    }
+  }
+
   async function loadMainView() {
     const requestId = ++state.requestId;
+    const focus = captureSearchFocus();
     setPageMessage("");
 
     try {
@@ -495,6 +528,10 @@ document.addEventListener("DOMContentLoaded", () => {
         "This view could not be loaded.",
         "Check the browser console and Supabase RPC permissions."
       );
+    }
+
+    if (requestId === state.requestId) {
+      restoreSearchFocus(focus);
     }
   }
 
