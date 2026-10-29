@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Choose the unit on each trolley line in Edit Schedule
+
+- Branch / commits: `claude/trolley-unit-select`, Pull Request
+- Changed: owner request: in Edit Schedule every planned trolley now has its own line
+  ("M #1 [unit]") with a unit selector, visible without opening anything; "customer name
+  (no unit)" is the default. Two units on one trolley and the instruction stay in the
+  "Two units on a trolley or instruction" details below.
+- Database: none
+- Validation: validate-repository passes; mocked Playwright run: choosing LAUREL and
+  PERSON on Tuesday M #1/#2 saves those plates; a trolley with two units shows "S/BROOK &
+  KILAKEE" in its line.
+- Open / next: none.
+
 ## 2026-10-29 — Claude — Customer Schedule shows the units of every customer
 
 - Branch / commits: `claude/schedule-show-units`, Pull Request

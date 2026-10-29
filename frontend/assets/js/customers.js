@@ -3847,17 +3847,52 @@ document.addEventListener("DOMContentLoaded", () => {
     const subunitNames = new Map(subunits.map((subunit) => [subunit.subunit_id, subunit.subunit_name]));
     const filledPlates = plates.filter((plate) => plate.plate_number <= quantity
       && ((plate.subunit_ids || []).length || String(plate.instructions || "").trim()));
-    const summaryLines = filledPlates.map((plate) => {
+    // The unit lines already show single units; the summary lists the rest.
+    const summaryLines = filledPlates.filter((plate) => !subunits.length
+      || (plate.subunit_ids || []).length > 1
+      || String(plate.instructions || "").trim()).map((plate) => {
       const names = (plate.subunit_ids || []).map((id) => subunitNames.get(id) || "?").join(" & ") || "customer name";
       return `<span class="is-set">#${plate.plate_number} ${escapeHtml(names)}${String(plate.instructions || "").trim() ? " ⚠" : ""}</span>`;
     }).join("");
     const isOpen = state.studio.openPlates?.has(plateEditorKey(requirement));
+    const trolleyTypes = Array.isArray(state.studio.management?.reference_data?.trolley_types)
+      ? state.studio.management.reference_data.trolley_types
+      : [];
+    const displayCode = trolleyTypes.find((type) => type.trolley_type_code === requirement.trolley_type_code)?.display_code
+      || requirement.trolley_type_code || "?";
+    const customerName = state.studio.customerName || "Customer name";
+
+    // One line per trolley with its unit, visible without opening anything. Two
+    // units on one trolley and the instruction are set in the details below.
+    const unitRows = subunits.length
+      ? `
+        <div class="customers-studio-plate-rows">
+          ${Array.from({ length: quantity }, (_, offset) => {
+            const plateNumber = offset + 1;
+            const plate = plates.find((item) => Number(item.plate_number) === plateNumber) || {};
+            const ids = (plate.subunit_ids || []).filter((id) => subunitNames.has(id));
+            const multiple = ids.length > 1;
+            return `
+              <label class="customers-studio-plate-row" data-plate-number="${plateNumber}">
+                <span class="customers-trolley-chip">${escapeHtml(displayCode)}<small>#${plateNumber}</small></span>
+                <select data-plate-unit-select aria-label="Unit on trolley ${escapeHtml(displayCode)} ${plateNumber}" class="${ids.length ? "is-set" : ""}">
+                  <option value=""${ids.length ? "" : " selected"}>${escapeHtml(customerName)} (no unit)</option>
+                  ${multiple ? `<option value="__multiple" selected>${escapeHtml(ids.map((id) => subunitNames.get(id)).join(" & "))}</option>` : ""}
+                  ${subunits.map((subunit) => `
+                    <option value="${escapeHtml(subunit.subunit_id)}"${!multiple && ids[0] === subunit.subunit_id ? " selected" : ""}>${escapeHtml(subunit.subunit_name)}</option>
+                  `).join("")}
+                </select>
+              </label>`;
+          }).join("")}
+        </div>`
+      : "";
 
     return `
+      ${unitRows}
       <details class="customers-studio-plates" data-plate-editor="${escapeHtml(plateEditorKey(requirement))}" ${isOpen ? "open" : ""}>
         <summary>
-          <b>Trolley plates</b>
-          ${summaryLines || "<span>Customer name only · click to set units</span>"}
+          <b>${subunits.length ? "Two units on a trolley or instruction" : "Instruction for the staff"}</b>
+          ${summaryLines || `<span>${subunits.length ? "Optional" : "No units in Customer Master · optional"}</span>`}
         </summary>
         ${subunits.length ? "" : '<p class="customers-studio-plates-help">This customer has no units in Customer Master. You can still add an instruction for the staff.</p>'}
         ${Array.from({ length: quantity }, (_, offset) => {
@@ -4427,8 +4462,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (target.matches("[data-studio-field], [data-day-field], [data-product-field], [data-product-variant], [data-trolley-field], [data-trolley-serves], [data-plate-subunit], [data-plate-instructions]")) {
+      if (target.matches("[data-studio-field], [data-day-field], [data-product-field], [data-product-variant], [data-trolley-field], [data-trolley-serves], [data-plate-subunit], [data-plate-instructions], [data-plate-unit-select]")) {
         updateDraftControl(target);
+      }
+
+      // Keep the trolley unit lines and the details editor showing the same plates.
+      if (target.matches("[data-plate-subunit], [data-plate-unit-select]")) {
+        rerenderScheduleManagement();
       }
 
       if (target.matches("[data-trolley-field=\"quantity\"]")) {
@@ -4503,6 +4543,16 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        markStudioDirty();
+      }
+      return;
+    }
+
+    if (target.matches("[data-plate-unit-select]")) {
+      const plate = draftPlateByElement(target);
+
+      if (plate && target.value !== "__multiple") {
+        plate.subunit_ids = target.value ? [target.value] : [];
         markStudioDirty();
       }
       return;
