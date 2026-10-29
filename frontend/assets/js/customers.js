@@ -2249,7 +2249,7 @@ document.addEventListener("DOMContentLoaded", () => {
       days: (Array.isArray(snapshot.days) ? snapshot.days : [])
         .map((day) => ({
           production_weekday: Number(day.production_weekday),
-          delivery_weekday: nextDistributionWeekday(day.production_weekday),
+          delivery_weekday: Number(day.delivery_weekday) || nextDistributionWeekday(day.production_weekday),
           default_route_id: String(day.default_route_id || ""),
           delivery_window_start: String(day.delivery_window_start || "").slice(0, 5),
           delivery_window_end: String(day.delivery_window_end || "").slice(0, 5),
@@ -2297,7 +2297,7 @@ document.addEventListener("DOMContentLoaded", () => {
       days: (Array.isArray(documentValue?.days) ? documentValue.days : [])
         .map((day) => ({
           production_weekday: Number(day.production_weekday),
-          delivery_weekday: nextDistributionWeekday(day.production_weekday),
+          delivery_weekday: Number(day.delivery_weekday) || nextDistributionWeekday(day.production_weekday),
           default_route_id: emptyToNull(day.default_route_id),
           delivery_window_start: emptyToNull(day.delivery_window_start),
           delivery_window_end: emptyToNull(day.delivery_window_end),
@@ -3673,10 +3673,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ${renderDraftTrolleySection(day)}
 
         <div class="customers-studio-day-fields customers-studio-day-edit-fields">
-          <div class="customers-studio-managed-order customers-studio-delivery-day" title="Automatically set to the next day, skipping Sunday.">
-            <span>Delivery</span>
-            <strong>${escapeHtml(weekdayLabel(nextDistributionWeekday(dayDefinition.number)))}</strong>
-          </div>
+          ${deliveryDayField(dayDefinition.number, day.delivery_weekday)}
           ${dayInputField("Delivery order", "delivery_order", day.delivery_order, "number", "1")}
           ${dayInputField("Window start", "delivery_window_start", day.delivery_window_start, "time")}
           ${dayInputField("Window end", "delivery_window_end", day.delivery_window_end, "time")}
@@ -4178,6 +4175,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("\n");
   }
 
+  // Days between production and delivery: 1 to 7 (the same weekday is a week later).
+  function deliveryGapDays(productionWeekday, deliveryWeekday) {
+    const production = Number(productionWeekday);
+    const delivery = Number(deliveryWeekday);
+    if (!production || !delivery) return 0;
+    return ((delivery - production + 6) % 7) + 1;
+  }
+
+  // Delivery day of a production day. The next day (Saturday to Monday) is the
+  // rule; a later day can be chosen and is shown with how many days it adds.
+  function deliveryDayField(productionWeekday, value) {
+    const standard = nextDistributionWeekday(productionWeekday);
+    const selected = Number(value) || standard;
+    const options = Array.from({ length: 7 }, (_, offset) => ((Number(productionWeekday) + offset) % 7) + 1)
+      // No Sunday deliveries, unless a schedule already has one.
+      .filter((weekday) => weekday !== Number(productionWeekday) && (weekday !== 7 || weekday === Number(value)));
+    const gap = deliveryGapDays(productionWeekday, selected);
+    const standardGap = deliveryGapDays(productionWeekday, standard);
+    return `
+      <label class="customers-studio-field customers-studio-delivery-select${selected !== standard ? " is-later" : ""}">
+        <span>Delivery day</span>
+        <select data-day-field="delivery_weekday">
+          ${options.map((weekday) => {
+            const days = deliveryGapDays(productionWeekday, weekday);
+            const label = `${weekdayLabel(weekday)}${weekday === standard ? " (next day)" : ` (+${days} days)`}`;
+            return `<option value="${weekday}" ${weekday === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+          }).join("")}
+        </select>
+        ${selected !== standard && gap > standardGap ? `<small>Delivered ${gap} days after production.</small>` : ""}
+      </label>
+    `;
+  }
+
   function daySelectField(label, fieldName, value) {
     return `
       <label class="customers-studio-field">
@@ -4475,7 +4505,7 @@ document.addEventListener("DOMContentLoaded", () => {
         rerenderScheduleManagement();
       }
 
-      if (target.matches("[data-day-field=\"default_route_id\"]")) {
+      if (target.matches("[data-day-field=\"default_route_id\"], [data-day-field=\"delivery_weekday\"]")) {
         rerenderScheduleManagement();
       }
     };
