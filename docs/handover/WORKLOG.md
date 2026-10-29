@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Production Tracker: no duplicate stream after a same-day schedule change
+
+- Branch / commits: `claude/tracker-duplicate-streams`, Pull Request
+- Changed: the Production Tracker showed some customers twice per product (one row with the
+  real work, one empty "Not started" row with its planned trolley missing). Cause: when a new
+  schedule version is published effective on the production day (Customer Studio edit or a
+  legacy-sync delivery-order change), the scheduled row carries the new schedule product id
+  while the day's flow item still points to the previous version, and V1 matched only on
+  that id. 37 flow items on 28-29/10 were affected (e.g. ST CAMILLUS, ADARE, ST ITAS).
+  The Finish "Processed actual" card now also shows the staff who processed the Clothes.
+- Database: `202610290004_production_tracker_same_day_schedule_version.sql` **Prepared, not
+  applied**. Replaces `get_production_tracker_v1`, `_v2` (lifecycle trolleys through either
+  schedule product id) and `_v4` (`finish_processed_by`). Read-only RPCs; no data change.
+- Validation: rolled-back run against ElisCaretex-dev, 7/7: no customer/product appears twice
+  on any of the last 14 days, every flow item of those days is still on the tracker, ST
+  CAMILLUS shows 2 streams with its Finish actual and staff name, anon cannot execute.
+  `node scripts/validate-repository.mjs` passes.
+- Open / next: owner applies the migration. `get_sorting_customer_board_v3` counts trolley
+  scans by schedule product id too, so scan counts may reset after a same-day schedule
+  change; not changed here.
+
 ## 2026-10-29 — Claude — Delivery day can be chosen per production day
 
 - Branch / commits: `claude/delivery-day-choice`, Pull Request

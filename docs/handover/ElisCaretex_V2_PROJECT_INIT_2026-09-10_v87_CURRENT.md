@@ -742,6 +742,15 @@ weekday). Production and Distribution read it through `schedule_delivery_date(da
 `customer_delivery_date(customer, date)` instead of `next_distribution_business_date`, except
 the legacy Apps Script sync functions.
 
+Production Tracker same-day schedule version (2026-10-29,
+`202610290004_production_tracker_same_day_schedule_version.sql`, **Prepared**, not applied;
+7/7 in a rolled-back run): `get_production_tracker_v1` binds a scheduled row to its
+Production Flow item by customer, product and date (the item's unique key), preferring the
+exact schedule product, so a schedule version published on the production day no longer
+shows a second "Not started" stream. Lifecycle trolley stays are read through either
+schedule product id (V1/V2). V4 adds `finish_processed_by` (Finish staff names), shown in
+the Processed actual card.
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
