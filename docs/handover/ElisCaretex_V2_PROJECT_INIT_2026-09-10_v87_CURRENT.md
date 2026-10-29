@@ -428,7 +428,7 @@ Trolley UI improvements include:
 - registry/service fields are not permanently exposed;
 - trolley lifecycle and custody remain governed operational evidence.
 
-Customer subunits and trolley plates (2026-10-29, owner request; **Prepared**, see section 14):
+Customer subunits and trolley plates (2026-10-29, owner request; **Applied**, PR #123, see section 14):
 a customer can have subunits (secondary names such as BLOOMFIELD: D/BROOK, S/BROOK, KILAKEE).
 They are kept in Customer Master and asked for when a customer is created. Each planned
 trolley of a Customer Schedule trolley row can carry one or more subunits (two subunits can
@@ -714,7 +714,7 @@ day; `get_distribution_roster_week` lists drivers from the week of `joined_on` a
 `production_roster_until`.
 
 Customer subunits and trolley plates (2026-10-29,
-`202610290001_customer_subunits_and_trolley_plates.sql`, **Prepared**, not applied; the
+`202610290001_customer_subunits_and_trolley_plates.sql`, **Applied** by the owner 2026-10-29; the
 database test passed in a rolled-back run on ElisCaretex-dev): tables `customer_subunits`
 (deactivated, never deleted) and `customer_schedule_trolley_plates` (one optional row per
 planned trolley: `subunit_ids`, `instructions`; editable only while the schedule version is

@@ -92,7 +92,11 @@ Entry format:
   trolley, delivery days, route number and colour (read live from the schedule in force and
   Distribution Routes); it prints on A4 twice, the upper copy upside down, so the sheet
   folded in the middle and hung over the trolley bar reads on both sides.
-- Database: `202610290001_customer_subunits_and_trolley_plates.sql` **Prepared, not applied**.
+- Database: `202610290001_customer_subunits_and_trolley_plates.sql` **Applied** by the owner on
+  2026-10-29 (final version; verified by querying the new tables and the `delivery_days`
+  version of `get_production_flow_trolley_plates`). Security advisor after applying: only the
+  expected notices for the new tables (RLS on, no policies, read through RPCs) and the
+  authenticated `SECURITY DEFINER` RPCs, which check permissions internally.
   The replaced function bodies were checked identical to the live ones before patching.
 - Validation: `supabase/tests/202610290001_customer_subunits_and_trolley_plates_validation.sql`
   inside rolled-back runs on ElisCaretex-dev: 30 checks passed together, the change-history
@@ -101,8 +105,7 @@ Entry format:
   the migration file was revised before being applied; validate-repository passes;
   mocked Playwright runs of Customers, Customer Schedule, Finish (desktop and phone) and MOP
   Production, including the printed label.
-- Open / next: owner applies the migration, then merges. QR code on the plate is a separate
-  task. Run the Supabase security advisors after applying.
+- Open / next: PR #123 merged 2026-10-29. QR code on the plate is a separate task.
 
 ## 2026-10-29 — Claude — Company Documents: confirmation no longer lost when coming back from the PDF on a phone
 
