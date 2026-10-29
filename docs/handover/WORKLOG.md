@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Company Documents: confirmation no longer lost when coming back from the PDF on a phone
+
+- Branch / commits: claude/document-ack-phone-return, Pull Request
+- Changed: on phones the PDF opens in the phone's viewer and the page often reloads when
+  the person comes back (installed app, iOS), which closed the viewer before they could
+  confirm, so the document looked "forgotten". The document being read is now remembered
+  for the browser tab and the viewer with the confirmation reopens after the reload. A
+  slow "opened" reply can no longer turn a fresh confirmation back into "to read".
+  Owner report 2026-10-29: staff confirm, then are asked to read again.
+- Database: none. Checked ElisCaretex-dev: every confirmation given is stored and still
+  counts (no new versions published). Data finding for the owner: "Environmental Policy
+  Statement" (EP101) holds the Health & Safety PDF (HSP101), so staff read the same file
+  twice under two titles. Fix by publishing the right file with New version.
+- Validation: validate-repository passes; mocked phone run in Playwright (reload after
+  opening the PDF reopens the confirmation; slow open reply keeps "Confirmed").
+- Open / next: owner to replace the Environmental Policy file.
+
 ## 2026-10-28 — Claude — Install ElisCaretex on phones as an app (PWA)
 
 - Branch / commits: `claude/pwa-install`, Pull Request

@@ -168,6 +168,21 @@
   // makes mobile browsers download and render the whole file inside the page.
   const isPhone = () => window.matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 1024px)").matches;
 
+  // The phone's PDF viewer often reloads this page when the person comes back
+  // (installed app, iOS), which closed the viewer before they could confirm.
+  // The document being read is remembered so the confirmation reopens.
+  const READING_KEY = "elis.companyDocuments.reading";
+  const rememberReading = (id) => {
+    try { id ? sessionStorage.setItem(READING_KEY, id) : sessionStorage.removeItem(READING_KEY); } catch (_) { /* optional */ }
+  };
+  function reopenReading() {
+    let id = null;
+    try { id = sessionStorage.getItem(READING_KEY); } catch (_) { return; }
+    const doc = id && state.mine.find((item) => item.document_id === id);
+    if (doc && NEEDS_ACTION.has(doc.status)) openViewer(doc, { record: false });
+    else rememberReading(null);
+  }
+
   async function openViewer(doc, { record = true } = {}) {
     state.viewing = doc;
     const dialog = $("viewer");
@@ -193,7 +208,7 @@
         : isPhone()
           ? `<div class="docs-phone-open">${fileBadge(doc.mime_type)}<strong>${esc(doc.original_file_name || doc.title)}</strong>
                <small>${esc(revision(doc))}${doc.file_size_bytes ? ` · ${size(doc.file_size_bytes)}` : ""}</small>
-               <a class="docs-primary" href="${esc(url)}" target="_blank" rel="noopener">Open the document</a>
+               <a class="docs-primary" data-read-file href="${esc(url)}" target="_blank" rel="noopener">Open the document</a>
                <small>It opens in your phone's PDF viewer. Come back here to confirm.</small></div>`
           : `<iframe title="${esc(doc.title)}" src="${esc(url)}#view=FitH"></iframe>`;
     } catch (error) {
@@ -204,6 +219,8 @@
   async function recordOpen(doc) {
     try {
       const status = await rpc("record_company_document_open", { p_document_id: doc.document_id });
+      // A slow "opened" reply must not undo a confirmation given meanwhile.
+      if (doc.status === "ACKNOWLEDGED" && status?.status !== "ACKNOWLEDGED") return;
       Object.assign(doc, status);
       if (state.viewing === doc) renderAck(doc);
       renderMine();
@@ -243,6 +260,7 @@
       Object.assign(doc, status);
       const mine = state.mine.find((item) => item.document_id === doc.document_id);
       if (mine && mine !== doc) Object.assign(mine, status);
+      rememberReading(null);
       state.confirming = false;
       button.textContent = "Confirm";
       renderAck(doc);
@@ -768,7 +786,11 @@
   function bind() {
     document.querySelectorAll("dialog [data-close]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
     document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
-    $("viewer").addEventListener("close", () => { $("viewerBody").innerHTML = ""; state.viewing = null; });
+    $("viewer").addEventListener("close", () => { $("viewerBody").innerHTML = ""; state.viewing = null; rememberReading(null); });
+    $("viewerBody").addEventListener("click", (event) => {
+      const doc = state.viewing;
+      if (event.target.closest("[data-read-file]") && doc && NEEDS_ACTION.has(doc.status)) rememberReading(doc.document_id);
+    });
     $("docsTabs").addEventListener("click", (event) => { const button = event.target.closest("[data-tab]"); if (button) showTab(button.dataset.tab); });
     $("mineList").addEventListener("click", (event) => {
       const card = event.target.closest("[data-open]");
@@ -818,6 +840,7 @@
       await loadMine();
       const tab = location.hash.slice(1);
       if (state.canViewStatus && ["manage", "people"].includes(tab)) await showTab(tab);
+      else reopenReading();
     } catch (error) {
       $("mineList").innerHTML = `<p class="docs-empty error">${esc(friendly(error))}</p>`;
     }
