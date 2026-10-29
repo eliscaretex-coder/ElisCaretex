@@ -72,7 +72,7 @@
     container.hidden = false;
     container.innerHTML = `
       <div class="trolley-plates-head">
-        <div><strong>🛒 Trolley plates (${trolleys.length})</strong> <span>${withSub ? `${withSub} with subunit` : "Customer name only"}</span></div>
+        <div><strong>🛒 Trolley plates (${trolleys.length})</strong> <span>${withSub ? `${withSub} with unit` : "Customer name only"}</span></div>
         ${trolleys.length > 1 ? '<button type="button" data-plate-print="all">Print all labels</button>' : ""}
       </div>
       <ol class="trolley-plates-list">
@@ -97,17 +97,46 @@
     };
   }
 
-  function labelHtml(data, trolley, total) {
+  function routeTextColor(hex) {
+    const match = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+    if (!match) return "#000";
+    const value = parseInt(match[1], 16);
+    const luminance = (0.299 * (value >> 16) + 0.587 * ((value >> 8) & 255) + 0.114 * (value & 255)) / 255;
+    return luminance > 0.6 ? "#000" : "#fff";
+  }
+
+  // One half of an A4 sheet. The sheet holds the label twice, one copy turned
+  // upside down, so the sheet folded in the middle and hung over the trolley
+  // bar (fold on top) reads the right way up on both sides.
+  function labelHalfHtml(data, trolley, total, flipped) {
     const sub = trolleyName(data, trolley);
+    const days = Array.isArray(data.delivery_days) ? data.delivery_days : [];
+    const color = /^#[0-9a-f]{6}$/i.test(String(data.route_color || "")) ? data.route_color : "";
+    const route = data.route_code
+      ? `<span class="route"${color ? ` style="background:${color};color:${routeTextColor(color)}"` : ""}>Route ${esc(data.route_code)}</span>`
+      : "";
     return `
-      <section class="label">
+      <section class="half${flipped ? " flipped" : ""}">
         <img class="logo" src="${esc(logoSrc)}" alt="Elis">
         <div class="names">
           <div class="customer">${esc(data.customer_name)}</div>
           ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
         </div>
-        <div class="foot">${esc(`${trolley.display_code || ""} · ${trolley.position}/${total}`)}</div>
+        <div class="foot">
+          <span class="trolley">${esc(`${trolley.display_code || ""} · ${trolley.position}/${total}`)}</span>
+          ${days.length ? `<span class="days">Delivery: ${esc(days.join(" / "))}</span>` : ""}
+          ${route}
+        </div>
       </section>`;
+  }
+
+  function labelSheetHtml(data, trolley, total) {
+    return `
+      <div class="sheet">
+        ${labelHalfHtml(data, trolley, total, true)}
+        <div class="fold"></div>
+        ${labelHalfHtml(data, trolley, total, false)}
+      </div>`;
   }
 
   async function printLabels(data, trolleys) {
@@ -120,18 +149,25 @@
     await logoReady;
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Trolley label · ${esc(data.customer_name)}</title>
       <style>
-        @page{size:A5 landscape;margin:8mm}
+        @page{size:A4 portrait;margin:0}
         *{box-sizing:border-box}
-        body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#000}
-        .label{position:relative;height:130mm;page-break-after:always;break-after:page;display:grid;place-items:center;border:1px solid #000;padding:10mm}
-        .label:last-child{page-break-after:auto;break-after:auto}
-        .logo{position:absolute;top:6mm;left:6mm;height:16mm}
-        .names{text-align:center;display:grid;gap:6mm;max-width:100%}
+        html,body{margin:0;padding:0}
+        body{font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .sheet{position:relative;width:210mm;height:297mm;overflow:hidden;page-break-after:always;break-after:page}
+        .sheet:last-child{page-break-after:auto;break-after:auto}
+        .half{position:relative;width:210mm;height:148.5mm;padding:12mm;display:grid;place-items:center}
+        .fold{position:absolute;left:0;right:0;top:148.5mm;border-top:1px dashed #9ca3af}
+        .flipped{transform:rotate(180deg)}
+        .logo{position:absolute;top:10mm;left:12mm;height:16mm}
+        .names{text-align:center;display:grid;gap:6mm;max-width:100%;padding:0 4mm}
         .customer{font-size:34pt;font-weight:800;line-height:1.1;overflow-wrap:anywhere}
         .sub{font-size:28pt;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
-        .foot{position:absolute;bottom:5mm;left:6mm;font-size:10pt}
+        .foot{position:absolute;left:12mm;right:12mm;bottom:10mm;display:flex;align-items:center;gap:6mm;font-size:13pt;font-weight:700}
+        .foot .days{flex:1;text-align:center}
+        .foot .route{margin-left:auto;border:1.5px solid #000;border-radius:3mm;padding:2mm 4mm;font-size:15pt;font-weight:800}
+        @media screen{body{background:#e5e7eb}.sheet{background:#fff;margin:8mm auto;box-shadow:0 2px 10px rgba(0,0,0,.2)}}
       </style></head><body>
-      ${trolleys.map((trolley) => labelHtml(data, trolley, all.length)).join("")}
+      ${trolleys.map((trolley) => labelSheetHtml(data, trolley, all.length)).join("")}
       <script>
         function printWhenReady(){
           var pending = Array.prototype.filter.call(document.images, function(img){ return !img.complete; });

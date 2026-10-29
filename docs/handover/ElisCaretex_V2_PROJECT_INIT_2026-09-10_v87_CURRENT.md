@@ -435,8 +435,11 @@ trolley of a Customer Schedule trolley row can carry one or more subunits (two s
 share a trolley; a trolley without a subunit shows the customer name) and an instruction.
 Finish (customer dialog) and MOP Production (selected customer) list one row per planned
 trolley with the subunit or customer name, the instruction (screen only) and Print label.
-The printed plate carries the Elis logo, customer name and subunit only. The QR code on the
-plate is a separate follow-up task.
+The screens call subunits "Units". The printed plate carries the Elis logo, customer name,
+unit, trolley, delivery days and route number and colour (read live, never from snapshots,
+so schedule and route changes show at once). It prints on one A4 sheet twice, the upper
+copy upside down, to fold in the middle over the trolley bar. The QR code on the plate is a
+separate follow-up task.
 
 ## 12. Production Intelligence
 

@@ -3840,9 +3840,9 @@ document.addEventListener("DOMContentLoaded", () => {
       <details class="customers-studio-plates" data-plate-editor="${escapeHtml(plateEditorKey(requirement))}" ${isOpen ? "open" : ""}>
         <summary>
           <b>Trolley plates</b>
-          ${summaryLines || "<span>Customer name only · click to set subunits</span>"}
+          ${summaryLines || "<span>Customer name only · click to set units</span>"}
         </summary>
-        ${subunits.length ? "" : '<p class="customers-studio-plates-help">This customer has no subunits in Customer Master. You can still add an instruction for the staff.</p>'}
+        ${subunits.length ? "" : '<p class="customers-studio-plates-help">This customer has no units in Customer Master. You can still add an instruction for the staff.</p>'}
         ${Array.from({ length: quantity }, (_, offset) => {
           const plateNumber = offset + 1;
           const plate = plates.find((item) => Number(item.plate_number) === plateNumber) || {};
@@ -5859,8 +5859,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function subunitRowHtml(subunit = {}) {
     return `
       <div class="customers-subunit-row" data-subunit-row data-subunit-id="${escapeHtml(subunit.subunit_id || "")}">
-        <input type="text" maxlength="80" value="${escapeHtml(subunit.subunit_name || "")}" placeholder="Subunit name, e.g. D/BROOK" aria-label="Subunit name">
-        <button class="customers-icon-danger-button" type="button" data-remove-subunit title="Remove subunit">×</button>
+        <input type="text" maxlength="80" value="${escapeHtml(subunit.subunit_name || "")}" placeholder="Unit name, e.g. D/BROOK" aria-label="Unit name">
+        <button class="customers-icon-danger-button" type="button" data-remove-subunit title="Remove unit">×</button>
       </div>
     `;
   }
@@ -5880,7 +5880,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function customerFieldsChanged() {
-    return customerFormChangedFields().some((label) => label !== "subunits");
+    return customerFormChangedFields().some((label) => label !== "units");
   }
 
   async function saveFormSubunits(customerId, reason) {
@@ -5924,7 +5924,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (before.notes !== after.notes) labels.push("notes");
     if (before.operational_alert !== after.operational_alert) labels.push("operational alert");
     if (JSON.stringify(before.product_services || []) !== JSON.stringify(after.product_services || [])) labels.push("services");
-    if (JSON.stringify(before.subunits || []) !== JSON.stringify(after.subunits || [])) labels.push("subunits");
+    if (JSON.stringify(before.subunits || []) !== JSON.stringify(after.subunits || [])) labels.push("units");
 
     return labels;
   }
@@ -5957,12 +5957,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const subunitNames = formSubunitList().map((item) => item.subunit_name);
     if (subunitNames.some((name) => !name)) {
-      return "Enter a name for every subunit or remove the empty row.";
+      return "Enter a name for every unit or remove the empty row.";
     }
     const lowerNames = subunitNames.map((name) => name.toLowerCase());
     const duplicate = subunitNames.find((name, index) => lowerNames.indexOf(name.toLowerCase()) !== index);
     if (duplicate) {
-      return `Subunit "${duplicate}" appears more than once.`;
+      return `Unit "${duplicate}" appears more than once.`;
     }
 
     if (
@@ -6303,7 +6303,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await saveFormSubunits(result.customer_id, reason);
           } catch (subunitError) {
             console.error("Customer subunits save failed:", subunitError);
-            window.alert(`The customer was created, but the subunits were not saved: ${errorMessage(subunitError)}\nOpen Edit Customer to add them again.`);
+            window.alert(`The customer was created, but the units were not saved: ${errorMessage(subunitError)}\nOpen Edit Customer to add them again.`);
           }
         }
 
@@ -6385,7 +6385,7 @@ document.addEventListener("DOMContentLoaded", () => {
     UPDATE_LEGACY_MASTER: "Updated by legacy sync",
     IMPORT_APPS_SCRIPT_MASTER: "Imported from Apps Script",
     IMPORT_HISTORICAL_CUSTOMER: "Imported from history",
-    SAVE_CUSTOMER_SUBUNITS: "Subunits changed"
+    SAVE_CUSTOMER_SUBUNITS: "Units changed"
   };
 
   function historyActionLabel(action) {

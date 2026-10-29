@@ -227,15 +227,15 @@ begin
   end if;
 
   if nullif(trim(p_change_reason), '') is null then
-    raise exception using errcode = '22023', message = 'A reason is required to change the subunits.';
+    raise exception using errcode = '22023', message = 'A reason is required to change the units.';
   end if;
 
   if p_subunits is null or jsonb_typeof(p_subunits) <> 'array' then
-    raise exception using errcode = '22023', message = 'The subunits must be a list.';
+    raise exception using errcode = '22023', message = 'The units must be a list.';
   end if;
 
   if jsonb_array_length(p_subunits) > 50 then
-    raise exception using errcode = '22023', message = 'A customer cannot have more than 50 subunits.';
+    raise exception using errcode = '22023', message = 'A customer cannot have more than 50 units.';
   end if;
 
   perform 1
@@ -253,21 +253,21 @@ begin
   for v_item in select value from jsonb_array_elements(p_subunits)
   loop
     if jsonb_typeof(v_item) <> 'object' then
-      raise exception using errcode = '22023', message = 'Every subunit must be a JSON object.';
+      raise exception using errcode = '22023', message = 'Every unit must be a JSON object.';
     end if;
 
     v_name := regexp_replace(trim(coalesce(v_item ->> 'subunit_name', '')), '\s+', ' ', 'g');
 
     if v_name = '' then
-      raise exception using errcode = '22023', message = 'A subunit name is empty.';
+      raise exception using errcode = '22023', message = 'A unit name is empty.';
     end if;
 
     if char_length(v_name) > 80 then
-      raise exception using errcode = '22023', message = format('Subunit name "%s" is longer than 80 characters.', left(v_name, 30));
+      raise exception using errcode = '22023', message = format('Unit name "%s" is longer than 80 characters.', left(v_name, 30));
     end if;
 
     if lower(v_name) = any(v_names) then
-      raise exception using errcode = '22023', message = format('Subunit "%s" appears more than once.', v_name);
+      raise exception using errcode = '22023', message = format('Unit "%s" appears more than once.', v_name);
     end if;
 
     v_names := array_append(v_names, lower(v_name));
@@ -276,18 +276,18 @@ begin
       begin
         v_id := (v_item ->> 'subunit_id')::uuid;
       exception when others then
-        raise exception using errcode = '22023', message = 'A subunit reference is invalid.';
+        raise exception using errcode = '22023', message = 'A unit reference is invalid.';
       end;
 
       if not exists (
         select 1 from public.customer_subunits su
         where su.subunit_id = v_id and su.customer_id = p_customer_id and su.active
       ) then
-        raise exception using errcode = '22023', message = format('Subunit "%s" does not belong to this customer. Reload and try again.', v_name);
+        raise exception using errcode = '22023', message = format('Unit "%s" does not belong to this customer. Reload and try again.', v_name);
       end if;
 
       if v_id = any(v_kept) then
-        raise exception using errcode = '22023', message = 'The same subunit was submitted twice.';
+        raise exception using errcode = '22023', message = 'The same unit was submitted twice.';
       end if;
 
       v_kept := array_append(v_kept, v_id);
@@ -1234,7 +1234,7 @@ begin
            ) <> 'array' then
           raise exception using
             errcode = '22023',
-            message = 'Trolley plate subunits must be an array.';
+            message = 'Trolley plate units must be an array.';
         end if;
 
         v_seen_subunit_ids := array[]::uuid[];
@@ -1250,13 +1250,13 @@ begin
           exception when others then
             raise exception using
               errcode = '22023',
-              message = 'A trolley plate subunit reference is invalid.';
+              message = 'A trolley plate unit reference is invalid.';
           end;
 
           if v_subunit_id = any(v_seen_subunit_ids) then
             raise exception using
               errcode = '22023',
-              message = 'The same subunit appears twice on one trolley plate.';
+              message = 'The same unit appears twice on one trolley plate.';
           end if;
 
           if not exists (
@@ -1269,7 +1269,7 @@ begin
             raise exception using
               errcode = '22023',
               message = format(
-                'A subunit on %s trolley plate %s is not an active subunit of this customer. Check the subunits in Customer Master.',
+                'A unit on %s trolley plate %s is not an active unit of this customer. Check the units in Customer Master.',
                 public.weekday_name(v_weekday),
                 v_plate_number
               );
@@ -2092,7 +2092,7 @@ begin
             ('product_services', 'Services', 8),
             ('active', 'Active', 9),
             ('deactivation_reason', 'Deactivation reason', 10),
-            ('subunits', 'Subunits', 11)
+            ('subunits', 'Units', 11)
           ) as f(field_key, label, sort_order)
           where a.old_data ? f.field_key
             and a.new_data ? f.field_key
@@ -2117,6 +2117,9 @@ $$;
 -- One row per planned trolley of the schedule product behind the production item,
 -- including shared trolleys owned by another product (MOP carried in a Clothes
 -- trolley). A trolley without a plate row shows the customer name only.
+-- The delivery days and the route are read live from the customer's schedule
+-- version in force on the production date and from Distribution Routes, so a
+-- republished schedule, a route change or a new route colour shows at once.
 
 create or replace function public.get_production_flow_trolley_plates(
   p_production_flow_item_id uuid
@@ -2130,6 +2133,12 @@ as $$
 declare
   v_item public.production_flow_items%rowtype;
   v_trolleys jsonb;
+  v_date date;
+  v_version_id uuid;
+  v_weekday smallint;
+  v_route_id uuid;
+  v_delivery_days jsonb;
+  v_route jsonb;
 begin
   if auth.uid() is null or not public.current_account_is_enabled() then
     raise exception using errcode = '42501', message = 'An active account or registered production computer is required.';
@@ -2150,6 +2159,54 @@ begin
   if not found then
     raise exception using errcode = 'P0002', message = 'Production item was not found.';
   end if;
+
+  v_date := coalesce(v_item.scheduled_for_date, v_item.opened_business_date, public.current_business_date());
+
+  select v.schedule_version_id into v_version_id
+  from public.customer_schedule_versions v
+  where v.customer_id = v_item.customer_id
+    and v.status = 'PUBLISHED'
+    and v.effective_from <= v_date
+    and (v.effective_until is null or v.effective_until >= v_date)
+  order by v.effective_from desc, v.version_number desc
+  limit 1;
+
+  v_version_id := coalesce(v_version_id, v_item.source_schedule_version_id);
+
+  select coalesce(
+    (select d.production_weekday from public.customer_schedule_days d
+     where d.schedule_day_id = v_item.source_schedule_day_id),
+    extract(isodow from v_date)::smallint
+  ) into v_weekday;
+
+  select coalesce(jsonb_agg(
+           (array['Mon','Tue','Wed','Thu','Fri','Sat','Sun'])[w.delivery_weekday]
+           order by w.delivery_weekday
+         ), '[]'::jsonb)
+  into v_delivery_days
+  from (
+    select distinct d.delivery_weekday
+    from public.customer_schedule_days d
+    where d.schedule_version_id = v_version_id
+      and d.active = true
+      and d.delivery_weekday between 1 and 7
+  ) w;
+
+  select d.default_route_id into v_route_id
+  from public.customer_schedule_days d
+  where d.schedule_version_id = v_version_id
+    and d.production_weekday = v_weekday
+    and d.active = true
+  limit 1;
+
+  select jsonb_build_object(
+           'route_code', r.route_code,
+           'route_name', r.display_name,
+           'route_color', r.route_color
+         )
+  into v_route
+  from public.distribution_routes r
+  where r.route_id = coalesce(v_route_id, v_item.route_id_snapshot);
 
   with req as (
     select
@@ -2230,6 +2287,10 @@ begin
     'customer_name', coalesce((select c.customer_name from public.customers c where c.customer_id = v_item.customer_id), v_item.customer_name_snapshot),
     'product_code', v_item.product_code,
     'scheduled_for_date', v_item.scheduled_for_date,
+    'delivery_days', v_delivery_days,
+    'route_code', coalesce(v_route ->> 'route_code', v_item.route_code_snapshot),
+    'route_name', coalesce(v_route ->> 'route_name', v_item.route_display_name_snapshot),
+    'route_color', coalesce(v_route ->> 'route_color', v_item.route_color_snapshot),
     'trolley_count', jsonb_array_length(v_trolleys),
     'trolleys', v_trolleys
   );
@@ -2240,10 +2301,10 @@ revoke all on function public.get_production_flow_trolley_plates(uuid) from publ
 grant execute on function public.get_production_flow_trolley_plates(uuid) to authenticated;
 
 comment on table public.customer_subunits is
-  'Subunits (secondary names) of a customer, kept in Customer Master and printed on trolley plates. Deactivated, never deleted.';
+  'Units (secondary names) of a customer, kept in Customer Master and printed on trolley plates. Deactivated, never deleted.';
 comment on table public.customer_schedule_trolley_plates is
-  'Optional plate per planned trolley of a Customer Schedule trolley row: subunits on the trolley and an on-screen instruction for the staff.';
+  'Optional plate per planned trolley of a Customer Schedule trolley row: units on the trolley and an on-screen instruction for the staff.';
 comment on function public.save_customer_subunits(uuid, jsonb, text, text) is
-  'Customer Master: replaces the ordered subunit list of a customer (CUSTOMERS:EDIT). Audited.';
+  'Customer Master: replaces the ordered unit list of a customer (CUSTOMERS:EDIT). Audited.';
 comment on function public.get_production_flow_trolley_plates(uuid) is
-  'Finish / MOP Production: one row per planned trolley of a production item with its subunits and instruction.';
+  'Finish / MOP Production: one row per planned trolley of a production item with its units and instruction.';

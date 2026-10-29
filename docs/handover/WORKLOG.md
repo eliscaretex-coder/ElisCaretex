@@ -87,12 +87,18 @@ Entry format:
   Schedule draft: per planned trolley, choose subunits (two can share a trolley) and an
   instruction; "Copy to all days" copies a day's trolleys and plates. Finish and MOP
   Production show one row per planned trolley with subunit or customer name, instruction
-  and Print label (logo, customer, subunit). New `frontend/assets/js/trolley-plates.js`.
+  and Print label. New `frontend/assets/js/trolley-plates.js`. Owner review 2026-10-29: the
+  screens say "Units" (database names keep `subunit`); the label shows logo, customer, unit,
+  trolley, delivery days, route number and colour (read live from the schedule in force and
+  Distribution Routes); it prints on A4 twice, the upper copy upside down, so the sheet
+  folded in the middle and hung over the trolley bar reads on both sides.
 - Database: `202610290001_customer_subunits_and_trolley_plates.sql` **Prepared, not applied**.
   The replaced function bodies were checked identical to the live ones before patching.
 - Validation: `supabase/tests/202610290001_customer_subunits_and_trolley_plates_validation.sql`
   inside rolled-back runs on ElisCaretex-dev: 30 checks passed together, the change-history
-  check was run and passed separately; validate-repository passes;
+  check was run and passed separately; the delivery days and route part of
+  `get_production_flow_trolley_plates` was checked on BLOOMFIELD (Mon–Fri, Route 616);
+  the migration file was revised before being applied; validate-repository passes;
   mocked Playwright runs of Customers, Customer Schedule, Finish (desktop and phone) and MOP
   Production, including the printed label.
 - Open / next: owner applies the migration, then merges. QR code on the plate is a separate

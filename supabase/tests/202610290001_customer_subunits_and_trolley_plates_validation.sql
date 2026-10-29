@@ -2,7 +2,7 @@
 -- Uses the live BLOOMFIELD customer (2 M + 3 S trolleys a day) inside a transaction
 -- and rolls everything back.
 begin;
-select plan(31);
+select plan(32);
 
 -- 1. Objects and grants.
 select has_table('public','customer_subunits','customer_subunits exists');
@@ -32,7 +32,7 @@ select is((select subunit_name from public.customer_subunits s join _c using (cu
 select throws_ok($$select public.save_customer_subunits(customer_id,'[{"subunit_name":"Laurel"},{"subunit_name":"LAUREL"}]'::jsonb,'Validation: duplicate','VALIDATION') from _c$$,'22023',null,'a duplicate name is refused');
 select throws_ok($$select public.save_customer_subunits(customer_id,'[{"subunit_name":"LAUREL"}]'::jsonb,'','VALIDATION') from _c$$,'22023',null,'a reason is required');
 select ok(exists(select 1 from public.audit_log l, _c where l.entity_id = _c.customer_id::text and l.action = 'SAVE_CUSTOMER_SUBUNITS'),'the subunit change is audited');
-select ok((select jsonb_path_exists(public.get_customer_master_change_history(customer_id),'$.entries[*] ? (@.action == "SAVE_CUSTOMER_SUBUNITS").changes[*] ? (@.label == "Subunits" && @.after.size() == 6)') from _c),'the change history shows the subunits before and after');
+select ok((select jsonb_path_exists(public.get_customer_master_change_history(customer_id),'$.entries[*] ? (@.action == "SAVE_CUSTOMER_SUBUNITS").changes[*] ? (@.label == "Units" && @.after.size() == 6)') from _c),'the change history shows the units before and after');
 
 create temporary table _su on commit drop as
 select s.subunit_name, s.subunit_id from public.customer_subunits s join _c using (customer_id) where s.active;
@@ -90,6 +90,7 @@ select public.get_production_flow_trolley_plates((
     and exists (select 1 from public.customer_schedule_trolley_requirements r where r.owner_schedule_product_id = p.source_schedule_product_id and r.active)
   order by p.scheduled_for_date desc limit 1)) as f;
 select ok((select (f->>'trolley_count')::integer > 0 and (f->>'trolley_count')::integer = jsonb_array_length(f->'trolleys') from _f),'Finish sees one row per planned trolley');
+select ok((select jsonb_array_length(f->'delivery_days') > 0 and f->>'route_code' is not null from _f),'the label gets the delivery days and the route from the live schedule');
 
 -- 6. An account without Customers, Finish or MOP is refused.
 select set_config('request.jwt.claims',json_build_object('sub',(select auth_user_id from public.account_access_profiles where job_title_code='CLEANER' and account_type='USER' limit 1),'role','authenticated')::text,true);
