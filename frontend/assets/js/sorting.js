@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     mopEmptySelection: $("sortingMopEmptySelection"),
     mopForm: $("sortingMopForm"),
     mopCustomerSummary: $("sortingMopCustomerSummary"),
+    mopTrolleyPlates: $("sortingMopTrolleyPlates"),
     mopLateCompletionBanner: $("sortingMopLateCompletionBanner"),
     mopTrolleySection: $("sortingMopTrolleySection"),
     mopTrolleyRequirement: $("sortingMopTrolleyRequirement"),
@@ -4166,11 +4167,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       el.mopStaffBadge.textContent=`MOP staff: ${state.mop?.operational_mop_staff_name||"Not assigned"}`;
     }
     el.mopStaffBadge.classList.toggle("missing",!operatorId);
+    if(!row&&el.mopTrolleyPlates){el.mopTrolleyPlates.dataset.flowId="";window.ELIS_TROLLEY_PLATES?.clear(el.mopTrolleyPlates);}
     if(!row){el.mopSave.textContent="Save MOP production";if(el.mopLateCompletionBanner)el.mopLateCompletionBanner.hidden=true;const reportButton=$("sortingMopTrolleyReportButton");if(reportButton)reportButton.disabled=true;return;}
     const late=state.mopLateEntry;
     const lateText=late?`<p class="sorting-mop-late-mode"><strong>MISSED ENTRY</strong> Physically processed ${esc(fullDayDate(late.processedOn))}${late.processedTime?` at ${esc(late.processedTime)}`:" · time unknown"}${late.trolleyUnknown?" · trolley number unavailable":""}</p>`:"";
     if(el.mopLateCompletionBanner)el.mopLateCompletionBanner.hidden=!late;
     el.mopCustomerSummary.innerHTML=`<div><h3>${esc(row.customer_name)}</h3><p>${esc(row.scheduled_for_date?fullDayDate(row.scheduled_for_date):"Unscheduled MOP")} · Delivery ${esc(fullDayDate(row.delivery_due_date))}${row.route_display_name?` · ${esc(row.route_display_name)}`:""}</p><p>${esc(row.production_instructions||"No special MOP instructions.")}</p>${lateText}</div><div class="wash-total"><span>WASHED</span><strong>${Number(row.washed_kg_total||0).toFixed(1)} kg</strong><small>${Number(row.washed_load_count||0)} load${Number(row.washed_load_count||0)===1?"":"s"}</small></div>`;
+    if(el.mopTrolleyPlates&&el.mopTrolleyPlates.dataset.flowId!==row.production_flow_item_id){
+      el.mopTrolleyPlates.dataset.flowId=row.production_flow_item_id;
+      window.ELIS_TROLLEY_PLATES?.mount(el.mopTrolleyPlates,{rpc,productionFlowItemId:row.production_flow_item_id});
+    }
     el.mopSave.textContent=late?"Save missed MOP entry":"Save MOP production";
     const models=mopModelRows(row);
     el.mopTypeRows.innerHTML=models.map((m,index)=>{

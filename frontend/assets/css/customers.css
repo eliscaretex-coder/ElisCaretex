@@ -4781,3 +4781,120 @@ body.customers-modal-open {
     gap: 2px;
   }
 }
+
+/* Customer Master: subunits (secondary names printed on trolley plates) */
+.customers-subunit-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.customers-subunit-list:empty {
+  display: none;
+}
+
+.customers-subunit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.customers-subunit-row .customers-icon-danger-button {
+  position: static;
+  width: 34px;
+  height: 34px;
+}
+
+.customers-subunit-row input {
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--customers-border, #d6dde6);
+  border-radius: 8px;
+  font: inherit;
+}
+
+/* Customer Studio: trolley plates (subunits and staff instruction per trolley) */
+.customers-studio-trolley-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+}
+
+.customers-studio-plates {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding: 6px 7px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.customers-studio-plates summary {
+  cursor: pointer;
+  color: #0f172a;
+  font-size: 10px;
+}
+
+.customers-studio-plates summary b {
+  font-weight: 800;
+}
+
+.customers-studio-plates summary span {
+  display: block;
+  margin-top: 2px;
+  color: #5d7487;
+  font-size: 9px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.customers-studio-plates summary span.is-set {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.customers-studio-plate-subunits .customers-studio-check-chip span {
+  font-size: 8px;
+}
+
+.customers-studio-plates-help {
+  margin: 5px 0 0;
+  color: #5d7487;
+  font-size: 9px;
+}
+
+.customers-studio-plate {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 4px 6px;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.customers-studio-plate > strong {
+  grid-row: span 2;
+  align-self: start;
+  color: #17334d;
+  font-size: 11px;
+}
+
+.customers-studio-plate-subunits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.customers-studio-plate > input {
+  grid-column: 2;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 10px;
+}

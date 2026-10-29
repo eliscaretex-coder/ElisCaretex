@@ -56,6 +56,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const formStatus = document.getElementById("customerFormStatus");
   const formStatusText = document.getElementById("customerFormStatusText");
   const formServiceImpact = document.getElementById("customerFormServiceImpact");
+  const formSubunitsSection = document.getElementById("customerFormSubunitsSection");
+  const formSubunits = document.getElementById("customerFormSubunits");
+  const formAddSubunit = document.getElementById("customerFormAddSubunit");
   const formNextStepSection = document.getElementById("customerFormNextStepSection");
   const formOpenSchedule = document.getElementById("customerFormOpenSchedule");
   const formOpenScheduleTitle = document.getElementById("customerFormOpenScheduleTitle");
@@ -2272,7 +2275,12 @@ document.addEventListener("DOMContentLoaded", () => {
             serves_product_codes: (Array.isArray(requirement.serves_product_codes)
               ? requirement.serves_product_codes
               : []
-            ).map((code) => String(code).toUpperCase())
+            ).map((code) => String(code).toUpperCase()),
+            plates: (Array.isArray(requirement.plates) ? requirement.plates : []).map((plate) => ({
+              plate_number: Number(plate.plate_number),
+              subunit_ids: (Array.isArray(plate.subunit_ids) ? plate.subunit_ids : []).map(String),
+              instructions: String(plate.instructions || "")
+            }))
           }))
         }))
         .sort((left, right) => left.production_weekday - right.production_weekday)
@@ -2315,11 +2323,30 @@ document.addEventListener("DOMContentLoaded", () => {
             serves_product_codes: (Array.isArray(requirement.serves_product_codes)
               ? requirement.serves_product_codes
               : []
-            ).map((code) => String(code).toUpperCase())
+            ).map((code) => String(code).toUpperCase()),
+            plates: (Array.isArray(requirement.plates) ? requirement.plates : [])
+              .filter((plate) => Number(plate.plate_number) <= Number(requirement.quantity || 0))
+              .filter((plate) => (plate.subunit_ids || []).length || String(plate.instructions || "").trim())
+              .map((plate) => ({
+                plate_number: Number(plate.plate_number),
+                subunit_ids: plate.subunit_ids || [],
+                instructions: emptyToNull(plate.instructions)
+              }))
           }))
         }))
         .sort((left, right) => left.production_weekday - right.production_weekday)
     };
+  }
+
+  // Customer Master subunits offered on the trolley plates of the schedule editor.
+  async function loadStudioSubunits(customerId) {
+    try {
+      const result = await rpc("get_customer_subunits", { p_customer_id: customerId });
+      return Array.isArray(result?.subunits) ? result.subunits : [];
+    } catch (error) {
+      if (error?.code !== "PGRST202") console.warn("Customer subunits could not be loaded:", error);
+      return null;
+    }
   }
 
   async function loadScheduleManagementState(customerId, selectedVersionId = null) {
@@ -2343,6 +2370,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.studio.management = management;
     state.studio.kgHistory = kgHistory;
+    state.studio.subunits = await loadStudioSubunits(management?.customer?.customer_id || customerId);
     state.studio.view = "schedule";
     state.studio.selectedVersionId = selectedVersionId;
     state.studio.customerId = management?.customer?.customer_id || customerId;
@@ -3708,7 +3736,12 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong>Trolley requirements</strong>
             <span>Shared trolleys may serve more than one scheduled product.</span>
           </div>
-          <button class="customers-small-button" type="button" data-studio-add-trolley>Add trolley</button>
+          <div class="customers-studio-trolley-actions">
+            ${requirements.length && (state.studio.draftDocument?.days || []).length > 1
+              ? '<button class="customers-small-button" type="button" data-studio-copy-trolleys title="Use these trolleys and plates on every scheduled day">Copy to all days</button>'
+              : ""}
+            <button class="customers-small-button" type="button" data-studio-add-trolley>Add trolley</button>
+          </div>
         </div>
         ${
           requirements.length
@@ -3778,8 +3811,133 @@ document.addEventListener("DOMContentLoaded", () => {
           <input type="text" value="${escapeHtml(requirement.notes || "")}" data-trolley-field="notes">
         </label>
         <button class="customers-icon-danger-button" type="button" data-studio-remove-trolley title="Remove trolley requirement">×</button>
+        ${renderDraftTrolleyPlates(requirement)}
       </div>
     `;
+  }
+
+  // One plate per planned trolley: the subunit(s) printed on it and an instruction
+  // shown to Finish / MOP staff. A plate left empty prints the customer name only.
+  function renderDraftTrolleyPlates(requirement) {
+    const subunits = state.studio.subunits;
+    const quantity = Math.max(0, Math.min(100, Number.parseInt(requirement.quantity, 10) || 0));
+
+    if (!Array.isArray(subunits) || quantity === 0) {
+      return "";
+    }
+
+    const plates = Array.isArray(requirement.plates) ? requirement.plates : [];
+    const subunitNames = new Map(subunits.map((subunit) => [subunit.subunit_id, subunit.subunit_name]));
+    const filledPlates = plates.filter((plate) => plate.plate_number <= quantity
+      && ((plate.subunit_ids || []).length || String(plate.instructions || "").trim()));
+    const summaryLines = filledPlates.map((plate) => {
+      const names = (plate.subunit_ids || []).map((id) => subunitNames.get(id) || "?").join(" & ") || "customer name";
+      return `<span class="is-set">#${plate.plate_number} ${escapeHtml(names)}${String(plate.instructions || "").trim() ? " ⚠" : ""}</span>`;
+    }).join("");
+    const isOpen = state.studio.openPlates?.has(plateEditorKey(requirement));
+
+    return `
+      <details class="customers-studio-plates" data-plate-editor="${escapeHtml(plateEditorKey(requirement))}" ${isOpen ? "open" : ""}>
+        <summary>
+          <b>Trolley plates</b>
+          ${summaryLines || "<span>Customer name only · click to set subunits</span>"}
+        </summary>
+        ${subunits.length ? "" : '<p class="customers-studio-plates-help">This customer has no subunits in Customer Master. You can still add an instruction for the staff.</p>'}
+        ${Array.from({ length: quantity }, (_, offset) => {
+          const plateNumber = offset + 1;
+          const plate = plates.find((item) => Number(item.plate_number) === plateNumber) || {};
+          const selected = new Set(plate.subunit_ids || []);
+          return `
+            <div class="customers-studio-plate" data-plate-number="${plateNumber}">
+              <strong>#${plateNumber}</strong>
+              ${subunits.length ? `
+                <div class="customers-studio-plate-subunits">
+                  ${subunits.map((subunit) => `
+                    <label class="customers-studio-check-chip">
+                      <input type="checkbox" data-plate-subunit="${escapeHtml(subunit.subunit_id)}" ${selected.has(subunit.subunit_id) ? "checked" : ""}>
+                      <span>${escapeHtml(subunit.subunit_name)}</span>
+                    </label>
+                  `).join("")}
+                </div>` : ""}
+              <input type="text" maxlength="500" value="${escapeHtml(plate.instructions || "")}" data-plate-instructions placeholder="Instruction for the staff (screen only)" aria-label="Instruction for trolley ${plateNumber}">
+            </div>
+          `;
+        }).join("")}
+      </details>
+    `;
+  }
+
+  // Keeps a plate editor open across re-renders of the schedule editor.
+  function plateEditorKey(requirement) {
+    const day = (state.studio.draftDocument?.days || []).find((item) => (item.trolley_requirements || []).includes(requirement));
+    return `${day?.production_weekday || 0}:${(day?.trolley_requirements || []).indexOf(requirement)}`;
+  }
+
+  function draftPlateByElement(element) {
+    const { requirement } = trolleyDocumentByElement(element);
+    const plateNumber = Number(element.closest("[data-plate-number]")?.dataset.plateNumber);
+
+    if (!requirement || !plateNumber) {
+      return null;
+    }
+
+    if (!Array.isArray(requirement.plates)) {
+      requirement.plates = [];
+    }
+
+    let plate = requirement.plates.find((item) => Number(item.plate_number) === plateNumber);
+
+    if (!plate) {
+      plate = { plate_number: plateNumber, subunit_ids: [], instructions: "" };
+      requirement.plates.push(plate);
+      requirement.plates.sort((left, right) => left.plate_number - right.plate_number);
+    }
+
+    return plate;
+  }
+
+  // "Same every day": copy this day's trolleys and plates to the other scheduled days
+  // that have the same products.
+  function copyDraftTrolleysToAllDays(button) {
+    const source = dayDocumentByElement(button);
+    const days = Array.isArray(state.studio.draftDocument?.days) ? state.studio.draftDocument.days : [];
+
+    if (!source) {
+      return;
+    }
+
+    const neededProducts = new Set(source.trolley_requirements.flatMap((requirement) => [
+      requirement.owner_product_code,
+      ...(requirement.serves_product_codes || [])
+    ]));
+    const targets = days.filter((day) => day !== source);
+    const compatible = targets.filter((day) => [...neededProducts].every((code) =>
+      day.products.some((product) => product.product_code === code)));
+    const skipped = targets.filter((day) => !compatible.includes(day));
+
+    if (!compatible.length) {
+      showStudioAlert("No other scheduled day has the same products, so nothing was copied.");
+      return;
+    }
+
+    const sourceName = DAYS.find((day) => day.number === Number(source.production_weekday))?.name || "this day";
+    const names = compatible.map((day) => DAYS.find((item) => item.number === Number(day.production_weekday))?.name.slice(0, 3)).join(", ");
+
+    if (!window.confirm(`Replace the trolleys and plates of ${names} with the ones of ${sourceName}?`)) {
+      return;
+    }
+
+    compatible.forEach((day) => {
+      day.trolley_requirements = JSON.parse(JSON.stringify(source.trolley_requirements));
+    });
+
+    markStudioDirty();
+    rerenderScheduleManagement();
+
+    if (skipped.length) {
+      const skippedNames = skipped.map((day) => DAYS.find((item) => item.number === Number(day.production_weekday))?.name.slice(0, 3)).join(", ");
+      showStudioAlert(`Not copied to ${skippedNames}: that day does not have the same products.`);
+    }
   }
 
   function renderManagementPublishedDayCard(dayDefinition, day = null) {
@@ -3861,7 +4019,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const served = Array.isArray(requirement.serves_product_codes)
         ? requirement.serves_product_codes.join(" + ")
         : requirement.owner_product_code;
-      return `${requirement.quantity} × ${requirement.display_code || requirement.trolley_type_code} · ${served}${requirement.empty_trolley ? " · Empty" : ""}`;
+      const plates = (Array.isArray(requirement.plates) ? requirement.plates : []).map((plate) => {
+        const names = Array.isArray(plate.subunit_names) && plate.subunit_names.length
+          ? plate.subunit_names.join(" & ")
+          : "customer name";
+        return `   #${plate.plate_number} ${names}${plate.instructions ? ` · ⚠ ${plate.instructions}` : ""}`;
+      });
+      return [`${requirement.quantity} × ${requirement.display_code || requirement.trolley_type_code} · ${served}${requirement.empty_trolley ? " · Empty" : ""}`, ...plates].join("\n");
     }).join("\n");
   }
 
@@ -4094,6 +4258,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      const copyTrolleysButton = event.target.closest("[data-studio-copy-trolleys]");
+
+      if (copyTrolleysButton) {
+        copyDraftTrolleysToAllDays(copyTrolleysButton);
+        return;
+      }
+
       const removeTrolleyButton = event.target.closest("[data-studio-remove-trolley]");
 
       if (removeTrolleyButton) {
@@ -4108,6 +4279,16 @@ document.addEventListener("DOMContentLoaded", () => {
         rerenderScheduleManagement();
       }
     };
+
+    if (!scheduleBody.dataset.plateToggleBound) {
+      scheduleBody.dataset.plateToggleBound = "1";
+      scheduleBody.addEventListener("toggle", (event) => {
+        const key = event.target?.dataset?.plateEditor;
+        if (!key) return;
+        state.studio.openPlates = state.studio.openPlates || new Set();
+        event.target.open ? state.studio.openPlates.add(key) : state.studio.openPlates.delete(key);
+      }, true);
+    }
 
     scheduleBody.oninput = (event) => {
       updateDraftControl(event.target);
@@ -4126,8 +4307,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (target.matches("[data-studio-field], [data-day-field], [data-product-field], [data-product-variant], [data-trolley-field], [data-trolley-serves]")) {
+      if (target.matches("[data-studio-field], [data-day-field], [data-product-field], [data-product-variant], [data-trolley-field], [data-trolley-serves], [data-plate-subunit], [data-plate-instructions]")) {
         updateDraftControl(target);
+      }
+
+      if (target.matches("[data-trolley-field=\"quantity\"]")) {
+        rerenderScheduleManagement();
       }
 
       if (target.matches("[data-day-field=\"default_route_id\"]")) {
@@ -4198,6 +4383,29 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        markStudioDirty();
+      }
+      return;
+    }
+
+    if (target.matches("[data-plate-subunit]")) {
+      const plate = draftPlateByElement(target);
+
+      if (plate) {
+        const id = target.dataset.plateSubunit;
+        const ids = (plate.subunit_ids || []).filter((value) => value !== id);
+        if (target.checked) ids.push(id);
+        plate.subunit_ids = ids;
+        markStudioDirty();
+      }
+      return;
+    }
+
+    if (target.matches("[data-plate-instructions]")) {
+      const plate = draftPlateByElement(target);
+
+      if (plate) {
+        plate.instructions = target.value;
         markStudioDirty();
       }
       return;
@@ -5632,8 +5840,72 @@ document.addEventListener("DOMContentLoaded", () => {
       distribution_stop_count: formStops.value.trim(),
       notes: formNotes.value.trim(),
       operational_alert: formOperationalAlert.value.trim(),
-      product_services: selectedServiceCodes()
+      product_services: selectedServiceCodes(),
+      subunits: formSubunitList()
     };
+  }
+
+  // Subunits: one text box per subunit. Existing rows keep their id, so a rename
+  // shows on every trolley plate that uses the subunit.
+  function formSubunitList() {
+    return Array.from(formSubunits.querySelectorAll("[data-subunit-row]"))
+      .map((row) => ({
+        subunit_id: row.dataset.subunitId || null,
+        subunit_name: row.querySelector("input").value.trim().replace(/\s+/g, " ")
+      }))
+      .filter((item) => item.subunit_id || item.subunit_name);
+  }
+
+  function subunitRowHtml(subunit = {}) {
+    return `
+      <div class="customers-subunit-row" data-subunit-row data-subunit-id="${escapeHtml(subunit.subunit_id || "")}">
+        <input type="text" maxlength="80" value="${escapeHtml(subunit.subunit_name || "")}" placeholder="Subunit name, e.g. D/BROOK" aria-label="Subunit name">
+        <button class="customers-icon-danger-button" type="button" data-remove-subunit title="Remove subunit">×</button>
+      </div>
+    `;
+  }
+
+  function renderFormSubunits(subunits = []) {
+    formSubunits.innerHTML = subunits.map(subunitRowHtml).join("");
+  }
+
+  function addFormSubunitRow() {
+    formSubunits.insertAdjacentHTML("beforeend", subunitRowHtml());
+    formSubunits.lastElementChild?.querySelector("input")?.focus();
+    updateCustomerFormState();
+  }
+
+  function subunitsChanged() {
+    return JSON.stringify(state.form.baseline?.subunits || []) !== JSON.stringify(formSubunitList());
+  }
+
+  function customerFieldsChanged() {
+    return customerFormChangedFields().some((label) => label !== "subunits");
+  }
+
+  async function saveFormSubunits(customerId, reason) {
+    return rpc("save_customer_subunits", {
+      p_customer_id: customerId,
+      p_subunits: formSubunitList().map((item) => ({
+        subunit_id: item.subunit_id,
+        subunit_name: item.subunit_name
+      })),
+      p_change_reason: reason,
+      p_source_application: "CUSTOMER_MASTER_UI"
+    });
+  }
+
+  async function loadFormSubunits(customerId) {
+    try {
+      const result = await rpc("get_customer_subunits", { p_customer_id: customerId });
+      renderFormSubunits(Array.isArray(result?.subunits) ? result.subunits : []);
+      formSubunitsSection.classList.remove("hidden");
+    } catch (error) {
+      // Database change not applied yet: the form works without subunits.
+      renderFormSubunits([]);
+      formSubunitsSection.classList.add("hidden");
+      if (error?.code !== "PGRST202") console.error("Customer subunits load failed:", error);
+    }
   }
 
   function customerFormSnapshotKey(snapshot) {
@@ -5652,6 +5924,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (before.notes !== after.notes) labels.push("notes");
     if (before.operational_alert !== after.operational_alert) labels.push("operational alert");
     if (JSON.stringify(before.product_services || []) !== JSON.stringify(after.product_services || [])) labels.push("services");
+    if (JSON.stringify(before.subunits || []) !== JSON.stringify(after.subunits || [])) labels.push("subunits");
 
     return labels;
   }
@@ -5680,6 +5953,16 @@ document.addEventListener("DOMContentLoaded", () => {
       (!Number.isInteger(Number(stopsValue)) || Number(stopsValue) < 0)
     ) {
       return "Stops must be a whole number of zero or greater.";
+    }
+
+    const subunitNames = formSubunitList().map((item) => item.subunit_name);
+    if (subunitNames.some((name) => !name)) {
+      return "Enter a name for every subunit or remove the empty row.";
+    }
+    const lowerNames = subunitNames.map((name) => name.toLowerCase());
+    const duplicate = subunitNames.find((name, index) => lowerNames.indexOf(name.toLowerCase()) !== index);
+    if (duplicate) {
+      return `Subunit "${duplicate}" appears more than once.`;
     }
 
     if (
@@ -5820,6 +6103,11 @@ document.addEventListener("DOMContentLoaded", () => {
       input.disabled = loading;
     });
 
+    formSubunits.querySelectorAll("input, button").forEach((control) => {
+      control.disabled = loading;
+    });
+    formAddSubunit.disabled = loading;
+
     updateCustomerFormState();
   }
 
@@ -5837,6 +6125,8 @@ document.addEventListener("DOMContentLoaded", () => {
     formHistoryButton.classList.add("hidden");
     formNextStepSection.classList.remove("hidden");
     formServiceImpact.classList.add("hidden");
+    renderFormSubunits([]);
+    formSubunitsSection.classList.remove("hidden");
     formStatus.className = "customers-form-status";
     state.form.baseline = null;
     state.form.dirty = false;
@@ -5914,6 +6204,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       state.form.record = record;
       populateCustomerForm(record, mode);
+      await loadFormSubunits(customerId);
       establishCustomerFormBaseline();
     } catch (error) {
       console.error("Customer Master record load failed:", error);
@@ -6007,11 +6298,20 @@ document.addEventListener("DOMContentLoaded", () => {
           p_source_application: "CUSTOMER_MASTER_UI"
         });
 
+        if (formSubunitList().length && result?.customer_id) {
+          try {
+            await saveFormSubunits(result.customer_id, reason);
+          } catch (subunitError) {
+            console.error("Customer subunits save failed:", subunitError);
+            window.alert(`The customer was created, but the subunits were not saved: ${errorMessage(subunitError)}\nOpen Edit Customer to add them again.`);
+          }
+        }
+
         showToast("Customer created.");
       } else if (state.form.mode === "edit") {
         const record = state.form.record;
 
-        result = await rpc("update_customer", {
+        if (customerFieldsChanged()) result = await rpc("update_customer", {
           p_customer_id: record.customer_id,
           p_expected_row_version: record.row_version,
           p_customer_code: record.customer_code,
@@ -6026,6 +6326,10 @@ document.addEventListener("DOMContentLoaded", () => {
           p_source_application: "CUSTOMER_MASTER_UI"
         });
 
+        if (subunitsChanged()) {
+          await saveFormSubunits(record.customer_id, reason);
+        }
+
         showToast("Customer updated.");
       } else {
         result = await rpc("reactivate_customer", {
@@ -6034,6 +6338,10 @@ document.addEventListener("DOMContentLoaded", () => {
           p_reason: reason,
           p_source_application: "CUSTOMER_MASTER_UI"
         });
+
+        if (subunitsChanged()) {
+          await saveFormSubunits(state.form.record.customer_id, reason);
+        }
 
         showToast("Customer reactivated.");
       }
@@ -6076,7 +6384,8 @@ document.addEventListener("DOMContentLoaded", () => {
     REACTIVATE_CUSTOMER: "Customer reactivated",
     UPDATE_LEGACY_MASTER: "Updated by legacy sync",
     IMPORT_APPS_SCRIPT_MASTER: "Imported from Apps Script",
-    IMPORT_HISTORICAL_CUSTOMER: "Imported from history"
+    IMPORT_HISTORICAL_CUSTOMER: "Imported from history",
+    SAVE_CUSTOMER_SUBUNITS: "Subunits changed"
   };
 
   function historyActionLabel(action) {
@@ -6307,6 +6616,19 @@ document.addEventListener("DOMContentLoaded", () => {
   deactivateClose.addEventListener("click", () => closeModal(deactivateModal));
   deactivateCancel.addEventListener("click", () => closeModal(deactivateModal));
   deactivateConfirm.addEventListener("click", confirmDeactivate);
+
+  formAddSubunit.addEventListener("click", addFormSubunitRow);
+  formSubunits.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || !event.target.matches("input")) return;
+    event.preventDefault();
+    addFormSubunitRow();
+  });
+  formSubunits.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-subunit]");
+    if (!button) return;
+    button.closest("[data-subunit-row]")?.remove();
+    updateCustomerFormState();
+  });
 
   formHistoryButton.addEventListener("click", () => {
     if (state.form.customerId) openCustomerHistory(state.form.customerId);

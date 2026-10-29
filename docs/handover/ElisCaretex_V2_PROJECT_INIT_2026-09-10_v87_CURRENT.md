@@ -428,6 +428,16 @@ Trolley UI improvements include:
 - registry/service fields are not permanently exposed;
 - trolley lifecycle and custody remain governed operational evidence.
 
+Customer subunits and trolley plates (2026-10-29, owner request; **Prepared**, see section 14):
+a customer can have subunits (secondary names such as BLOOMFIELD: D/BROOK, S/BROOK, KILAKEE).
+They are kept in Customer Master and asked for when a customer is created. Each planned
+trolley of a Customer Schedule trolley row can carry one or more subunits (two subunits can
+share a trolley; a trolley without a subunit shows the customer name) and an instruction.
+Finish (customer dialog) and MOP Production (selected customer) list one row per planned
+trolley with the subunit or customer name, the instruction (screen only) and Print label.
+The printed plate carries the Elis logo, customer name and subunit only. The QR code on the
+plate is a separate follow-up task.
+
 ## 12. Production Intelligence
 
 Production Intelligence is implemented for authorized management accounts through:
@@ -699,6 +709,20 @@ day; `get_distribution_roster_week` lists drivers from the week of `joined_on` a
 `validate_distribution_roster_version` refuses entries before it.
 `production_roster_assert_operational_rules` refuses working days after
 `production_roster_until`.
+
+Customer subunits and trolley plates (2026-10-29,
+`202610290001_customer_subunits_and_trolley_plates.sql`, **Prepared**, not applied; the
+database test passed in a rolled-back run on ElisCaretex-dev): tables `customer_subunits`
+(deactivated, never deleted) and `customer_schedule_trolley_plates` (one optional row per
+planned trolley: `subunit_ids`, `instructions`; editable only while the schedule version is
+DRAFT, trigger `require_draft_schedule_plate_parent`), both RLS-on with no direct grants.
+RPCs `get_customer_subunits` (CUSTOMERS VIEW), `save_customer_subunits` (CUSTOMERS EDIT,
+reason required, audited as `SAVE_CUSTOMER_SUBUNITS`) and `get_production_flow_trolley_plates`
+(FINISH EDIT, MOP EDIT or CUSTOMERS VIEW). Replaced: the schedule snapshot, comparable
+snapshot, `save_customer_schedule_draft` (validates plate number, subunits of the same
+customer and active), `create_customer_schedule_draft` (copies plates, drops removed
+subunits) and `get_customer_master_change_history` (Subunits field). The frontend hides the
+new parts while the migration is not applied.
 
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
