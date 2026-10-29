@@ -90,7 +90,8 @@ Entry format:
   The published day cards list every trolley with its unit (or the customer name) instead of
   the text box. Customer Master list: badge per customer, "N with units to check" button
   and a Units filter. Measured 2026-10-29: 29 of 141 active customers need the check.
-- Database: `202610290002_customer_schedule_unit_checks.sql` **Prepared, not applied**.
+- Database: `202610290002_customer_schedule_unit_checks.sql` **Applied** by the owner on
+  2026-10-29 (verified: table and RPCs exist on ElisCaretex-dev).
   Append-only `customer_schedule_unit_checks` with a signature of the trolleys, plates and
   units checked; a change of any of them makes the schedule TO_CHECK again, other changes
   (for example Expected KG) keep the check. RPCs `get_customer_schedule_units_check`,
@@ -99,7 +100,8 @@ Entry format:
   15/15 in a rolled-back run on ElisCaretex-dev (BLOOMFIELD); validate-repository passes;
   mocked Playwright run of the Customer Master list, the schedule banner, the confirm
   button and the publish tick (refused without it).
-- Open / next: owner applies the migration and merges, then the 29 customers are checked.
+- Open / next: PR #125 merged 2026-10-29. The 29 customers with units to check are
+  listed by the Units filter in Customer Master.
 
 ## 2026-10-29 — Claude — Customer subunits on trolley plates in Finish and MOP Production
 
