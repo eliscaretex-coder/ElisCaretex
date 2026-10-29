@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Customers search box no longer loses the cursor
+
+- Branch / commits: `claude/customers-search-focus`, Pull Request
+- Changed: owner report: typing slowly in the Schedule search box lost the cursor after
+  the first letter. Each search rebuilt the view with innerHTML, replacing the box. The
+  Customers views now keep focus, caret and the typed text (trailing spaces included) of
+  the search box across the reload (Schedule, Customer Master and Distribution lists).
+- Database: none
+- Validation: validate-repository passes; mocked Playwright run typing "BLO O" with 600 ms
+  between keys: before the fix the box held "B" and lost focus, after it holds "BLO O"
+  with focus.
+- Open / next: none.
+
 ## 2026-10-29 — Claude — Choose the unit on each trolley line in Edit Schedule
 
 - Branch / commits: `claude/trolley-unit-select`, Pull Request
