@@ -727,8 +727,8 @@ customer and active), `create_customer_schedule_draft` (copies plates, drops rem
 subunits) and `get_customer_master_change_history` (Subunits field). The frontend hides the
 new parts while the migration is not applied.
 
-Units check (2026-10-29, `202610290002_customer_schedule_unit_checks.sql`, **Prepared**,
-not applied; 15/15 in a rolled-back run): a schedule with more than 2 trolleys on a day is
+Units check (2026-10-29, `202610290002_customer_schedule_unit_checks.sql`, **Applied** by
+the owner, PR #125; 15/15 in a rolled-back run): a schedule with more than 2 trolleys on a day is
 TO_CHECK until someone with CUSTOMERS EDIT confirms its units
 (`confirm_customer_schedule_units`, append-only `customer_schedule_unit_checks`). The check
 holds a signature of trolleys, plates and active units, so changing any of them needs a new
