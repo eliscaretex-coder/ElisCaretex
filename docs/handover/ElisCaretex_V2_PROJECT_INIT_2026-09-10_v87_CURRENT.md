@@ -736,7 +736,7 @@ check. Customer Studio requires the "Units checked" tick to publish such a chang
 Master lists and filters the customers to check.
 
 Delivery day choice (2026-10-29, `202610290003_customer_delivery_day_choice.sql`,
-**Prepared**, not applied; 12/12 in a rolled-back run): `customer_schedule_days.delivery_weekday`
+**Applied** by the owner, PR #130; 12/12 in a rolled-back run): `customer_schedule_days.delivery_weekday`
 is no longer forced to the next day; it defaults to it and can be later (never the production
 weekday). Production and Distribution read it through `schedule_delivery_date(day, date)` /
 `customer_delivery_date(customer, date)` instead of `next_distribution_business_date`, except
