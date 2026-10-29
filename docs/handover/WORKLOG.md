@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Units check for customers with more than 2 trolleys
+
+- Branch / commits: `claude/customer-units-check`, Pull Request
+- Changed: owner request: every customer with more than 2 trolleys on a day must have its
+  units checked, now and after every trolley change. Customer Schedule shows a "Units to
+  check" / "Units checked" banner (who and when) and a "Confirm units checked" button on the
+  published schedule; publishing a change of such a customer needs the "Units checked" tick.
+  The published day cards list every trolley with its unit (or the customer name) instead of
+  the text box. Customer Master list: badge per customer, "N with units to check" button
+  and a Units filter. Measured 2026-10-29: 29 of 141 active customers need the check.
+- Database: `202610290002_customer_schedule_unit_checks.sql` **Prepared, not applied**.
+  Append-only `customer_schedule_unit_checks` with a signature of the trolleys, plates and
+  units checked; a change of any of them makes the schedule TO_CHECK again, other changes
+  (for example Expected KG) keep the check. RPCs `get_customer_schedule_units_check`,
+  `confirm_customer_schedule_units` (CUSTOMERS EDIT), `get_customer_units_check_overview`.
+- Validation: `supabase/tests/202610290002_customer_schedule_unit_checks_validation.sql`
+  15/15 in a rolled-back run on ElisCaretex-dev (BLOOMFIELD); validate-repository passes;
+  mocked Playwright run of the Customer Master list, the schedule banner, the confirm
+  button and the publish tick (refused without it).
+- Open / next: owner applies the migration and merges, then the 29 customers are checked.
+
 ## 2026-10-29 — Claude — Customer subunits on trolley plates in Finish and MOP Production
 
 - Branch / commits: `claude/customer-subunit-trolley-plates`, Pull Request

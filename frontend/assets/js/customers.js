@@ -111,7 +111,9 @@ document.addEventListener("DOMContentLoaded", () => {
     master: {
       status: "ACTIVE",
       service: "ALL",
-      search: ""
+      search: "",
+      units: "ALL",
+      unitsOverview: null
     },
     distribution: {
       search: "",
@@ -2349,6 +2351,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Units check: a schedule with more than 2 trolleys on a day needs its units
+  // confirmed again after every change of trolleys, plates or units.
+  async function loadStudioUnitsCheck(scheduleVersionId) {
+    if (!scheduleVersionId) return null;
+    try {
+      return await rpc("get_customer_schedule_units_check", { p_schedule_version_id: scheduleVersionId });
+    } catch (error) {
+      if (error?.code !== "PGRST202") console.warn("Units check could not be loaded:", error);
+      return null;
+    }
+  }
+
   async function loadScheduleManagementState(customerId, selectedVersionId = null) {
     const management = await rpc("get_customer_schedule_management_state", {
       p_customer_id: customerId,
@@ -2381,6 +2395,7 @@ document.addEventListener("DOMContentLoaded", () => {
       : null;
     state.studio.dirty = false;
     state.studio.comparison = null;
+    state.studio.unitsCheck = await loadStudioUnitsCheck(currentStudioSnapshot()?.schedule_version_id);
 
     return management;
   }
@@ -2468,6 +2483,8 @@ document.addEventListener("DOMContentLoaded", () => {
       </section>
 
       ${renderScheduleManagementToolbar(draft, published, management)}
+
+      ${renderUnitsCheckBanner(draft, days, management)}
 
       <div class="customers-studio-version-strip">
         ${summaryItem("Revision", `Revision ${snapshot.version_number}`)}
@@ -3940,6 +3957,92 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function dayTrolleyCount(day) {
+    return (Array.isArray(day?.trolley_requirements) ? day.trolley_requirements : [])
+      .reduce((sum, requirement) => sum + (Number(requirement.quantity) || 0), 0);
+  }
+
+  function dayShortName(day) {
+    return DAYS.find((item) => item.number === Number(day.production_weekday))?.name.slice(0, 3) || "";
+  }
+
+  // Only a check loaded for the version on screen counts; unsaved edits need a save first.
+  function unitsCheckStatus(days, draft) {
+    if (state.studio.subunits === null) return null;
+    if (!days.some((day) => dayTrolleyCount(day) > 2)) return "NOT_NEEDED";
+    if (draft && state.studio.dirty) return "TO_CHECK";
+    return state.studio.unitsCheck?.status === "CHECKED" ? "CHECKED" : "TO_CHECK";
+  }
+
+  function renderUnitsCheckBanner(draft, days, management) {
+    const status = unitsCheckStatus(days, draft);
+    if (!status || status === "NOT_NEEDED") return "";
+    const busyDays = days.filter((day) => dayTrolleyCount(day) > 2);
+    const units = Array.isArray(state.studio.subunits) ? state.studio.subunits : [];
+    const unitText = units.length
+      ? `${units.length} unit${units.length === 1 ? "" : "s"} in Customer Master: ${units.map((unit) => unit.subunit_name).join(", ")}`
+      : "No units in Customer Master";
+    const dayText = busyDays.map((day) => `${dayShortName(day)} ${dayTrolleyCount(day)}`).join(" · ");
+    const check = state.studio.unitsCheck;
+
+    if (status === "CHECKED") {
+      return `
+        <section class="customers-units-check is-checked">
+          <strong>✓ Units checked</strong>
+          <span>${escapeHtml(`By ${check?.checked_by_name || "unknown"} on ${formatDate(String(check?.checked_at || "").slice(0, 10))} · ${unitText}`)}</span>
+        </section>`;
+    }
+
+    const canConfirm = !draft && management?.permissions?.can_create_draft;
+    return `
+      <section class="customers-units-check is-to-check">
+        <div>
+          <strong>⚠ Units to check</strong>
+          <span>${escapeHtml(`More than 2 trolleys: ${dayText}. Check which unit goes on each trolley. ${unitText}.`)}</span>
+          <small>${
+            draft
+              ? "Set the units of each trolley under Units and instruction. You confirm the check when you save and confirm this update."
+              : "If a trolley needs a unit, add the units in Customer Master and set them with Edit Schedule. Otherwise confirm the check here."
+          }</small>
+        </div>
+        ${canConfirm ? '<button class="customers-primary-button" type="button" data-studio-units-confirm>Confirm units checked</button>' : ""}
+      </section>`;
+  }
+
+  function renderPublishedTrolleyPlates(requirements, day) {
+    const total = dayTrolleyCount(day);
+    const customerName = state.studio.customerName || "Customer name";
+    const flag = total > 2 && unitsCheckStatus([day], false) === "TO_CHECK"
+      ? '<em class="is-to-check">⚠ Units to check</em>'
+      : total > 2 && unitsCheckStatus([day], false) === "CHECKED" ? '<em class="is-checked">✓ Units checked</em>' : "";
+    const rows = requirements.flatMap((requirement) => {
+      const quantity = Math.max(0, Number(requirement.quantity) || 0);
+      const plates = Array.isArray(requirement.plates) ? requirement.plates : [];
+      const served = Array.isArray(requirement.serves_product_codes) && requirement.serves_product_codes.length > 1
+        ? requirement.serves_product_codes.join(" + ")
+        : "";
+      return Array.from({ length: quantity }, (_, index) => {
+        const plate = plates.find((item) => Number(item.plate_number) === index + 1) || {};
+        const names = Array.isArray(plate.subunit_names) ? plate.subunit_names : [];
+        return `
+          <li>
+            <span class="customers-trolley-chip">${escapeHtml(requirement.display_code || requirement.trolley_type_code || "?")}<small>#${index + 1}</small></span>
+            ${names.length
+              ? `<b>${escapeHtml(names.join(" & "))}</b>`
+              : `<span class="is-customer">${escapeHtml(customerName)}</span>`}
+            ${served ? `<small>${escapeHtml(served)}</small>` : ""}
+            ${requirement.empty_trolley ? "<small>Empty</small>" : ""}
+            ${plate.instructions ? `<i title="${escapeHtml(plate.instructions)}">⚠ ${escapeHtml(plate.instructions)}</i>` : ""}
+          </li>`;
+      });
+    });
+    return `
+      <div class="customers-studio-trolley-view">
+        <div class="customers-studio-trolley-view-head"><span>Trolleys (${total})</span>${flag}</div>
+        <ul>${rows.join("")}</ul>
+      </div>`;
+  }
+
   function renderManagementPublishedDayCard(dayDefinition, day = null) {
     const isActive = Boolean(day);
     const products = Array.isArray(day?.products) ? day.products : [];
@@ -3968,7 +4071,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   </div>
                 </div>
                 ${products.map(renderManagementPublishedProduct).join("")}
-                ${requirements.length ? readonlyField("Trolleys", trolleyRequirementSummary(requirements), { wide: true, multiline: true }) : ""}
+                ${requirements.length ? renderPublishedTrolleyPlates(requirements, day) : ""}
                 <div class="customers-studio-day-fields">
                   ${readonlyField("Delivery day", day.delivery_day || "Not set")}
                   ${readonlyField("Delivery order", day.delivery_order)}
@@ -4189,6 +4292,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function bindScheduleManagementEditor() {
     scheduleBody.onclick = (event) => {
+      if (event.target.closest("[data-studio-units-confirm]")) {
+        openUnitsCheckDialog();
+        return;
+      }
+
+
       const viewButton = event.target.closest("[data-studio-view]");
 
       if (viewButton) {
@@ -4725,6 +4834,7 @@ document.addEventListener("DOMContentLoaded", () => {
           p_schedule_version_id: draft.schedule_version_id
         });
         state.studio.comparison = comparison;
+        state.studio.unitsCheck = await loadStudioUnitsCheck(draft.schedule_version_id);
         renderScheduleManagementState();
 
         if (!comparison?.has_changes) {
@@ -4746,6 +4856,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function openPublishReviewDialog(comparison, reason) {
+    const check = state.studio.unitsCheck;
+    const needsUnitsCheck = Boolean(check?.needed) && check.status !== "CHECKED";
     openScheduleActionDialog({
       title: "Confirm Schedule Update",
       description: "Review the saved changes below. Confirming updates the live planner and keeps the previous revision in history.",
@@ -4753,9 +4865,19 @@ document.addEventListener("DOMContentLoaded", () => {
       cancelLabel: "Continue Editing",
       showReason: false,
       reason,
-      reviewHtml: renderPublishReviewSummary(comparison),
+      reviewHtml: renderPublishReviewSummary(comparison) + (needsUnitsCheck ? renderUnitsCheckConfirmHtml(check) : ""),
       async onConfirm() {
         const draft = state.studio.management?.draft_schedule;
+        if (needsUnitsCheck) {
+          if (!document.getElementById("customersUnitsCheckConfirm")?.checked) {
+            throw new Error("Tick \"Units checked\" after checking the units of every trolley.");
+          }
+          await rpc("confirm_customer_schedule_units", {
+            p_schedule_version_id: draft.schedule_version_id,
+            p_note: null,
+            p_source_application: "CUSTOMER_STUDIO"
+          });
+        }
         const result = await rpc("publish_customer_schedule_draft_with_order_normalization", {
           p_schedule_version_id: draft.schedule_version_id,
           p_expected_row_version: draft.row_version,
@@ -4768,6 +4890,46 @@ document.addEventListener("DOMContentLoaded", () => {
         renderScheduleManagementState();
         await loadMainView();
         showToast("Schedule updated successfully.");
+      }
+    });
+  }
+
+  function renderUnitsCheckConfirmHtml(check) {
+    const busyDays = (Array.isArray(check?.days) ? check.days : []).filter((day) => day.needs_check);
+    const dayText = busyDays.map((day) => `${String(day.production_day || "").slice(0, 3)} ${day.trolley_count} trolleys, ${day.trolleys_with_units} with a unit`).join(" · ");
+    return `
+      <label class="customers-units-check-confirm">
+        <input id="customersUnitsCheckConfirm" type="checkbox">
+        <span>
+          <strong>Units checked</strong>
+          <small>${escapeHtml(`This customer has more than 2 trolleys on a day (${dayText}; ${check.unit_count} unit${check.unit_count === 1 ? "" : "s"} in Customer Master). I checked which unit goes on each trolley.`)}</small>
+        </span>
+      </label>`;
+  }
+
+  function openUnitsCheckDialog() {
+    const published = state.studio.management?.published_schedule || currentStudioSnapshot();
+    const check = state.studio.unitsCheck;
+    if (!published?.schedule_version_id || !check) return;
+    const busyDays = (Array.isArray(check.days) ? check.days : []).filter((day) => day.needs_check);
+    openScheduleActionDialog({
+      title: "Confirm Units Checked",
+      description: "Confirm that the units of every trolley are right: each trolley shows its unit, or the customer name when the trolley has none. The schedule itself does not change.",
+      confirmLabel: "Confirm Units Checked",
+      showReason: false,
+      reviewHtml: `
+        <ul class="customers-units-check-days">
+          ${busyDays.map((day) => `<li><b>${escapeHtml(day.production_day)}</b> ${escapeHtml(`${day.trolley_count} trolleys, ${day.trolleys_with_units} with a unit`)}</li>`).join("")}
+        </ul>`,
+      async onConfirm() {
+        state.studio.unitsCheck = await rpc("confirm_customer_schedule_units", {
+          p_schedule_version_id: published.schedule_version_id,
+          p_note: null,
+          p_source_application: "CUSTOMER_STUDIO"
+        });
+        renderScheduleManagementState();
+        loadMainView().catch((error) => console.warn("Customer list refresh failed:", error));
+        showToast("Units check confirmed.");
       }
     });
   }
@@ -5027,24 +5189,41 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadCustomerMaster(requestId) {
     mainPanel.innerHTML = loadingHtml("Loading Customer Master...");
 
-    const payload = await rpc("get_customer_directory", {
-      p_status: state.master.status,
-      p_service_filter: state.master.service,
-      p_search: state.master.search || null,
-      p_effective_date: effectiveDateInput.value,
-      p_limit: 500,
-      p_offset: 0
-    });
+    const [payload, unitsOverview] = await Promise.all([
+      rpc("get_customer_directory", {
+        p_status: state.master.status,
+        p_service_filter: state.master.service,
+        p_search: state.master.search || null,
+        p_effective_date: effectiveDateInput.value,
+        p_limit: 500,
+        p_offset: 0
+      }),
+      rpc("get_customer_units_check_overview", {}).catch((error) => {
+        if (error?.code !== "PGRST202") console.warn("Units check overview could not be loaded:", error);
+        return null;
+      })
+    ]);
 
     if (requestId !== state.requestId) {
       return;
     }
 
+    state.master.unitsOverview = unitsOverview;
     renderCustomerMaster(payload);
   }
 
+  function customerUnitsCheck(customerId) {
+    const items = Array.isArray(state.master.unitsOverview?.items) ? state.master.unitsOverview.items : [];
+    return items.find((item) => item.customer_id === customerId) || null;
+  }
+
   function renderCustomerMaster(payload) {
-    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const unitsAvailable = Boolean(state.master.unitsOverview);
+    const allItems = Array.isArray(payload?.items) ? payload.items : [];
+    const items = unitsAvailable && state.master.units !== "ALL"
+      ? allItems.filter((item) => customerUnitsCheck(item.customer_id)?.status === state.master.units)
+      : allItems;
+    const toCheckCount = Number(state.master.unitsOverview?.to_check_count || 0);
     const canEdit = Boolean(state.capabilities?.can_edit_customers);
     const canDeactivate = Boolean(state.capabilities?.can_deactivate_customers);
 
@@ -5060,6 +5239,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="customers-count-badge">
           ${escapeHtml(formatNumber(payload?.total_count, "0"))} customers
         </span>
+        ${toCheckCount ? `<button type="button" class="customers-units-count-badge" data-master-units-filter="TO_CHECK">⚠ ${escapeHtml(toCheckCount)} with units to check</button>` : ""}
       </div>
 
       <div class="customers-toolbar">
@@ -5095,6 +5275,21 @@ document.addEventListener("DOMContentLoaded", () => {
             <option value="CLOTHES_AND_MOP"${state.master.service === "CLOTHES_AND_MOP" ? " selected" : ""}>Clothes + MOP</option>
           </select>
         </label>
+
+        ${
+          unitsAvailable
+            ? `
+              <label class="customers-toolbar-group">
+                <span class="customers-toolbar-label">Units (more than 2 trolleys)</span>
+                <select id="customerMasterUnits" class="customers-select">
+                  <option value="ALL"${state.master.units === "ALL" ? " selected" : ""}>All customers</option>
+                  <option value="TO_CHECK"${state.master.units === "TO_CHECK" ? " selected" : ""}>Units to check</option>
+                  <option value="CHECKED"${state.master.units === "CHECKED" ? " selected" : ""}>Units checked</option>
+                </select>
+              </label>
+            `
+            : ""
+        }
 
         <button id="customerMasterRefresh" class="customers-secondary-button" type="button">
           Reload
@@ -5147,6 +5342,12 @@ document.addEventListener("DOMContentLoaded", () => {
       : item.active
         ? '<span class="customers-master-schedule-state needs-setup">Schedule setup required</span>'
         : '<span class="customers-master-schedule-state is-inactive">No active schedule</span>';
+    const unitsCheck = customerUnitsCheck(item.customer_id);
+    const unitsHtml = unitsCheck
+      ? unitsCheck.status === "TO_CHECK"
+        ? `<span class="customers-master-units is-to-check" title="More than 2 trolleys on a day: open the schedule to check the units">⚠ Units to check · ${escapeHtml(unitsCheck.max_day_trolleys)} trolleys</span>`
+        : `<span class="customers-master-units is-checked" title="${escapeHtml(`${unitsCheck.unit_count} units in Customer Master`)}">✓ Units checked · ${escapeHtml(unitsCheck.unit_count)} unit${unitsCheck.unit_count === 1 ? "" : "s"}</span>`
+      : "";
     const scheduleTitle = schedule
       ? "Open schedule"
       : item.active
@@ -5227,7 +5428,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </td>
         <td><div class="customers-badge-row">${serviceBadges(item.product_services)}</div></td>
-        <td>${scheduleHtml}</td>
+        <td><div class="customers-master-schedule-cell">${scheduleHtml}${unitsHtml}</div></td>
         <td>${escapeHtml(item.eircode || "—")}</td>
         <td>
           ${
@@ -5246,6 +5447,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const searchInput = document.getElementById("customerMasterSearch");
     const statusSelect = document.getElementById("customerMasterStatus");
     const serviceSelect = document.getElementById("customerMasterService");
+    const unitsSelect = document.getElementById("customerMasterUnits");
     const refreshButton = document.getElementById("customerMasterRefresh");
     const addButton = document.getElementById("customerMasterAdd");
 
@@ -5263,6 +5465,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     serviceSelect?.addEventListener("change", () => {
       state.master.service = serviceSelect.value;
+      loadMainView();
+    });
+
+    unitsSelect?.addEventListener("change", () => {
+      state.master.units = unitsSelect.value;
+      loadMainView();
+    });
+
+    mainPanel.querySelector("[data-master-units-filter]")?.addEventListener("click", (event) => {
+      state.master.units = event.currentTarget.dataset.masterUnitsFilter;
       loadMainView();
     });
 

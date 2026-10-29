@@ -727,6 +727,14 @@ customer and active), `create_customer_schedule_draft` (copies plates, drops rem
 subunits) and `get_customer_master_change_history` (Subunits field). The frontend hides the
 new parts while the migration is not applied.
 
+Units check (2026-10-29, `202610290002_customer_schedule_unit_checks.sql`, **Prepared**,
+not applied; 15/15 in a rolled-back run): a schedule with more than 2 trolleys on a day is
+TO_CHECK until someone with CUSTOMERS EDIT confirms its units
+(`confirm_customer_schedule_units`, append-only `customer_schedule_unit_checks`). The check
+holds a signature of trolleys, plates and active units, so changing any of them needs a new
+check. Customer Studio requires the "Units checked" tick to publish such a change; Customer
+Master lists and filters the customers to check.
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.
