@@ -751,6 +751,11 @@ shows a second "Not started" stream. Lifecycle trolley stays are read through ei
 schedule product id (V1/V2). V4 adds `finish_processed_by` (Finish staff names), shown in
 the Processed actual card.
 
+Production Tracker Processed actual detail (2026-10-29,
+`202610290005_production_tracker_finish_contributions.sql`, **Prepared**, not applied):
+V4 returns `finish_entries` (one per ACTIVE Finish contribution: table, shift, staff, time,
+batch lines, trolleys); the Route board card opens a detail dialog for Finish and MOP.
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.

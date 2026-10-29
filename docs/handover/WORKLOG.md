@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Production Tracker: Processed actual detail
+
+- Branch / commits: `claude/tracker-processed-detail`, Pull Request
+- Changed: owner request. In the Route board, the Processed actual card (Finish or MOP) is
+  clickable and opens a detail dialog. Finish lists every contribution (table, shift, staff,
+  time, revision, batch reference lines with quantities, trolleys); MOP shows the batch
+  (operator, time, revision, variant lines, trolleys, ABS references).
+- Database: `202610290005_production_tracker_finish_contributions.sql` **Prepared, not
+  applied**. Replaces `get_production_tracker_v4` (adds `finish_entries`). Read-only RPC.
+- Validation: rolled-back run on ElisCaretex-dev for 29/10: 53 entries for 53 contributions
+  (e.g. ST COLUMBAS HOSPITAL: Table 1 Evening batch 250 + Table 1 Morning batch 273).
+  Dialog rendered in Chromium (desktop and 390 px). `validate-repository.mjs` passes.
+- Open / next: owner applies the migration.
+
 ## 2026-10-29 — Claude — Production Tracker: no duplicate stream after a same-day schedule change
 
 - Branch / commits: `claude/tracker-duplicate-streams`, Pull Request
