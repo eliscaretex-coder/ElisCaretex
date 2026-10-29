@@ -3976,9 +3976,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderUnitsCheckBanner(draft, days, management) {
     const status = unitsCheckStatus(days, draft);
-    if (!status || status === "NOT_NEEDED") return "";
-    const busyDays = days.filter((day) => dayTrolleyCount(day) > 2);
     const units = Array.isArray(state.studio.subunits) ? state.studio.subunits : [];
+    if (!status) return "";
+    if (status === "NOT_NEEDED") {
+      // Up to 2 trolleys a day: no check needed, but the units are still shown.
+      return units.length
+        ? `
+          <section class="customers-units-check is-info">
+            <strong>Units (${units.length})</strong>
+            <span class="customers-units-names">${units.map((unit) => `<b>${escapeHtml(unit.subunit_name)}</b>`).join("")}</span>
+            <small>${draft ? "Set which trolley carries each unit under Units and instruction." : "Edit Schedule sets which trolley carries each unit."}</small>
+          </section>`
+        : "";
+    }
+    const busyDays = days.filter((day) => dayTrolleyCount(day) > 2);
     const unitText = units.length
       ? `${units.length} unit${units.length === 1 ? "" : "s"} in Customer Master: ${units.map((unit) => unit.subunit_name).join(", ")}`
       : "No units in Customer Master";
