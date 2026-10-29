@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-10-29 — Claude — Customer Schedule shows the units of every customer
+
+- Branch / commits: `claude/schedule-show-units`, Pull Request
+- Changed: owner report (ADARE, 2 units, at most 2 trolleys a day): the units were only
+  visible in Customer Master and inside Edit Schedule, because the schedule banner only
+  appeared above 2 trolleys. Customer Studio now always shows "Units (n)" with the names
+  when the customer has units; the check banner above 2 trolleys is unchanged.
+- Database: none
+- Validation: validate-repository passes; mocked Playwright run of a schedule with 2
+  trolleys a day shows the units strip.
+- Open / next: none.
+
 ## 2026-10-29 — Claude — Units check for customers with more than 2 trolleys
 
 - Branch / commits: `claude/customer-units-check`, Pull Request

@@ -4930,3 +4930,6 @@ body.customers-modal-open {
 .customers-master-units.is-to-check{background:#ffedd5;color:#9a3412}
 .customers-master-units.is-checked{background:#dcfce7;color:#166534}
 .customers-units-count-badge{border:1px solid #fdba74;background:#fff7ed;color:#9a3412;font-weight:800;border-radius:999px;padding:4px 12px;cursor:pointer}
+.customers-units-check.is-info{background:#f8fafc;border-color:#cbd5e1;color:#0f2742;justify-content:flex-start}
+.customers-units-names{display:flex;flex-wrap:wrap;gap:4px}
+.customers-units-names b{background:#fff7ed;border:1px solid #fed7aa;color:#b45309;border-radius:999px;padding:1px 9px;font-size:12.5px;font-weight:800}
