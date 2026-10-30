@@ -109,6 +109,22 @@ Entry format:
   `superseded_at/by`, `cancelled_at/by`, but no committed migration creates them.
 - Open / next: owner applies the migration and the test, sets the two spreadsheet IDs; leave
   requests are the next block.
+## 2026-10-30 — Claude — Schedule Planner: print trolley labels from the customer schedule
+
+- Branch / commits: `claude/schedule-planner-trolley-label`, Pull Request
+- Changed: the published schedule of a customer (Schedule Planner, open a customer) now has a
+  print button on each planned trolley and "All" per day. It prints the same A4 folded label as
+  Finish / MOP Production (`trolley-plates.js`, now exporting `ELIS_TROLLEY_PLATES.print`), built
+  from the published revision: customer name, unit(s) of the plate, trolley code and position in
+  the day, delivery days of the revision and the day's default route. Hidden while a draft is
+  open and on old revisions opened from the history.
+- Database: none
+- Validation: `validate-repository.mjs` passed; Playwright with a mocked Supabase client opened a
+  customer, printed one label and all labels of a day, and checked the label text. Not tested
+  against the live database.
+- Open / next: numbering is per production day across all products. In Finish / MOP it counts
+  only the trolleys of that product, so a customer with Clothes and MOP trolleys on the same day
+  can show a different "n/total" than the Finish label. QR code labels are a separate task.
 
 ## 2026-10-30 — Claude — Distribution Daily board: drivers missing on imported roster weeks
 

@@ -4919,6 +4919,9 @@ body.customers-modal-open {
 .customers-studio-trolley-view li small{color:#5b6b7f;font-size:11px}
 .customers-studio-trolley-view li i{flex-basis:100%;font-style:normal;font-size:11px;color:#9a3412;overflow-wrap:anywhere}
 .customers-trolley-chip{display:inline-flex;align-items:baseline;gap:2px;min-width:30px;justify-content:center;padding:0 4px;border-radius:5px;background:#0f2742;color:#fff;font-weight:800;font-size:11px;line-height:1.5}
+.customers-trolley-print{margin-left:auto;align-self:center;flex:none;white-space:nowrap;border:1px solid #0f2742;background:#fff;color:#0f2742;border-radius:6px;padding:0 6px;font-size:11px;font-weight:700;line-height:1.6;cursor:pointer;text-transform:none;letter-spacing:0}
+.customers-studio-trolley-view-head:has(.customers-trolley-print){flex-wrap:wrap}
+.customers-trolley-print:hover{background:#0f2742;color:#fff}
 .customers-trolley-chip small{color:#cbd5e1!important;font-size:9.5px!important;font-weight:600}
 .customers-units-check-confirm{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border:1px solid #fdba74;background:#fff7ed;border-radius:10px;cursor:pointer}
 .customers-units-check-confirm input{width:18px;height:18px;margin-top:2px;flex:none}

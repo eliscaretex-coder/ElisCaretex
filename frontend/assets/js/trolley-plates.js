@@ -4,6 +4,7 @@
 // customer being processed, with the subunit(s) on the plate, the on-screen
 // instruction for the staff and a Print label button. Data comes from
 // get_production_flow_trolley_plates; a customer without planned trolleys shows nothing.
+// The Schedule Planner reuses the label print through ELIS_TROLLEY_PLATES.print.
 (function initializeTrolleyPlates() {
   const LOGO_URL = new URL("../assets/img/elis-logo.svg", document.baseURI).href;
   let requestToken = 0;
@@ -211,5 +212,7 @@
     container.innerHTML = "";
   }
 
-  window.ELIS_TROLLEY_PLATES = { mount, clear };
+  // print: the Schedule Planner prints the same label from the published schedule,
+  // without a production item.
+  window.ELIS_TROLLEY_PLATES = { mount, clear, print: printLabels };
 })();
