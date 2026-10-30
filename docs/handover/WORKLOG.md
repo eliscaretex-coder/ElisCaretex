@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Customer schedule shows units and label print to Finish and other read-only roles
+
+- Branch / commits: `claude/finish-terminal-units`, Pull Request (see GitHub)
+- Changed: owner report from the Finish Table 1 computer (FINISH_OPERATOR terminal): the
+  customer schedule opened from the Clothes planner showed no unit names and no label
+  print. Roles that cannot manage schedules read `get_customer_weekly_schedule`, which did
+  not return the trolley plates. It now returns the plates (unit names, instructions) on
+  each trolley row, the route code and delivery weekday of each day and the delivery
+  weekdays of the version. The read-only day card shows the same trolley list as the
+  manager view (without the units-check flag) with print buttons for one trolley or all.
+- Database: `202610300003_customer_weekly_schedule_trolley_units.sql` (patches the live
+  function in place; same permission checks and visible services). Prepared; the owner
+  applies it.
+- Validation: `node scripts/validate-repository.mjs`;
+  `supabase/tests/202610300003_customer_weekly_schedule_trolley_units_validation.sql` 8/8 in
+  a rolled-back run against ElisCaretex-dev (as FINISH-T1-PC01; Cleaner refused); Playwright
+  run of the read-only schedule with a Finish terminal account (units listed, labels print).
+  The manager editor test (unit select per trolley) still passes.
+- Open / next: owner applies the migration and merges.
+
 ## 2026-10-30 — Claude — Trolley label: larger text
 
 - Branch / commits: `claude/trolley-label-bigger-text`, Pull Request (see GitHub)
