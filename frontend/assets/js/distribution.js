@@ -160,7 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       [stops.length, "Scheduled stops", ""],
       [activeRuns.length, "Active routes", ""],
       [pendingRoutes, "Routes to plan", pendingRoutes ? "attention" : ""],
-      [handoff.trolley_count || 0, "Trolleys prepared", ""],
+      [productionLoad.trolley_count ?? handoff.trolley_count ?? 0, "Trolleys prepared", ""],
       [productionLoad.known_vehicle_load_kg || 0, "Known load (kg)", productionLoad.not_started_customers ? "attention" : "", 1]
     ];
     el.kpis.innerHTML = items.map(([value, label, cls, digits = 0]) => `<article class="${cls}"><strong>${esc(fmtNumber(value, digits))}</strong><span>${esc(label)}</span></article>`).join("");
