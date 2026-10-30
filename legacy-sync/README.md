@@ -13,7 +13,7 @@ Database rules, outcomes and the live dry run: `docs/database/legacy-sync-finish
 | Sender | `legacy-sync/apps-script/LegacySyncFinish.gs` | Reads, for at most 7 days: Sorting `Sorting Area` and `Staff`; Finish Area `FinishEntries` (+ `FinishEntriesHistory`) and `RewashProduction`; CentralDB `WashItems` (+ `WashItemsHistory`) and `User` (name to legacy user ID only; never `UserPrivate`); every row of the CentralDB registers (`User`, `CustomerMaster`, `Trolley`, `Driver`, `Vehicles`) and of `Routes` (name and colour) and `CustomerSchedule` (one record per customer; a change becomes a new published schedule revision). Normalises cell formats and sends signed requests. Never writes the sheets. |
 | Admin page | `legacy-sync/apps-script/Index.html` | Apps Script web app page: status, pending records with the owner's choice for each, preview or import a date range, source spreadsheets; the old v3.1 diagnostics are folded under "Old diagnostics". Needs `Code.gs` (v3.1) and `LegacySyncFinish.gs`. |
 | Endpoint | `supabase/functions/legacy-sync-finish/index.ts` | Checks the HMAC signature and the timestamp (5 minutes), validates the request shape and calls one `integration.legacy_sync_*` function. No mapping logic. |
-| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610280002`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
+| Rules | `integration.legacy_sync_*` (migrations `202610260002` to `202610300002`) | Planner, dry run, importer, switches, run limit, review queue, links, nightly schedule. |
 | Old inbox | `supabase/functions/legacy-sync-ingest/index.ts` | Repository copy of the live function (v2). Untouched; the new sender does not use it. |
 
 ## Request contract
@@ -106,7 +106,15 @@ part whose switch is OFF is refused by the database and skipped; the others stil
 | MOP | CentralDB `MopProduction` (+ History) + `WashItems` | `sorting_mop_production_batches` (lines, trolley references), ABS batch, Production Flow `MOP_PRODUCTION_RECORDED` | `MOP_PRODUCTION_IMPORT` | `202610270008` |
 | Finish | Finish Area `FinishEntries` + CentralDB `WashItems` | Finish entries and lines | `FINISH_HISTORICAL_IMPORT` | `202610270001`-`0004` |
 | ReWash | Finish Area HOUSEHOLD entries + `RewashProduction` | ReWash entries and lines | `FINISH_REWASH_HISTORICAL_IMPORT` | `202610270003` |
+| Schedules | CentralDB `Routes` (name and colour) and `CustomerSchedule` (one record per customer) | `distribution_routes`; a change is a new published `customer_schedule_versions` revision | `SCHEDULE_IMPORT` | `202610280002` |
+| Rosters | Weekly Shift Roster `RosterStoreV2` (one record per week and shift) and Distribution `Roster` (one record per week); current and future weeks only | A change is a new published `production_roster_versions` / `distribution_roster_versions` version (previous one SUPERSEDED, history kept) built with the same rules as publishing in V2; Distribution route runs follow. Days before today are never changed. First meeting: the legacy week wins; afterwards only cells changed in the legacy app are written and V2 edits are kept | `ROSTER_IMPORT` | `202610300002` |
 | Trolleys | Trolley codes of Finish `FinishEntries` and CentralDB `MopProduction` (out) + CentralDB `TrolleyReturns` (back), in time order | `trolley_customer_stays`, trolley status and events, `sorting_trolley_intakes` with products and Production Flow `TROLLEY_RECEIVED_*`, presence evidence | `TROLLEY_CUSTODY_IMPORT` | `202610270009` |
 
-Planned next: customer schedules and routes (as new schedule versions), then production and
-distribution rosters (owner decision 2026-10-27: the legacy sheets are still where the team edits them).
+Rosters need two spreadsheet IDs (not secrets): `sources.roster` and `sources.distribution` in the
+Code.gs configuration, or the Script Properties `LSF_ROSTER_SPREADSHEET_ID` (Weekly Shift Roster) and
+`LSF_DISTRIBUTION_SPREADSHEET_ID` (Distribution). A week is held for review, never guessed, when V2
+rules refuse it: a person, driver or vehicle not in V2 yet (waits for the registers), an open draft
+in V2, a cover role the person is not authorised for, Sorting Clothes/MOP undecided, a driver on
+approved leave in V2, a blocked vehicle, or a route run that has already started.
+
+Planned next: leave requests (owner decision 2026-10-27: the legacy sheets are still where the team edits them).

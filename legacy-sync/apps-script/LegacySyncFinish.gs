@@ -10,6 +10,9 @@
  *           only rows that changed since the last sync are written)
  *   schedule CentralDB Routes (route list: name and colour) and CustomerSchedule (one record per
  *           customer with all its production days); a change is a new published schedule revision
+ *   roster  Weekly Shift Roster RosterStoreV2 (one record per week and shift) and Distribution "Roster"
+ *           (one record per week), current and future weeks only; a change is a new published roster
+ *           version in V2, and days before today are never changed
  *   attendance Finish Area StaffSessions (+ History) and RosterNotWorking, Sorting "Staff": who worked,
  *           where and when, in the order it was typed
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
@@ -24,6 +27,9 @@
  *   LSF_SECRET    the same value as the Supabase secret LEGACY_SYNC_HMAC_SECRET (64 hex chars)
  * Spreadsheet IDs come from the existing Legacy Sync configuration (Code.gs, lsConfig_):
  * sources.finish and sources.central must be enabled and configured; sources.sorting for washes.
+ * Rosters: sources.roster (Weekly Shift Roster) and sources.distribution (Distribution) when Code.gs has
+ * them; otherwise the Script Properties LSF_ROSTER_SPREADSHEET_ID and LSF_DISTRIBUTION_SPREADSHEET_ID
+ * (spreadsheet IDs, not secrets). A roster source that is not set is reported and skipped.
  *
  * Entry points (run from the editor):
  *   previewFinishSync('2026-10-24','2026-10-27')  read-only dry run of every part
@@ -102,13 +108,16 @@ const LSF = {
   routeFields: ['RouteID', 'DisplayName', 'Colour'],
   scheduleFields: ['CustomerID', 'CustomerName', 'ProductionDay', 'Route', 'DeliveryTime', 'QtyClothes', 'ClothesOrder',
     'TrolleyMop', 'MopOrder', 'MopProducts', 'ClothesNotes', 'MopInstructions', 'Information', 'DeliveryOrder', 'DeliveryNotes'],
+  // Rosters: a production week is about 7 KB of JSON, so a few per request.
+  rosterBatch: 10,
   // Parts sent through the generic dry_run / import operations.
-  kinds: ['master', 'schedule', 'attendance', 'wash', 'mop', 'trolley'],
+  kinds: ['master', 'schedule', 'roster', 'attendance', 'wash', 'mop', 'trolley'],
   // Import order: registers first (new people, customers and trolleys exist before their work),
-  // then customer schedules (they need the customers);
+  // then customer schedules (they need the customers), then rosters (they need staff, drivers,
+  // vehicles and routes);
   // attendance next (V2 checks who worked); trolleys last, because a trolley leaving production
   // needs its Finish or MOP record in V2.
-  parts: ['master', 'schedule', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
+  parts: ['master', 'schedule', 'roster', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -593,6 +602,76 @@ function lsfCollectSchedules_() {
   return {records: records, notes: notes.slice(0, 20)};
 }
 
+/** Spreadsheet ID of a roster source: the Code.gs configuration first, then a Script Property. */
+function lsfSourceId_(key, property) {
+  const src = (lsConfig_().sources || {})[key];
+  if (src && src.enabled && src.id) return src.id;
+  return String(PropertiesService.getScriptProperties().getProperty(property) || '').trim() || null;
+}
+
+/** JSON split over the cells of a row (from column `from`), without the legacy [[RL:…]] blobs in notes. */
+function lsfRowJson_(cells, from) {
+  const text = cells.slice(from).map(function (c) { return c === null || c === undefined ? '' : String(c); }).join('')
+    .replace(/\[\[RL:[^\]"]*\]\]/g, '').trim();
+  if (text.charAt(0) !== '{') return null;
+  return JSON.parse(text);
+}
+
+function lsfMonday_() {
+  const today = Utilities.formatDate(new Date(), LSF.timeZone, 'yyyy-MM-dd');
+  const d = new Date(today + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  return Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd');
+}
+
+/**
+ * Weekly Shift Roster RosterStoreV2 (WeekStartIso, Shift, HasSunday, UpdatedAt, UpdatedBy, Version, then
+ * the week JSON split over the next columns) and Distribution "Roster" (week date in column A, the week
+ * JSON from column B). The last row of each week (and shift) wins; weeks before this Monday are not sent.
+ */
+function lsfCollectRosters_() {
+  const notes = [], records = [], monday = lsfMonday_();
+  const rosterId = lsfSourceId_('roster', 'LSF_ROSTER_SPREADSHEET_ID');
+  if (!rosterId) notes.push('Weekly Shift Roster spreadsheet not set (Script Property LSF_ROSTER_SPREADSHEET_ID).');
+  else {
+    const sh = SpreadsheetApp.openById(rosterId).getSheetByName('RosterStoreV2');
+    if (!sh) throw Error('Sheet RosterStoreV2 is missing');
+    const weeks = {}, order = [];
+    const values = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues() : [];
+    values.forEach(function (cells, i) {
+      const week = lsfText_(cells[0], 'date'), shift = String(lsfText_(cells[1]) || '').toUpperCase();
+      if (!week || !shift || week < monday) return;
+      let data;
+      try { data = lsfRowJson_(cells, 6); } catch (e) { notes.push('RosterStoreV2 row ' + (i + 2) + ': the week JSON cannot be read.'); return; }
+      if (!data) return;
+      const id = week + '|' + shift;
+      if (!weeks[id]) order.push(id);
+      weeks[id] = {WeekStartIso: week, Shift: lsfText_(cells[1]), HasSunday: lsfText_(cells[2]), UpdatedAt: lsfText_(cells[3]),
+        Version: lsfText_(cells[5]), data: data};
+    });
+    order.forEach(function (id) { records.push({record_type: 'PRODUCTION_ROSTER', source_record_id: id, row: weeks[id]}); });
+  }
+  const distributionId = lsfSourceId_('distribution', 'LSF_DISTRIBUTION_SPREADSHEET_ID');
+  if (!distributionId) notes.push('Distribution spreadsheet not set (Script Property LSF_DISTRIBUTION_SPREADSHEET_ID).');
+  else {
+    const sh = SpreadsheetApp.openById(distributionId).getSheetByName('Roster');
+    if (!sh) throw Error('Sheet Roster is missing in the Distribution spreadsheet');
+    const weeks = {}, order = [];
+    const values = sh.getLastRow() > 0 ? sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues() : [];
+    values.forEach(function (cells, i) {
+      const week = lsfText_(cells[0], 'date');
+      if (!week || !/^\d{4}-\d{2}-\d{2}$/.test(week) || week < monday) return;
+      let data;
+      try { data = lsfRowJson_(cells, 1); } catch (e) { notes.push('Distribution Roster row ' + (i + 1) + ': the week JSON cannot be read.'); return; }
+      if (!data) return;
+      if (!weeks[week]) order.push(week);
+      weeks[week] = {WeekStart: week, data: data};
+    });
+    order.forEach(function (id) { records.push({record_type: 'DISTRIBUTION_ROSTER', source_record_id: id, row: weeks[id]}); });
+  }
+  return {records: records, notes: notes.slice(0, 20)};
+}
+
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
   const washes = lsfCollectWashes_(range);
@@ -619,6 +698,14 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.schedule = [];
     collected.notes.schedule = ['CentralDB schedules could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const rosters = lsfCollectRosters_();
+    collected.roster = rosters.records;
+    if (rosters.notes.length) collected.notes.roster = rosters.notes;
+  } catch (e) {
+    collected.roster = [];
+    collected.notes.roster = ['Roster sheets could not be read: ' + String(e.message || e)];
   }
   try {
     const attendance = lsfCollectAttendance_(range);
@@ -714,7 +801,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, schedule: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, schedule: {}, roster: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -735,7 +822,7 @@ function importFinishSync(fromDate, toDate, reason) {
     });
     for (const g of groups) {
       if (!plans[g.kind]) continue;
-      if (g.kind === 'master' || g.kind === 'schedule') { lsfImportBatches_(g.kind, runId, collected[g.kind], plans[g.kind], result, started); continue; }
+      if (g.kind === 'master' || g.kind === 'schedule' || g.kind === 'roster') { lsfImportBatches_(g.kind, runId, collected[g.kind], plans[g.kind], result, started); continue; }
       const records = collected[g.kind];
       for (let i = 0; i < records.length && !result.stopped; i++) {
         const outcome = plans[g.kind][i].outcome;
@@ -764,7 +851,7 @@ function importFinishSync(fromDate, toDate, reason) {
   return result;
 }
 
-/** Registers and schedules go in batches (each record is still its own transaction in V2). */
+/** Registers, schedules and rosters go in batches (each record is still its own transaction in V2). */
 function lsfImportBatches_(kind, runId, records, plans, result, started) {
   const out = result.results[kind], todo = [], size = LSF[kind + 'Batch'];
   records.forEach(function (record, i) {
