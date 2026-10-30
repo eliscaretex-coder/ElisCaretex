@@ -91,14 +91,15 @@ Entry format:
   weekdays of the version. The read-only day card shows the same trolley list as the
   manager view (without the units-check flag) with print buttons for one trolley or all.
 - Database: `202610300003_customer_weekly_schedule_trolley_units.sql` (patches the live
-  function in place; same permission checks and visible services). Prepared; the owner
-  applies it.
+  function in place; same permission checks and visible services). Applied by the owner
+  on 2026-10-30 and verified: as FINISH-T1-PC01 the ADARE schedule returns the units
+  HOUSE and WILLOWS on its trolleys.
 - Validation: `node scripts/validate-repository.mjs`;
   `supabase/tests/202610300003_customer_weekly_schedule_trolley_units_validation.sql` 8/8 in
   a rolled-back run against ElisCaretex-dev (as FINISH-T1-PC01; Cleaner refused); Playwright
   run of the read-only schedule with a Finish terminal account (units listed, labels print).
   The manager editor test (unit select per trolley) still passes.
-- Open / next: owner applies the migration and merges.
+- Open / next: none. Merged in #140.
 
 ## 2026-10-30 — Claude — Trolley label: larger text
 
