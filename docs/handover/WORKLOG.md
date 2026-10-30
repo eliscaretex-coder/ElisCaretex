@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Trolley label: larger text
+
+- Branch / commits: `claude/trolley-label-bigger-text`, Pull Request (see GitHub)
+- Changed: owner request. The printed trolley label keeps its layout with larger text:
+  customer 34pt to 56pt, unit 28pt to 44pt, footer (trolley, delivery days) 13pt to 19pt,
+  route chip 15pt to 24pt, logo 16mm to 20mm. Long customer or unit names and long
+  delivery-day lists shrink step by step in the print window until they fit the half sheet.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright print of a short name
+  (BLOOMFIELD / D/BROOK, full size) and a long name with three units and six delivery days
+  (shrunk to fit, nothing cut). Not yet owner confirmed.
+- Open / next: none.
+
 ## 2026-10-30 — Claude — Schedule Planner: customer card follows the Clothes / MOP list
 
 - Branch / commits: `claude/schedule-planner-service-filter`, Pull Request (see GitHub)
