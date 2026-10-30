@@ -80,6 +80,35 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Legacy sync: production and distribution rosters
+
+- Branch / commits: `claude/legacy-sync-rosters`, Pull Request into `master`.
+- Owner decisions: everything goes into the temporary nightly sync; on the first meeting of a
+  week the legacy roster wins; afterwards only cells changed in the legacy app are written and
+  V2 hand edits are kept; current and future weeks only, days before today never change.
+- Changed: new part `roster` of the legacy sync. Weekly Shift Roster `RosterStoreV2` (one
+  record per week and shift) and Distribution `Roster` (one record per week) are planned per
+  cell against a baseline in `integration.legacy_sync_master_states`; a change is published as
+  a new roster version with the same rules as `save_production_roster_week` /
+  `publish_distribution_roster_week` (display assignment, cover authorisation, shift,
+  employment dates, Sorting MOP rule; vehicle and driver availability, leave, started runs),
+  the previous version SUPERSEDED, Distribution route runs updated through
+  `distribution_apply_published_roster_runs`. Blocked weeks go to the review queue; new codes
+  STAFF/DRIVER/VEHICLE_NOT_IN_V2 wait for the registers. Apps Script sender and admin page
+  updated (part "Rosters", review texts).
+- Database: `202610300002_legacy_sync_rosters.sql` **Prepared, not applied**. Seeds
+  `ROSTER_IMPORT` OFF (limit 40); turning the sync OFF and ON from the page enables it.
+- Validation: `supabase/tests/202610300002_legacy_sync_rosters_validation.sql` (11 checks)
+  passes on a local replica. Dry run and commit on the replica with the real legacy weeks:
+  26/10 Morning and Evening and Distribution 26/10 published, 46 route runs, second run
+  ALREADY_IMPORTED; records built by the Apps Script code give the same fingerprints.
+- Expected holds on live: 26/10 Evening COVER_NOT_AUTHORISED (Vesley covers Supervisor in the
+  legacy app without that cover role); November Distribution weeks may hold
+  DRIVER_ON_LEAVE_IN_V2 for Gizelle (approved V2 leave 01–30/11).
+- Drift found: live `distribution_roster_versions` has `based_on_version_id`, `change_reason`,
+  `superseded_at/by`, `cancelled_at/by`, but no committed migration creates them.
+- Open / next: owner applies the migration and the test, sets the two spreadsheet IDs; leave
+  requests are the next block.
 ## 2026-10-30 — Claude — Schedule Planner: print trolley labels from the customer schedule
 
 - Branch / commits: `claude/schedule-planner-trolley-label`, Pull Request
