@@ -80,6 +80,37 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Distribution Daily board: drivers missing on imported roster weeks
+
+- Branch / commits: `claude/daily-board-drivers`, Pull Request into `master`.
+- Cause: the Daily board (and My Driver Roster stops) read the day's driver and vehicle from
+  `distribution_route_runs`, which only `publish_distribution_roster_week` creates. The weeks
+  imported from `Distribution_db (1).xlsx` on 2026-10-23 were written directly as PUBLISHED, so
+  week 2026-10-26 had 46 planned routes and 0 runs: every card showed "Not assigned".
+  Also found: `get_distribution_production_load` matched Production Flow items by
+  `source_schedule_day_id` only, so after a same-day schedule change (same cause as
+  `202610290004`) customers with Finish/MOP recorded showed as "not started" with 0 kg
+  (e.g. 30/10 route 613: 5/9 ready instead of 8/9; 23/10 most routes 0 ready).
+- Changed: internal `distribution_apply_published_roster_runs(uuid)` creates/updates the runs
+  of a published version exactly like publishing (READY, stops synced, ROSTER_PUBLISHED event,
+  never touches dispatched/completed runs); run once for every published week not yet over.
+  Any future import that writes a PUBLISHED roster directly must call it.
+  `get_distribution_production_load` binds stops to the flow item by customer, product and
+  production date (exact schedule day preferred); trolleys follow the customer's route that day.
+  Daily board KPI "Trolleys prepared" now uses the production-load count (excludes returned
+  trolleys), matching the route cards.
+- Database: `202610300001_distribution_board_imported_roster_runs.sql` **Prepared, not applied**.
+- Validation: migration run against ElisCaretex-dev inside a rolled-back transaction: 46 runs
+  created for week 2026-10-26, 0 planned entries left without a run, today's board shows 9/9
+  drivers and vehicles, run stops 84 = published stops 84, second run changes 0 rows,
+  anon/authenticated cannot execute the internal function. Production load before/after compared
+  for 20–31/10: only ready/not-started/kg changed, trolley counts unchanged.
+  `node scripts/validate-repository.mjs` passes; board rendered in Chromium with mocked RPCs
+  built from live 30/10 data (desktop and 390 px).
+- Open / next: owner applies the migration. Week 2026-10-12 (past) still has 3 imported routes
+  without runs and 7 runs that differ from the imported roster; left as history. The SUPPORT
+  route has a daily stop but is never on the roster, so "Routes to plan" stays at 1.
+
 ## 2026-10-29 — Claude — Production Tracker: Processed actual detail
 
 - Branch / commits: `claude/tracker-processed-detail`, Pull Request
