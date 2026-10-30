@@ -2289,6 +2289,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function addManualStaff(staffId,button){
     button.disabled=true;
+    try{
+      // Someone working in Finish now is transferred at a time, so the hours are not counted in both areas.
+      // Until the transfer migration is applied the check does not exist: keep the normal add.
+      const plan=await rpc("get_staff_area_transfer_check_v1",{p_staff_id:staffId,p_shift_code:state.shift,p_to_area_code:"SORTING",p_to_table_code:null,p_move_time:null}).catch(error=>{if(error?.code==="PGRST202")return null;throw error;});
+      if(plan?.transfer_needed){renderManualStaffTransfer(staffId,plan);return;}
+      if(plan&&plan.mode!=="NONE"){setMessage(plan.message||"This person cannot be added to Sorting now.","error");button.disabled=false;return;}
+    }catch(error){
+      console.error(error);setMessage(friendly(error),"error");button.disabled=false;return;
+    }
     const accepted=confirm("Add this person to Sorting Actual staffing? The published Roster will not be changed.");
     if(!accepted){button.disabled=false;return;}
     try{
@@ -2302,6 +2311,43 @@ document.addEventListener("DOMContentLoaded", async () => {
       setMessage(result?.message||"Staff added to Sorting Actual staffing.","success");
     }catch(error){
       console.error(error);setMessage(friendly(error),"error");button.disabled=false;
+    }
+  }
+
+  function renderManualStaffTransfer(staffId,plan){
+    const blocked=!plan?.transfer_needed;
+    el.manualStaffOptions.innerHTML=`<div class="sorting-manual-transfer${blocked?" blocked":""}" data-manual-transfer="${esc(staffId)}" role="status">
+      <strong>${blocked?"Cannot transfer at this time":`Working in ${esc(plan.area_label||"another area")}`}</strong>
+      <p>${esc(plan.message||"")}</p>
+      <label>Transfer time<input data-manual-transfer-time type="time" value="${esc(plan.move_time||"")}"></label>
+      <small>Correct the times later with the Staff edit if needed.</small>
+      <p class="sorting-manual-transfer-message" data-manual-transfer-message aria-live="polite"></p>
+      <footer><button class="sorting-secondary-button" data-manual-transfer-cancel type="button">Back</button><button class="sorting-primary-button" data-manual-transfer-confirm type="button"${blocked?" disabled":""}>Transfer to Sorting${plan.move_time?` at ${esc(plan.move_time)}`:""}</button></footer>
+    </div>`;
+  }
+
+  async function recheckManualStaffTransfer(panel){
+    const staffId=panel.dataset.manualTransfer,time=panel.querySelector("[data-manual-transfer-time]").value;
+    if(!time)return;
+    try{
+      const plan=await rpc("get_staff_area_transfer_check_v1",{p_staff_id:staffId,p_shift_code:state.shift,p_to_area_code:"SORTING",p_to_table_code:null,p_move_time:time});
+      renderManualStaffTransfer(staffId,plan);
+    }catch(error){
+      console.error(error);panel.querySelector("[data-manual-transfer-message]").textContent=friendly(error);
+    }
+  }
+
+  async function confirmManualStaffTransfer(panel,button){
+    const staffId=panel.dataset.manualTransfer,time=panel.querySelector("[data-manual-transfer-time]").value,message=panel.querySelector("[data-manual-transfer-message]");
+    if(!time){message.textContent="Enter the transfer time.";return;}
+    button.disabled=true;message.textContent="";
+    try{
+      const result=await rpc("transfer_staff_into_area_v1",{p_staff_id:staffId,p_shift_code:state.shift,p_to_area_code:"SORTING",p_to_table_code:null,p_move_time:time,p_notes:"Transferred from Add staff.",p_whole_shift:false});
+      el.manualStaffDialog.close();
+      await loadStaffWork();
+      setMessage(result?.message||"Staff transferred to Sorting.","success");
+    }catch(error){
+      console.error(error);message.textContent=friendly(error);button.disabled=false;
     }
   }
 
@@ -5067,9 +5113,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   if(el.addManualStaffButton) el.addManualStaffButton.addEventListener("click",openManualStaffDialog);
   if(el.manualStaffSearch) el.manualStaffSearch.addEventListener("input",renderManualStaffCandidates);
   if(el.manualStaffOptions) el.manualStaffOptions.addEventListener("click",async e=>{
+    const panel=e.target.closest("[data-manual-transfer]");
+    if(e.target.closest("[data-manual-transfer-cancel]")){renderManualStaffCandidates();return;}
+    const confirmButton=e.target.closest("[data-manual-transfer-confirm]");
+    if(panel&&confirmButton){await confirmManualStaffTransfer(panel,confirmButton);return;}
     const button=e.target.closest("[data-add-manual-staff]");
     if(!button)return;
     await addManualStaff(button.dataset.addManualStaff,button);
+  });
+  if(el.manualStaffOptions) el.manualStaffOptions.addEventListener("change",e=>{
+    const panel=e.target.closest("[data-manual-transfer]");
+    if(panel&&e.target.matches("[data-manual-transfer-time]"))recheckManualStaffTransfer(panel);
   });
   if(el.staffWorkList) el.staffWorkList.addEventListener("change",e=>{
     const toggle=e.target.closest('[data-work-field="away-enabled"]');
