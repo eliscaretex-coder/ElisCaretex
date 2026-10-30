@@ -2219,6 +2219,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 ${products.map(renderStudioProduct).join("")}
 
+                ${(() => {
+                  const trolleyDay = readOnlyTrolleyDay(day);
+                  return trolleyDay.trolley_requirements.length
+                    ? renderPublishedTrolleyPlates(trolleyDay.trolley_requirements, trolleyDay, { readOnly: true })
+                    : "";
+                })()}
+
                 <div class="customers-studio-day-fields">
                   ${readonlyField("Route", routeCode)}
                   ${readonlyField("Delivery day", deliveryDay)}
@@ -4137,13 +4144,16 @@ document.addEventListener("DOMContentLoaded", () => {
       </section>`;
   }
 
-  function renderPublishedTrolleyPlates(requirements, day) {
+  // readOnly: the published schedule seen by roles that cannot manage schedules
+  // (for example a Finish computer). No units check flag there.
+  function renderPublishedTrolleyPlates(requirements, day, { readOnly = false } = {}) {
     const total = dayTrolleyCount(day);
     const customerName = state.studio.customerName || "Customer name";
-    const flag = total > 2 && unitsCheckStatus([day], false) === "TO_CHECK"
-      ? '<em class="is-to-check">⚠ Units to check</em>'
-      : total > 2 && unitsCheckStatus([day], false) === "CHECKED" ? '<em class="is-checked">✓ Units checked</em>' : "";
-    const canPrint = canPrintStudioLabels();
+    const flag = readOnly ? ""
+      : total > 2 && unitsCheckStatus([day], false) === "TO_CHECK"
+        ? '<em class="is-to-check">⚠ Units to check</em>'
+        : total > 2 && unitsCheckStatus([day], false) === "CHECKED" ? '<em class="is-checked">✓ Units checked</em>' : "";
+    const canPrint = readOnly ? Boolean(window.ELIS_TROLLEY_PLATES?.print) : canPrintStudioLabels();
     let position = 0;
     const rows = requirements.flatMap((requirement) => {
       const quantity = Math.max(0, Number(requirement.quantity) || 0);
@@ -4177,6 +4187,20 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>`;
   }
 
+  // A day of get_customer_weekly_schedule shaped like a published schedule day:
+  // the trolley rows of its visible products, with their plates and units.
+  function readOnlyTrolleyDay(day) {
+    const products = Array.isArray(day?.products) ? day.products : [];
+    return {
+      production_weekday: day?.production_weekday,
+      delivery_weekday: day?.delivery_weekday,
+      default_route: { route_code: day?.route_code || null, route_color: day?.route_visual_color || null },
+      trolley_requirements: products.flatMap((product) =>
+        (Array.isArray(product.trolley_breakdown) ? product.trolley_breakdown : [])
+          .map((requirement) => ({ ...requirement, owner_product_code: product.product_code })))
+    };
+  }
+
   // Trolley labels print from the published revision only, never from an old one
   // opened in the history.
   function canPrintStudioLabels() {
@@ -4190,9 +4214,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // built from the published schedule of the chosen production day.
   function printStudioTrolleyLabels(weekday, key) {
     const snapshot = currentStudioSnapshot();
-    const days = Array.isArray(snapshot?.days) ? snapshot.days : [];
+    const readOnly = !snapshot ? state.studio.readOnlyPayload : null;
+    const days = readOnly
+      ? (Array.isArray(readOnly.days) ? readOnly.days : []).map(readOnlyTrolleyDay)
+      : Array.isArray(snapshot?.days) ? snapshot.days : [];
     // Same trolleys as the card the button sits on.
-    const day = studioServiceDays(days).find((item) => Number(item.production_weekday) === Number(weekday));
+    const day = (readOnly ? studioServiceDays(readOnly.days || []).map(readOnlyTrolleyDay) : studioServiceDays(days))
+      .find((item) => Number(item.production_weekday) === Number(weekday));
     if (!day) return;
     const trolleys = (Array.isArray(day.trolley_requirements) ? day.trolley_requirements : []).flatMap((requirement) => {
       const plates = Array.isArray(requirement.plates) ? requirement.plates : [];
@@ -4206,14 +4234,15 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
     trolleys.forEach((trolley, index) => { trolley.position = index + 1; });
-    const deliveryDays = [...new Set(days
+    const versionDeliveryDays = readOnly?.schedule_version?.delivery_weekdays;
+    const deliveryDays = [...new Set((Array.isArray(versionDeliveryDays) ? versionDeliveryDays.map((number) => ({ delivery_weekday: number })) : days)
       .filter((item) => item.active !== false && Number(item.delivery_weekday) >= 1 && Number(item.delivery_weekday) <= 7)
       .map((item) => Number(item.delivery_weekday)))]
       .sort((a, b) => a - b)
       .map((number) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][number - 1]);
     const route = day.default_route || {};
     const data = {
-      customer_name: state.studio.management?.customer?.customer_name || state.studio.customerName || "",
+      customer_name: state.studio.management?.customer?.customer_name || readOnly?.customer_name || state.studio.customerName || "",
       delivery_days: deliveryDays,
       route_code: route.route_code || null,
       route_color: route.route_color || null,
