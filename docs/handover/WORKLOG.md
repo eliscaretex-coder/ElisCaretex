@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Schedule Planner: customer card follows the Clothes / MOP list
+
+- Branch / commits: `claude/schedule-planner-service-filter`, Pull Request (see GitHub)
+- Changed: a customer opened from the Clothes or MOP list of the Schedule Planner now shows
+  only that service's products, production instructions and the trolleys it owns
+  (`owner_product_code`), with the trolley plates, plate instructions, KPIs and label print
+  following the same filter. A "Show all services" button switches back to the whole
+  schedule. Edit Schedule (the draft editor) and Customer Master still show every service.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright run against a mocked
+  Supabase client (MOP list shows only MOP trolleys/instructions, Clothes list only Clothes).
+  Not yet owner confirmed.
+- Open / next: none.
+
 ## 2026-10-30 — Claude — Legacy sync: production and distribution rosters
 
 - Branch / commits: `claude/legacy-sync-rosters`, Pull Request into `master`.

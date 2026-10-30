@@ -158,7 +158,10 @@ document.addEventListener("DOMContentLoaded", () => {
       trolleyReports: null,
       kgHistory: null,
       readOnlyPayload: null,
-      readOnlyDistributionPayload: null
+      readOnlyDistributionPayload: null,
+      // CLOTHES or MOP when opened from that Schedule Planner list; null shows every service.
+      serviceFilter: null,
+      serviceFilterOrigin: null
     }
   };
 
@@ -1748,7 +1751,8 @@ document.addEventListener("DOMContentLoaded", () => {
         openScheduleDetails(
           button.dataset.customerId,
           button.dataset.customerCode,
-          button.dataset.customerName
+          button.dataset.customerName,
+          state.schedule.service === "mop" ? "MOP" : "CLOTHES"
         );
       });
     });
@@ -1977,8 +1981,10 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(update);
   }
 
-  async function openScheduleDetails(customerId, customerCode, customerName) {
+  async function openScheduleDetails(customerId, customerCode, customerName, serviceFilter = null) {
     state.studio.customerId = customerId;
+    state.studio.serviceFilter = serviceFilter;
+    state.studio.serviceFilterOrigin = serviceFilter;
     state.studio.customerCode = customerCode || "";
     state.studio.customerName = customerName || "";
     state.studio.management = null;
@@ -2043,7 +2049,7 @@ document.addEventListener("DOMContentLoaded", () => {
     scheduleBadges.innerHTML = serviceBadges(payload?.visible_product_codes);
 
     const version = payload?.schedule_version;
-    const activeDays = Array.isArray(payload?.days) ? payload.days : [];
+    const activeDays = studioServiceDays(Array.isArray(payload?.days) ? payload.days : []);
 
     if (!version) {
       scheduleBody.innerHTML = `${renderStudioViewTabs("schedule")}${emptyHtml(
@@ -2069,7 +2075,9 @@ document.addEventListener("DOMContentLoaded", () => {
       0
     );
     const trolleyTotal = activeDays.reduce(
-      (total, day) => total + Number(day.visible_trolley_total || 0),
+      (total, day) => total + (state.studio.serviceFilter
+        ? day.products.reduce((sum, product) => sum + Number(product.planned_trolley_total || 0), 0)
+        : Number(day.visible_trolley_total || 0)),
       0
     );
 
@@ -2093,6 +2101,8 @@ document.addEventListener("DOMContentLoaded", () => {
           ${studioKpi(trolleyTotal, "Trolleys")}
         </div>
       </section>
+
+      ${renderStudioServiceFilter()}
 
       <div class="customers-protected-callout">
         <strong>Published Revision ${escapeHtml(version.version_number)}</strong>
@@ -2218,7 +2228,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `
             : `
               <div class="customers-studio-day-off-body">
-                <span>Not scheduled</span>
+                <span>${state.studio.serviceFilter ? `No ${escapeHtml(studioServiceLabel())}` : "Not scheduled"}</span>
                 <small>Authorized schedule editing can add this day.</small>
               </div>
             `
@@ -2437,6 +2447,40 @@ document.addEventListener("DOMContentLoaded", () => {
     return management;
   }
 
+  function studioServiceLabel() {
+    return state.studio.serviceFilter === "MOP" ? "MOP" : "Clothes";
+  }
+
+  // Opened from the Clothes or MOP list: show only that service's products, instructions
+  // and the trolleys it owns. A day without that service is shown as off.
+  function studioServiceDays(days) {
+    const code = state.studio.serviceFilter;
+    if (!code) return days;
+    return days.map((day) => {
+      const products = (Array.isArray(day.products) ? day.products : [])
+        .filter((product) => String(product.product_code || "").toUpperCase() === code);
+      if (!products.length) return null;
+      const requirements = (Array.isArray(day.trolley_requirements) ? day.trolley_requirements : [])
+        .filter((requirement) => String(requirement.owner_product_code || "").toUpperCase() === code);
+      return { ...day, products, trolley_requirements: requirements };
+    }).filter(Boolean);
+  }
+
+  function renderStudioServiceFilter() {
+    const origin = state.studio.serviceFilterOrigin;
+    if (!origin) return "";
+    const label = origin === "MOP" ? "MOP" : "Clothes";
+    return `
+      <div class="customers-studio-service-filter">
+        <span>${state.studio.serviceFilter
+          ? `Showing only <b>${escapeHtml(label)}</b> products, instructions and trolleys.`
+          : "Showing every service of this customer."}</span>
+        <button class="customers-small-button" type="button" data-studio-service-filter="${state.studio.serviceFilter ? "" : escapeHtml(origin)}">
+          ${state.studio.serviceFilter ? "Show all services" : `Only ${escapeHtml(label)}`}
+        </button>
+      </div>`;
+  }
+
   function currentStudioSnapshot() {
     const management = state.studio.management;
 
@@ -2475,9 +2519,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const activeDocument = draft ? state.studio.draftDocument : null;
+    // The editor always works on the whole schedule; only the published view follows the list.
     const days = draft
       ? (Array.isArray(activeDocument?.days) ? activeDocument.days : [])
-      : (Array.isArray(snapshot.days) ? snapshot.days : []);
+      : studioServiceDays(Array.isArray(snapshot.days) ? snapshot.days : []);
     const productCount = days.reduce(
       (total, day) => total + (Array.isArray(day.products) ? day.products.length : 0),
       0
@@ -2520,6 +2565,8 @@ document.addEventListener("DOMContentLoaded", () => {
       </section>
 
       ${renderScheduleManagementToolbar(draft, published, management)}
+
+      ${draft ? "" : renderStudioServiceFilter()}
 
       ${renderUnitsCheckBanner(draft, days, management)}
 
@@ -2642,7 +2689,8 @@ document.addEventListener("DOMContentLoaded", () => {
     openScheduleDetails(
       state.studio.customerId,
       state.studio.customerCode,
-      state.studio.customerName
+      state.studio.customerName,
+      state.studio.serviceFilterOrigin
     );
   }
 
@@ -4143,7 +4191,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function printStudioTrolleyLabels(weekday, key) {
     const snapshot = currentStudioSnapshot();
     const days = Array.isArray(snapshot?.days) ? snapshot.days : [];
-    const day = days.find((item) => Number(item.production_weekday) === Number(weekday));
+    // Same trolleys as the card the button sits on.
+    const day = studioServiceDays(days).find((item) => Number(item.production_weekday) === Number(weekday));
     if (!day) return;
     const trolleys = (Array.isArray(day.trolley_requirements) ? day.trolley_requirements : []).flatMap((requirement) => {
       const plates = Array.isArray(requirement.plates) ? requirement.plates : [];
@@ -4212,7 +4261,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `
             : `
               <div class="customers-studio-day-off-body">
-                <span>Not scheduled</span>
+                <span>${state.studio.serviceFilter ? `No ${escapeHtml(studioServiceLabel())}` : "Not scheduled"}</span>
                 <small>Create a draft to add this day.</small>
               </div>
             `
@@ -4469,6 +4518,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+
+      const serviceFilterButton = event.target.closest("[data-studio-service-filter]");
+
+      if (serviceFilterButton) {
+        state.studio.serviceFilter = serviceFilterButton.dataset.studioServiceFilter || null;
+        if (state.studio.management) {
+          renderScheduleManagementState();
+        } else if (state.studio.readOnlyPayload) {
+          renderScheduleDetails(state.studio.readOnlyPayload, state.studio.readOnlyDistributionPayload);
+        }
+        return;
+      }
 
       const viewButton = event.target.closest("[data-studio-view]");
 
