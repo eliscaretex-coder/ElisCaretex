@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Read-only customer schedule shows route number and delivery day
+
+- Branch / commits: `claude/finish-route-delivery`, Pull Request (see GitHub)
+- Changed: owner report from the Finish computer. Roles without Distribution access saw
+  "Permission controlled" for Route and Delivery day under the trolleys. The day card now
+  uses the `route_code` and `delivery_weekday` that `get_customer_weekly_schedule` returns
+  since `202610300003` (the same values the trolley label prints). Roles with Distribution
+  access keep the Distribution detail.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; Playwright run as a Finish terminal
+  (Route 617, Delivery day Tuesday to Saturday per day). Not yet owner confirmed.
+- Open / next: none.
+
 ## 2026-10-30 — Claude — Customer schedule shows units and label print to Finish and other read-only roles
 
 - Branch / commits: `claude/finish-terminal-units`, Pull Request (see GitHub)

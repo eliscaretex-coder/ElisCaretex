@@ -2178,19 +2178,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const routeColor = normalizeRouteColor(
       distributionDay?.default_route_color || day?.route_visual_color
     );
+    // Without Distribution access the schedule itself carries the route number and
+    // delivery weekday of the day (the same values printed on the trolley label).
+    const scheduleDeliveryDay = DAYS.find((item) => item.number === Number(day?.delivery_weekday))?.name;
     const routeLabel = state.capabilities?.can_view_distribution
       ? distributionDay?.default_route_display_name ||
         distributionDay?.default_route_code ||
         "No default route"
-      : routeColor
-        ? "Route colour available"
-        : "Route details permission controlled";
+      : day?.route_code
+        ? `Route ${day.route_code}`
+        : routeColor
+          ? "Route colour available"
+          : "Route details permission controlled";
     const routeCode = state.capabilities?.can_view_distribution
       ? distributionDay?.default_route_code || "Not set"
-      : "Permission controlled";
+      : day?.route_code || "Not set";
     const deliveryDay = state.capabilities?.can_view_distribution
       ? distributionDay?.delivery_day || "Not set"
-      : "Permission controlled";
+      : scheduleDeliveryDay || "Not set";
 
     return `
       <article
