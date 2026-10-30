@@ -159,18 +159,35 @@
         .half{position:relative;width:210mm;height:148.5mm;padding:12mm;display:grid;place-items:center}
         .fold{position:absolute;left:0;right:0;top:148.5mm;border-top:1px dashed #9ca3af}
         .flipped{transform:rotate(180deg)}
-        .logo{position:absolute;top:10mm;left:12mm;height:16mm}
-        .names{text-align:center;display:grid;gap:6mm;max-width:100%;padding:0 4mm}
-        .customer{font-size:34pt;font-weight:800;line-height:1.1;overflow-wrap:anywhere}
-        .sub{font-size:28pt;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
-        .foot{position:absolute;left:12mm;right:12mm;bottom:10mm;display:flex;align-items:center;gap:6mm;font-size:13pt;font-weight:700}
+        .logo{position:absolute;top:9mm;left:12mm;height:20mm}
+        .names{text-align:center;display:grid;gap:6mm;max-width:100%;padding:0 2mm;margin-top:4mm}
+        .customer{font-size:56pt;font-weight:800;line-height:1.1;overflow-wrap:anywhere}
+        .sub{font-size:44pt;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
+        .foot{position:absolute;left:12mm;right:12mm;bottom:9mm;display:flex;align-items:center;gap:5mm;font-size:19pt;font-weight:800;white-space:nowrap}
         .foot .days{flex:1;text-align:center}
-        .foot .route{margin-left:auto;border:1.5px solid #000;border-radius:3mm;padding:2mm 4mm;font-size:15pt;font-weight:800}
+        .foot .route{margin-left:auto;border:1.5px solid #000;border-radius:3mm;padding:2mm 4mm;font-size:24pt;font-weight:800}
         @media screen{body{background:#e5e7eb}.sheet{background:#fff;margin:8mm auto;box-shadow:0 2px 10px rgba(0,0,0,.2)}}
       </style></head><body>
       ${trolleys.map((trolley) => labelSheetHtml(data, trolley, all.length)).join("")}
       <script>
+        // Long customer or unit names shrink until they fit between the logo and the footer.
+        function fitText(){
+          var mm = 96 / 25.4;
+          Array.prototype.forEach.call(document.querySelectorAll('.names'), function(box){
+            var parts = box.querySelectorAll('.customer,.sub');
+            for (var step = 0; step < 30 && (box.scrollHeight > 86 * mm || box.scrollWidth > box.clientWidth + 1); step += 1) {
+              Array.prototype.forEach.call(parts, function(el){ el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * 0.94) + 'px'; });
+            }
+          });
+          Array.prototype.forEach.call(document.querySelectorAll('.foot'), function(foot){
+            for (var step = 0; step < 20 && foot.scrollWidth > foot.clientWidth + 1; step += 1) {
+              Array.prototype.forEach.call(foot.querySelectorAll('*'), function(el){ el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * 0.94) + 'px'; });
+              foot.style.fontSize = (parseFloat(getComputedStyle(foot).fontSize) * 0.94) + 'px';
+            }
+          });
+        }
         function printWhenReady(){
+          fitText();
           var pending = Array.prototype.filter.call(document.images, function(img){ return !img.complete; });
           if (!pending.length) { setTimeout(function(){ window.focus(); window.print(); }, 150); return; }
           var left = pending.length;
