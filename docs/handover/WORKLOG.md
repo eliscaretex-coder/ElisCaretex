@@ -103,6 +103,24 @@ Entry format:
 - Open / next: apply the migration before merging the frontend. Cross-shift overlaps and
   the Sorting cover capability gate on the Sorting add are out of scope.
 
+## 2026-10-31 — Claude — My Driver Roster shows approved holidays as Holiday
+
+- Branch / commits: `claude/driver-roster-holiday`, Pull Request into `master`
+- Changed: `frontend/assets/js/driver-roster.js` now overlays the driver's approved leave
+  (`requests` with `absence_status = APPROVED`, or `approved_leave` if the RPC returns it later)
+  on days without a roster entry or with `OFF`, so they show "Holiday" / "Day Off" instead of
+  "Off". Status labels are now readable ("Holiday", "Sick", "Absent", "Training") and the
+  "Unavailable" count includes approved holidays. Cache version bumped in `driver-roster.html`.
+- Database: none. Read-only checks on ElisCaretex-dev: since week 2026-08-10, 113 approved driver
+  holiday days have no entry in the published Distribution roster (legacy import and app
+  publication do not create HOLIDAY rows from approved leave), so drivers saw "Off". Production
+  roster was checked too: every approved production holiday day with a published entry has
+  `day_status = HOLIDAY` (shown as "Hol"); no fix needed there.
+- Validation: `node scripts/validate-repository.mjs` passed; Playwright render with stubbed RPC
+  data showed Holiday / Day Off / Off / route as expected. Not owner confirmed.
+- Open / next: the management "Published Driver Roster" view gets no `requests`, so it still
+  shows "Off" for leave days without entries until `get_my_driver_roster` returns `approved_leave`.
+
 ## 2026-10-30 — Claude — Read-only customer schedule shows route number and delivery day
 
 - Branch / commits: `claude/finish-route-delivery`, Pull Request (see GitHub)
