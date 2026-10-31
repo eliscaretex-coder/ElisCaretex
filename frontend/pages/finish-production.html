@@ -14,7 +14,7 @@
   <title>Finish Production | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261025-2">
+  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261030-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
@@ -26,7 +26,7 @@
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="FINISH" defer></script>
   <script src="../assets/js/production-station-kiosk.js" defer></script>
   <script src="../assets/js/trolley-plates.js?v=20261030-1" defer></script>
-  <script src="../assets/js/finish-production.js?v=20261029-2" defer></script>
+  <script src="../assets/js/finish-production.js?v=20261030-1" defer></script>
 </head>
 <body class="finish-page" data-production-station-area="FINISH">
   <div class="finish-page-shell" data-operational-shell-root>
@@ -295,8 +295,14 @@
         <label class="finish-staff-clock-field">Break (minutes)<input id="finishStaffBreak" type="number" min="0" max="240" step="5" required><small>Change only when the actual break was different.</small></label>
         <label class="finish-staff-departure-toggle"><input id="finishStaffCloseShift" type="checkbox"> Record this as the actual leaving time and close the shift.</label>
         <label class="finish-staff-note-field">Note / reason<input id="finishStaffReason" type="text" maxlength="500" placeholder="Optional operational note"></label>
+        <div id="finishStaffTransferPanel" class="finish-staff-transfer" role="status" hidden>
+          <strong id="finishStaffTransferTitle">Working in another area</strong>
+          <p id="finishStaffTransferText"></p>
+          <label id="finishStaffTransferWholeLabel" class="finish-staff-transfer-whole" hidden><input id="finishStaffTransferWhole" type="checkbox"> Did not work in Sorting today: move the whole shift</label>
+          <small>Started at is the transfer time. Leaving time and break follow the transfer; correct them later with What changed? if needed.</small>
+        </div>
         <p id="finishStaffDialogMessage" class="finish-message" aria-live="polite"></p>
-        <div class="finish-form-actions"><button id="finishStaffCancelButton" type="button" class="secondary">Cancel</button><button class="primary" type="submit">Save Staff Actual</button></div>
+        <div class="finish-form-actions"><button id="finishStaffCancelButton" type="button" class="secondary">Cancel</button><button id="finishStaffSaveButton" class="primary" type="submit">Save Staff Actual</button></div>
       </form>
     </section>
   </dialog>
