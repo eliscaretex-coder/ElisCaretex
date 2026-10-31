@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-10-31 — Claude — Published Driver Roster (management) shows approved leave
+
+- Branch / commits: `claude/driver-roster-leave-management`, Pull Request into `master`
+- Changed: owner request. `get_my_driver_roster` now also returns `approved_leave` (approved
+  driver absences overlapping the week; all active drivers for management, only the driver's
+  own for a driver). The frontend from the previous entry already reads it, so the management
+  "Published Driver Roster" shows Holiday / Day Off instead of Off. No frontend change.
+- Database: `202610310001_driver_roster_approved_leave.sql` **applied** to ElisCaretex-dev
+  on 2026-10-31 (read-only RPC change, same permission checks, revokes kept).
+- Validation: checks from `supabase/tests/202610310001_…_validation.sql` run as plain SQL
+  (pgTAP is not installed): anon blocked, SECURITY DEFINER, management check and driver scope
+  present. As a management account, week 2026-10-26 returned 2 approved leaves and 70 entries;
+  an account without driver link or permission is refused. Security advisors: same categories
+  as INIT section 14, nothing new. Playwright render of the management view with stubbed data OK.
+  Not owner confirmed.
+- Open / next: no driver account is linked to a staff login yet (`current_distribution_driver_id`
+  returns null for every user), so drivers cannot open My Driver Roster until accounts are linked.
+
 ## 2026-10-30 — Claude — Add staff: transfer from another area instead of counting twice
 
 - Branch / commits: `claude/staff-area-transfer-on-add`, Pull Request (see GitHub)
