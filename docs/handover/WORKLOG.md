@@ -80,6 +80,29 @@ Entry format:
 
 ---
 
+## 2026-10-30 — Claude — Add staff: transfer from another area instead of counting twice
+
+- Branch / commits: `claude/staff-area-transfer-on-add`, Pull Request (see GitHub)
+- Changed: owner request. "Add someone" in Finish (Table) and in Sorting/MOP now asks
+  where the person is working at that time. If they are in another area (Sorting/MOP,
+  another Table, Label, Cleaner or Finish), the dialog shows it and offers a transfer at
+  the chosen time: the old area stops at that time with its share of the break, the new
+  area starts there, and a return later in the shift reopens the earlier record (the gap
+  is counted as non-work). Finish can also move the whole shift when the person never
+  started in Sorting. `upsert_finish_staff_actual` and `add_sorting_actual_staff` refuse the
+  old direct add for someone working elsewhere. Finish Table hours keep counting for people
+  who left Finish (`get_finish_staff_context_v4` adds `finish_segments` and lists them).
+  New Finish station `FINISH_CLEANER`. `work_sessions.updated_at` keeps a later explicit
+  value so the newest area wins when two sessions change in one transaction.
+- Database: `202610300004_staff_area_transfer_on_add.sql` — Prepared, not applied. The owner
+  applies it in the SQL Editor; a self-rolling-back scenario test was delivered with it.
+- Validation: `node scripts/validate-repository.mjs`; scenario test run in a rolled-back
+  transaction on `ElisCaretex-dev` (steps 1-8 passed; step 9 fixed by the `updated_at`
+  trigger change and to be re-run by the owner). pgTAP checks in
+  `supabase/tests/202610300004_staff_area_transfer_on_add_validation.sql`.
+- Open / next: apply the migration before merging the frontend. Cross-shift overlaps and
+  the Sorting cover capability gate on the Sorting add are out of scope.
+
 ## 2026-10-31 — Claude — My Driver Roster shows approved holidays as Holiday
 
 - Branch / commits: `claude/driver-roster-holiday`, Pull Request into `master`

@@ -756,6 +756,17 @@ Production Tracker Processed actual detail (2026-10-29,
 V4 returns `finish_entries` (one per ACTIVE Finish contribution: table, shift, staff, time,
 batch lines, trolleys); the Route board card opens a detail dialog for Finish and MOP.
 
+Staff transfer from "Add someone" (2026-10-30,
+`202610300004_staff_area_transfer_on_add.sql`, **Prepared**, not applied; scenario steps 1-8
+passed in a rolled-back run): `get_staff_area_transfer_check_v1` and
+`transfer_staff_into_area_v1` (Finish terminal wrapper `terminal_transfer_staff_into_area_v1`)
+make Finish and Sorting/MOP "Add someone" detect a person working in another area and
+transfer them at a time, splitting the break by time and reopening the earlier record on a
+return. `upsert_finish_staff_actual` and `add_sorting_actual_staff` refuse the direct add
+for someone working elsewhere. `get_finish_staff_context_v4` keeps Table hours of people who
+left Finish (`finish_segments`). New station `FINISH_CLEANER`. `work_sessions.updated_at`
+keeps a later explicit value (`work_sessions_set_updated_at_v2`).
+
 Seven exposed views were changed to `security_invoker` and anonymous view access
 was revoked. Internal privileged RPCs no longer inherit anonymous execution from
 `PUBLIC`; only the token-protected public roster endpoints retain anonymous access.

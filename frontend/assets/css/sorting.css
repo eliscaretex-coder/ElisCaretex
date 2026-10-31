@@ -4265,3 +4265,10 @@ body.sorting-page{background:#e7edf3;color:#111827}
   .sorting-mop-trace-actions{justify-content:flex-end;padding-top:8px;border-top:1px dashed #e2e8f0}
   .sorting-mop-trace-actions button{padding:7px 12px;font-size:9px}
 }
+.sorting-manual-transfer{display:grid;gap:7px;margin:4px 0;padding:12px;border:1px solid #fbbf24;border-left:4px solid #f59e0b;border-radius:10px;background:#fffbeb;color:#78350f}
+.sorting-manual-transfer.blocked{border-color:#fecaca;border-left-color:#dc2626;background:#fef2f2;color:#7f1d1d}
+.sorting-manual-transfer p{margin:0;font-size:13px;line-height:1.4}
+.sorting-manual-transfer label{display:grid;gap:3px;max-width:180px;font-size:12px;font-weight:750;color:#334155}
+.sorting-manual-transfer small{font-size:11px;color:#92400e}
+.sorting-manual-transfer .sorting-manual-transfer-message{min-height:0;color:#b91c1c;font-weight:700}
+.sorting-manual-transfer footer{display:flex;justify-content:flex-end;gap:8px}
