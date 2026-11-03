@@ -757,8 +757,8 @@ V4 returns `finish_entries` (one per ACTIVE Finish contribution: table, shift, s
 batch lines, trolleys); the Route board card opens a detail dialog for Finish and MOP.
 
 Staff transfer from "Add someone" (2026-10-30,
-`202610300004_staff_area_transfer_on_add.sql`, **Prepared**, not applied; scenario steps 1-8
-passed in a rolled-back run): `get_staff_area_transfer_check_v1` and
+`202610300004_staff_area_transfer_on_add.sql`, **Applied** by the owner 2026-11-01; scenario
+steps 1-8 passed in a rolled-back run): `get_staff_area_transfer_check_v1` and
 `transfer_staff_into_area_v1` (Finish terminal wrapper `terminal_transfer_staff_into_area_v1`)
 make Finish and Sorting/MOP "Add someone" detect a person working in another area and
 transfer them at a time, splitting the break by time and reopening the earlier record on a

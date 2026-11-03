@@ -112,13 +112,14 @@ Entry format:
   who left Finish (`get_finish_staff_context_v4` adds `finish_segments` and lists them).
   New Finish station `FINISH_CLEANER`. `work_sessions.updated_at` keeps a later explicit
   value so the newest area wins when two sessions change in one transaction.
-- Database: `202610300004_staff_area_transfer_on_add.sql` — Prepared, not applied. The owner
-  applies it in the SQL Editor; a self-rolling-back scenario test was delivered with it.
+- Database: `202610300004_staff_area_transfer_on_add.sql` — **Applied** by the owner in the SQL
+  Editor on 2026-11-01 (checked 2026-11-03: 6 functions, `FINISH_CLEANER`, trigger v2, both
+  add guards, v4 context, privileges closed).
 - Validation: `node scripts/validate-repository.mjs`; scenario test run in a rolled-back
   transaction on `ElisCaretex-dev` (steps 1-8 passed; step 9 fixed by the `updated_at`
   trigger change and to be re-run by the owner). pgTAP checks in
   `supabase/tests/202610300004_staff_area_transfer_on_add_validation.sql`.
-- Open / next: apply the migration before merging the frontend. Cross-shift overlaps and
+- Open / next: owner to try a real transfer on the floor. Cross-shift overlaps and
   the Sorting cover capability gate on the Sorting add are out of scope.
 
 ## 2026-10-31 — Claude — My Driver Roster shows approved holidays as Holiday
