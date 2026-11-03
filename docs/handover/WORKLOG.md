@@ -109,6 +109,23 @@ Entry format:
 - Database: none.
 - Validation: `node scripts/validate-repository.mjs`; Playwright against a stubbed Supabase
   client (empty close, dirty close, keep, Esc, discard, footer report opens the report dialog).
+## 2026-11-03 — Claude — Finish Results: ranking of Tables (closed week / month)
+
+- Branch / commits: claude/finish-table-ranking, Pull Request
+- Changed: Finish Results has a new "Table ranking" section: closed week (Mon–Sun) or closed month,
+  Table × Shift teams (or Tables), position, movement vs the previous period, leader/podium and a
+  relegation zone (last 2 of 6, last 1 of 3), points to the next team or to leave the zone.
+  Score = efficiency % (daily Finish Results numbers summed) − 2 × trolley error %. Only days with
+  staff hours count (Finish had no staff hours before 12/10/2026); that kg is reported as left out.
+- Database: `202611030003_finish_table_ranking.sql` (new read-only RPC `get_finish_table_ranking_v1`).
+  **Prepared, not applied**: the owner applies it in the SQL Editor.
+- Validation: function created inside a rolled-back block on ElisCaretex-dev as FINISH-T1-PC01;
+  all checks passed (week/month bounds, 6 teams, unique positions, 2 relegated, score formula,
+  ranking kg = sum of daily Finish Results kg, open week and unknown period refused, anon blocked).
+  `node scripts/validate-repository.mjs` passed. Screens checked with mocked data (desktop + phone).
+- Open / next: no Finish record has a MISMATCH trolley yet and entries since 26/10 are all
+  UNSPECIFIED, so the trolley penalty has no effect until trolley checks are recorded again.
+  Run `supabase/tests/202611030003_finish_table_ranking_validation.sql` after applying.
 
 ## 2026-11-03 — Claude — Physical Trolleys: visual redesign of Locations and Trolley Master
 
