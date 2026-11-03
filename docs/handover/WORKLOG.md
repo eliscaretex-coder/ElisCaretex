@@ -80,6 +80,15 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish Results: shift filter on the day Table × Shift league
+
+- Branch / commits: claude/finish-day-shift-filter, Pull Request
+- Changed: All / Morning / Evening buttons in the day "Table × Shift" header. A shift choice shows
+  only that shift's Tables, ranked among themselves; the choice is remembered on the device.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs` passed; desktop and phone checked with 03/11 data.
+- Open / next: none.
+
 ## 2026-11-03 — Claude — Finish Results: day Table × Shift as a league table with "Today" highlight
 
 - Branch / commits: claude/finish-daily-ranking, Pull Request
