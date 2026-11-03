@@ -6,7 +6,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const el = {
     date:$("finishResultsDate"), prev:$("finishResultsPrev"), next:$("finishResultsNext"), today:$("finishResultsToday"), refresh:$("finishResultsRefresh"),
     message:$("finishResultsMessage"), totals:$("finishResultsTotals"), shifts:$("finishResultsShifts"), matrix:$("finishResultsMatrix"), staff:$("finishResultsStaff"), staffCount:$("finishResultsStaffCount"), entries:$("finishResultsEntries"), count:$("finishResultsEntryCount"),
-    trolleyPeriod:$("finishResultsTrolleyPeriod"), trolley:$("finishResultsTrolley")
+    trolleyPeriod:$("finishResultsTrolleyPeriod"), trolley:$("finishResultsTrolley"),
+    ranking:$("finishRanking"), rankingTitle:$("finishRankingTitle"), rankingPeriod:$("finishRankingPeriod"), rankingPrev:$("finishRankingPrev"), rankingNext:$("finishRankingNext")
   };
   const esc=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   const tableName=(code)=>({FINISH_TABLE_1:"Table 1",FINISH_TABLE_2:"Table 2",FINISH_TABLE_3:"Table 3"}[code]||code||"—");
@@ -88,6 +89,83 @@ document.addEventListener("DOMContentLoaded", async () => {
     catch(err){console.error(err);el.trolley.innerHTML=`<div class="finish-results-empty">${esc(err.message||"Trolley errors could not be loaded.")}</div>`;}
   }
 
+
+  // Ranking: closed week or month, Table x Shift teams (or Tables), score = efficiency - trolley penalty.
+  const ranking={period:"WEEK",level:"TEAM",anchor:null,data:null,req:0};
+  const ordinal=(n)=>{const v=n%100;return n+(v>=11&&v<=13?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th"));};
+  const teamName=(r)=>r.shift_code?`${r.table_name||tableName(r.table_code)} · ${shiftName(r.shift_code)}`:(r.table_name||tableName(r.table_code));
+  const fmtShortDate=(v)=>new Intl.DateTimeFormat("en-IE",{day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(`${String(v).slice(0,10)}T12:00:00Z`));
+  const fmtMonth=(v)=>new Intl.DateTimeFormat("en-IE",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${String(v).slice(0,10)}T12:00:00Z`));
+  const fmtKg=(v)=>`${Math.round(Number(v||0)).toLocaleString("en-IE")} kg`;
+  function periodLabel(d){return d.period==="MONTH"?fmtMonth(d.date_from):`${fmtShortDate(d.date_from)} – ${fmtShortDate(d.date_to)} ${String(d.date_to).slice(0,4)}`;}
+  function moveHtml(r){
+    if(!r.eligible)return '<span class="move none">—</span>';
+    if(r.previous_rank==null)return '<span class="move new" title="Not ranked in the previous period">New</span>';
+    const c=Number(r.rank_change||0);
+    if(c>0)return `<span class="move up" title="Was ${ordinal(r.previous_rank)}">▲ ${c}</span>`;
+    if(c<0)return `<span class="move down" title="Was ${ordinal(r.previous_rank)}">▼ ${Math.abs(c)}</span>`;
+    return `<span class="move same" title="Same position as the previous period">=</span>`;
+  }
+  function chaseHtml(r,rows){
+    if(!r.eligible)return `<small>Not ranked: ${num(r.staff_hours)} of ${num(ranking.data?.min_staff_hours,0)} staff hours needed</small>`;
+    if(r.zone==="LEADER")return "<small>Leader</small>";
+    const ahead=rows.find(x=>x.rank===r.rank-1);
+    if(r.zone==="RELEGATION"&&r.points_to_safety!=null)return `<small class="danger">${num(r.points_to_safety)} pts to leave the zone</small>`;
+    return ahead?`<small>${num(r.points_to_next)} pts behind ${esc(teamName(ahead))}</small>`:"";
+  }
+  function rankingRowHtml(r,rows){
+    const eff=Math.max(0,Number(r.efficiency_percent||0)),bar=Math.min(eff,130)/130*100,target=100/130*100;
+    const trolley=Number(r.trolley_checked_count||0)>0?`<b class="${Number(r.trolley_error_count||0)>0?"bad":""}">${Number(r.trolley_error_count||0)} wrong</b><small>of ${Number(r.trolley_checked_count||0)} checked${Number(r.penalty_points||0)>0?` · −${num(r.penalty_points)} pts`:""}</small>`:'<b class="muted">—</b><small>No trolley check</small>';
+    return `<article class="finish-results-rank-row zone-${esc(String(r.zone||"").toLowerCase())}">
+      <strong class="finish-results-rank-pos" aria-label="Position">${r.rank?r.rank:"–"}</strong>
+      <div class="finish-results-rank-team"><strong>${esc(teamName(r))}</strong><small>${Number(r.worked_days||0)} days · ${num(r.staff_hours)} staff h · ${fmtKg(r.produced_kg)}</small></div>
+      ${moveHtml(r)}
+      <div class="finish-results-rank-eff"><span><b>${percent(r.efficiency_percent)}</b><small>${num(r.kg_per_staff_hour)} kg/h</small></span><i><em style="width:${bar.toFixed(1)}%"></em><u style="left:${target.toFixed(1)}%"></u></i></div>
+      <div class="finish-results-rank-trolley">${trolley}</div>
+      <div class="finish-results-rank-score"><strong>${r.eligible?num(r.score):"—"}</strong>${chaseHtml(r,rows)}</div>
+    </article>`;
+  }
+  function renderRanking(){
+    const d=ranking.data;if(!d)return;
+    const rows=(ranking.level==="TABLE"?d.tables:d.teams)||[];
+    el.rankingTitle.textContent=`${d.period==="MONTH"?"Closed month":"Closed week"} · ${ranking.level==="TABLE"?"Table":"Table × Shift"}`;
+    el.rankingPeriod.textContent=periodLabel(d);
+    el.rankingNext.disabled=!!d.is_latest_closed;
+    document.querySelectorAll("[data-ranking-period]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.rankingPeriod===ranking.period)));
+    document.querySelectorAll("[data-ranking-level]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.rankingLevel===ranking.level)));
+    const ranked=rows.filter(r=>r.eligible);
+    if(!ranked.length){el.ranking.innerHTML=`<div class="finish-results-empty">No Table has enough staff hours in this period to be ranked.</div>${rankingNoteHtml(d,rows)}`;return;}
+    let html='<div class="finish-results-rank-head"><span>#</span><span>Team</span><span>Move</span><span>Efficiency</span><span>Trolley</span><span>Score</span></div>',zoneShown=false;
+    rows.forEach(r=>{if(r.zone==="RELEGATION"&&!zoneShown){zoneShown=true;html+='<div class="finish-results-rank-divider"><span>Relegation zone</span></div>';}html+=rankingRowHtml(r,rows);});
+    el.ranking.innerHTML=html+rankingNoteHtml(d,rows);
+  }
+  function rankingNoteHtml(d,rows){
+    const unmeasured=rows.reduce((s,r)=>s+Number(r.unmeasured_kg||0),0);
+    return `<p class="finish-results-rank-note"><b>Score</b> = Efficiency % (kg equivalent ÷ staff hours × ${num(d.target_kg_per_staff_hour)}) − ${num(d.trolley_error_penalty_per_percent,0)} pts for each 1% of contributions saved with a wrong trolley. Ranked from ${num(d.min_staff_hours,0)} staff hours in the ${d.period==="MONTH"?"month":"week"}. Movement compares with the ${d.period==="MONTH"?"previous month":"previous week"}.${unmeasured>0?` ${fmtKg(unmeasured)} on days without staff hours is left out.`:""}</p>`;
+  }
+  async function loadRanking(){
+    if(!el.ranking)return;
+    const req=++ranking.req;el.ranking.classList.add("loading");
+    try{
+      const data=await rpc("get_finish_table_ranking_v1",{p_period:ranking.period,p_anchor:ranking.anchor});
+      if(req!==ranking.req)return;
+      if(data?.schema_version!=="FINISH_TABLE_RANKING_V1")throw new Error("Ranking backend is out of date. Refresh after the latest update.");
+      ranking.data=data;ranking.anchor=String(data.date_from).slice(0,10);renderRanking();
+    }catch(err){if(req!==ranking.req)return;console.error(err);el.ranking.innerHTML=`<div class="finish-results-empty">${esc(err.message||"Ranking could not be loaded.")}</div>`;}
+    finally{if(req===ranking.req)el.ranking.classList.remove("loading");}
+  }
+  function shiftRanking(step){
+    const d=ranking.data;if(!d)return;
+    const from=new Date(`${String(d.date_from).slice(0,10)}T12:00:00Z`);
+    if(d.period==="MONTH")from.setUTCMonth(from.getUTCMonth()+step);else from.setUTCDate(from.getUTCDate()+7*step);
+    ranking.anchor=from.toISOString().slice(0,10);loadRanking();
+  }
+  if(el.ranking){
+    document.querySelectorAll("[data-ranking-period]").forEach(b=>b.addEventListener("click",()=>{if(ranking.period===b.dataset.rankingPeriod)return;ranking.period=b.dataset.rankingPeriod;ranking.anchor=null;loadRanking();}));
+    document.querySelectorAll("[data-ranking-level]").forEach(b=>b.addEventListener("click",()=>{ranking.level=b.dataset.rankingLevel;renderRanking();}));
+    el.rankingPrev.addEventListener("click",()=>shiftRanking(-1));el.rankingNext.addEventListener("click",()=>shiftRanking(1));
+  }
+
   function render(data){
     if(data?.schema_version!=="FINISH_RESULTS_V2")throw new Error("Finish Results backend is out of date. Refresh after the latest update.");
     el.date.value=String(data.business_date||"").slice(0,10);
@@ -106,5 +184,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.prev.addEventListener("click",()=>moveDate(-1));el.next.addEventListener("click",()=>moveDate(1));
   el.today.addEventListener("click",()=>load(null));el.refresh.addEventListener("click",()=>load(el.date.value||null));el.date.addEventListener("change",()=>load(el.date.value||null));
   if(el.trolleyPeriod)el.trolleyPeriod.addEventListener("change",()=>{if(el.date.value)loadTrolleyErrors(el.date.value);});
-  try{if(window.ELIS_SUPABASE_ERROR||!client)throw new Error(window.ELIS_SUPABASE_ERROR||"Supabase could not be initialized.");const {data:{session},error}=await client.auth.getSession();if(error)throw error;if(!session?.user){location.href="../index.html";return;}await load(null);}catch(err){console.error(err);setMessage(err.message||"Finish Results could not be initialized.","error");}
+  try{if(window.ELIS_SUPABASE_ERROR||!client)throw new Error(window.ELIS_SUPABASE_ERROR||"Supabase could not be initialized.");const {data:{session},error}=await client.auth.getSession();if(error)throw error;if(!session?.user){location.href="../index.html";return;}loadRanking();await load(null);}catch(err){console.error(err);setMessage(err.message||"Finish Results could not be initialized.","error");}
 });
