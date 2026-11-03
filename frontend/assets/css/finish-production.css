@@ -443,3 +443,6 @@ body.elis-operational-tool-page.finish-page .operational-page-header .finish-top
 #finishProductionForm #finishNotes{min-height:36px;resize:none;overflow-y:hidden;line-height:1.35}
 #finishProductionForm .finish-trolley-notes-grid label{margin-top:4px}
 @media(max-width:700px){#finishProductionForm .finish-registration-context{grid-template-columns:1fr 1fr}#finishProductionForm .finish-registration-context>label{flex-wrap:nowrap}#finishProductionForm .finish-registration-context select,#finishProductionForm .finish-registration-context input{flex:1;width:100%}#finishProductionForm .finish-registration-context #finishShiftDisplay{width:100%}#finishProductionForm .finish-registration-context .finish-processed-by-field{grid-column:1/-1}}
+/* One scrollbar: the dialog box itself never scrolls; its card does (it is capped to the screen height). */
+.finish-dialog{max-height:none;overflow:visible}
+html:has(.finish-dialog[open]){overflow:hidden}

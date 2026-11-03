@@ -509,11 +509,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function plateLabel(t){return `${t.display_code||"?"} #${t.position}`;}
   function plateAssignment(){
     const rows=plateRows(),v=state.trolleyValidation,detail=new Map((v?.scanned||[]).map(x=>[String(x.trolley_code||"").toUpperCase(),x])),slots=rows.map(()=>null),extras=[];
-    const typeOf=(t)=>String(t?.display_code||t?.trolley_type_code||"").toUpperCase();
-    state.trolleyCodes.forEach(code=>{
-      const d=detail.get(code),type=d?typeOf(d):"",usable=Boolean(d&&d.exists&&d.usable);
-      let index=usable?rows.findIndex((r,i)=>!slots[i]&&typeOf(r)===type):-1;
-      const fits=index>=0;if(!fits)index=slots.findIndex(x=>!x);
+    const typeOf=(t)=>String(t?.display_code||t?.trolley_type_code||"").toUpperCase(),targets=state.plateTargets||new Map();
+    // Codes scanned for a plate the user picked keep that plate; the others fill the
+    // first open plate of their size.
+    const ordered=[...state.trolleyCodes.filter(c=>targets.has(c)&&targets.get(c)<rows.length),...state.trolleyCodes.filter(c=>!(targets.has(c)&&targets.get(c)<rows.length))];
+    ordered.forEach(code=>{
+      const d=detail.get(code),type=d?typeOf(d):"",usable=Boolean(d&&d.exists&&d.usable),picked=targets.has(code)&&targets.get(code)<rows.length&&!slots[targets.get(code)]?targets.get(code):-1;
+      let index=picked>=0?picked:usable?rows.findIndex((r,i)=>!slots[i]&&typeOf(r)===type):-1;
+      const fits=index>=0&&(!d||!usable||typeOf(rows[index])===type);if(index<0)index=slots.findIndex(x=>!x);
       if(index<0){extras.push({code,d});return;}
       let stateName="ok",label="",title="Trolley scanned for this plate";
       if(!d){stateName="checking";label="checking…";title="Checking the trolley";}
@@ -526,10 +529,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function renderPlateScan(){
     const container=el.trolleyPlates,api=window.ELIS_TROLLEY_PLATES;if(!api?.setScan||!state.selected||!plateRows().length)return;
-    const {rows,slots,extras}=plateAssignment(),v=state.trolleyValidation,nextIndex=slots.findIndex(x=>!x),ok=slots.filter(x=>x?.state==="ok").length,wrong=slots.filter(x=>x?.state==="wrong").length+extras.length,checking=slots.some(x=>x?.state==="checking");
+    const {rows,slots,extras}=plateAssignment(),v=state.trolleyValidation,picked=Number.isInteger(state.plateTarget)&&state.plateTarget<rows.length&&!slots[state.plateTarget]?state.plateTarget:-1,nextIndex=picked>=0?picked:slots.findIndex(x=>!x),ok=slots.filter(x=>x?.state==="ok").length,wrong=slots.filter(x=>x?.state==="wrong").length+extras.length,checking=slots.some(x=>x?.state==="checking");
     const view={slots:slots.map((x,i)=>x||(state.trolleyPending?{state:"pending",label:"No trolley yet"}:i===nextIndex?{state:"next",label:"Scan next"}:{state:"missing",label:"Missing"}))};
     const next=nextIndex>=0?rows[nextIndex]:null;
-    view.prompt=next?`Scan the trolley for ${plateLabel(next)} (${next.trolley_type_name||next.display_code||"trolley"})`:"All plates have a trolley. Remove a wrong one with × to scan again.";
+    view.prompt=next?`Scan the trolley for ${plateLabel(next)} (${next.trolley_type_name||next.display_code||"trolley"})${slots.filter(x=>!x).length>1?" · or click another plate":""}`:"All plates have a trolley. Remove a wrong one with × to scan again.";
     const complete=!next&&!wrong&&!checking&&ok===rows.length;
     if(state.trolleyPending)view.button={text:"Trolley pending · scan now",tone:"pending"};
     else if(complete)view.button={text:"All trolleys scanned",tone:"done"};
@@ -551,10 +554,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function addPlateTrolley(raw){
     const code=normalizeTrolley(raw);if(!code)return;state.plateFlash="";
     if(state.trolleyCodes.includes(code)){state.plateFlash=`${code} is already scanned for this customer.`;renderPlateScan();return;}
+    const rows=plateRows(),{slots}=plateAssignment(),target=Number.isInteger(state.plateTarget)&&state.plateTarget<rows.length&&!slots[state.plateTarget]?state.plateTarget:slots.findIndex(x=>!x);
+    if(!state.plateTargets)state.plateTargets=new Map();if(target>=0)state.plateTargets.set(code,target);state.plateTarget=null;
     state.trolleyCodes.push(code);state.trolleyMismatchAccepted=false;state.trolleyAutoConfirmed=false;state.trolleyPending=false;syncTrolleyHidden();renderTrolleyFormSummary();
     try{await validateTrolleySelection();}catch(err){console.error(err);setDialogMessage(err.message||"Trolley could not be checked.");}
   }
-  async function removePlateTrolley(code){state.plateFlash="";await removeTrolley(code);}
+  async function removePlateTrolley(code){state.plateFlash="";const index=state.plateTargets?.get(code);state.plateTargets?.delete(code);if(Number.isInteger(index))state.plateTarget=index;await removeTrolley(code);}
+  function pickPlate(index){state.plateFlash="";state.plateTarget=index;renderPlateScan();}
   function setTrolleyLater(){state.plateFlash="";state.trolleyCodes=[];state.trolleyValidation=null;state.trolleyMismatchAccepted=true;state.trolleyAutoConfirmed=false;state.trolleyPending=true;syncTrolleyHidden();renderTrolleyFormSummary();}
   // The plan card next to Notes is only a fallback for when the plates cannot be shown.
   function syncTrolleyCardVisibility(){
@@ -563,9 +569,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.trolleyCard.hidden=hide;el.trolleyNotesGrid?.classList.toggle("notes-only",hide);
   }
   function mountPlates(q){
-    state.plates=null;state.platesLoading=true;state.plateFlash="";syncTrolleyCardVisibility();
+    state.plates=null;state.platesLoading=true;state.plateFlash="";state.plateTarget=null;state.plateTargets=new Map();syncTrolleyCardVisibility();
     const api=window.ELIS_TROLLEY_PLATES;if(!api){state.platesLoading=false;syncTrolleyCardVisibility();return;}
-    api.mount(el.trolleyPlates,{rpc,productionFlowItemId:q.production_flow_item_id,scan:{onAdd:addPlateTrolley,onRemove:removePlateTrolley,onLater:setTrolleyLater,onReview:openTrolleyDialog}}).then(data=>{if(state.selected!==q)return;state.plates=data||null;state.platesLoading=false;syncTrolleyCardVisibility();renderPlateScan();}).catch(()=>{if(state.selected!==q)return;state.platesLoading=false;syncTrolleyCardVisibility();});
+    api.mount(el.trolleyPlates,{rpc,productionFlowItemId:q.production_flow_item_id,scan:{onAdd:addPlateTrolley,onRemove:removePlateTrolley,onPick:pickPlate,onLater:setTrolleyLater,onReview:openTrolleyDialog}}).then(data=>{if(state.selected!==q)return;state.plates=data||null;state.platesLoading=false;syncTrolleyCardVisibility();renderPlateScan();}).catch(()=>{if(state.selected!==q)return;state.platesLoading=false;syncTrolleyCardVisibility();});
   }
   function deliveryWeekday(v){return v?new Intl.DateTimeFormat("en-IE",{weekday:"long",timeZone:"Europe/Dublin"}).format(new Date(`${String(v).slice(0,10)}T12:00:00Z`)):"";}
   function summaryDeliveryHtml(q){
