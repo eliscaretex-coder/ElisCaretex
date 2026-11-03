@@ -80,6 +80,22 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Trolley label: route band and delivery days of the label's route
+
+- Branch / commits: `claude/trolley-label-route-highlight`, Pull Request
+- Changed: the trolley label (Finish, MOP Production and Schedule Planner) shows the route on a
+  band in the route colour with a large route number, and the trolley code moved to the top
+  right. Customers delivered by more than one route list only the delivery days of the label's
+  route. `get_production_flow_trolley_plates` filters the delivery days by the route of the
+  production day; the Schedule Planner does the same in `customers.js`.
+- Database: `202611030001_trolley_label_route_delivery_days.sql` **Prepared, not applied** (the
+  owner applies it in the SQL editor). Until it is applied, Finish / MOP labels keep listing every
+  delivery day; the colour band works without it.
+- Validation: `validate-repository.mjs` passed; Playwright with a mocked Supabase client printed
+  labels for a customer with routes 612 and 616 and checked the days per route. The migration was
+  not run against the database from this session. Test: `supabase/tests/202611030001_..._validation.sql`.
+- Open / next: apply the migration and run its test.
+
 ## 2026-10-31 — Claude — Published Driver Roster (management) shows approved leave
 
 - Branch / commits: `claude/driver-roster-leave-management`, Pull Request into `master`

@@ -113,9 +113,8 @@
     const sub = trolleyName(data, trolley);
     const days = Array.isArray(data.delivery_days) ? data.delivery_days : [];
     const color = /^#[0-9a-f]{6}$/i.test(String(data.route_color || "")) ? data.route_color : "";
-    const route = data.route_code
-      ? `<span class="route"${color ? ` style="background:${color};color:${routeTextColor(color)}"` : ""}>Route ${esc(data.route_code)}</span>`
-      : "";
+    // The route sits on a band in its own colour so the staff see it at a glance.
+    const band = data.route_code && color ? ` style="background:${color};color:${routeTextColor(color)}"` : "";
     return `
       <section class="half${flipped ? " flipped" : ""}">
         <img class="logo" src="${esc(logoSrc)}" alt="Elis">
@@ -123,10 +122,10 @@
           <div class="customer">${esc(data.customer_name)}</div>
           ${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
         </div>
-        <div class="foot">
-          <span class="trolley">${esc(`${trolley.display_code || ""} · ${trolley.position}/${total}`)}</span>
+        <span class="trolley">${esc(`${trolley.display_code || ""} · ${trolley.position}/${total}`)}</span>
+        <div class="foot${data.route_code ? " has-route" : ""}"${band}>
+          ${data.route_code ? `<span class="route">Route ${esc(data.route_code)}</span>` : ""}
           ${days.length ? `<span class="days">Delivery: ${esc(days.join(" / "))}</span>` : ""}
-          ${route}
         </div>
       </section>`;
   }
@@ -156,16 +155,17 @@
         body{font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .sheet{position:relative;width:210mm;height:297mm;overflow:hidden;page-break-after:always;break-after:page}
         .sheet:last-child{page-break-after:auto;break-after:auto}
-        .half{position:relative;width:210mm;height:148.5mm;padding:12mm;display:grid;place-items:center}
+        .half{position:relative;width:210mm;height:148.5mm;padding:12mm 12mm 40mm;display:grid;place-items:center}
         .fold{position:absolute;left:0;right:0;top:148.5mm;border-top:1px dashed #9ca3af}
         .flipped{transform:rotate(180deg)}
         .logo{position:absolute;top:9mm;left:12mm;height:20mm}
         .names{text-align:center;display:grid;gap:6mm;max-width:100%;padding:0 2mm;margin-top:4mm}
         .customer{font-size:56pt;font-weight:800;line-height:1.1;overflow-wrap:anywhere}
         .sub{font-size:44pt;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
-        .foot{position:absolute;left:12mm;right:12mm;bottom:9mm;display:flex;align-items:center;gap:5mm;font-size:19pt;font-weight:800;white-space:nowrap}
-        .foot .days{flex:1;text-align:center}
-        .foot .route{margin-left:auto;border:1.5px solid #000;border-radius:3mm;padding:2mm 4mm;font-size:24pt;font-weight:800}
+        .trolley{position:absolute;top:12mm;right:12mm;font-size:19pt;font-weight:800;white-space:nowrap}
+        .foot{position:absolute;left:8mm;right:8mm;bottom:7mm;height:28mm;display:flex;align-items:center;justify-content:center;gap:8mm;padding:0 7mm;border-top:1.5px solid #000;font-size:22pt;font-weight:800;white-space:nowrap}
+        .foot.has-route{justify-content:space-between;border:2px solid #000;border-radius:4mm}
+        .foot .route{font-size:40pt;font-weight:900;letter-spacing:.5pt}
         @media screen{body{background:#e5e7eb}.sheet{background:#fff;margin:8mm auto;box-shadow:0 2px 10px rgba(0,0,0,.2)}}
       </style></head><body>
       ${trolleys.map((trolley) => labelSheetHtml(data, trolley, all.length)).join("")}
@@ -175,7 +175,7 @@
           var mm = 96 / 25.4;
           Array.prototype.forEach.call(document.querySelectorAll('.names'), function(box){
             var parts = box.querySelectorAll('.customer,.sub');
-            for (var step = 0; step < 30 && (box.scrollHeight > 86 * mm || box.scrollWidth > box.clientWidth + 1); step += 1) {
+            for (var step = 0; step < 30 && (box.scrollHeight > 78 * mm || box.scrollWidth > box.clientWidth + 1); step += 1) {
               Array.prototype.forEach.call(parts, function(el){ el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * 0.94) + 'px'; });
             }
           });
