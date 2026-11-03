@@ -80,6 +80,16 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish Production Registration: compact header row and one-line Notes
+
+- Changed (frontend only, owner request): Table, Shift and Processed by sit in one compact
+  row (only Processed by is normally changed). Notes starts as one line and grows with the
+  text up to about 8 lines, then scrolls. Phone width keeps Table + Shift on one row and
+  Processed by below.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs`; Playwright against a stubbed Supabase
+  client at desktop and phone width.
+
 ## 2026-11-03 — Claude — Finish Production Registration: guided trolley scan and continuation by other Table/Shift
 
 - Changed (frontend only, owner request):
