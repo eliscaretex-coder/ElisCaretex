@@ -80,6 +80,14 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish: ReWash card collapsed by default
+
+- Branch / commits: claude/finish-rewash-collapsed, Pull Request
+- Changed: Finish production "Table / Shift record - ReWash" card now starts closed and shows only the total (kg and number of customers) as a pill; clicking the pill expands/collapses the customer lines. "Record/Edit ReWash" button unchanged. Mobile header now wraps instead of squeezing the subtitle.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs` passed; card render/toggle checked in Chromium (desktop and 390px) with sample data. Not tested against the live Finish page.
+- Open / next: none
+
 ## 2026-11-03 — Claude — Finish: "No trolley yet" per plate (partial trolley pending)
 
 - Changed (owner request): in Production Registration, "No trolley yet" now applies only to
