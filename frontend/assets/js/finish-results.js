@@ -44,10 +44,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const currentBusinessDate=()=>{const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Dublin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(new Date()),m=Object.fromEntries(parts.map(p=>[p.type,p.value]));if(Number(m.hour)<3){const y=new Date(`${m.year}-${m.month}-${m.day}T12:00:00Z`);y.setUTCDate(y.getUTCDate()-1);return y.toISOString().slice(0,10);}return `${m.year}-${m.month}-${m.day}`;};
 
   // Day league table: the same look as the closed-period ranking, for the selected Business Date.
+  // Shift filter for the day league (All / Morning / Evening), remembered on this device.
+  let dayShift="ALL",lastDayData=null;
+  try{const v=localStorage.getItem("finishResultsDayShift");if(["ALL","MORNING","EVENING"].includes(v))dayShift=v;}catch(_){}
+  document.querySelectorAll("[data-day-shift]").forEach(b=>b.addEventListener("click",()=>{dayShift=b.dataset.dayShift;try{localStorage.setItem("finishResultsDayShift",dayShift);}catch(_){}if(lastDayData)renderMatrix(lastDayData);}));
   function renderMatrix(data){
+    lastDayData=data;
+    document.querySelectorAll("[data-day-shift]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.dayShift===dayShift)));
     const day=String(data.business_date||"").slice(0,10),isToday=day===currentBusinessDate();
     const dayLabel=new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(`${day}T12:00:00Z`));
-    if(el.dayTitle)el.dayTitle.textContent=`${isToday?"Today":dayLabel} · Table × Shift`;
+    if(el.dayTitle)el.dayTitle.textContent=`${isToday?"Today":dayLabel} · ${dayShift==="ALL"?"Table × Shift":`${shiftName(dayShift)} Tables`}`;
     if(el.dayBadge){el.dayBadge.className=`finish-results-day-badge${isToday?" live":""}`;el.dayBadge.innerHTML=isToday?"<i></i>Today · live":`Day · ${esc(dayLabel)}`;}
     const trolley=new Map();
     (data.entries||[]).forEach(e=>{const st=String(e.trolley_scan_status||"");if(st!=="MATCHED"&&st!=="MISMATCH")return;const k=`${e.table_code}|${e.shift_code}`,t=trolley.get(k)||{checked:0,errors:0};t.checked++;if(st==="MISMATCH")t.errors++;trolley.set(k,t);});
@@ -57,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const byPlace=(a,b)=>(a.shift_code==="MORNING"?0:1)-(b.shift_code==="MORNING"?0:1)||String(a.table_code).localeCompare(String(b.table_code));
     // Today a shift is still running, so Morning and Evening are ranked separately (a finished shift against
     // one half-way through would not be fair). A closed day is ranked as one league of 6, like the week.
-    const leagues=isToday?["MORNING","EVENING"].map(code=>({title:shiftName(code),rows:rows.filter(r=>r.shift_code===code)})):[{title:"",rows}];
+    const leagues=dayShift!=="ALL"?[{title:"",rows:rows.filter(r=>r.shift_code===dayShift)}]:isToday?["MORNING","EVENING"].map(code=>({title:shiftName(code),rows:rows.filter(r=>r.shift_code===code)})):[{title:"",rows}];
     const row=(r,ranked,safety)=>{
       const eff=Math.max(0,Number(r.efficiency_percent||0)),bar=Math.min(eff,130)/130*100,target=100/130*100,missing=Number(r.planned_kg||0)-Number(r.produced_kg||0);
       const plan=!r.active?'<span class="plan none">—</span>':missing>0?`<span class="plan behind">−${num(missing,0)} kg</span>`:`<span class="plan ahead">+${num(-missing,0)} kg</span>`;
