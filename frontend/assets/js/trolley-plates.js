@@ -41,6 +41,8 @@
       .trolley-plate{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:5px 8px}
       .trolley-plates.has-scan .trolley-plate{grid-template-columns:auto 1fr auto auto}
       .trolley-plate.is-next{border-color:#0f766e;box-shadow:0 0 0 2px #99f6e4}
+      .trolley-plate.is-pickable{cursor:pointer}
+      .trolley-plate.is-pickable:hover{border-color:#14b8a6;background:#f0fdfa}
       .trolley-plate.is-ok{border-color:#86efac;background:#f0fdf4}
       .trolley-plate.is-wrong{border-color:#fca5a5;background:#fef2f2}
       .trolley-plate-badge{display:inline-flex;align-items:baseline;gap:3px;justify-content:center;min-width:42px;padding:4px 6px;border-radius:7px;background:#0f2742;color:#fff;font-weight:800;font-size:14px}
@@ -180,7 +182,10 @@
       if (event.target.closest("[data-plate-later]")) { toggleScanBar(container, false); scan.onLater?.(); return; }
       if (event.target.closest("[data-plate-review]")) { scan.onReview?.(); return; }
       const remove = event.target.closest("[data-plate-remove]");
-      if (remove) scan.onRemove?.(remove.dataset.plateRemove);
+      if (remove) { scan.onRemove?.(remove.dataset.plateRemove); return; }
+      // A plate without a trolley can be picked: the next scan goes to that plate.
+      const row = event.target.closest(".trolley-plate.is-pickable[data-plate-row]");
+      if (row) { scan.onPick?.(Number(row.dataset.plateRow)); toggleScanBar(container, true); }
     };
     const input = container.querySelector("[data-plate-input]");
     if (input) {
@@ -220,6 +225,9 @@
       row.classList.toggle("is-next", slot.state === "next");
       row.classList.toggle("is-ok", slot.state === "ok");
       row.classList.toggle("is-wrong", slot.state === "wrong");
+      const pickable = slot.state === "missing" || slot.state === "next";
+      row.classList.toggle("is-pickable", pickable);
+      row.title = pickable ? "Click to scan the trolley for this plate" : "";
       if (!cell) return;
       cell.className = `trolley-plate-scan ${slot.state}`;
       cell.title = slot.title || "";

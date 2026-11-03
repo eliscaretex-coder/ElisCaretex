@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish Production Registration: compact header row and one-line Notes
+
+- Changed (frontend only, owner request): Table, Shift and Processed by sit in one compact
+  row (only Processed by is normally changed). Notes starts as one line and grows with the
+  text up to about 8 lines, then scrolls. Phone width keeps Table + Shift on one row and
+  Processed by below.
+- Trolley scan: clicking a plate without a trolley makes the next scan go to that plate, so the
+  staff can scan in any order (the plate chosen is kept per code). Removing a scan makes that
+  plate the next target.
+- Double scrollbar: the modal `<dialog>` and its card both scrolled. The dialog box no longer
+  scrolls (only the card does) and the page behind is locked while a Finish dialog is open.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs`; Playwright against a stubbed Supabase
+  client at desktop and phone width.
+
 ## 2026-11-03 — Claude — Finish Production Registration: guided trolley scan and continuation by other Table/Shift
 
 - Changed (frontend only, owner request):

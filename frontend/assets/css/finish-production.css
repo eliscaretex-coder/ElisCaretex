@@ -432,3 +432,17 @@ body.elis-operational-tool-page.finish-page .operational-page-header .finish-top
 .finish-customer-summary .finish-summary-route.none{background:#e2e8f0;color:#475569}
 .finish-customer-summary .finish-summary-delivery em{font-style:normal;font-size:.76rem;font-weight:700;color:#334155}
 .finish-customer-summary .finish-summary-delivery span{font-size:.78rem;font-weight:800;color:#0f172a}
+/* Production Registration: Table / Shift / Processed by in one compact row (only Processed by is usually changed); Notes is one line that grows with the text. */
+#finishProductionForm .finish-registration-context{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:8px;align-items:center;margin:0 0 6px}
+#finishProductionForm .finish-registration-context>label{display:flex;align-items:center;gap:6px;margin:0;font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#64748b;white-space:nowrap;min-width:0}
+#finishProductionForm .finish-registration-context select,#finishProductionForm .finish-registration-context input{width:auto;min-width:0;padding:5px 8px;font-size:.82rem;font-weight:800;text-transform:none;letter-spacing:0;color:#0f172a}
+#finishProductionForm .finish-registration-context #finishShiftDisplay{width:92px;background:#f1f5f9;border-color:#e2e8f0}
+#finishProductionForm .finish-registration-context #finishTable:disabled{background:#f1f5f9;border-color:#e2e8f0;opacity:1;color:#0f172a}
+#finishProductionForm .finish-registration-context .finish-processed-by-field{padding:3px 3px 3px 9px;margin:0!important;border-left-width:4px;color:#0f766e}
+#finishProductionForm .finish-registration-context .finish-processed-by-field select{flex:1;width:100%}
+#finishProductionForm #finishNotes{min-height:36px;resize:none;overflow-y:hidden;line-height:1.35}
+#finishProductionForm .finish-trolley-notes-grid label{margin-top:4px}
+@media(max-width:700px){#finishProductionForm .finish-registration-context{grid-template-columns:1fr 1fr}#finishProductionForm .finish-registration-context>label{flex-wrap:nowrap}#finishProductionForm .finish-registration-context select,#finishProductionForm .finish-registration-context input{flex:1;width:100%}#finishProductionForm .finish-registration-context #finishShiftDisplay{width:100%}#finishProductionForm .finish-registration-context .finish-processed-by-field{grid-column:1/-1}}
+/* One scrollbar: the dialog box itself never scrolls; its card does (it is capped to the screen height). */
+.finish-dialog{max-height:none;overflow:visible}
+html:has(.finish-dialog[open]){overflow:hidden}
