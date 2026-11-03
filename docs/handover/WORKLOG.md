@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish Results: day Table × Shift as a league table with "Today" highlight
+
+- Branch / commits: claude/finish-daily-ranking, Pull Request
+- Changed: the "Table × Shift" day cards now use the same look as the closed-period ranking
+  (position, leader, relegation zone, vs plan in kg, efficiency bar, trolley, score). Today shows a
+  green "Today · live" badge and ranks Morning and Evening separately (a shift is still running);
+  another day shows "Day · <date>" and one league of 6. Frontend only, uses existing dashboard data.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs` passed; screens checked with the real numbers
+  of 03/11 (desktop + phone, today and a past day).
+- Open / next: none.
+
 ## 2026-11-03 — Claude — Finish: "No trolley yet" per plate (partial trolley pending)
 
 - Changed (owner request): in Production Registration, "No trolley yet" now applies only to
