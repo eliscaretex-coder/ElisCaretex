@@ -43,6 +43,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     overdueDays: 30,
     locationSearch: "",
     locationFilter: "ALL",
+    locationSort: "ATTENTION",
+    locationAttentionOnly: false,
+    locationData: null,
     masterSearch: "",
     masterFilter: "ALL",
     typeMasterItems: [],
@@ -260,87 +263,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         aria-current="${tab.id === state.activeTab ? "page" : "false"}"
       >${escapeHtml(tab.label)}</button>
     `).join("");
-  }
-
-  function daysLabel(value, locationType) {
-    if (value == null) return locationType === "LOCATION_UNCONFIRMED" ? "Unknown" : "—";
-    const days = Number(value);
-    return `${days} ${days === 1 ? "day" : "days"}`;
-  }
-
-  function locationTrolleyRow(item, locationType) {
-    const detail = item.location_status === "PREPARED_FOR_DELIVERY"
-      ? `Prepared in ${titleCaseCode(item.production_area_code)} · planned delivery ${formatDate(item.planned_delivery_on)}`
-      : locationType === "CUSTOMER"
-        ? `Customer custody since ${formatDate(item.location_since)}`
-        : locationType === "ELIS_LAUNDRY"
-          ? `At laundry since ${formatDate(item.location_since)}`
-          : "Current location has not yet been confirmed";
-    const color = safeRouteColor(item.route_color);
-    const style = color ? ` style="--row-route-color:${color}"` : "";
-    return `
-      <button class="trolleys-location-trolley${locationType === "CUSTOMER" ? " customer" : ""}" type="button" data-open-trolley="${escapeHtml(item.trolley_code)}"${style}>
-        <span class="trolleys-location-code">${escapeHtml(item.trolley_code)}</span>
-        <span class="trolleys-type-chip">${escapeHtml(item.trolley_type_display_code || item.trolley_type_code || "—")}</span>
-        <span class="trolleys-location-detail"><strong>${escapeHtml(detail)}</strong>${locationType === "CUSTOMER" ? routeBadge(item.route_display_name, item.route_code, item.route_color) : ""}</span>
-        <span class="trolleys-location-days">
-          <strong>${escapeHtml(daysLabel(item.days_at_location, locationType))}</strong>
-          <small>at this location</small>
-        </span>
-        <span>${attentionBadge(item.attention_status)}</span>
-      </button>
-    `;
-  }
-
-  function locationGroupCard(group) {
-    const items = Array.isArray(group.trolleys) ? group.trolleys : [];
-    const routeItem = items.find((item) => safeRouteColor(item.route_color)) || items.find((item) => item.route_display_name || item.route_code) || null;
-    const routeColor = safeRouteColor(routeItem?.route_color);
-    const routeStyle = group.location_type === "CUSTOMER" && routeColor ? ` style="--customer-route-color:${routeColor}"` : "";
-    const tone = group.overdue_count
-      ? "danger"
-      : group.warning_count
-        ? "warning"
-        : group.location_type === "ELIS_LAUNDRY"
-          ? "laundry"
-          : group.location_type === "LOCATION_UNCONFIRMED"
-            ? "unconfirmed"
-            : group.location_type === "CUSTOMER"
-              ? "customer-route"
-              : "";
-
-    const subtitle = group.location_type === "ELIS_LAUNDRY"
-      ? `${group.prepared_count || 0} prepared for delivery`
-      : group.location_type === "CUSTOMER"
-        ? `Longest current stay: ${daysLabel(group.longest_days, group.location_type)}`
-        : "The first production assignment or Sorting confirmation will establish location";
-
-    const open = group.location_type === "ELIS_LAUNDRY" || group.overdue_count || group.warning_count;
-
-    return `
-      <details class="trolleys-location-card ${escapeHtml(tone)}"${open ? " open" : ""}${routeStyle}>
-        <summary>
-          <div class="trolleys-location-heading">
-            <span class="trolleys-location-icon" aria-hidden="true">${group.location_type === "ELIS_LAUNDRY" ? "E" : group.location_type === "CUSTOMER" ? "C" : "?"}</span>
-            <div>
-              <h3>${escapeHtml(group.location_name || "Unknown location")}</h3>
-              <p>${escapeHtml(group.location_code || "")} ${group.location_code ? "· " : ""}${escapeHtml(subtitle)}</p>
-              ${group.location_type === "CUSTOMER" ? routeBadge(routeItem?.route_display_name, routeItem?.route_code, routeItem?.route_color) : ""}
-            </div>
-          </div>
-          <div class="trolleys-location-summary">
-            <strong>${Number(group.trolley_count || 0)}</strong>
-            <span>Trolleys</span>
-            ${group.review_required_count ? `<small class="review">${Number(group.review_required_count)} needs review</small>` : ""}
-            ${group.warning_count ? `<small class="warning">${Number(group.warning_count)} warning</small>` : ""}
-            ${group.overdue_count ? `<small class="danger">${Number(group.overdue_count)} overdue</small>` : ""}
-          </div>
-        </summary>
-        <div class="trolleys-location-list">
-          ${items.map((item) => locationTrolleyRow(item, group.location_type)).join("")}
-        </div>
-      </details>
-    `;
   }
 
   function trackingStateMeta(trolley, current) {
@@ -564,6 +486,353 @@ document.addEventListener("DOMContentLoaded", async () => {
     setTimeout(() => document.getElementById("trolleyTrackingInput")?.focus(), 50);
   }
 
+  function daysLabel(value, locationType) {
+    if (value == null) return locationType === "LOCATION_UNCONFIRMED" ? "Unknown" : "—";
+    const days = Number(value);
+    return `${days} ${days === 1 ? "day" : "days"}`;
+  }
+
+  // ---- Visual helpers (sizes, day tones, fleet bar) ----
+
+  function sizeTone(code) {
+    const value = String(code || "").toUpperCase();
+    if (value === "S" || value === "SMALL") return "s";
+    if (value === "M" || value === "MEDIUM") return "m";
+    if (value === "L" || value === "LARGE") return "l";
+    return "x";
+  }
+
+  function sizeBadge(item) {
+    const code = item.trolley_type_display_code || item.display_code || item.trolley_type_code || "—";
+    const tone = sizeTone(item.trolley_type_display_code || item.trolley_type_code || item.display_code);
+    return `<span class="tv-size tv-size-${tone}" title="${escapeHtml(item.trolley_type_name || code)}">${escapeHtml(code)}</span>`;
+  }
+
+  function dayTone(days) {
+    if (days == null) return "none";
+    const value = Number(days);
+    if (value >= state.overdueDays) return "danger";
+    if (value >= state.warningDays) return "warning";
+    return "ok";
+  }
+
+  function daysPill(days, suffix = "d") {
+    if (days == null) return '<span class="tv-days none">?</span>';
+    const value = Number(days);
+    return `<span class="tv-days ${dayTone(value)}" title="${value} ${value === 1 ? "day" : "days"} at this location">${value}${suffix}</span>`;
+  }
+
+  function sizeBreakdown(trolleys) {
+    const counts = new Map();
+    trolleys.forEach((item) => {
+      const code = item.trolley_type_display_code || item.trolley_type_code || "?";
+      const entry = counts.get(code) || { code, tone: sizeTone(code), name: item.trolley_type_name || code, count: 0 };
+      entry.count += 1;
+      counts.set(code, entry);
+    });
+    const order = { s: 1, m: 2, l: 3, x: 4 };
+    return [...counts.values()]
+      .sort((a, b) => order[a.tone] - order[b.tone] || a.code.localeCompare(b.code))
+      .map((entry) => `<span class="tv-size-count tv-size-${entry.tone}" title="${escapeHtml(entry.name)}"><b>${escapeHtml(entry.code)}</b>${entry.count}</span>`)
+      .join("");
+  }
+
+  function fleetBar(segments, total) {
+    const sum = total || segments.reduce((acc, item) => acc + Number(item.value || 0), 0) || 1;
+    const visible = segments.filter((item) => Number(item.value || 0) > 0);
+    return `
+      <div class="tv-fleet-bar" role="img" aria-label="${escapeHtml(segments.map((item) => `${item.label}: ${Number(item.value || 0)}`).join(", "))}">
+        ${visible.map((item) => `<span class="tv-seg tv-st-${escapeHtml(item.tone)}" style="flex-grow:${Number(item.value)}" title="${escapeHtml(item.label)}: ${Number(item.value)}"></span>`).join("")}
+      </div>
+      <ul class="tv-legend">
+        ${segments.map((item) => `
+          <li${item.filter ? ` data-tv-filter="${escapeHtml(item.filter)}" tabindex="0" role="button"` : ""}>
+            <i class="tv-dot tv-st-${escapeHtml(item.tone)}"></i>
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${Number(item.value || 0)}</strong>
+            <small>${Math.round((Number(item.value || 0) / sum) * 100)}%</small>
+          </li>`).join("")}
+      </ul>
+    `;
+  }
+
+  function alertTile(value, label, hint, tone, attrs = "") {
+    const count = Number(value || 0);
+    return `
+      <button type="button" class="tv-alert ${count ? escapeHtml(tone) : "quiet"}" ${attrs}>
+        <strong>${count}</strong>
+        <span>${escapeHtml(label)}</span>
+        <small>${escapeHtml(hint)}</small>
+      </button>
+    `;
+  }
+
+  function sizeMixPanel(allTrolleys) {
+    const map = new Map();
+    allTrolleys.forEach(({ item, where }) => {
+      const code = item.trolley_type_display_code || item.trolley_type_code || "?";
+      const entry = map.get(code) || { code, tone: sizeTone(code), name: item.trolley_type_name || code, laundry: 0, customer: 0, unknown: 0 };
+      entry[where] += 1;
+      map.set(code, entry);
+    });
+    const order = { s: 1, m: 2, l: 3, x: 4 };
+    const rows = [...map.values()].sort((a, b) => order[a.tone] - order[b.tone]);
+    if (!rows.length) return "";
+    const max = Math.max(...rows.map((row) => row.laundry + row.customer + row.unknown), 1);
+    return `
+      <section class="tv-panel tv-size-mix">
+        <header><h3>Trolleys by size</h3><p>Where each size is right now</p></header>
+        ${rows.map((row) => {
+          const total = row.laundry + row.customer + row.unknown;
+          const pct = (value) => `${(value / max) * 100}%`;
+          return `
+          <div class="tv-size-row">
+            <span class="tv-size tv-size-${row.tone} lg" title="${escapeHtml(row.name)}">${escapeHtml(row.code)}</span>
+            <div class="tv-size-row-body">
+              <div class="tv-size-row-head"><strong>${escapeHtml(row.name)}</strong><span>${total}</span></div>
+              <div class="tv-mini-bar">
+                <span class="tv-st-laundry" style="width:${pct(row.laundry)}" title="At Elis Laundry: ${row.laundry}"></span>
+                <span class="tv-st-customer" style="width:${pct(row.customer)}" title="At customers: ${row.customer}"></span>
+                <span class="tv-st-unconfirmed" style="width:${pct(row.unknown)}" title="Unconfirmed: ${row.unknown}"></span>
+              </div>
+              <small>${row.laundry} at laundry · ${row.customer} at customers${row.unknown ? ` · ${row.unknown} unconfirmed` : ""}</small>
+            </div>
+          </div>`;
+        }).join("")}
+      </section>
+    `;
+  }
+
+  function trolleyTile(item, locationType) {
+    const prepared = item.location_status === "PREPARED_FOR_DELIVERY";
+    const days = item.days_at_location == null ? null : Number(item.days_at_location);
+    let meta = "";
+    if (prepared) {
+      meta = `<small class="tv-tile-meta">→ ${escapeHtml(item.customer_name || "delivery")} · ${escapeHtml(formatDate(item.planned_delivery_on))}</small>`;
+    } else if (locationType === "CUSTOMER") {
+      meta = `<small class="tv-tile-meta">since ${escapeHtml(formatDate(item.location_since))}</small>`;
+    } else if (locationType === "ELIS_LAUNDRY") {
+      meta = `<small class="tv-tile-meta">at laundry${days != null ? ` · ${days}d` : ""}</small>`;
+    } else {
+      meta = '<small class="tv-tile-meta">location not confirmed</small>';
+    }
+    const tone = locationType === "CUSTOMER" ? dayTone(days) : "none";
+    return `
+      <button class="tv-tile tone-${tone}" type="button" data-open-trolley="${escapeHtml(item.trolley_code)}" title="Open ${escapeHtml(item.trolley_code)}">
+        ${sizeBadge(item)}
+        <span class="tv-tile-copy"><strong>${escapeHtml(item.trolley_code)}</strong>${meta}</span>
+        ${locationType === "CUSTOMER" ? daysPill(days) : ""}
+      </button>
+    `;
+  }
+
+  function routeChip(item) {
+    if (!item) return "";
+    const label = item.route_display_name || (item.route_code ? `Route ${item.route_code}` : "");
+    if (!label) return "";
+    const color = safeRouteColor(item.route_color);
+    return color
+      ? `<span class="tv-route" style="background:${color};color:${routeTextColor(color)}">${escapeHtml(label)}</span>`
+      : `<span class="tv-route neutral">${escapeHtml(label)}</span>`;
+  }
+
+  function laundryCard(group, openAll) {
+    const items = Array.isArray(group.trolleys) ? group.trolleys : [];
+    const prepared = items.filter((item) => item.location_status === "PREPARED_FOR_DELIVERY");
+    const available = items.filter((item) => item.location_status !== "PREPARED_FOR_DELIVERY");
+    const lane = (title, tone, list, hint) => `
+      <div class="tv-lane">
+        <div class="tv-lane-head"><i class="tv-dot tv-st-${tone}"></i><strong>${escapeHtml(title)}</strong><span>${list.length}</span><div class="tv-size-counts">${sizeBreakdown(list)}</div></div>
+        ${list.length ? `<div class="tv-tiles">${list.map((item) => trolleyTile(item, "ELIS_LAUNDRY")).join("")}</div>` : `<p class="tv-muted">${escapeHtml(hint)}</p>`}
+      </div>`;
+    return `
+      <details class="tv-loc tv-loc-laundry"${openAll ? " open" : ""}>
+        <summary>
+          <span class="tv-loc-icon laundry" aria-hidden="true">E</span>
+          <div class="tv-loc-title">
+            <h3>${escapeHtml(group.location_name || "Elis Laundry")}</h3>
+            <div class="tv-loc-sub">
+              <span class="tv-pill tv-st-available-soft"><i class="tv-dot tv-st-available"></i>${available.length} available</span>
+              <span class="tv-pill tv-st-prepared-soft"><i class="tv-dot tv-st-prepared"></i>${prepared.length} prepared for delivery</span>
+            </div>
+          </div>
+          <div class="tv-size-counts">${sizeBreakdown(items)}</div>
+          <div class="tv-loc-count"><strong>${Number(group.trolley_count || items.length)}</strong><span>trolleys</span></div>
+          <span class="tv-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tv-loc-body tv-lanes">
+          ${lane("Prepared for delivery", "prepared", prepared, "Nothing prepared right now.")}
+          ${lane("Available at laundry", "available", available, "No available trolleys.")}
+        </div>
+      </details>
+    `;
+  }
+
+  function customerCard(group, openAll) {
+    const items = Array.isArray(group.trolleys) ? group.trolleys : [];
+    const routeItem = items.find((item) => safeRouteColor(item.route_color)) || items.find((item) => item.route_display_name || item.route_code) || null;
+    const routeColor = safeRouteColor(routeItem?.route_color);
+    const longest = group.longest_days == null
+      ? items.reduce((max, item) => Math.max(max, Number(item.days_at_location || 0)), 0)
+      : Number(group.longest_days);
+    const tone = group.overdue_count ? "danger" : group.warning_count ? "warning" : "ok";
+    const fill = Math.min(100, Math.round((longest / Math.max(state.overdueDays, 1)) * 100));
+    const sorted = [...items].sort((a, b) => Number(b.days_at_location || 0) - Number(a.days_at_location || 0));
+    const showReview = Boolean(state.capabilities.can_view_trolley_exceptions) && Number(group.review_required_count || 0) > 0;
+    return `
+      <details class="tv-loc tv-cust tone-${tone}"${openAll ? " open" : ""}${routeColor ? ` style="--route:${routeColor}"` : ""}>
+        <summary>
+          <div class="tv-cust-top">
+            ${routeChip(routeItem)}
+            ${group.overdue_count ? `<span class="tv-flag danger">${Number(group.overdue_count)} overdue</span>` : ""}
+            ${group.warning_count ? `<span class="tv-flag warning">${Number(group.warning_count)} warning</span>` : ""}
+            ${showReview ? `<span class="tv-flag review">${Number(group.review_required_count)} review</span>` : ""}
+          </div>
+          <div class="tv-cust-main">
+            <div class="tv-cust-name">
+              <h3 title="${escapeHtml(group.location_name || "")}">${escapeHtml(group.location_name || "Unknown customer")}</h3>
+              <small>${escapeHtml(group.location_code || "")}</small>
+            </div>
+            <div class="tv-loc-count"><strong>${Number(group.trolley_count || items.length)}</strong><span>${Number(group.trolley_count || items.length) === 1 ? "trolley" : "trolleys"}</span></div>
+          </div>
+          <div class="tv-size-counts">${sizeBreakdown(items)}</div>
+          <div class="tv-stay">
+            <div class="tv-stay-label"><span>Longest stay</span><strong class="tv-text-${tone}">${escapeHtml(daysLabel(longest, "CUSTOMER"))}</strong></div>
+            <div class="tv-stay-bar"><span class="tone-${tone}" style="width:${fill}%"></span><i style="left:${Math.min(100, Math.round((state.warningDays / Math.max(state.overdueDays, 1)) * 100))}%"></i></div>
+          </div>
+          <span class="tv-cust-open">Show trolleys</span>
+        </summary>
+        <div class="tv-loc-body">
+          <div class="tv-tiles">${sorted.map((item) => trolleyTile(item, "CUSTOMER")).join("")}</div>
+        </div>
+      </details>
+    `;
+  }
+
+  function unconfirmedCard(group, openAll) {
+    const items = Array.isArray(group.trolleys) ? group.trolleys : [];
+    return `
+      <details class="tv-loc tv-loc-unconfirmed"${openAll ? " open" : ""}>
+        <summary>
+          <span class="tv-loc-icon unconfirmed" aria-hidden="true">?</span>
+          <div class="tv-loc-title">
+            <h3>Location unconfirmed</h3>
+            <p>The first production assignment or Sorting confirmation will establish where these trolleys are.</p>
+          </div>
+          <div class="tv-size-counts">${sizeBreakdown(items)}</div>
+          <div class="tv-loc-count"><strong>${Number(group.trolley_count || items.length)}</strong><span>trolleys</span></div>
+          <span class="tv-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tv-loc-body"><div class="tv-tiles">${items.map((item) => trolleyTile(item, "LOCATION_UNCONFIRMED")).join("")}</div></div>
+      </details>
+    `;
+  }
+
+  function sortCustomerGroups(groups) {
+    const list = [...groups];
+    const days = (group) => Number(group.longest_days || 0);
+    if (state.locationSort === "COUNT") list.sort((a, b) => Number(b.trolley_count || 0) - Number(a.trolley_count || 0) || days(b) - days(a));
+    else if (state.locationSort === "DAYS") list.sort((a, b) => days(b) - days(a));
+    else if (state.locationSort === "NAME") list.sort((a, b) => String(a.location_name || "").localeCompare(String(b.location_name || "")));
+    else list.sort((a, b) => Number(b.overdue_count || 0) - Number(a.overdue_count || 0) || Number(b.warning_count || 0) - Number(a.warning_count || 0) || days(b) - days(a));
+    return list;
+  }
+
+  function paintLocations() {
+    const data = state.locationData || {};
+    const summary = data.summary || {};
+    const groups = Array.isArray(data.groups) ? data.groups : [];
+    const laundry = groups.filter((group) => group.location_type === "ELIS_LAUNDRY");
+    const unconfirmed = groups.filter((group) => group.location_type === "LOCATION_UNCONFIRMED");
+    let customers = groups.filter((group) => group.location_type === "CUSTOMER");
+    if (state.locationAttentionOnly) customers = customers.filter((group) => Number(group.overdue_count || 0) + Number(group.warning_count || 0) > 0);
+    customers = sortCustomerGroups(customers);
+    const searching = Boolean(state.locationSearch);
+
+    const allTrolleys = [];
+    groups.forEach((group) => (group.trolleys || []).forEach((item) => allTrolleys.push({
+      item,
+      where: group.location_type === "CUSTOMER" ? "customer" : group.location_type === "ELIS_LAUNDRY" ? "laundry" : "unknown"
+    })));
+
+    const preparedCount = Number(summary.prepared_for_delivery || 0);
+    const availableCount = Math.max(0, Number(summary.at_laundry || 0) - preparedCount);
+    const operational = Number(summary.operational_trolleys || 0)
+      || (Number(summary.at_laundry || 0) + Number(summary.at_customers || 0) + Number(summary.location_unconfirmed || 0));
+
+    const filterChip = (value, label, count) => `
+      <button type="button" class="tv-chip${state.locationFilter === value ? " active" : ""}" data-location-filter="${value}">${escapeHtml(label)}${count == null ? "" : ` <span>${Number(count)}</span>`}</button>`;
+
+    elements.main.innerHTML = `
+      <section class="tv-page">
+        <div class="tv-overview">
+          <section class="tv-panel tv-fleet">
+            <header>
+              <div><h3>Where the fleet is now</h3><p>Operational trolleys by current custody</p></div>
+              <div class="tv-total"><strong>${operational}</strong><span>operational</span></div>
+            </header>
+            ${fleetBar([
+              { label: "Available at laundry", value: availableCount, tone: "available", filter: "ELIS_LAUNDRY" },
+              { label: "Prepared for delivery", value: preparedCount, tone: "prepared", filter: "ELIS_LAUNDRY" },
+              { label: "At customers", value: summary.at_customers, tone: "customer", filter: "CUSTOMERS" },
+              { label: "Location unconfirmed", value: summary.location_unconfirmed, tone: "unconfirmed", filter: "LOCATION_UNCONFIRMED" }
+            ], operational)}
+            <p class="tv-foot">${Number(summary.customer_locations || 0)} customers are holding trolleys${Number(summary.out_of_service || 0) ? ` · ${Number(summary.out_of_service)} out of service (not counted)` : ""}</p>
+          </section>
+          ${sizeMixPanel(allTrolleys)}
+        </div>
+
+        <div class="tv-alerts">
+          ${alertTile(summary.overdue, "Overdue", `${state.overdueDays}+ days at customer`, "danger", 'data-location-attention="1"')}
+          ${alertTile(summary.warning, "Warning", `${state.warningDays}+ days at customer`, "warning", 'data-location-attention="1"')}
+          ${alertTile(summary.location_unconfirmed, "Unconfirmed", "location not yet known", "neutral", 'data-location-filter="LOCATION_UNCONFIRMED"')}
+          ${alertTile(summary.out_of_service, "Out of service", "see Trolley Master", "service", 'data-tab="master"')}
+        </div>
+
+        <section class="tv-panel tv-locations">
+          <header class="tv-toolbar">
+            <div class="tv-chips" role="group" aria-label="Location filter">
+              ${filterChip("ALL", "All")}
+              ${filterChip("ELIS_LAUNDRY", "Elis Laundry", summary.at_laundry)}
+              ${filterChip("CUSTOMERS", "Customers", summary.customer_locations)}
+              ${filterChip("LOCATION_UNCONFIRMED", "Unconfirmed", summary.location_unconfirmed)}
+            </div>
+            <form id="trolleyLocationFilterForm" class="tv-search">
+              <input id="trolleyLocationSearch" type="search" placeholder="Search trolley or customer" value="${escapeHtml(state.locationSearch)}" aria-label="Search trolley or customer">
+              <button class="trolleys-primary-button" type="submit">Search</button>
+              <button id="trolleyLocationsReload" class="trolleys-secondary-button" type="button" title="Reload">Reload</button>
+            </form>
+          </header>
+
+          ${laundry.map((group) => laundryCard(group, searching)).join("")}
+
+          ${state.locationFilter === "ELIS_LAUNDRY" || state.locationFilter === "LOCATION_UNCONFIRMED" ? "" : `
+            <div class="tv-section-head">
+              <div><h3>Customers holding trolleys</h3><p>${customers.length} ${customers.length === 1 ? "customer" : "customers"} · click a card to see its trolleys</p></div>
+              <div class="tv-section-tools">
+                <label class="tv-toggle"><input id="trolleyLocationAttention" type="checkbox"${state.locationAttentionOnly ? " checked" : ""}> Only overdue / warning</label>
+                <select id="trolleyLocationSort" aria-label="Sort customers">
+                  ${[["ATTENTION", "Needs attention first"], ["COUNT", "Most trolleys"], ["DAYS", "Longest stay"], ["NAME", "Name A–Z"]]
+                    .map(([value, label]) => `<option value="${value}"${state.locationSort === value ? " selected" : ""}>${label}</option>`).join("")}
+                </select>
+              </div>
+            </div>
+            ${customers.length ? `<div class="tv-cust-grid">${customers.map((group) => customerCard(group, searching)).join("")}</div>` : '<div class="trolleys-empty">No customers match the selected filters.</div>'}
+          `}
+
+          ${unconfirmed.map((group) => unconfirmedCard(group, searching)).join("")}
+
+          ${groups.length ? "" : '<div class="trolleys-empty">No trolley locations match the selected filters.</div>'}
+
+          <details class="tv-help">
+            <summary>How this page works</summary>
+            <p>This page is a consultation view. Finish and Mop Production assign trolleys in their own applications, and Sorting confirms returned trolleys in the Sorting workflow. Delivery remains an explicit next-day inference until Distribution scanning is available. Day colours: green under ${state.warningDays} days, amber from ${state.warningDays} days, red from ${state.overdueDays} days.</p>
+          </details>
+        </section>
+      </section>
+    `;
+  }
+
   async function renderLocations() {
     renderLoading("Loading current trolley locations...");
 
@@ -572,54 +841,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         p_search: state.locationSearch || null,
         p_location_filter: state.locationFilter
       });
-      const summary = data?.summary || {};
-      const groups = Array.isArray(data?.groups) ? data.groups : [];
+      state.locationData = data || {};
       elements.asOfDate.textContent = formatDate(data?.generated_on || localDateValue());
-
-      elements.main.innerHTML = `
-        <section class="trolleys-dashboard">
-          <div class="trolleys-kpi-grid">
-            ${kpi(summary.at_laundry, "At Elis Laundry")}
-            ${kpi(summary.prepared_for_delivery, "Prepared for delivery")}
-            ${kpi(summary.at_customers, "At customers")}
-            ${kpi(summary.customer_locations, "Customers holding trolleys")}
-            ${kpi(summary.location_unconfirmed, "Location unconfirmed", summary.location_unconfirmed ? "warning" : "")}
-            ${kpi(summary.warning, `Warning · ${state.warningDays}+ days`, summary.warning ? "warning" : "")}
-            ${kpi(summary.overdue, `Overdue · ${state.overdueDays}+ days`, summary.overdue ? "danger" : "")}
-            ${kpi(summary.out_of_service, "Out of service", summary.out_of_service ? "warning" : "")}
-          </div>
-
-          <div class="trolleys-info-callout">
-            This page is a consultation view. Finish and Mop Production will assign trolleys in their own applications, and Sorting will confirm returned trolleys in the Sorting workflow. Delivery remains an explicit next-day inference until Distribution scanning is available.
-          </div>
-
-          <section class="trolleys-card">
-            <header class="trolleys-card-header">
-              <div>
-                <p class="trolleys-section-eyebrow">Current custody</p>
-                <h2>Trolleys by location</h2>
-                <p>Elis Laundry is shown as a location alongside every customer currently holding one or more trolleys.</p>
-              </div>
-              <form id="trolleyLocationFilterForm" class="trolleys-toolbar">
-                <input id="trolleyLocationSearch" class="trolleys-search" type="search" placeholder="Search trolley or location" value="${escapeHtml(state.locationSearch)}">
-                <select id="trolleyLocationFilter" class="trolleys-filter">
-                  ${[
-                    ["ALL", "All operational locations"],
-                    ["ELIS_LAUNDRY", "Elis Laundry"],
-                    ["CUSTOMERS", "Customers"],
-                    ["LOCATION_UNCONFIRMED", "Location unconfirmed"]
-                  ].map(([value, label]) => `<option value="${value}"${state.locationFilter === value ? " selected" : ""}>${label}</option>`).join("")}
-                </select>
-                <button class="trolleys-primary-button" type="submit">Apply</button>
-                <button id="trolleyLocationsReload" class="trolleys-secondary-button" type="button">Reload</button>
-              </form>
-            </header>
-            <div class="trolleys-card-body trolleys-location-groups">
-              ${groups.length ? groups.map(locationGroupCard).join("") : '<div class="trolleys-empty">No trolley locations match the selected filters.</div>'}
-            </div>
-          </section>
-        </section>
-      `;
+      paintLocations();
     } catch (error) {
       console.error("Failed to load trolley locations:", error);
       elements.main.innerHTML = `<div class="trolleys-empty">${escapeHtml(friendlyError(error))}</div>`;
@@ -894,16 +1118,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     return "—";
   }
 
+  const MASTER_STATUS_TONE = {
+    AVAILABLE: "available",
+    IN_PRODUCTION: "prepared",
+    AT_CUSTOMER: "customer",
+    LOCATION_UNCONFIRMED: "unconfirmed",
+    OUT_OF_SERVICE: "service",
+    RETIRED: "retired"
+  };
+
+  const MASTER_STATUS_LABEL = {
+    AVAILABLE: "Available",
+    IN_PRODUCTION: "Prepared",
+    AT_CUSTOMER: "At customer",
+    LOCATION_UNCONFIRMED: "Unconfirmed",
+    OUT_OF_SERVICE: "Out of service",
+    RETIRED: "Retired"
+  };
+
+  function masterStatusBadge(status) {
+    const key = String(status || "").toUpperCase();
+    const tone = MASTER_STATUS_TONE[key] || "unconfirmed";
+    return `<span class="tv-status tv-st-${tone}-soft"><i class="tv-dot tv-st-${tone}"></i>${escapeHtml(MASTER_STATUS_LABEL[key] || titleCaseCode(status))}</span>`;
+  }
+
   function masterRow(item) {
+    const tone = MASTER_STATUS_TONE[String(item.status || "").toUpperCase()] || "unconfirmed";
+    const attention = item.attention_status && item.attention_status !== "NORMAL"
+      ? `<span class="tv-flag ${item.attention_status === "OVERDUE" ? "danger" : "warning"}">${escapeHtml(titleCaseCode(item.attention_status))}</span>`
+      : "";
     return `
-      <tr>
-        <td><button type="button" class="trolleys-code-button" data-open-trolley="${escapeHtml(item.trolley_code)}">${escapeHtml(item.trolley_code)}</button></td>
-        <td><span class="trolleys-type-chip">${escapeHtml(item.trolley_type_display_code || item.trolley_type_code || "—")}</span></td>
-        <td>${statusBadge(item.status)}</td>
-        <td>${masterLocation(item)}</td>
-        <td>${item.days_out == null ? "—" : Number(item.days_out)}</td>
-        <td>${formatDate(item.registered_on)}</td>
-        <td>${item.last_event_type ? `${escapeHtml(titleCaseCode(item.last_event_type))}<br><span class="trolleys-muted">${formatDate(item.last_event_business_date)}</span>` : "—"}</td>
+      <tr class="tv-row tv-row-${tone}">
+        <td data-label="Trolley"><button type="button" class="tv-code" data-open-trolley="${escapeHtml(item.trolley_code)}">${sizeBadge(item)}<span>${escapeHtml(item.trolley_code)}</span></button></td>
+        <td data-label="Status">${masterStatusBadge(item.status)} ${attention}</td>
+        <td data-label="Location">${masterLocation(item)}</td>
+        <td data-label="Days out">${item.days_out == null ? '<span class="tv-muted">—</span>' : daysPill(item.days_out, " d")}</td>
+        <td data-label="Last event">${item.last_event_type ? `${escapeHtml(titleCaseCode(item.last_event_type))}<br><span class="tv-muted">${formatDate(item.last_event_business_date)}</span>` : '<span class="tv-muted">—</span>'}</td>
+        <td data-label="Registered" class="tv-col-registered">${formatDate(item.registered_on)}</td>
       </tr>
     `;
   }
@@ -999,14 +1250,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   function trolleySizeSummary(types) {
     const rows = types
       .filter((type) => Number(type.physical_trolley_count || 0) > 0)
-      .sort((a, b) => Number(b.physical_trolley_count || 0) - Number(a.physical_trolley_count || 0));
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
     if (!rows.length) return '<div class="trolleys-empty">No physical trolley quantities are available by type.</div>';
-    return `<div class="trolleys-size-summary-grid">${rows.map((type) => `
-      <article class="trolleys-size-summary-item">
-        <span>${escapeHtml(type.display_code || type.trolley_type_code)}</span>
-        <strong>${Number(type.physical_trolley_count || 0)}</strong>
-        <small>${escapeHtml(type.trolley_type_name)} · ${Number(type.active_physical_trolley_count || 0)} active</small>
-      </article>`).join("")}</div>`;
+    const total = rows.reduce((sum, type) => sum + Number(type.physical_trolley_count || 0), 0) || 1;
+    return `<div class="tv-type-cards">${rows.map((type) => {
+      const count = Number(type.physical_trolley_count || 0);
+      const tone = sizeTone(type.display_code || type.trolley_type_code);
+      return `
+      <article class="tv-type-card tv-size-${tone}-card">
+        <span class="tv-size tv-size-${tone} lg">${escapeHtml(type.display_code || type.trolley_type_code)}</span>
+        <div>
+          <strong>${count}</strong>
+          <span>${escapeHtml(type.trolley_type_name)}</span>
+          <small>${Number(type.active_physical_trolley_count || 0)} active · ${Math.round((count / total) * 100)}% of fleet</small>
+        </div>
+      </article>`;
+    }).join("")}</div>`;
   }
 
   async function renderMaster() {
@@ -1023,28 +1282,37 @@ document.addEventListener("DOMContentLoaded", async () => {
       const summary = data?.summary || {};
       const items = Array.isArray(data?.items) ? data.items : [];
       const typeItems = Array.isArray(typeData?.items) ? typeData.items : [];
-      const retiredVisible = items.filter((item) => item.status === "RETIRED").length;
 
       elements.main.innerHTML = `
         <section class="trolleys-dashboard">
           ${managementForms()}
 
-          <section class="trolleys-card trolleys-size-summary-card">
-            <header class="trolleys-card-header">
-              <div><p class="trolleys-section-eyebrow">Fleet composition</p><h2>Trolleys by size / type</h2><p>Total registered physical trolleys, grouped by the operational size code.</p></div>
-            </header>
-            <div class="trolleys-card-body">${trolleySizeSummary(typeItems)}</div>
-          </section>
+          <div class="tv-overview">
+            <section class="tv-panel tv-fleet">
+              <header>
+                <div><h3>Fleet status</h3><p>Active trolleys by master status · click to filter</p></div>
+                <div class="tv-total"><strong>${Number(summary.total_active || 0)}</strong><span>active</span></div>
+              </header>
+              ${fleetBar([
+                { label: "Available at laundry", value: summary.available, tone: "available", filter: "AVAILABLE" },
+                { label: "Prepared in production", value: summary.in_production, tone: "prepared", filter: "IN_PRODUCTION" },
+                { label: "At customers", value: summary.at_customer, tone: "customer", filter: "AT_CUSTOMER" },
+                { label: "Location unconfirmed", value: summary.location_unconfirmed, tone: "unconfirmed", filter: "LOCATION_UNCONFIRMED" },
+                { label: "Out of service", value: summary.out_of_service, tone: "service", filter: "OUT_OF_SERVICE" }
+              ], Number(summary.total_active || 0))}
+              ${Number(summary.review_required || 0) ? `<p class="tv-foot">${Number(summary.review_required)} trolleys carry historical review notes (kept as history only).</p>` : ""}
+            </section>
+            <section class="tv-panel">
+              <header><div><h3>Trolleys by size</h3><p>Registered physical trolleys per type</p></div></header>
+              ${trolleySizeSummary(typeItems)}
+            </section>
+          </div>
 
-          <div class="trolleys-kpi-grid">
-            ${kpi(summary.total_active, "Active trolleys")}
-            ${kpi(summary.location_unconfirmed, "Location unconfirmed", summary.location_unconfirmed ? "warning" : "")}
-            ${kpi(summary.available, "Available at laundry")}
-            ${kpi(summary.in_production, "Prepared in production")}
-            ${kpi(summary.at_customer, "At customers")}
-            ${kpi(summary.out_of_service, "Out of service", summary.out_of_service ? "warning" : "")}
-            ${kpi(summary.review_required, "Review required", summary.review_required ? "danger" : "")}
-            ${kpi(state.masterFilter === "RETIRED" ? retiredVisible : 0, state.masterFilter === "RETIRED" ? "Retired results" : "Retired · select filter")}
+          <div class="tv-alerts">
+            ${alertTile(summary.overdue, "Overdue", `${state.overdueDays}+ days at customer`, "danger", 'data-master-filter="ATTENTION"')}
+            ${alertTile(summary.warning, "Warning", `${state.warningDays}+ days at customer`, "warning", 'data-master-filter="ATTENTION"')}
+            ${alertTile(summary.location_unconfirmed, "Unconfirmed", "location not yet known", "neutral", 'data-master-filter="LOCATION_UNCONFIRMED"')}
+            ${alertTile(summary.out_of_service, "Out of service", "not available for production", "service", 'data-master-filter="OUT_OF_SERVICE"')}
           </div>
 
           <section class="trolleys-card">
@@ -1054,30 +1322,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <h2>Physical Trolley Master</h2>
                 <p>Complete physical registry. Customer assignment is recorded in Finish/Mop, not on this page.</p>
               </div>
-              <form id="trolleyMasterFilterForm" class="trolleys-toolbar">
-                <input id="trolleyMasterSearch" class="trolleys-search" type="search" placeholder="Search trolley or customer" value="${escapeHtml(state.masterSearch)}">
-                <select id="trolleyMasterFilter" class="trolleys-filter">
-                  ${[
-                    ["ALL", "All trolleys"],
-                    ["LOCATION_UNCONFIRMED", "Location unconfirmed"],
-                    ["AVAILABLE", "Available at laundry"],
-                    ["IN_PRODUCTION", "Prepared in production"],
-                    ["AT_CUSTOMER", "At customer"],
-                    ["ATTENTION", "Warning or overdue"],
-                    ["OUT_OF_SERVICE", "Out of service"],
-                    ["RETIRED", "Retired"]
-                  ].map(([value, label]) => `<option value="${value}"${state.masterFilter === value ? " selected" : ""}>${label}</option>`).join("")}
-                </select>
-                <button class="trolleys-primary-button" type="submit">Apply</button>
+              <form id="trolleyMasterFilterForm" class="tv-search">
+                <input id="trolleyMasterSearch" type="search" placeholder="Search trolley or customer" value="${escapeHtml(state.masterSearch)}" aria-label="Search trolley or customer">
+                <button class="trolleys-primary-button" type="submit">Search</button>
                 <button id="trolleyMasterReload" class="trolleys-secondary-button" type="button">Reload</button>
               </form>
             </header>
+            <div class="tv-chips tv-chips-bar" role="group" aria-label="Status filter">
+              ${[
+                ["ALL", "All"],
+                ["AVAILABLE", "Available"],
+                ["IN_PRODUCTION", "Prepared"],
+                ["AT_CUSTOMER", "At customer"],
+                ["ATTENTION", "Warning / overdue"],
+                ["LOCATION_UNCONFIRMED", "Unconfirmed"],
+                ["OUT_OF_SERVICE", "Out of service"],
+                ["RETIRED", "Retired"]
+              ].map(([value, label]) => `<button type="button" class="tv-chip${state.masterFilter === value ? " active" : ""}" data-master-filter="${value}">${label}</button>`).join("")}
+              <span class="tv-chip-count">${items.length} ${items.length === 1 ? "trolley" : "trolleys"}</span>
+            </div>
             <div class="trolleys-table-wrap">
               ${items.length ? `
-                <table class="trolleys-table">
+                <table class="trolleys-table tv-table">
                   <thead><tr>
-                    <th>Trolley</th><th>Type</th><th>Status</th><th>Current location</th>
-                    <th>Customer days</th><th>Registered</th><th>Last event</th>
+                    <th>Trolley</th><th>Status</th><th>Current location</th>
+                    <th>Days out</th><th>Last event</th><th class="tv-col-registered">Registered</th>
                   </tr></thead>
                   <tbody>${items.map(masterRow).join("")}</tbody>
                 </table>
@@ -1384,6 +1653,51 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("hashchange", () => switchTrolleyTab(String(location.hash || "").replace("#", "")));
 
   elements.main.addEventListener("click", async (event) => {
+    const locationFilterButton = event.target.closest("[data-location-filter]");
+    if (locationFilterButton && !state.busy) {
+      state.locationFilter = locationFilterButton.dataset.locationFilter || "ALL";
+      if (state.activeTab !== "locations") { state.activeTab = "locations"; renderTabs(); }
+      await renderLocations();
+      return;
+    }
+
+    const fleetLegend = event.target.closest("[data-tv-filter]");
+    if (fleetLegend && !state.busy) {
+      if (state.activeTab === "locations") {
+        state.locationFilter = fleetLegend.dataset.tvFilter;
+        await renderLocations();
+      } else if (state.activeTab === "master") {
+        state.masterFilter = fleetLegend.dataset.tvFilter;
+        await renderMaster();
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-location-attention]")) {
+      state.locationAttentionOnly = true;
+      if (state.locationFilter === "ELIS_LAUNDRY" || state.locationFilter === "LOCATION_UNCONFIRMED") {
+        state.locationFilter = "ALL";
+        await renderLocations();
+      } else {
+        paintLocations();
+      }
+      document.querySelector(".tv-section-head")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    const masterChip = event.target.closest("[data-master-filter]");
+    if (masterChip && !state.busy) {
+      state.masterFilter = masterChip.dataset.masterFilter || "ALL";
+      await renderMaster();
+      return;
+    }
+
+    const tabLink = event.target.closest("[data-tab]");
+    if (tabLink) {
+      await switchTrolleyTab(tabLink.dataset.tab);
+      return;
+    }
+
     const typeCard = event.target.closest("[data-select-trolley-type]");
     if (typeCard) {
       state.typeSelectedId = typeCard.dataset.selectTrolleyType;
@@ -1460,11 +1774,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     if (event.target.id === "trolleyLocationFilterForm") {
       state.locationSearch = document.getElementById("trolleyLocationSearch").value.trim();
-      state.locationFilter = document.getElementById("trolleyLocationFilter").value;
       await renderLocations();
     } else if (event.target.id === "trolleyMasterFilterForm") {
       state.masterSearch = document.getElementById("trolleyMasterSearch").value.trim();
-      state.masterFilter = document.getElementById("trolleyMasterFilter").value;
       await renderMaster();
     } else if (event.target.id === "trolleyRegisterForm") {
       await submitRegister(event.target);
@@ -1472,6 +1784,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       await submitServiceStatus(event.target);
     } else if (event.target.id === "trolleyTypeMasterForm") {
       await submitTrolleyTypeMaster(event.target);
+    }
+  });
+
+  elements.main.addEventListener("change", (event) => {
+    if (event.target.id === "trolleyLocationSort") {
+      state.locationSort = event.target.value;
+      paintLocations();
+    } else if (event.target.id === "trolleyLocationAttention") {
+      state.locationAttentionOnly = event.target.checked;
+      paintLocations();
+    }
+  });
+
+  elements.main.addEventListener("keydown", (event) => {
+    if ((event.key === "Enter" || event.key === " ") && event.target.matches?.("[data-tv-filter]")) {
+      event.preventDefault();
+      event.target.click();
     }
   });
 
