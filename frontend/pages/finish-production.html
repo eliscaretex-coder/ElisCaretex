@@ -14,7 +14,7 @@
   <title>Finish Production | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261103-3">
+  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261103-4">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
@@ -26,7 +26,7 @@
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="FINISH" defer></script>
   <script src="../assets/js/production-station-kiosk.js" defer></script>
   <script src="../assets/js/trolley-plates.js?v=20261103-3" defer></script>
-  <script src="../assets/js/finish-production.js?v=20261103-4" defer></script>
+  <script src="../assets/js/finish-production.js?v=20261103-5" defer></script>
 </head>
 <body class="finish-page" data-production-station-area="FINISH">
   <div class="finish-page-shell" data-operational-shell-root>
@@ -78,9 +78,9 @@
             <section class="finish-card finish-rewash-card">
               <header class="finish-card-header">
                 <div><p>Table / Shift record</p><h2>ReWash</h2><span id="finishRewashSubtitle">One real production record for this Table and Shift. No trolley required.</span></div>
-                <div class="finish-rewash-header-actions"><strong id="finishRewashSummary" class="finish-rewash-summary">No ReWash recorded</strong><button id="finishOpenRewashButton" type="button" class="secondary">Record ReWash</button></div>
+                <div class="finish-rewash-header-actions"><button id="finishRewashToggle" type="button" class="finish-rewash-toggle" aria-expanded="false" aria-controls="finishRewashLines" disabled><span id="finishRewashSummary" class="finish-rewash-summary">No ReWash recorded</span><i class="finish-rewash-chevron" aria-hidden="true"></i></button><button id="finishOpenRewashButton" type="button" class="secondary">Record ReWash</button></div>
               </header>
-              <div id="finishRewashLines" class="finish-rewash-lines"></div>
+              <div id="finishRewashLines" class="finish-rewash-lines" hidden></div>
             </section>
             <section class="finish-card">
               <header class="finish-card-header finish-saved-head">

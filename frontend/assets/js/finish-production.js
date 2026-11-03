@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     productionView:$("finishProductionView"), staffView:$("finishStaffView"), viewEyebrow:$("finishViewEyebrow"), viewTitle:$("finishViewTitle"), viewSubtitle:$("finishViewSubtitle"),
     metrics:$("finishMetrics"), focusedTableTitle:$("finishFocusedTableTitle"), tableFocusTabs:$("finishTableFocusTabs"), recentTitle:$("finishRecentTitle"), recentSubtitle:$("finishRecentSubtitle"), savedSummary:$("finishSavedSummary"), queue:$("finishQueue"), queueCount:$("finishQueueCount"), queueWashedSummary:$("finishQueueWashedSummary"), queueModeTabs:$("finishQueueModeTabs"), queueDayTabs:$("finishQueueDayTabs"), queueModeHint:$("finishQueueModeHint"), routeSummary:$("finishRouteSummary"), search:$("finishQueueSearch"), recent:$("finishRecentEntries"), refresh:$("finishRefreshButton"), viewTabs:$("finishWorkspaceTabs"), shiftAuto:$("finishShiftAutoButton"),
     productionDialog:$("finishProductionDialog"), productionDialogClose:$("finishProductionDialogClose"), productionCancel:$("finishProductionCancelButton"), footerReport:$("finishFooterReportButton"),
-    rewashCardLines:$("finishRewashLines"), rewashSummary:$("finishRewashSummary"), rewashSubtitle:$("finishRewashSubtitle"), rewashOpen:$("finishOpenRewashButton"), rewashDialog:$("finishRewashDialog"), rewashDialogTitle:$("finishRewashDialogTitle"), rewashDialogSubtitle:$("finishRewashDialogSubtitle"), rewashDialogClose:$("finishRewashDialogClose"), rewashForm:$("finishRewashForm"), rewashTable:$("finishRewashTable"), rewashShift:$("finishRewashShift"), rewashProcessedBy:$("finishRewashProcessedBy"), rewashOptions:$("finishRewashCustomerOptions"), rewashBatchLines:$("finishRewashBatchLines"), rewashAddLine:$("finishAddRewashLineButton"), rewashTotal:$("finishRewashTotal"), rewashNotes:$("finishRewashNotes"), rewashMessage:$("finishRewashDialogMessage"), rewashCancel:$("finishRewashCancelButton"), rewashSave:$("finishRewashSaveButton"),
+    rewashCardLines:$("finishRewashLines"), rewashSummary:$("finishRewashSummary"), rewashToggle:$("finishRewashToggle"), rewashSubtitle:$("finishRewashSubtitle"), rewashOpen:$("finishOpenRewashButton"), rewashDialog:$("finishRewashDialog"), rewashDialogTitle:$("finishRewashDialogTitle"), rewashDialogSubtitle:$("finishRewashDialogSubtitle"), rewashDialogClose:$("finishRewashDialogClose"), rewashForm:$("finishRewashForm"), rewashTable:$("finishRewashTable"), rewashShift:$("finishRewashShift"), rewashProcessedBy:$("finishRewashProcessedBy"), rewashOptions:$("finishRewashCustomerOptions"), rewashBatchLines:$("finishRewashBatchLines"), rewashAddLine:$("finishAddRewashLineButton"), rewashTotal:$("finishRewashTotal"), rewashNotes:$("finishRewashNotes"), rewashMessage:$("finishRewashDialogMessage"), rewashCancel:$("finishRewashCancelButton"), rewashSave:$("finishRewashSaveButton"),
     form:$("finishProductionForm"), dialogMessage:$("finishProductionDialogMessage"), flowId:$("finishFlowId"), editId:$("finishEditEntryId"), formTitle:$("finishFormTitle"), formSubtitle:$("finishFormSubtitle"), cutoff:$("finishCutoffBadge"),
     table:$("finishTable"), tableHint:$("finishTableHint"), shiftDisplay:$("finishShiftDisplay"), processedBy:$("finishProcessedBy"), processedByHint:$("finishProcessedByHint"), customerSummary:$("finishCustomerSummary"), trolleyPlates:$("finishTrolleyPlates"), existingWrap:$("finishExistingRecordsWrap"), existingRecords:$("finishExistingRecords"),
     batchLines:$("finishBatchLines"), addBatch:$("finishAddBatchButton"), total:$("finishRecordTotal"),
@@ -270,14 +270,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     row.querySelectorAll("input").forEach(input=>input.addEventListener("input",updateRewashTotal));
     el.rewashBatchLines.appendChild(row);updateRewashTotal();
   }
+  function setRewashExpanded(expanded){
+    state.rewashExpanded=Boolean(expanded);
+    if(el.rewashToggle){el.rewashToggle.setAttribute("aria-expanded",String(state.rewashExpanded));el.rewashToggle.title=state.rewashExpanded?"Hide ReWash customers":"Show ReWash customers";}
+    if(el.rewashCardLines)el.rewashCardLines.hidden=!state.rewashExpanded;
+    el.rewashCardLines?.closest(".finish-rewash-card")?.classList.toggle("is-expanded",state.rewashExpanded);
+  }
   function renderRewashCard(){
     const entry=activeRewashEntry(),code=activeTableCode();
     if(el.rewashSubtitle)el.rewashSubtitle.textContent=`${tableName(code)} - ${shiftName(state.shift)} - one real production record. No trolley required.`;
-    if(!entry){el.rewashSummary.textContent="No ReWash recorded";el.rewashOpen.textContent="Record ReWash";el.rewashCardLines.innerHTML='<div class="finish-rewash-empty">Blank ReWash record ready for this Table / Shift.</div>';return;}
+    if(!entry){
+      el.rewashSummary.innerHTML='<span class="finish-rewash-empty-pill">No ReWash recorded</span>';el.rewashOpen.textContent="Record ReWash";el.rewashCardLines.innerHTML="";
+      if(el.rewashToggle)el.rewashToggle.disabled=true;setRewashExpanded(false);return;
+    }
     const total=Number(entry.processed_kg||0),lines=entry.lines||[];
-    el.rewashSummary.textContent=`${lines.length} customers - ${total.toFixed(1)} kg`;
+    el.rewashSummary.innerHTML=`<span class="finish-rewash-pill finish-rewash-pill-kg"><b>${total.toFixed(1)}</b> kg</span><span class="finish-rewash-pill"><b>${lines.length}</b> ${lines.length===1?"customer":"customers"}</span>`;
     el.rewashOpen.textContent="Edit ReWash";
     el.rewashCardLines.innerHTML=lines.map(line=>`<article><strong>${esc(line.customer_name)}</strong><span>${esc((line.scheduled_days||[]).map(day=>String(day).slice(0,3)).join(", ")||"No schedule day")}${line.batch_reference?` - Batch ${esc(line.batch_reference)}`:""}</span><b>${Number(line.quantity_kg||0).toFixed(1)} kg</b></article>`).join("");
+    if(el.rewashToggle)el.rewashToggle.disabled=!lines.length;
+    setRewashExpanded(Boolean(state.rewashExpanded&&lines.length));
   }
   function fillRewashStaffOptions(entry=null){
     const code=activeTableCode(),rows=currentProductionStaff(code,state.shift),dedup=new Map();
@@ -1115,6 +1126,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.staffList.addEventListener("click",e=>{const change=e.target.closest("[data-staff-change]"),arrived=e.target.closest("[data-staff-arrived]"),backSorting=e.target.closest("[data-staff-back-sorting]");if(change){openStaffChangeDialog(change.dataset.staffChange);return;}if(arrived){openStaffChangeDialog(arrived.dataset.staffArrived,"late");return;}if(backSorting){returnStaffToSorting(backSorting.dataset.staffBackSorting);return;}const edit=e.target.closest("[data-staff-edit]"),absent=e.target.closest("[data-staff-absent]"),present=e.target.closest("[data-staff-present]"),move=e.target.closest("[data-staff-move]"),leave=e.target.closest("[data-staff-leave]");if(edit)openStaffEditor(edit.dataset.staffEdit);else if(absent)openAbsentDialog(absent.dataset.staffAbsent);else if(present)confirmArrival(present.dataset.staffPresent);else if(move&&!move.disabled)openMoveDialog(move.dataset.staffMove);else if(leave&&!leave.disabled)openDepartureDialog(leave.dataset.staffLeave);});
   el.staffAdd.addEventListener("click",openStaffCheckIn);
   el.rewashOpen?.addEventListener("click",openRewashDialog);
+  el.rewashToggle?.addEventListener("click",()=>setRewashExpanded(!state.rewashExpanded));
   el.rewashDialogClose?.addEventListener("click",closeRewashDialog);
   el.rewashCancel?.addEventListener("click",closeRewashDialog);
   el.rewashAddLine?.addEventListener("click",()=>addRewashLine());

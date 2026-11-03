@@ -458,3 +458,20 @@ html:has(.finish-dialog[open]){overflow:hidden}
 .finish-discard-card .secondary{border:1px solid #cbd5e1;background:#fff;color:#0f172a}
 .finish-discard-card .danger{border:1px solid #b91c1c;background:#b91c1c;color:#fff}
 @media(max-width:560px){#finishProductionForm .finish-form-actions{flex-wrap:wrap}#finishProductionForm .finish-footer-report{width:100%;margin-right:0}}
+/* ReWash card: collapsed by default, total shown as pills, click to expand */
+.finish-rewash-toggle{display:inline-flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid #f3d29a;border-radius:999px;background:#fff8eb;color:#a85a05;cursor:pointer;font:inherit;line-height:1}
+.finish-rewash-toggle:hover:not(:disabled){background:#fdeccb;border-color:#f0a51a}
+.finish-rewash-toggle:focus-visible{outline:2px solid #f0a51a;outline-offset:2px}
+.finish-rewash-toggle:disabled{cursor:default;border-color:#e2e8f0;background:#f8fafc}
+.finish-rewash-toggle .finish-rewash-summary{display:inline-flex;align-items:center;gap:6px}
+.finish-rewash-pill{display:inline-flex;align-items:baseline;gap:3px;color:#a85a05;font-size:.66rem;font-weight:700;white-space:nowrap}
+.finish-rewash-pill b{font-size:.95rem;font-weight:900;color:#a85a05}
+.finish-rewash-pill+.finish-rewash-pill{padding-left:6px;border-left:1px solid #f3d29a}
+.finish-rewash-pill-kg b{font-size:1.1rem}
+.finish-rewash-empty-pill{color:#64748b;font-size:.68rem;font-weight:700}
+.finish-rewash-chevron{flex:none;width:7px;height:7px;margin-top:-4px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg)}
+.finish-rewash-toggle[aria-expanded="true"] .finish-rewash-chevron{margin-top:4px;transform:rotate(-135deg)}
+.finish-rewash-toggle:disabled .finish-rewash-chevron{display:none}
+.finish-rewash-lines[hidden]{display:none}
+.finish-rewash-card.is-expanded .finish-rewash-lines{padding-bottom:6px}
+@media(max-width:700px){.finish-rewash-card .finish-card-header{flex-wrap:wrap}.finish-rewash-card .finish-card-header>div:first-child{flex:1 1 100%}.finish-rewash-header-actions{flex:1 1 100%}}
