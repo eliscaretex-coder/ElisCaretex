@@ -59,7 +59,7 @@
       .trolley-plate-scan.checking{background:#f1f5f9;color:#475569}
       .trolley-plate-scan.ok{background:#dcfce7;color:#166534}
       .trolley-plate-scan.wrong{background:#fee2e2;color:#991b1b}
-      .trolley-plate-scan.pending{background:#fef3c7;color:#92400e;padding-right:9px}
+      .trolley-plate-scan.pending{background:#fef3c7;color:#92400e}
       .trolley-plates .trolley-plate-scan button{min-height:20px;width:20px;padding:0;border:0;border-radius:999px;background:transparent;color:inherit;font-size:15px;line-height:1}
       .trolley-plates .trolley-plate-scan button:hover{background:#0000001a;color:inherit}
       .trolley-plates button{border:1px solid #0f2742;background:#fff;color:#0f2742;border-radius:7px;padding:4px 10px;font-weight:700;cursor:pointer;min-height:32px}
@@ -183,6 +183,8 @@
       if (event.target.closest("[data-plate-review]")) { scan.onReview?.(); return; }
       const remove = event.target.closest("[data-plate-remove]");
       if (remove) { scan.onRemove?.(remove.dataset.plateRemove); return; }
+      const unlater = event.target.closest("[data-plate-unlater]");
+      if (unlater) { scan.onUnlater?.(Number(unlater.dataset.plateUnlater)); toggleScanBar(container, true); return; }
       // A plate without a trolley can be picked: the next scan goes to that plate.
       const row = event.target.closest(".trolley-plate.is-pickable[data-plate-row]");
       if (row) { scan.onPick?.(Number(row.dataset.plateRow)); toggleScanBar(container, true); }
@@ -234,7 +236,9 @@
       const icon = slot.state === "ok" ? "✓ " : slot.state === "wrong" ? "✕ " : "";
       cell.innerHTML = slot.code
         ? `${icon}<code>${esc(slot.code)}</code>${slot.label ? `<span>· ${esc(slot.label)}</span>` : ""}<button type="button" data-plate-remove="${esc(slot.code)}" aria-label="Remove ${esc(slot.code)}" title="Remove this scan">×</button>`
-        : esc(slot.label || "Missing");
+        : Number.isInteger(slot.undo)
+          ? `⌛ ${esc(slot.label || "No trolley yet")}<button type="button" data-plate-unlater="${slot.undo}" aria-label="Scan this trolley now" title="Scan this trolley now">×</button>`
+          : esc(slot.label || "Missing");
     });
     const button = container.querySelector("[data-plate-scan]");
     if (button && view?.button) {
