@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish: "No trolley yet" per plate (partial trolley pending)
+
+- Changed (owner request): in Production Registration, "No trolley yet" now applies only to
+  the plate being scanned. The trolleys already scanned stay; the record is saved with the
+  scanned codes and `trolley_scan_status = 'PENDING'`, and the missing plates are scanned
+  later through Edit (editing a PENDING record marks the empty plates as pending again).
+  The × on a pending plate undoes it. The scan dialog's own "No trolley yet" still marks the
+  whole customer.
+- Database: `202611030003_finish_partial_trolley_pending.sql` replaces
+  `finish_resolve_trolley_scan_status`: it no longer refuses `p_trolley_pending` together
+  with scanned codes. Unusable trolleys still block; a pending record whose scan already
+  matches the plan is saved as MATCHED. Privileges unchanged (owner and service_role only).
+  **Prepared, not applied** — the owner applies it in the SQL Editor
+  (project folder `trolley-pendente-por-placa/aplicar-no-sql-editor.sql`) before merging.
+- Validation: `supabase/tests/202611030003_finish_partial_trolley_pending_validation.sql`
+  (same as `teste-sem-gravar.sql`) ran against the live project inside a forced-error block:
+  "TESTE OK - nada foi gravado" (customer with 6 planned trolleys, 1 scanned + pending =
+  PENDING; empty + pending = PENDING; mismatch without accept still refused; unknown code
+  still refused). Playwright against a stubbed Supabase client for the screen.
+
 ## 2026-11-03 — Claude — Finish Production Registration: Report trolley plan in the footer, confirm before discarding
 
 - Changed (frontend only, owner request): "Report trolley plan" sits on the left of the
