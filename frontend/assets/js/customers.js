@@ -4239,13 +4239,17 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
     trolleys.forEach((trolley, index) => { trolley.position = index + 1; });
+    const route = day.default_route || {};
+    // A customer delivered by more than one route lists only the days of this label's route.
     const versionDeliveryDays = readOnly?.schedule_version?.delivery_weekdays;
-    const deliveryDays = [...new Set((Array.isArray(versionDeliveryDays) ? versionDeliveryDays.map((number) => ({ delivery_weekday: number })) : days)
+    const deliverySource = route.route_code
+      ? days.filter((item) => item.default_route?.route_code === route.route_code)
+      : Array.isArray(versionDeliveryDays) ? versionDeliveryDays.map((number) => ({ delivery_weekday: number })) : days;
+    const deliveryDays = [...new Set(deliverySource
       .filter((item) => item.active !== false && Number(item.delivery_weekday) >= 1 && Number(item.delivery_weekday) <= 7)
       .map((item) => Number(item.delivery_weekday)))]
       .sort((a, b) => a - b)
       .map((number) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][number - 1]);
-    const route = day.default_route || {};
     const data = {
       customer_name: state.studio.management?.customer?.customer_name || readOnly?.customer_name || state.studio.customerName || "",
       delivery_days: deliveryDays,

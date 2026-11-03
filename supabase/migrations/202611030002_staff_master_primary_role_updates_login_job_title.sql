@@ -221,7 +221,7 @@ begin
       jsonb_build_object('staff_id', v_row.staff_id, 'employee_code', v_row.employee_code, 'primary_role_code', v_row.role_code, 'job_title_code', v_row.old_job_title),
       jsonb_build_object('staff_id', v_row.staff_id, 'employee_code', v_row.employee_code, 'primary_role_code', v_row.role_code, 'job_title_code', v_row.new_job_title),
       'Owner report 2026-11-01: login job title did not follow the Staff Master primary role',
-      'migration 202611030001');
+      'migration 202611030002');
   end loop;
 end;
 $$;

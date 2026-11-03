@@ -18,7 +18,7 @@ select is((select count(*)::int from public.staff_members sm join public.operati
   join public.account_access_profiles ap on ap.auth_user_id=sm.auth_user_id and ap.account_type='USER'
   where sm.deleted_at is null and sm.production_staff and public.job_title_follows_primary_role(ap.job_title_code)
     and public.job_title_for_primary_role(r.role_code) is distinct from ap.job_title_code and public.job_title_for_primary_role(r.role_code) is not null),0,'Repair: no login disagrees with Staff Master any more');
-select ok(exists(select 1 from public.audit_log where action='SYNC_LOGIN_JOB_TITLE_FROM_STAFF_MASTER' and source_application='migration 202611030001'),'Repair is in audit_log');
+select ok(exists(select 1 from public.audit_log where action='SYNC_LOGIN_JOB_TITLE_FROM_STAFF_MASTER' and source_application='migration 202611030002'),'Repair is in audit_log');
 
 -- Administrator changes the primary role back to General Operative: the login follows.
 create function pg_temp.save_role(p_staff uuid, p_role text) returns jsonb language plpgsql as $f$
@@ -29,7 +29,7 @@ declare r jsonb; begin
     coalesce((r->>'roster_eligible')::boolean,false), coalesce(array(select jsonb_array_elements_text(coalesce(r->'cover_role_codes','[]'::jsonb))),array[]::text[]),
     coalesce((r->>'fire_training')::boolean,false), coalesce((r->>'first_aid_training')::boolean,false), coalesce((r->>'eod_capable')::boolean,false),
     (r->>'joined_on')::date, r->>'notes', coalesce((r->>'import_review_required')::boolean,false), r->>'import_review_notes',
-    'validation 202611030001', 'VALIDATION', false);
+    'validation 202611030002', 'VALIDATION', false);
 end $f$;
 
 select is((pg_temp.save_role((select staff_id from _t),'GENERAL_OPERATIVE')->>'login_job_title_code'),'GENERAL_OPERATIVE'::text,'Admin saves GO in Staff Master: result says the login changed');
@@ -37,7 +37,7 @@ select is((select ap.job_title_code from public.account_access_profiles ap join 
 select is((select count(*)::int from public.account_permission_grants g join _t using(auth_user_id) where g.active),
           (select count(*)::int from public.job_title_permission_templates where job_title_code='GENERAL_OPERATIVE'),'Login has the General Operative standard permissions');
 select ok(not exists(select 1 from public.account_roles ar join _t using(auth_user_id) where ar.active),'MANAGER legacy role removed');
-select ok(exists(select 1 from public.audit_log a join _t on a.entity_id=_t.auth_user_id::text where a.action='SYNC_LOGIN_JOB_TITLE_FROM_STAFF_MASTER' and a.reason='validation 202611030001' and a.actor_auth_user_id=auth.uid()),'Change is in audit_log with who made it');
+select ok(exists(select 1 from public.audit_log a join _t on a.entity_id=_t.auth_user_id::text where a.action='SYNC_LOGIN_JOB_TITLE_FROM_STAFF_MASTER' and a.reason='validation 202611030002' and a.actor_auth_user_id=auth.uid()),'Change is in audit_log with who made it');
 
 -- Saving without changing the role does not touch the login.
 select is((pg_temp.save_role((select staff_id from _t),'GENERAL_OPERATIVE')->>'login_job_title_updated'),'false'::text,'Save without role change leaves the login alone');

@@ -97,7 +97,7 @@ Entry format:
   above both the current and the new job title (Administrator always can), otherwise the save is
   refused with a clear message (`can_change_login_job_title`). Staff Master shows "The login now
   has the X job title with its standard permissions." after the save.
-- Database: `202611030001_staff_master_primary_role_updates_login_job_title.sql` **prepared**
+- Database: `202611030002_staff_master_primary_role_updates_login_job_title.sql` **prepared**
   (to be applied by the owner in the SQL editor). It also repairs drifted logins: on 2026-11-03
   only EMP-00002 (Staff Master Production Manager, login General Operative).
 - Validation: the full migration plus checks ran on ElisCaretex-dev inside a transaction that was
@@ -105,9 +105,25 @@ Entry format:
   Administrator changing the role back to General Operative moves the login and writes audit_log;
   a save without role change leaves the login alone; a Production Supervisor is refused (42501)
   when making someone Production Manager and nothing is saved, but can make a General Operative a
-  Team Leader. pgTAP file `supabase/tests/202611030001_…_validation.sql`.
+  Team Leader. pgTAP file `supabase/tests/202611030002_…_validation.sql`.
 - Open / next: the reverse direction (changing the job title in Accounts & access does not change
   the Staff Master primary role) is unchanged.
+
+## 2026-11-03 — Claude — Trolley label: route band and delivery days of the label's route
+
+- Branch / commits: `claude/trolley-label-route-highlight`, Pull Request
+- Changed: the trolley label (Finish, MOP Production and Schedule Planner) shows the route on a
+  band in the route colour with a large route number, and the trolley code moved to the top
+  right. Customers delivered by more than one route list only the delivery days of the label's
+  route. `get_production_flow_trolley_plates` filters the delivery days by the route of the
+  production day; the Schedule Planner does the same in `customers.js`.
+- Database: `202611030001_trolley_label_route_delivery_days.sql` **Prepared, not applied** (the
+  owner applies it in the SQL editor). Until it is applied, Finish / MOP labels keep listing every
+  delivery day; the colour band works without it.
+- Validation: `validate-repository.mjs` passed; Playwright with a mocked Supabase client printed
+  labels for a customer with routes 612 and 616 and checked the days per route. The migration was
+  not run against the database from this session. Test: `supabase/tests/202611030001_..._validation.sql`.
+- Open / next: apply the migration and run its test.
 
 ## 2026-10-31 — Claude — Published Driver Roster (management) shows approved leave
 
@@ -141,13 +157,14 @@ Entry format:
   who left Finish (`get_finish_staff_context_v4` adds `finish_segments` and lists them).
   New Finish station `FINISH_CLEANER`. `work_sessions.updated_at` keeps a later explicit
   value so the newest area wins when two sessions change in one transaction.
-- Database: `202610300004_staff_area_transfer_on_add.sql` — Prepared, not applied. The owner
-  applies it in the SQL Editor; a self-rolling-back scenario test was delivered with it.
+- Database: `202610300004_staff_area_transfer_on_add.sql` — **Applied** by the owner in the SQL
+  Editor on 2026-11-01 (checked 2026-11-03: 6 functions, `FINISH_CLEANER`, trigger v2, both
+  add guards, v4 context, privileges closed).
 - Validation: `node scripts/validate-repository.mjs`; scenario test run in a rolled-back
   transaction on `ElisCaretex-dev` (steps 1-8 passed; step 9 fixed by the `updated_at`
   trigger change and to be re-run by the owner). pgTAP checks in
   `supabase/tests/202610300004_staff_area_transfer_on_add_validation.sql`.
-- Open / next: apply the migration before merging the frontend. Cross-shift overlaps and
+- Open / next: owner to try a real transfer on the floor. Cross-shift overlaps and
   the Sorting cover capability gate on the Sorting add are out of scope.
 
 ## 2026-10-31 — Claude — My Driver Roster shows approved holidays as Holiday
