@@ -80,6 +80,35 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Staff Master primary role change also changes the login job title
+
+- Branch / commits: `claude/staff-role-login-sync`, Pull Request into `master`
+- Changed: owner report 2026-11-01. A staff member changed in Staff Master from General
+  Operative to Production Manager kept the General Operative login job title (and its
+  permissions, menus and legacy roles), because Staff Master writes only
+  `staff_members.primary_operational_role_id` and the app follows
+  `account_access_profiles.job_title_code`. `update_staff_master_with_current_roster_role` now,
+  when the primary role changes and the person has a USER login with a Production job title,
+  gives the login the matching job title with its standard permissions
+  (`apply_account_job_title_template`) and writes `SYNC_LOGIN_JOB_TITLE_FROM_STAFF_MASTER` to
+  audit_log. Mapping in `job_title_for_primary_role` (SUPPORT_ROLE and DRIVER: no change).
+  Logins with a non-Production job title (Administrator, General Manager, Logistics Manager,
+  Auditor, Customer Service, Driver) are never touched. Hierarchy: the person saving must rank
+  above both the current and the new job title (Administrator always can), otherwise the save is
+  refused with a clear message (`can_change_login_job_title`). Staff Master shows "The login now
+  has the X job title with its standard permissions." after the save.
+- Database: `202611030002_staff_master_primary_role_updates_login_job_title.sql` **prepared**
+  (to be applied by the owner in the SQL editor). It also repairs drifted logins: on 2026-11-03
+  only EMP-00002 (Staff Master Production Manager, login General Operative).
+- Validation: the full migration plus checks ran on ElisCaretex-dev inside a transaction that was
+  rolled back: repair sets Production Manager with its 14 template grants and MANAGER role; an
+  Administrator changing the role back to General Operative moves the login and writes audit_log;
+  a save without role change leaves the login alone; a Production Supervisor is refused (42501)
+  when making someone Production Manager and nothing is saved, but can make a General Operative a
+  Team Leader. pgTAP file `supabase/tests/202611030002_…_validation.sql`.
+- Open / next: the reverse direction (changing the job title in Accounts & access does not change
+  the Staff Master primary role) is unchanged.
+
 ## 2026-11-03 — Claude — Trolley label: route band and delivery days of the label's route
 
 - Branch / commits: `claude/trolley-label-route-highlight`, Pull Request
