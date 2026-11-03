@@ -14,7 +14,7 @@
   <title>Finish Production | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261030-1">
+  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261103-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
@@ -25,8 +25,8 @@
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="FINISH" defer></script>
   <script src="../assets/js/production-station-kiosk.js" defer></script>
-  <script src="../assets/js/trolley-plates.js?v=20261103-1" defer></script>
-  <script src="../assets/js/finish-production.js?v=20261030-1" defer></script>
+  <script src="../assets/js/trolley-plates.js?v=20261103-2" defer></script>
+  <script src="../assets/js/finish-production.js?v=20261103-1" defer></script>
 </head>
 <body class="finish-page" data-production-station-area="FINISH">
   <div class="finish-page-shell" data-operational-shell-root>
@@ -182,8 +182,8 @@
         <div id="finishBatchLines" class="finish-batch-lines"></div>
         <div class="finish-total-row"><span>Record total</span><strong id="finishRecordTotal">0.00 kg · 0 units</strong></div>
 
-        <div class="finish-form-grid two">
-          <section class="finish-trolley-production-card">
+        <div class="finish-form-grid two finish-trolley-notes-grid notes-only" id="finishTrolleyNotesGrid">
+          <section class="finish-trolley-production-card" id="finishTrolleyProductionCard" hidden>
             <div class="finish-trolley-production-head">
               <div><span>Customer trolley plan</span><strong id="finishTrolleyPlanText">No trolley requirement</strong></div>
               <button id="finishOpenTrolleyButton" type="button" class="secondary">Scan trolley</button>
