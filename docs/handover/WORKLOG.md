@@ -80,6 +80,15 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Physical Trolleys: Locations heading text
+
+- Branch / commits: `claude/trolleys-title`, Pull Request into `master`.
+- Changed: Locations summary heading "Where the fleet is now" → "Where the trolleys are now"
+  (owner request); cache-busting version of `trolleys.js` bumped.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed.
+- Open / next: none.
+
 ## 2026-11-03 — Claude — Finish Results: shift filter on the day Table × Shift league
 
 - Branch / commits: claude/finish-day-shift-filter, Pull Request

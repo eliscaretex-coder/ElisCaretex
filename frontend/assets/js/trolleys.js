@@ -768,7 +768,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="tv-overview">
           <section class="tv-panel tv-fleet">
             <header>
-              <div><h3>Where the fleet is now</h3><p>Operational trolleys by current custody</p></div>
+              <div><h3>Where the trolleys are now</h3><p>Operational trolleys by current custody</p></div>
               <div class="tv-total"><strong>${operational}</strong><span>operational</span></div>
             </header>
             ${fleetBar([
