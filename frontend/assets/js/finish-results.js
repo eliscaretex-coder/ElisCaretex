@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     date:$("finishResultsDate"), prev:$("finishResultsPrev"), next:$("finishResultsNext"), today:$("finishResultsToday"), refresh:$("finishResultsRefresh"),
     message:$("finishResultsMessage"), totals:$("finishResultsTotals"), shifts:$("finishResultsShifts"), matrix:$("finishResultsMatrix"), staff:$("finishResultsStaff"), staffCount:$("finishResultsStaffCount"), entries:$("finishResultsEntries"), count:$("finishResultsEntryCount"),
     trolleyPeriod:$("finishResultsTrolleyPeriod"), trolley:$("finishResultsTrolley"),
+    dayTitle:$("finishResultsDayTitle"), dayBadge:$("finishResultsDayBadge"),
     ranking:$("finishRanking"), rankingTitle:$("finishRankingTitle"), rankingPeriod:$("finishRankingPeriod"), rankingPrev:$("finishRankingPrev"), rankingNext:$("finishRankingNext")
   };
   const esc=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
@@ -39,10 +40,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.shifts.innerHTML=["MORNING","EVENING"].map(code=>{const s=by.get(code)||{};return `<article class="finish-results-shift-card ${efficiencyClass(s.efficiency_percent)}"><header><strong>${shiftName(code)}</strong><b>${percent(s.efficiency_percent)}</b></header><div class="finish-results-shift-main"><span><small>Produced</small><strong>${num(s.produced_kg)} kg</strong></span><span class="rewash"><small>ReWash</small><strong>${num(s.rewash_kg)} kg</strong></span><span><small>Planned</small><strong>${num(s.planned_kg)} kg</strong></span><span><small>Missing</small><strong>${num(s.missing_kg)} kg</strong></span></div><footer>${num(s.staff_hours,2)} staff hours · ${Number(s.staff_count||0)} staff</footer></article>`;}).join("");
   }
 
+  // Business date "now": Finish Evening runs until the 03:00 rollover, so before 03:00 it is still yesterday.
+  const currentBusinessDate=()=>{const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Dublin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(new Date()),m=Object.fromEntries(parts.map(p=>[p.type,p.value]));if(Number(m.hour)<3){const y=new Date(`${m.year}-${m.month}-${m.day}T12:00:00Z`);y.setUTCDate(y.getUTCDate()-1);return y.toISOString().slice(0,10);}return `${m.year}-${m.month}-${m.day}`;};
+
+  // Day league table: the same look as the closed-period ranking, for the selected Business Date.
   function renderMatrix(data){
-    const rows=(data.tables||[]).slice().sort((a,b)=>(String(a.shift_code)==="MORNING"?0:1)-(String(b.shift_code)==="MORNING"?0:1)||String(a.table_code).localeCompare(String(b.table_code)));
+    const day=String(data.business_date||"").slice(0,10),isToday=day===currentBusinessDate();
+    const dayLabel=new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(`${day}T12:00:00Z`));
+    if(el.dayTitle)el.dayTitle.textContent=`${isToday?"Today":dayLabel} · Table × Shift`;
+    if(el.dayBadge){el.dayBadge.className=`finish-results-day-badge${isToday?" live":""}`;el.dayBadge.innerHTML=isToday?"<i></i>Today · live":`Day · ${esc(dayLabel)}`;}
+    const trolley=new Map();
+    (data.entries||[]).forEach(e=>{const st=String(e.trolley_scan_status||"");if(st!=="MATCHED"&&st!=="MISMATCH")return;const k=`${e.table_code}|${e.shift_code}`,t=trolley.get(k)||{checked:0,errors:0};t.checked++;if(st==="MISMATCH")t.errors++;trolley.set(k,t);});
+    const rows=(data.tables||[]).map(r=>{const t=trolley.get(`${r.table_code}|${r.shift_code}`)||{checked:0,errors:0},errPct=t.checked?100*t.errors/t.checked:0,active=Number(r.staff_hours||0)>0;return {...r,active,checked:t.checked,errors:t.errors,penalty:2*errPct,score:Number(r.efficiency_percent||0)-2*errPct};});
     if(!rows.length){el.matrix.innerHTML='<div class="finish-results-empty">No Table results for this date.</div>';return;}
-    el.matrix.innerHTML=`<div class="finish-results-matrix-head"><span>Table</span><span>Shift</span><span>Produced</span><span>ReWash</span><span>Planned</span><span>Efficiency</span><span>Staff hours</span><span>Staff</span></div>${rows.map(r=>`<article class="finish-results-matrix-row ${efficiencyClass(r.efficiency_percent)}"><strong>${esc(r.table_name||tableName(r.table_code))}</strong><span>${esc(shiftName(r.shift_code))}</span><b>${num(r.produced_kg)} kg</b><span class="rewash">${num(r.rewash_kg)} kg</span><span>${num(r.planned_kg)} kg</span><b>${percent(r.efficiency_percent)}</b><span>${num(r.staff_hours,2)}</span><span>${Number(r.staff_count||0)}</span></article>`).join("")}`;
+    const order=(a,b)=>b.score-a.score||a.errors-b.errors||Number(b.produced_kg||0)-Number(a.produced_kg||0);
+    const byPlace=(a,b)=>(a.shift_code==="MORNING"?0:1)-(b.shift_code==="MORNING"?0:1)||String(a.table_code).localeCompare(String(b.table_code));
+    // Today a shift is still running, so Morning and Evening are ranked separately (a finished shift against
+    // one half-way through would not be fair). A closed day is ranked as one league of 6, like the week.
+    const leagues=isToday?["MORNING","EVENING"].map(code=>({title:shiftName(code),rows:rows.filter(r=>r.shift_code===code)})):[{title:"",rows}];
+    const row=(r,ranked,safety)=>{
+      const eff=Math.max(0,Number(r.efficiency_percent||0)),bar=Math.min(eff,130)/130*100,target=100/130*100,missing=Number(r.planned_kg||0)-Number(r.produced_kg||0);
+      const plan=!r.active?'<span class="plan none">—</span>':missing>0?`<span class="plan behind">−${num(missing,0)} kg</span>`:`<span class="plan ahead">+${num(-missing,0)} kg</span>`;
+      const ahead=r.rank>1?ranked[r.rank-2]:null;
+      const chase=!r.active?"<small>No staff hours</small>":r.zone==="leader"?`<small>${isToday?"Leading now":"Day leader"}</small>`:r.zone==="relegation"&&safety?`<small class="danger">${num(safety.score-r.score)} pts to leave the zone</small>`:ahead?`<small>${num(ahead.score-r.score)} pts behind ${esc(teamName(ahead))}</small>`:"";
+      const tro=r.checked?`<b class="${r.errors?"bad":""}">${r.errors} wrong</b><small>of ${r.checked} checked${r.penalty>0?` · −${num(r.penalty)} pts`:""}</small>`:'<b class="muted">—</b><small>No trolley check</small>';
+      return `<article class="finish-results-rank-row finish-results-day-row zone-${r.active?r.zone:"not_ranked"}">
+      <strong class="finish-results-rank-pos">${r.active?r.rank:"–"}</strong>
+      <div class="finish-results-rank-team"><strong>${esc(teamName(r))}</strong><small>${Number(r.staff_count||0)} staff · ${num(r.staff_hours,1)} staff h · ${fmtKg(r.produced_kg)}${Number(r.rewash_kg||0)>0?` (ReWash ${num(r.rewash_kg,0)})`:""}</small></div>
+      ${plan}
+      <div class="finish-results-rank-eff"><span><b>${percent(r.efficiency_percent)}</b><small>${num(r.kg_per_staff_hour)} kg/h</small></span><i><em style="width:${bar.toFixed(1)}%"></em><u style="left:${target.toFixed(1)}%"></u></i></div>
+      <div class="finish-results-rank-trolley">${tro}</div>
+      <div class="finish-results-rank-score"><strong>${r.active?num(r.score):"—"}</strong>${chase}</div>
+    </article>`;};
+    let html='<div class="finish-results-rank-head finish-results-day-head"><span>#</span><span>Team</span><span>vs Plan</span><span>Efficiency</span><span>Trolley</span><span>Score</span></div>';
+    leagues.forEach(lg=>{
+      const ranked=lg.rows.filter(r=>r.active).sort(order),idle=lg.rows.filter(r=>!r.active).sort(byPlace),n=ranked.length,rel=n>=5?2:n>=3?1:0;
+      ranked.forEach((r,i)=>{r.rank=i+1;r.zone=i===0?"leader":i>=n-rel?"relegation":(i<3&&n>=5)?"podium":"middle";});
+      const safety=ranked[n-rel-1];let zoneShown=false;
+      if(lg.title)html+=`<div class="finish-results-day-league"><strong>${esc(lg.title)}</strong><small>${n} Table${n===1?"":"s"} working</small></div>`;
+      ranked.forEach(r=>{if(r.zone==="relegation"&&!zoneShown){zoneShown=true;html+='<div class="finish-results-rank-divider"><span>Relegation zone</span></div>';}html+=row(r,ranked,safety);});
+      idle.forEach(r=>{html+=row(r,ranked,safety);});
+    });
+    html+=`<p class="finish-results-rank-note">${isToday?"<b>Live:</b> positions change as Tables save production. Today Morning and Evening are ranked separately because a shift is still running. ":""}Same score as the weekly ranking: Efficiency % − 2 pts for each 1% of contributions saved with a wrong trolley. vs Plan = kg produced minus planned kg (staff hours × ${num(data.target_kg_per_staff_hour)}).</p>`;
+    el.matrix.innerHTML=html;
   }
 
   // Every person and time slice behind the staff hours, so moves and table changes can be checked.

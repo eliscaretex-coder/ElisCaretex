@@ -44,3 +44,15 @@
 .finish-results-rank-divider{position:relative;padding:4px 12px;background:#fff;border-bottom:1px dashed #f87171}.finish-results-rank-divider span{display:inline-block;padding:1px 8px;border-radius:999px;background:#dc2626;color:#fff;font-size:.56rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
 .finish-results-rank-note{margin:0;padding:8px 12px;background:#f8fafc;color:#64748b;font-size:.62rem;border-top:1px solid #e2e8f0}
 @media(max-width:900px){.finish-results-ranking-section>header{flex-direction:column;align-items:flex-start;gap:6px}.finish-results-ranking-controls{justify-content:flex-start}.finish-results-rank-head{display:none}.finish-results-rank-row{grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"pos team score" "pos eff eff" "move trolley trolley";gap:4px 10px}.finish-results-rank-pos{grid-area:pos;align-self:start}.finish-results-rank-team{grid-area:team}.finish-results-rank-row .move{grid-area:move;justify-self:center}.finish-results-rank-eff{grid-area:eff}.finish-results-rank-trolley{grid-area:trolley;display:flex;gap:6px;align-items:baseline}.finish-results-rank-trolley small{margin:0}.finish-results-rank-score{grid-area:score;align-self:start;max-width:150px}}
+
+/* Day league table (Table x Shift for the selected Business Date), same look as the closed-period ranking. */
+.finish-results-day-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;background:#e2e8f0;color:#334155;font-size:.66rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.finish-results-day-badge.live{background:#dcfce7;color:#166534;box-shadow:0 0 0 1px #86efac}.finish-results-day-badge i{width:8px;height:8px;border-radius:50%;background:#16a34a;animation:fr-live 1.6s ease-in-out infinite}
+@keyframes fr-live{0%,100%{box-shadow:0 0 0 0 #16a34a80}50%{box-shadow:0 0 0 5px #16a34a00}}
+@media(prefers-reduced-motion:reduce){.finish-results-day-badge i{animation:none}}
+.finish-results-day-section:has(.finish-results-day-badge.live){border-color:#86efac;box-shadow:0 0 0 2px #dcfce7,0 2px 10px #0f172a08}
+.finish-results-day-section:has(.finish-results-day-badge.live)>header{background:#f0fdf4}
+.finish-results-day-head,.finish-results-day-row{grid-template-columns:44px minmax(170px,1.4fr) 86px minmax(150px,1.2fr) minmax(100px,.8fr) minmax(130px,1fr)}
+.finish-results-day-row .plan{justify-self:start;border-radius:999px;padding:2px 8px;font-size:.64rem;font-weight:900;white-space:nowrap}.plan.ahead{background:#dcfce7;color:#166534}.plan.behind{background:#fee2e2;color:#b91c1c}.plan.none{color:#94a3b8}
+@media(max-width:900px){.finish-results-day-section>header{gap:6px}.finish-results-day-row .plan{grid-area:move;justify-self:center}}
+.finish-results-day-league{display:flex;align-items:baseline;gap:8px;padding:6px 12px;background:#f1f5f9;border-bottom:1px solid #e2e8f0}.finish-results-day-league strong{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em}.finish-results-day-league small{color:#64748b;font-size:.62rem}

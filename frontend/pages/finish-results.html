@@ -14,7 +14,7 @@
   <title>Finish Results | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/finish-results.css?v=20261103-1">
+  <link rel="stylesheet" href="../assets/css/finish-results.css?v=20261103-2">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
@@ -22,7 +22,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261028-3" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261028-3" defer></script>
-  <script src="../assets/js/finish-results.js?v=20261103-1" defer></script>
+  <script src="../assets/js/finish-results.js?v=20261103-2" defer></script>
 </head>
 <body class="finish-results-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -74,9 +74,9 @@
         <div id="finishResultsShifts" class="finish-results-shifts"></div>
       </section>
 
-      <section class="finish-results-section">
-        <header><div><p>Table performance</p><h2>Table × Shift</h2></div></header>
-        <div id="finishResultsMatrix" class="finish-results-matrix"></div>
+      <section class="finish-results-section finish-results-day-section">
+        <header><div><p>Table performance</p><h2 id="finishResultsDayTitle">Today · Table × Shift</h2></div><span id="finishResultsDayBadge" class="finish-results-day-badge">Today</span></header>
+        <div id="finishResultsMatrix" class="finish-results-matrix finish-results-ranking"></div>
       </section>
 
       <section class="finish-results-section">
