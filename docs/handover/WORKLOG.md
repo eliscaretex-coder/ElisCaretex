@@ -80,6 +80,16 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish Production Registration: Report trolley plan in the footer, confirm before discarding
+
+- Changed (frontend only, owner request): "Report trolley plan" sits on the left of the
+  Production Registration footer (same report as in the scan dialog). Closing the modal with
+  X, Cancel or Esc after changing batch lines, notes or the trolley scan asks "Discard unsaved
+  changes?" (Keep editing / Discard changes). Saves and automatic shift changes close as before.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs`; Playwright against a stubbed Supabase
+  client (empty close, dirty close, keep, Esc, discard, footer report opens the report dialog).
+
 ## 2026-11-03 — Claude — Finish Production Registration: compact header row and one-line Notes
 
 - Changed (frontend only, owner request): Table, Shift and Processed by sit in one compact

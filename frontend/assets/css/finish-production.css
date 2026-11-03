@@ -446,3 +446,15 @@ body.elis-operational-tool-page.finish-page .operational-page-header .finish-top
 /* One scrollbar: the dialog box itself never scrolls; its card does (it is capped to the screen height). */
 .finish-dialog{max-height:none;overflow:visible}
 html:has(.finish-dialog[open]){overflow:hidden}
+/* Production Registration footer: Report trolley plan on the left; discard confirmation. */
+#finishProductionForm .finish-form-actions{align-items:center}
+#finishProductionForm .finish-footer-report{margin-right:auto;border:1px solid #fdba74;border-radius:9px;background:#fff7ed;color:#9a3412;font-weight:800;padding:7px 11px;cursor:pointer}
+#finishProductionForm .finish-footer-report:hover{background:#ffedd5;border-color:#fb923c}
+.finish-discard-dialog{border:0;padding:0;background:transparent;width:min(400px,calc(100vw - 24px))}.finish-discard-dialog::backdrop{background:#0f172a66}
+.finish-discard-card{background:#fff;border-radius:14px;box-shadow:0 24px 70px #0f172a66;padding:16px 18px;display:grid;gap:8px}
+.finish-discard-card strong{font-size:1rem;color:#0f172a}.finish-discard-card p{margin:0;color:#475569;font-size:.85rem}
+.finish-discard-card footer{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.finish-discard-card button{border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer}
+.finish-discard-card .secondary{border:1px solid #cbd5e1;background:#fff;color:#0f172a}
+.finish-discard-card .danger{border:1px solid #b91c1c;background:#b91c1c;color:#fff}
+@media(max-width:560px){#finishProductionForm .finish-form-actions{flex-wrap:wrap}#finishProductionForm .finish-footer-report{width:100%;margin-right:0}}
