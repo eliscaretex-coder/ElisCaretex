@@ -1273,6 +1273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       let applyCurrentRosterRole = false;
+      let savedMessage = "";
       if (staffId) {
         const impact = await rpc("get_staff_primary_role_change_impact", {
           p_staff_id: staffId,
@@ -1304,7 +1305,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         const updatedCount = Number(result?.current_roster_base_assignments_updated || 0);
         const snapshotCount = Number(result?.current_roster_staff_snapshots_updated || 0);
-        if (applyCurrentRosterRole) setMessage(elements.pageMessage, `Staff record updated. ${updatedCount} base assignment${updatedCount === 1 ? "" : "s"} and ${snapshotCount} editable roster row${snapshotCount === 1 ? "" : "s"} refreshed.`, "success");
+        const loginNote = result?.login_job_title_updated ? ` The login now has the ${result.login_job_title_name || result.login_job_title_code} job title with its standard permissions.` : "";
+        savedMessage = applyCurrentRosterRole
+          ? `Staff record updated. ${updatedCount} base assignment${updatedCount === 1 ? "" : "s"} and ${snapshotCount} editable roster row${snapshotCount === 1 ? "" : "s"} refreshed.${loginNote}`
+          : `Staff record updated.${loginNote}`;
       } else {
         if (state.canCreateAccounts && !elements.accountJobTitleForStaff.value) {
           setMessage(elements.editorMessage,"Select the account job title.","error");
@@ -1325,7 +1329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       closeEditor(true);
-      if (!applyCurrentRosterRole && staffId) setMessage(elements.pageMessage,"Staff record updated.","success");
+      if (savedMessage) setMessage(elements.pageMessage, savedMessage, "success");
       await loadDirectory();
     } catch (error) {
       console.error("Failed to save staff record:", error);
