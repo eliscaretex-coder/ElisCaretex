@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Finish Production Registration: guided trolley scan and continuation by other Table/Shift
+
+- Changed (frontend only, owner request):
+  - `trolley-plates.js`: the panel is titled "Trolleys needed for this customer"; each row's
+    Print label button is a printer icon. With a `scan` handler (Finish only) the header button
+    scans the trolleys in plate order ("Scan M #1", then "Scan M #2"), each row shows the
+    scanned code with OK / wrong (size, not found, blocked) / missing, and a × removes a scan.
+    MOP and the Schedule Planner keep Print all labels and no scan. New API: `setScan`, `openScan`.
+  - `finish-production.js`: the customer summary shows the route and the delivery weekday
+    instead of the customer code. The "Customer trolley plan / Scan trolley" card beside Notes
+    is hidden (Notes takes the full width) and only comes back when the plates cannot load.
+    The existing trolley scan dialog stays as the "Details/Review" view and save guard.
+  - Continuation: the operational queue (`get_finish_operational_queue_context`) returns
+    DONE as soon as one Table/Shift saves, which disabled the queue line, so no other
+    Table/Shift could add its own batch. The page now uses the cutoff-aware state from
+    `get_finish_production_context_v4` (CONTINUE before 12:00 on the Delivery Date) and also
+    lists customers washed on an earlier schedule day whose Delivery Date cutoff has not passed.
+    Batch rules are unchanged (database: a batch cannot be reused on the same business day or
+    the same customer).
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs`; Playwright run against a stubbed
+  Supabase client (scan in order, wrong size, complete, phone width, CONTINUE row opens in
+  continue mode). Not yet tested against the live database by the owner.
+
 ## 2026-11-03 — Claude — Staff Master primary role change also changes the login job title
 
 - Branch / commits: `claude/staff-role-login-sync`, Pull Request into `master`
