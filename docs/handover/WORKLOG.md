@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-11-03 — Claude — Physical Trolleys: visual redesign of Locations and Trolley Master
+
+- Branch / commits: `claude/trolleys-visual`, Pull Request into `master`.
+- Changed: new `frontend/assets/css/trolleys-visual.css` (classes `tv-*`, loaded last) and
+  new rendering in `trolleys.js` for the Locations and Trolley Master tabs. Locations: fleet
+  bar (available / prepared / at customers / unconfirmed), size mix panel, four alert tiles
+  (overdue, warning, unconfirmed, out of service), filter chips, Elis Laundry card split into
+  "Prepared" and "Available" lanes, customer card grid (route colour, S/M/L counts, longest
+  stay bar coloured by the warning/overdue thresholds, sort and "only overdue/warning"),
+  trolley tiles with size badge and day pill. Trolley Master: fleet bar and size cards,
+  coloured status badges, status chips instead of the select, table turns into cards on
+  phones. Same RPCs and parameters; Trolley Types tab and modals unchanged. Per-customer
+  "needs review" counts now show only when `can_view_trolley_exceptions` is true (policy is
+  HISTORY_ONLY); the Master shows the total as a history note.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Screenshots taken with Playwright
+  against a local copy and mocked RPCs whose summary numbers come from read-only calls to the
+  live RPCs on 2026-11-03 (trolley lists are synthetic). Checked no horizontal scroll at 390 px.
+  Not validated on the published site.
+- Open / next: owner review of the layout; Trolley Types tab keeps the old style.
 ## 2026-11-03 — Claude — Finish Production Registration: compact header row and one-line Notes
 
 - Changed (frontend only, owner request): Table, Shift and Processed by sit in one compact
