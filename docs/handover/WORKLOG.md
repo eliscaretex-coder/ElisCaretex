@@ -80,6 +80,32 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — MOP Production: scan trolleys per plate, "No trolley yet" and Add trolley later
+
+- Branch / commits: `claude/mop-trolley-scan-like-finish`, Pull Request into `master`.
+- Changed: MOP Production now scans the clean trolleys on the trolley plates, like Finish
+  (M #1, M #2…), with a print icon per plate and Print all labels. A plate can be left as
+  "No trolley yet": the production is saved with trolley status `PENDING` and MOP
+  Production Trace shows "Add trolley" to scan and link it later (with label print).
+  More trolleys than planned can be scanned and are saved as a plan mismatch. The
+  old free scan field stays for missed (late) entries and for pages without plates.
+  The trolley-check link that opens MOP Production on a customer (PR #167) is untouched.
+- Database: `202611040007_mop_trolley_pending_and_link_later.sql` (**Prepared**, not
+  applied): status `PENDING`, `save_sorting_mop_production_v3`,
+  `link_sorting_mop_production_trolleys`, and an in-place patch of the internal
+  `save_sorting_mop_production` (one status line). Until it is applied the screen falls
+  back to `save_sorting_mop_production_v2`; only "No trolley yet" needs the migration.
+- Validation: `node scripts/validate-repository.mjs` passed. The migration plus an
+  end-to-end check ran against ElisCaretex-dev inside a rolled-back transaction
+  (LUH, 3×M planned: save with 1 trolley → PENDING; duplicate refused; link 2nd → PENDING;
+  link 3rd → RECORDED; stays open for the customer; complete record refuses more; anon
+  blocked) and ended with "TESTE OK"; nothing was kept. Screens checked in Chromium with
+  a mocked Supabase (desktop and phone). pgTAP file:
+  `supabase/tests/202611040007_mop_trolley_pending_and_link_later_validation.sql` (run
+  after applying).
+- Open / next: owner applies the migration and tests on the MOP terminal. The end-of-shift
+  trolley check will list a MOP customer with a pending trolley as missing until it is linked.
+
 ## 2026-11-04 — Claude — Sorting: faster start and tab switching
 
 - Branch / commits: `claude/sorting-abas-rapidas`, Pull Request
