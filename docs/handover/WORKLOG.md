@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — Trolley check: scanned sizes by area and a plain summary
+
+- Branch / commits: `claude/trolley-check-scanned-sizes`, Pull Request
+- Changed: the customer sheet of the end-of-shift trolley check now starts with a summary
+  per area (Clothes/Finish and MOP): planned vs scanned trolleys by size and exactly what is
+  wrong ("1 S missing", "1 M extra", "MOP not recorded in the system", "no trolley
+  scanned"), plus the empty trolleys to check by eye. Scanned trolleys are listed per area
+  (Finish / MOP) with the size of each one.
+- Database: `202611040002_production_trolley_check_scanned_sizes.sql` **Prepared, not
+  applied**: replaces `production_trolley_check_expected` only (`recorded_trolleys` becomes
+  `{code, size, size_name, source}`, new `planned_by_source`). No table or permission change.
+- Validation: function created and called for 2026-11-03 inside a rolled-back transaction
+  on ElisCaretex-dev ("TESTE OK"; HEATHER HOUSE: 3 Finish + 1 MOP trolleys with sizes);
+  `node scripts/validate-repository.mjs` passed; sheet checked with Playwright on a phone
+  using the real 2026-11-03 rows (CASHEL 1 S missing, CHARLEVILLE MOP not recorded).
+- Open / next: owner applies the migration. Until then the page keeps working with the
+  old data shape (scanned codes shown under Finish without size).
+
 ## 2026-11-04 — Claude — Production Tracker: end-of-shift trolley check
 
 - Branch / commits: `claude/shift-trolley-check`, Pull Request

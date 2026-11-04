@@ -165,3 +165,23 @@ body.trolley-check-page{margin:0;background:var(--tc-bg);color:var(--tc-ink);fon
   .trolley-check-history-totals div{border-bottom:1px solid #eef2f6}
   .trolley-check-finish-summary{grid-template-columns:repeat(3,1fr)}
 }
+
+/* Scanned trolleys by area (Finish / MOP) with sizes. */
+.trolley-check-expected .scanned{align-items:flex-start}
+.trolley-check-expected .scanned strong{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.trolley-check-expected .scanned .codes{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;color:inherit;font-weight:inherit;font-size:inherit;text-transform:none}
+.trolley-check-expected .scanned code b{margin-left:2px;padding:0 4px;border-radius:4px;background:#0f172a;color:#fff;font-family:inherit;font-size:.62rem}
+.trolley-check-expected .scanned.mop code{background:#fef3c7}
+.trolley-check-expected .scanned.mop>span{color:#92400e}
+.tc-scan-total{font-style:normal;font-weight:900;color:var(--tc-ink)!important;margin-left:0!important}
+
+/* Summary at the top of the customer sheet: planned vs scanned, and where the error is. */
+.tc-summary{border-radius:12px;padding:10px 12px;border:1px solid #bbf7d0;background:#f0fdf4}
+.tc-summary.bad{border-color:#fdba74;background:#fff7ed}
+.tc-summary>strong{display:block;font-size:.92rem}.tc-summary>strong.good{color:#166534}.tc-summary>strong.bad{color:#9a3412}
+.tc-summary>span{display:block;margin-top:2px;font-size:.78rem;font-weight:800;color:#166534}
+.tc-summary ul{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.tc-summary li{font-size:.78rem;line-height:1.35;padding-left:18px;position:relative}
+.tc-summary li::before{position:absolute;left:0;top:0;font-weight:900}
+.tc-summary li.good::before{content:"✓";color:#16a34a}.tc-summary li.bad::before{content:"!";color:#c2410c}.tc-summary li.info::before{content:"+";color:#0369a1}
+.tc-summary li.bad{color:#7c2d12}
