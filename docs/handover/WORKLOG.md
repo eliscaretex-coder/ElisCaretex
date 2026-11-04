@@ -80,6 +80,33 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — General review: overlapping rules in code and database
+
+- Branch / commits: `claude/revisao-regras-sobrepostas`, Pull Request into `master`.
+- Changed: read-only review of the app and `ElisCaretex-dev` for overlapping or
+  conflicting rules. All conflicts found on 2026-10-23 are confirmed fixed (orphan
+  Distribution roster RPCs closed, driver reinstate fix live, single permission rule via
+  `account_module_allowed`, public roster link read-only, guide history encoding).
+  New migration removes the 3 exact duplicate indexes on the Distribution roster tables
+  (the unused copy of each pair) and makes the MOP Type photo Storage policies use
+  `account_module_allowed(array['MOP'],'MANAGE',...)`, the same rule as the MOP Type RPCs.
+- Database: `202611040004_remove_duplicate_rules_review.sql` **Prepared, not applied**.
+  Test: `supabase/tests/202611040004_remove_duplicate_rules_review_validation.sql`.
+- Validation: `node scripts/validate-repository.mjs` passed (34 JS, 27 HTML). All 254
+  frontend RPC names exist in the database. Every repo function definition matches the
+  database except `production_trolley_check_expected` (202611040003, prepared, not applied).
+  pgTAP tests 202610300003, 202610300004, 202610310001, 202611030001, 202611030003,
+  202611040001 and 202611040003 run inside a transaction that was aborted: 58/62 passed;
+  the 2 MOP-detail failures are the unapplied 202611040003 and the 2 failures in
+  202610300003 are data (HIGHFIELD's current schedule has no trolley plates). No
+  duplicate public RLS policies, no duplicate triggers, no direct-write policies; cron
+  had 0 failures in 7 days.
+- Open / next: owner applies 202611040004 and 202611040003. Two migration files share
+  version `202611030003` (would break `supabase db push`). The Apps Script import window
+  in `finish_enforce_new_entry_current_shift` (26/09–23/10) can be removed the next time
+  that trigger changes. `app_config` and `audit_log` read policies still use the legacy
+  role (no screen reads them directly).
+
 ## 2026-11-04 — Claude — Trolley check: customers by route, MOP types and ABS
 
 - Branch / commits: `claude/trolley-check-mop-detail`, Pull Request
