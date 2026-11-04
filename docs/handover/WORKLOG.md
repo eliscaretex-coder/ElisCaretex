@@ -98,6 +98,19 @@ Entry format:
 - Open / next: MOP Production and Results are separate pages, so opening them from the
   menu still reloads the page. Run the pgTAP test after applying the migration.
 
+## 2026-11-04 — Claude — Trolley Intake: "Customer sent nothing" button and remembered RECEIVING AS
+
+- Branch / commits: `claude/intake-nothing-sent-e-staff`, Pull Request into `master`
+- Changed: the Trolley Intake scan card has a "Customer sent nothing" button that opens a
+  dialog listing waiting customers (today and next day) plus already marked ones with Undo.
+  RECEIVING AS is stored in localStorage (`elis.sorting.receivingAs`) for the same business date
+  and shift, so leaving or reloading the page keeps the name.
+- Database: none (uses `202611040005`).
+- Validation: `validate-repository.mjs` passed. Playwright with mocked RPCs: name kept after a
+  full page reload; dialog sends `terminal_record_sorting_customer_nothing_sent` with the
+  selected staff and closes.
+- Open / next: none.
+
 ## 2026-11-04 — Claude — Sorting: mark a customer as "Nothing sent"
 
 - Branch / commits: `claude/sorting-nothing-sent`, Pull Request into `master`

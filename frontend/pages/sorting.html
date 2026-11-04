@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
-  <link rel="stylesheet" href="../assets/css/sorting-simple.css?v=20261104-2">
+  <link rel="stylesheet" href="../assets/css/sorting-simple.css?v=20261104-3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
@@ -239,6 +239,7 @@
                 </div>
                 <div class="sorting-reception-listening"><span></span> Scanner listening</div>
                 <button id="sortingTrolleyManualButton" class="sorting-secondary-button sorting-reception-manual-button" type="button">Enter trolley manually</button>
+                <button id="sortingTrolleyNothingSentButton" class="sorting-secondary-button sorting-reception-manual-button sorting-reception-nothing-sent-button" type="button">Customer sent nothing</button>
                 <div class="sorting-reception-batch-controls">
                   <button id="sortingTrolleyBatchToggle" class="sorting-secondary-button" type="button">Scan list mode</button>
                   <span id="sortingTrolleyOutboxStatus">All confirmed receipts sent</span>
@@ -671,6 +672,24 @@
       <footer class="sorting-dialog-footer">
         <button value="cancel" class="sorting-secondary-button" type="submit">Cancel</button>
         <button id="sortingNoTrolleyArrivalSaveButton" class="sorting-primary-button" type="button">Confirm contents received</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="sortingNothingSentDialog" class="sorting-dialog sorting-nothing-sent-dialog">
+    <form method="dialog" class="sorting-dialog-card">
+      <header class="sorting-dialog-header">
+        <div>
+          <h2>Customer sent nothing</h2>
+          <p>Choose the customer that sent no trolley and no laundry. It will show as "Nothing sent" in Today's Customers.</p>
+        </div>
+        <button value="cancel" class="sorting-dialog-close" type="submit">×</button>
+      </header>
+      <div id="sortingNothingSentList" class="sorting-nothing-sent-list"></div>
+      <p id="sortingNothingSentMessage" class="sorting-dialog-message" aria-live="polite"></p>
+      <footer class="sorting-dialog-footer">
+        <button value="cancel" class="sorting-secondary-button" type="submit">Close</button>
+        <button id="sortingNothingSentSaveButton" class="sorting-primary-button" type="button" disabled>Confirm: sent nothing</button>
       </footer>
     </form>
   </dialog>
