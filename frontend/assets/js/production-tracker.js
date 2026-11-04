@@ -119,7 +119,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.expandAll?.addEventListener("click",()=>{state.collapsedRoutes.clear();renderTable();});
   el.collapseAll?.addEventListener("click",()=>{routeBlocks(groups(),groups().filter(matches)).forEach(b=>state.collapsedRoutes.add(b.key));renderTable();});
   el.historyButton.addEventListener("click",openHistory);el.historyExit.addEventListener("click",()=>{if(state.focus)resetFilters();load(null,{history:false});});el.historyClose.addEventListener("click",()=>el.historyDialog.close());el.historyCancel.addEventListener("click",()=>el.historyDialog.close());el.historyLoad.addEventListener("click",loadHistory);el.historyInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();loadHistory();}});el.signOut.addEventListener("click",async()=>{await client.auth.signOut();window.location.href="../index.html";});
+  // Inside the Sorting workstation the tracker sits in a hidden tab. Loading it there
+  // only when that tab is opened keeps four tracker queries off every Sorting start.
+  function loadWhenVisible(){
+    const panel=el.table.closest("[data-view-panel]");
+    if(!panel||!panel.hidden)return load(null,{history:false});
+    return new Promise(resolve=>{
+      const observer=new MutationObserver(()=>{if(panel.hidden)return;observer.disconnect();resolve(load(null,{history:false}));});
+      observer.observe(panel,{attributes:true,attributeFilter:["hidden"]});
+    });
+  }
   if(window.ELIS_SUPABASE_ERROR||!client){el.message.textContent=window.ELIS_SUPABASE_ERROR||"Supabase could not be initialized.";return;}
   resetFilters();window.addEventListener("pageshow",()=>{if(state.focus||el.search.value||el.status.value||el.type.value){resetFilters();if(state.data)renderTable();}});
-  try{setView(state.view);const {data:{session},error}=await client.auth.getSession();if(error)throw error;if(!session?.user){window.location.href="../index.html";return;}await load(null,{history:false});}catch(e){console.error(e);el.message.textContent=e.message||"Production Tracker could not be initialized.";}
+  try{setView(state.view);const {data:{session},error}=await client.auth.getSession();if(error)throw error;if(!session?.user){window.location.href="../index.html";return;}await loadWhenVisible();}catch(e){console.error(e);el.message.textContent=e.message||"Production Tracker could not be initialized.";}
 });

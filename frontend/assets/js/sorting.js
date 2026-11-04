@@ -1218,9 +1218,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(keepOperator&&op)prefillTypeForOperator(true);
   }
 
-  async function loadWashing(){
-    state.washing=await rpc("get_sorting_washing_context_v4",{p_shift_code:state.shift});
-    const board=await rpc("get_sorting_customer_board_v4",{p_shift_code:state.shift});
+  // Fetch and render are split so reload() can fetch every Sorting view at once
+  // (in parallel) and render them afterwards in the original order.
+  async function fetchWashing(){
+    const [washing,board]=await Promise.all([
+      rpc("get_sorting_washing_context_v4",{p_shift_code:state.shift}),
+      rpc("get_sorting_customer_board_v4",{p_shift_code:state.shift})
+    ]);
+    return {washing,board};
+  }
+  async function loadWashing(){await applyWashing(await fetchWashing());}
+  async function applyWashing({washing,board}){
+    state.washing=washing;
     if(state.washing){
       state.washing.today_customers=Array.isArray(board?.customers)?board.customers:[];
       state.washing.unscheduled_scan_customers=Array.isArray(board?.unscheduled_scan_customers)?board.unscheduled_scan_customers:[];
@@ -2417,8 +2426,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  async function loadStaffWork(){
-    state.staffWork=await rpc("get_sorting_staff_dashboard_context_v2",{p_shift_code:state.shift});
+  function fetchStaffWork(){return rpc("get_sorting_staff_dashboard_context_v2",{p_shift_code:state.shift});}
+  async function loadStaffWork(){applyStaffWork(await fetchStaffWork());}
+  function applyStaffWork(staffWork){
+    state.staffWork=staffWork;
     renderStaffWork();
     renderReference();
   }
@@ -3647,8 +3658,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.arrivals.innerHTML=`<div class="sorting-intake-trace-table">${head}${body}</div>`;
   }
 
-  async function loadSorting(){
-    state.sorting=await rpc("get_sorting_trolley_intake_context_v3",{p_shift_code:state.shift});
+  function fetchSorting(){return rpc("get_sorting_trolley_intake_context_v3",{p_shift_code:state.shift});}
+  async function loadSorting(){applySorting(await fetchSorting());}
+  function applySorting(sorting){
+    state.sorting=sorting;
     renderTrolleyStaffBar();
     renderTrolleySummary();
     renderArrivals();
@@ -5030,9 +5043,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       if(standaloneMop){
         if(!preserveMopDraft)await loadMop();
       }else{
-        await loadWashing();await loadStaffWork();await loadSorting();
-        if(!preserveMopDraft)await loadMop();
-        if(state.view==="tracker")await loadTracker(state.trackerDate||null,{history:state.trackerHistoryMode,refreshCards:show,silent:!show});
+        // All Sorting views are fetched at the same time instead of one after the
+        // other; the data is applied in the same order as before so every render
+        // sees the state it used to see.
+        const mopPromise=preserveMopDraft?Promise.resolve():loadMop();
+        const trackerPromise=state.view==="tracker"?loadTracker(state.trackerDate||null,{history:state.trackerHistoryMode,refreshCards:show,silent:!show}):Promise.resolve();
+        const [washingData,staffWork,sorting]=await Promise.all([fetchWashing(),fetchStaffWork(),fetchSorting()]);
+        await applyWashing(washingData);applyStaffWork(staffWork);applySorting(sorting);
+        await Promise.all([mopPromise,trackerPromise]);
       }
       if(show)setMessage(`${viewCopy[state.view][0]} refreshed.`,"success");
     }

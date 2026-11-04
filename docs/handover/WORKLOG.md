@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — Sorting: faster start and tab switching
+
+- Branch / commits: `claude/sorting-abas-rapidas`, Pull Request
+- Changed: `sorting.js` `reload()` now fetches Washing (context + customer board), Staff,
+  Trolley Intake and MOP at the same time instead of one after the other, then renders in
+  the old order. `production-tracker.js` no longer loads the embedded tracker (4 tracker
+  queries) when the Sorting page opens; it loads the first time the Production Tracker tab
+  is shown. Cache versions bumped.
+- Database: `202611040006_sorting_board_lookup_indexes.sql` (three additive indexes for
+  the Sorting customer board). **Prepared, not applied**: owner applies it in the SQL Editor.
+- Validation: `node scripts/validate-repository.mjs` passed. RPC timings measured as the
+  SORTING-PC01 terminal before the change (board 1.5 s, washing 0.5 s, intake 0.5 s,
+  tracker 0.5 s x4). EXPLAIN showed the board's wash-history subqueries reading the whole
+  customer history (no index on `source_schedule_product_id`). Not tested in a browser
+  with the terminal login.
+- Open / next: MOP Production and Results are separate pages, so opening them from the
+  menu still reloads the page. Run the pgTAP test after applying the migration.
+
 ## 2026-11-04 — Claude — Sorting: mark a customer as "Nothing sent"
 
 - Branch / commits: `claude/sorting-nothing-sent`, Pull Request into `master`
