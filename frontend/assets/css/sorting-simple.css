@@ -1,0 +1,72 @@
+/*
+  Sorting Area — cleaner layout (2026-11-04).
+  Loaded last on sorting.html only. Hides secondary text and compacts the
+  screen; every control and element id stays in the page, so sorting.js keeps
+  working unchanged.
+*/
+
+/* Top context: keep only the business date and planned staff. */
+body.sorting-page .sorting-context-strip > div:nth-child(2),
+body.sorting-page .sorting-context-strip > div:nth-child(4){display:none}
+
+/* Section eyebrows ("WASHING REGISTRATION", "HISTORY", "PRODUCTION SCHEDULE"…) repeat the title. */
+body.sorting-page [data-view-panel="washing"] .sorting-section-eyebrow,
+body.sorting-page [data-view-panel="trolley"] .sorting-section-eyebrow{display:none}
+
+/* Card headers: just the title. */
+body.sorting-page [data-view-panel="washing"] .sorting-card-header,
+body.sorting-page [data-view-panel="trolley"] .sorting-card-header{align-items:center;padding-top:12px;padding-bottom:12px}
+body.sorting-page [data-view-panel="washing"] .sorting-card-header h2,
+body.sorting-page [data-view-panel="trolley"] .sorting-card-header h2{margin:0}
+
+/* Today's Customers header: small pill instead of the big round badge. */
+body.sorting-page .sorting-today-sidebar > header{align-items:center;padding:12px 14px}
+body.sorting-page .sorting-today-sidebar > header h2{margin:0;font-size:16px}
+body.sorting-page .sorting-today-type{display:inline-flex;align-items:center;width:auto;height:auto;min-width:0;min-height:0;padding:4px 10px;border-radius:999px;font-size:11px;line-height:1.2;letter-spacing:.03em;white-space:nowrap;box-shadow:none}
+
+/* Customer rows: one clear status line. */
+body.sorting-page .sorting-today-main > span{font-size:12px;line-height:1.35}
+
+/* Wash history search: one line, no status text unless searching. */
+body.sorting-page .sorting-history-search{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}
+body.sorting-page .sorting-history-search input{flex:1 1 auto;min-width:0}
+body.sorting-page #sortingWashHistorySearchStatus{white-space:nowrap}
+body.sorting-page .sorting-history-search:has(#sortingWashHistoryClearButton[hidden]) #sortingWashHistorySearchStatus{display:none}
+
+/* Trolley Intake: the big "Step 1 · Select your name" card already says this. */
+body.sorting-page #sortingTrolleyStaffPrompt{display:none}
+
+/* Recent washes: customer chips without the trace code (kept as tooltip). */
+body.sorting-page .sorting-wash-customer small{display:block;font-size:10px;opacity:.9}
+
+/* Phone: recent washes as simple cards instead of a wide table. */
+@media (max-width:720px){
+  body.sorting-page .sorting-table-wrap{overflow:visible}
+  body.sorting-page .sorting-table thead{display:none}
+  body.sorting-page .sorting-table,
+  body.sorting-page .sorting-table tbody{display:block;width:100%}
+  body.sorting-page .sorting-table tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px;margin:0 0 10px;padding:12px;border:1px solid #dbe4ea;border-radius:12px;background:#fff}
+  body.sorting-page .sorting-table td{display:block;padding:0;border:0;font-size:13px}
+  body.sorting-page .sorting-table td[data-label]:not([data-label=""])::before{content:attr(data-label);display:block;margin-bottom:2px;color:#64748b;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+  body.sorting-page .sorting-table td.sorting-washed-date{display:none}
+  body.sorting-page .sorting-table td{order:5}
+  body.sorting-page .sorting-table td.sorting-wash-id-cell{order:1;grid-column:span 2}
+  body.sorting-page .sorting-table td[data-label="Washer"]{order:2}
+  body.sorting-page .sorting-table td[data-label="Type"]{order:3}
+  body.sorting-page .sorting-table td.sorting-wash-customers-cell{order:4;grid-column:1 / -1}
+  body.sorting-page .sorting-table td[data-label="Staff"]{grid-column:span 2}
+  body.sorting-page .sorting-table td.sorting-wash-customers-cell::before{display:none}
+  body.sorting-page .sorting-table td.sorting-wash-actions-cell{order:9;grid-column:1 / -1}
+  body.sorting-page .sorting-table td.sorting-wash-actions-cell .sorting-wash-actions{display:flex;gap:8px}
+  body.sorting-page .sorting-table td.sorting-wash-actions-cell .sorting-mini-button{flex:1;min-height:40px;font-size:13px}
+  body.sorting-page .sorting-table td.sorting-today-empty{grid-column:1 / -1}
+  body.sorting-page .sorting-customer-stack{min-width:0}
+  body.sorting-page .sorting-table tr.sorting-wash-cancelled{opacity:.6}
+}
+
+/* Phone: smaller scanner illustration so the scan box fits on screen. */
+@media (max-width:720px){
+  body.sorting-page .sorting-reception-scan-icon{width:64px;height:64px;font-size:30px;margin-bottom:6px}
+  body.sorting-page #sortingTrolleyScanTitle{font-size:24px;line-height:1.2}
+  body.sorting-page #sortingTrolleyScanHint{font-size:14px}
+}

@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
+  <link rel="stylesheet" href="../assets/css/sorting-simple.css?v=20261104-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
@@ -27,7 +28,7 @@
   <script src="../assets/js/customer-alerts.js?v=20261022-1" data-area="SORTING" defer></script>
   <script src="../assets/js/production-station-kiosk.js" defer></script>
   <script src="../assets/js/production-tracker.js?v=20261029-2" defer></script>
-  <script src="../assets/js/sorting.js?v=20261030-1" defer></script>
+  <script src="../assets/js/sorting.js?v=20261104-1" defer></script>
 </head>
 <body class="sorting-page" data-production-station-area="SORTING">
   <div class="sorting-page-shell" data-operational-shell-root>
@@ -108,9 +109,9 @@
                 <div>
                   <p class="sorting-section-eyebrow">Washing registration</p>
                   <h2>New washing load</h2>
-                  <p>Fast entry with server-generated Wash ID and per-customer trace.</p>
+                  
                 </div>
-                <span class="sorting-trace-pill">Wash ID on Save</span>
+                
               </header>
 
               <form id="sortingWashForm" class="sorting-wash-form">
@@ -130,8 +131,8 @@
                   </div>
                 </div>
 
-                <div class="sorting-form-grid three">
-                  <div class="sorting-field">
+                <div class="sorting-form-grid two">
+                  <div class="sorting-field" hidden>
                     <label for="sortingRegisterTime">Register Time</label>
                     <input id="sortingRegisterTime" type="text" readonly>
                   </div>
@@ -145,7 +146,7 @@
                     </select>
                   </div>
                   <div class="sorting-field">
-                    <label for="sortingWashWeight">Washed items weight (KG)</label>
+                    <label for="sortingWashWeight">Weight (KG)</label>
                     <input id="sortingWashWeight" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.0" required>
                   </div>
                 </div>
@@ -157,7 +158,7 @@
                     <div id="sortingSelectedCustomers" class="sorting-selected-customers"></div>
                   </div>
                   <div class="sorting-field">
-                    <label for="sortingWashStartTime">Start Time (Washer)</label>
+                    <label for="sortingWashStartTime">Washer start time</label>
                     <input id="sortingWashStartTime" type="time" required>
                   </div>
                 </div>
@@ -179,7 +180,7 @@
                 <div>
                   <p class="sorting-section-eyebrow">History</p>
                   <h2>Recent washes</h2>
-                  <p>Search by customer, Wash ID, washer, staff or type.</p>
+                  
                 </div>
                 <details id="sortingRareActions" class="sorting-rare-actions">
                   <summary>More actions</summary>
@@ -190,14 +191,14 @@
                 </details>
               </header>
               <div class="sorting-history-search">
-                <input id="sortingWashHistorySearch" type="search" placeholder="Search washed history…" autocomplete="off">
+                <input id="sortingWashHistorySearch" type="search" placeholder="Search washes…" autocomplete="off">
                 <button id="sortingWashHistorySearchButton" class="sorting-secondary-button" type="button">Search</button>
                 <button id="sortingWashHistoryClearButton" class="sorting-link-button" type="button" hidden>Clear search</button>
                 <span id="sortingWashHistorySearchStatus">Showing recent washes</span>
               </div>
               <div class="sorting-table-wrap">
                 <table class="sorting-table">
-                  <thead><tr><th>Washed</th><th>Wash ID</th><th>Washer</th><th>Customers</th><th>Scheduled</th><th>Start</th><th>Weight</th><th>Staff</th><th>Type</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Washed</th><th>Wash ID</th><th>Washer</th><th>Customers</th><th>Start</th><th>Weight</th><th>Staff</th><th>Type</th><th>Actions</th></tr></thead>
                   <tbody id="sortingRecentWashesBody"></tbody>
                 </table>
               </div>
@@ -206,7 +207,7 @@
 
           <aside class="sorting-today-sidebar">
             <header>
-              <div><p class="sorting-section-eyebrow">Production schedule</p><h2>Today's Customers</h2><small class="sorting-board-subtitle">Today + work ahead</small></div>
+              <div><p class="sorting-section-eyebrow">Production schedule</p><h2>Today's Customers</h2></div>
               <span id="sortingTodayTypeBadge" class="sorting-today-type">All today</span>
             </header>
             <div id="sortingTodayProgress" class="sorting-progress-block"></div>
@@ -279,7 +280,7 @@
               <div>
                 <p class="sorting-section-eyebrow">Production schedule</p>
                 <h2>Today's Customers</h2>
-                <small class="sorting-board-subtitle">Same list as Washing · tap a customer after scanning</small>
+                
               </div>
               <span id="sortingTrolleyTodayTypeBadge" class="sorting-today-type">All today</span>
             </header>
