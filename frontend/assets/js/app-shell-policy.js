@@ -293,7 +293,8 @@
       permission: NAVIGATION_PERMISSIONS.PRODUCTION_TRACKER,
       children: [
         { id:"production-tracker-map", label:"Production map", href:"./pages/production-tracker.html?view=map" },
-        { id:"production-tracker-board", label:"Route board", href:"./pages/production-tracker.html?view=board" }
+        { id:"production-tracker-board", label:"Route board", href:"./pages/production-tracker.html?view=board" },
+        { id:"production-tracker-trolley-check", label:"Trolley check", href:"./pages/trolley-check.html" }
       ]
     },
     {
@@ -371,6 +372,7 @@
     "finish-production.html": "finish",
     "finish-results.html": "finish-results",
     "production-tracker.html": "production-tracker",
+    "trolley-check.html": "production-tracker",
     "trolleys.html": "trolleys",
     "distribution.html": "distribution",
     "driver-guides.html": "distribution",

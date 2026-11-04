@@ -80,6 +80,33 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — Production Tracker: end-of-shift trolley check
+
+- Branch / commits: `claude/shift-trolley-check`, Pull Request
+- Changed: new phone-first page `pages/trolley-check.html` (Production Tracker › Trolley check).
+  The supervisor, or a person they choose, confirms each customer of the production list
+  (default: today's list, delivered tomorrow; any day and Morning/Evening can be chosen):
+  All correct / Something wrong (counted trolleys, empty trolleys, clothes or MOPs missing,
+  empty trolley missing, ready but not recorded, wrong size, other + note, Fixed now or
+  Still wrong) / Not ready yet. "Finish check" closes the shift (note required when
+  customers were not checked). History tab shows per day and shift whether the check was
+  done, by whom, when, and every fix or open problem.
+- Database: `202611040001_production_trolley_shift_check.sql` **Prepared, not applied**:
+  tables `production_trolley_checks` (one per date + shift) and append-only
+  `production_trolley_check_items`; RPCs `get_production_trolley_check_v1`,
+  `record_production_trolley_check_item`, `complete_production_trolley_check`,
+  `get_production_trolley_check_history_v1`. Expected values come from
+  `get_production_tracker_v4`. Writes: ADMIN, MANAGER, SUPERVISOR, FINISH_OPERATOR,
+  MOP_OPERATOR (or PRODUCTION_TRACKER/FINISH/MOP EDIT), personal accounts only.
+- Validation: migration plus a functional test run inside one transaction on ElisCaretex-dev
+  and rolled back ("TESTE OK": records, revisions, rules, completion lock, history,
+  append-only, terminal and anon refused). `node scripts/validate-repository.mjs` passed.
+  Page checked with Playwright on desktop and phone with mocked RPC data.
+- Open / next: owner applies the migration in the SQL editor, then runs
+  `supabase/tests/202611040001_production_trolley_shift_check_validation.sql`.
+  Saving a result takes about 1 s (it rebuilds the day's Production Tracker rows); the
+  page saves in the background so the user can keep going.
+
 ## 2026-11-03 — Claude — Physical Trolleys: Locations heading text
 
 - Branch / commits: `claude/trolleys-title`, Pull Request into `master`.

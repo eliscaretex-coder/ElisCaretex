@@ -54,6 +54,7 @@
       ".finish-topbar",
       ".finish-results-topbar",
       ".production-tracker-header",
+      ".trolley-check-topbar",
       ".trolleys-header",
       ".production-insights-header"
     ].join(","));
@@ -417,6 +418,7 @@
       "finish-production.html": permissions.FINISH,
       "finish-results.html": permissions.FINISH_RESULTS,
       "production-tracker.html": permissions.PRODUCTION_TRACKER,
+      "trolley-check.html": permissions.PRODUCTION_TRACKER,
       "distribution.html": permissions.DISTRIBUTION,
       "trolleys.html": permissions.TROLLEYS,
       "staff.html": permissions.STAFF_MASTER

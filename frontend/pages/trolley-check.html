@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b8b8c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ElisCaretex">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../assets/img/icons/apple-touch-icon.png">
+  <script src="../assets/js/pwa.js" defer></script>
+  <title>Trolley Check | ElisCaretex</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/app-shell.css">
+  <link rel="stylesheet" href="../assets/css/trolley-check.css?v=20261104-1">
+  <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
+  <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+  <script src="../assets/js/config.js" defer></script>
+  <script src="../assets/js/supabase-client.js" defer></script>
+  <script src="../assets/js/app-shell-policy.js?v=20261104-1" defer></script>
+  <script src="../assets/js/operational-page-nav.js?v=20261104-1" defer></script>
+  <script src="../assets/js/trolley-check.js?v=20261104-1" defer></script>
+</head>
+<body class="trolley-check-page">
+  <div class="trolley-check-shell" data-operational-shell-root>
+    <main class="trolley-check-content">
+      <header class="trolley-check-topbar">
+        <div>
+          <p>Production Tracker</p>
+          <h1>End-of-shift trolley check</h1>
+          <span>Walk the ready trolleys and confirm each customer of the production list.</span>
+        </div>
+        <div class="trolley-check-tabs" role="tablist" aria-label="Trolley check views">
+          <button id="trolleyCheckTabCheck" type="button" role="tab" aria-selected="true">Check</button>
+          <button id="trolleyCheckTabHistory" type="button" role="tab" aria-selected="false">History</button>
+        </div>
+      </header>
+
+      <p id="trolleyCheckMessage" class="trolley-check-message" aria-live="polite"></p>
+
+      <section id="trolleyCheckView" class="trolley-check-view">
+        <div class="trolley-check-controls">
+          <div class="trolley-check-day">
+            <button id="trolleyCheckPrev" type="button" aria-label="Previous production day">‹</button>
+            <label class="trolley-check-date">
+              <strong id="trolleyCheckDateLabel">—</strong>
+              <small id="trolleyCheckDeliveryLabel">—</small>
+              <input id="trolleyCheckDate" type="date" aria-label="Production date">
+            </label>
+            <button id="trolleyCheckNext" type="button" aria-label="Next production day">›</button>
+          </div>
+          <div class="trolley-check-seg" role="group" aria-label="Shift">
+            <button type="button" data-shift="MORNING" aria-pressed="false">Morning</button>
+            <button type="button" data-shift="EVENING" aria-pressed="false">Evening</button>
+          </div>
+          <button id="trolleyCheckToday" class="trolley-check-link" type="button" hidden>Back to today</button>
+        </div>
+
+        <div id="trolleyCheckStatus" class="trolley-check-status"></div>
+
+        <div class="trolley-check-filters">
+          <div class="trolley-check-chips" role="group" aria-label="Filter customers">
+            <button type="button" data-filter="ALL" aria-pressed="true">All</button>
+            <button type="button" data-filter="TODO" aria-pressed="false">To check</button>
+            <button type="button" data-filter="ISSUES" aria-pressed="false">Problems</button>
+            <button type="button" data-filter="UNRECORDED" aria-pressed="false">Not recorded yet</button>
+          </div>
+          <input id="trolleyCheckSearch" type="search" placeholder="Search customer or route" aria-label="Search customer or route">
+        </div>
+
+        <div id="trolleyCheckList" class="trolley-check-list" aria-live="polite">
+          <div class="trolley-check-empty">Loading production list…</div>
+        </div>
+
+        <div id="trolleyCheckFooter" class="trolley-check-footer" hidden>
+          <span id="trolleyCheckFooterText">—</span>
+          <button id="trolleyCheckFinish" class="trolley-check-primary" type="button">Finish check</button>
+        </div>
+      </section>
+
+      <section id="trolleyCheckHistoryView" class="trolley-check-view" hidden>
+        <div class="trolley-check-history-top">
+          <div>
+            <h2>Was the check done?</h2>
+            <span>Every production day has a Morning and an Evening check.</span>
+          </div>
+          <label>Period
+            <select id="trolleyCheckHistoryPeriod" aria-label="History period">
+              <option value="7">Last 7 days</option>
+              <option value="14" selected>Last 14 days</option>
+              <option value="31">Last 31 days</option>
+            </select>
+          </label>
+        </div>
+        <div id="trolleyCheckHistoryTotals" class="trolley-check-history-totals"></div>
+        <div id="trolleyCheckHistory" class="trolley-check-history"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="trolleyCheckDialog" class="trolley-check-sheet" aria-labelledby="trolleyCheckDialogTitle">
+    <form method="dialog" class="trolley-check-sheet-body" id="trolleyCheckForm">
+      <header>
+        <div>
+          <small id="trolleyCheckDialogRoute">—</small>
+          <h2 id="trolleyCheckDialogTitle">Customer</h2>
+        </div>
+        <button type="button" class="trolley-check-close" data-close aria-label="Close">×</button>
+      </header>
+      <div id="trolleyCheckExpected" class="trolley-check-expected"></div>
+      <p id="trolleyCheckLast" class="trolley-check-last" hidden></p>
+      <div id="trolleyCheckActions" class="trolley-check-actions">
+        <button type="button" class="trolley-check-ok" data-result="OK">✓ All correct</button>
+        <button type="button" class="trolley-check-wrong" data-open-problem>Something wrong</button>
+        <button type="button" class="trolley-check-notready" data-result="NOT_READY">Not ready yet</button>
+      </div>
+      <div id="trolleyCheckProblem" class="trolley-check-problem" hidden>
+        <div class="trolley-check-counters">
+          <div class="trolley-check-counter">
+            <span>Trolleys counted</span>
+            <div><button type="button" data-step="trolleys" data-delta="-1" aria-label="One less trolley">−</button><output id="trolleyCheckCounted">0</output><button type="button" data-step="trolleys" data-delta="1" aria-label="One more trolley">+</button></div>
+          </div>
+          <div class="trolley-check-counter" id="trolleyCheckEmptyCounter">
+            <span>Empty trolleys counted</span>
+            <div><button type="button" data-step="empty" data-delta="-1" aria-label="One less empty trolley">−</button><output id="trolleyCheckCountedEmpty">0</output><button type="button" data-step="empty" data-delta="1" aria-label="One more empty trolley">+</button></div>
+          </div>
+        </div>
+        <p class="trolley-check-problem-title">What was wrong?</p>
+        <div id="trolleyCheckIssues" class="trolley-check-issues"></div>
+        <textarea id="trolleyCheckNote" maxlength="500" rows="2" placeholder="Note (what you found / what you did)"></textarea>
+        <div class="trolley-check-problem-actions">
+          <button type="button" class="trolley-check-fixed" data-result="CORRECTED">Fixed now</button>
+          <button type="button" class="trolley-check-open" data-result="PROBLEM">Still wrong</button>
+        </div>
+      </div>
+      <p id="trolleyCheckDialogMessage" class="trolley-check-dialog-message" aria-live="polite"></p>
+    </form>
+  </dialog>
+
+  <dialog id="trolleyCheckFinishDialog" class="trolley-check-sheet" aria-labelledby="trolleyCheckFinishTitle">
+    <form method="dialog" class="trolley-check-sheet-body">
+      <header>
+        <div><small>End of shift</small><h2 id="trolleyCheckFinishTitle">Finish the check</h2></div>
+        <button type="button" class="trolley-check-close" data-close aria-label="Close">×</button>
+      </header>
+      <div id="trolleyCheckFinishSummary" class="trolley-check-finish-summary"></div>
+      <textarea id="trolleyCheckFinishNote" maxlength="1000" rows="3" placeholder="Note for management (required when customers were not checked)"></textarea>
+      <div class="trolley-check-problem-actions">
+        <button type="button" class="trolley-check-primary" id="trolleyCheckFinishConfirm">Finish check</button>
+      </div>
+      <p id="trolleyCheckFinishMessage" class="trolley-check-dialog-message" aria-live="polite"></p>
+    </form>
+  </dialog>
+</body>
+</html>
