@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — Sorting: mark a customer as "Nothing sent"
+
+- Branch / commits: `claude/sorting-nothing-sent`, Pull Request into `master`
+- Changed: in Trolley Intake, tapping a "Waiting receipt" customer (no trolley scanned) shows
+  "Customer sent nothing"; it records the fact and the customer turns grey as
+  "Nothing sent · nothing to process" (Undo by tapping again). Washing's Today's Customers shows
+  the same label and both progress counts treat it as handled. New `sorting-simple.css` rules.
+  Frontend tolerates the RPC being absent (PGRST202) until the migration is applied.
+- Database: `202611040005_sorting_customer_nothing_sent.sql` (new table, read RPC, record/cancel
+  RPCs behind `terminal_` wrappers, audit_log entries). **Prepared, not applied**: the owner
+  applies it in the SQL editor. Validation file `supabase/tests/202611040005_..._validation.sql`.
+- Validation: migration applied and exercised on a local PostgreSQL 16 with stub tables
+  (record, idempotent repeat, read, undo, refusals for wrong weekday, existing wash, staff not
+  in Sorting; privileges). `validate-repository.mjs` passed. Screenshots with mocked RPCs.
+- Open / next: Production Tracker and Finish still show the customer as not started; they do
+  not read the new table yet.
+
 ## 2026-11-04 — Claude — Sorting Area: cleaner Washing and Trolley Intake screens
 
 - Branch / commits: `claude/sorting-visual-simples`, Pull Request into `master`

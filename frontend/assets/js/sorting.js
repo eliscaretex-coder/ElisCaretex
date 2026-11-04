@@ -428,7 +428,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       record_sorting_trolley_intake_v2:"terminal_record_sorting_trolley_intake_v2",
       record_sorting_non_trolley_arrival:"terminal_record_sorting_non_trolley_arrival",
       correct_sorting_trolley_intake:"terminal_correct_sorting_trolley_intake",
-      cancel_sorting_trolley_intake:"terminal_cancel_sorting_trolley_intake"
+      cancel_sorting_trolley_intake:"terminal_cancel_sorting_trolley_intake",
+      record_sorting_customer_nothing_sent:"terminal_record_sorting_customer_nothing_sent",
+      cancel_sorting_customer_nothing_sent:"terminal_cancel_sorting_customer_nothing_sent"
     };
     if(stationWrites[name]){
       name=stationWrites[name];
@@ -796,11 +798,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rows=boardCustomers().filter(r=>visibleTypes.includes(r.product_code));
     const todayRows=rows.filter(r=>r.day_relation==="TODAY");
     const tomorrowRows=rows.filter(r=>r.day_relation==="TOMORROW");
-    const todayDone=todayRows.filter(r=>r.status==="WASHED").length;
+    const handled=r=>r.status==="WASHED"||Boolean(nothingSentFor(r));
+    const todayDone=todayRows.filter(handled).length;
     const todayTotal=todayRows.length;
     const todayPct=todayTotal?Math.round(todayDone/todayTotal*100):0;
     const todayComplete=todayTotal>0&&todayDone===todayTotal;
-    const tomorrowStarted=tomorrowRows.some(r=>r.status==="WASHED");
+    const tomorrowStarted=tomorrowRows.some(handled);
     const showTomorrow=tomorrowStarted||todayComplete;
 
     el.todayType.textContent=showTomorrow?"Today + next":"Today";
@@ -815,7 +818,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const renderDay=(dayRows,relation)=>{
       if(!dayRows.length)return "";
       const date=dayRows[0].scheduled_for_date;
-      const dayDone=dayRows.filter(r=>r.status==="WASHED").length;
+      const dayDone=dayRows.filter(handled).length;
       const relationLabel=relation==="TODAY"?"TODAY":"WORK AHEAD";
       return `<section class="sorting-board-day ${relation.toLowerCase()}">
         <div class="sorting-board-day-header">
@@ -825,7 +828,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${visibleTypes.map(type=>{
           const group=dayRows.filter(r=>r.product_code===type);
           if(!group.length)return "";
-          const groupDone=group.filter(r=>r.status==="WASHED").length;
+          const groupDone=group.filter(handled).length;
           return `<div class="sorting-today-group${el.type.value===type?" selected-type":""}">
             <div class="sorting-today-group-title"><strong>${type}</strong><span>${groupDone}/${group.length}</span></div>
             ${group.map(r=>{
@@ -850,8 +853,10 @@ document.addEventListener("DOMContentLoaded", async () => {
               if(!washed&&!scanReady&&otherReceipt){
                 gateLabel=`Received as ${esc(intakeProductCodes(otherReceipt).join(" + "))} · fix in Intake`;
               }
-              const dotClass=washed?"done":scanReady?"scan-ready":otherReceipt?"other-service":emptyOnly?"empty-only":"pending";
-              return `<div class="sorting-today-item${routeColor?" route-colored":""}${washed?" is-washed":""}${scanReady?" wash-scan-ready":""}${otherReceipt?" wash-other-service":""}${emptyOnly?" wash-empty-only":""}${washedNoScan?" wash-no-scan":""}"${routeStyle}
+              const notSent=!washed&&!scanReady?nothingSentFor(r):null;
+              if(notSent)gateLabel="Nothing sent · nothing to process";
+              const dotClass=washed?"done":notSent?"not-sent":scanReady?"scan-ready":otherReceipt?"other-service":emptyOnly?"empty-only":"pending";
+              return `<div class="sorting-today-item${routeColor?" route-colored":""}${washed?" is-washed":""}${notSent?" is-nothing-sent":""}${scanReady?" wash-scan-ready":""}${otherReceipt?" wash-other-service":""}${emptyOnly?" wash-empty-only":""}${washedNoScan?" wash-no-scan":""}"${routeStyle}
                 title="${esc(r.route_display_name||r.route_code||"No route color")}">
                 <span class="sorting-today-status ${dotClass}"></span>
                 <div class="sorting-today-main">
@@ -1221,7 +1226,56 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.washing.unscheduled_scan_customers=Array.isArray(board?.unscheduled_scan_customers)?board.unscheduled_scan_customers:[];
       state.washing.wash_scan_gate_required=Boolean(board?.wash_scan_gate_required);
     }
+    await loadNothingSent(state.washing?.business_date);
     renderHeader();renderReference();renderSelected();renderToday();renderRecentWashes();
+  }
+
+  // "Nothing sent": scheduled customer sent no trolley and no contents (202611040005).
+  async function loadNothingSent(businessDate){
+    const base=String(businessDate||"").slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(base)){state.nothingSent=[];return;}
+    const shift=(days)=>{const d=new Date(`${base}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
+    try{
+      const rows=await rpc("get_sorting_customer_nothing_sent",{p_date_from:shift(-2),p_date_to:shift(4)});
+      state.nothingSent=Array.isArray(rows)?rows:[];
+    }catch(error){
+      // Before the migration is applied the RPC does not exist: keep the screen working.
+      if(error?.code!=="PGRST202")console.warn("Nothing sent list unavailable",error);
+      state.nothingSent=[];
+    }
+  }
+  function nothingSentFor(row){
+    if(!row?.schedule_product_id)return null;
+    const date=String(row.scheduled_for_date||"").slice(0,10);
+    return (state.nothingSent||[]).find(n=>n.schedule_product_id===row.schedule_product_id&&String(n.scheduled_for_date).slice(0,10)===date)||null;
+  }
+  async function markNothingSent(button){
+    const row=trolleyBoard().find(r=>r.schedule_product_id===button.dataset.nothingSentMark&&r.scheduled_for_date===button.dataset.nothingSentDate);
+    if(!row)return;
+    const operator=trolleySelectedOperator();
+    if(!operator){promptTrolleyStaffSelection("Select your name in RECEIVING AS before marking Nothing sent.");return;}
+    if(!window.confirm(`${row.customer_name} (${row.product_code}) sent nothing for ${fullDayDate(row.scheduled_for_date)}?\n\nIt will show as "Nothing sent". You can undo it.`))return;
+    button.disabled=true;
+    try{
+      const result=await rpc("record_sorting_customer_nothing_sent",{p_shift_code:state.shift,p_schedule_product_id:row.schedule_product_id,p_scheduled_for_date:row.scheduled_for_date,p_operator_staff_id:operator.staff_id,p_notes:null});
+      state.nothingSentOpenKey=null;
+      await loadNothingSent(state.washing?.business_date||state.sorting?.business_date);
+      renderTrolleySidebar();renderToday();
+      setMessage(result?.message||`${row.customer_name} marked as Nothing sent.`,"success");
+    }catch(error){console.error(error);setMessage(friendly(error),"error");button.disabled=false;}
+  }
+  async function undoNothingSent(button){
+    const mark=(state.nothingSent||[]).find(n=>n.sorting_customer_nothing_sent_id===button.dataset.nothingSentUndo);
+    if(!mark)return;
+    if(!window.confirm(`Undo Nothing sent for ${mark.customer_name}?`))return;
+    button.disabled=true;
+    try{
+      const result=await rpc("cancel_sorting_customer_nothing_sent",{p_sorting_customer_nothing_sent_id:mark.sorting_customer_nothing_sent_id,p_reason:null});
+      state.nothingSentOpenKey=null;
+      await loadNothingSent(state.washing?.business_date||state.sorting?.business_date);
+      renderTrolleySidebar();renderToday();
+      setMessage(result?.message||`${mark.customer_name} is waiting receipt again.`,"success");
+    }catch(error){console.error(error);setMessage(friendly(error),"error");button.disabled=false;}
   }
 
   function recentWashById(id){
@@ -3275,21 +3329,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rows=trolleyBoard();
     const todayRows=rows.filter(r=>r.day_relation==="TODAY");
     const tomorrowRows=rows.filter(r=>r.day_relation==="TOMORROW");
-    const todayReceived=todayRows.filter(r=>Number((r.receipt_evidence_count??r.received_count)||0)>0).length;
+    const handled=r=>Number((r.receipt_evidence_count??r.received_count)||0)>0||Boolean(nothingSentFor(r));
+    const todayReceived=todayRows.filter(handled).length;
     const todayTotal=todayRows.length;
     const pct=todayTotal?Math.round(todayReceived/todayTotal*100):0;
-    const tomorrowStarted=tomorrowRows.some(r=>Number((r.receipt_evidence_count??r.received_count)||0)>0);
+    const tomorrowStarted=tomorrowRows.some(handled);
     const todayComplete=todayTotal>0&&todayRows.every(r=>{
       const planned=Number(r.planned_trolley_quantity||0);
       return r.operational_state==="NOTHING_TO_WASH"
         || Number((r.receipt_evidence_count??r.received_count)||0)>0
         || (planned>0&&Number(r.received_count||0)>=planned)
-        || Number(r.wash_count||0)>0;
+        || Number(r.wash_count||0)>0
+        || Boolean(nothingSentFor(r));
     });
     const showTomorrow=tomorrowStarted||todayComplete;
 
     el.trolleyTodayType.textContent=showTomorrow?"Today + next":"Today";
-    el.trolleyTodayProgress.innerHTML=`<div class="sorting-progress-copy"><span>${todayReceived} of ${todayTotal} customers have receipt evidence</span><strong>${pct}%</strong></div>
+    el.trolleyTodayProgress.innerHTML=`<div class="sorting-progress-copy"><span>${todayReceived} of ${todayTotal} customers received or marked</span><strong>${pct}%</strong></div>
       <div class="sorting-progress-track"><div class="sorting-progress-fill" style="width:${pct}%"></div></div>`;
 
     const renderDay=(dayRows,relation)=>{
@@ -3299,18 +3355,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `<section class="sorting-board-day ${relation.toLowerCase()}">
         <div class="sorting-board-day-header">
           <div><strong>${esc(fullDayDate(date))}</strong><span>${relationLabel}</span></div>
-          <b>${dayRows.filter(r=>Number((r.receipt_evidence_count??r.received_count)||0)>0).length}/${dayRows.length}</b>
+          <b>${dayRows.filter(handled).length}/${dayRows.length}</b>
         </div>
         ${["CLOTHES","MOP"].map(type=>{
           const group=dayRows.filter(r=>r.product_code===type);
           if(!group.length)return "";
           return `<div class="sorting-today-group">
-            <div class="sorting-today-group-title"><strong>${type}</strong><span>${group.filter(r=>Number((r.receipt_evidence_count??r.received_count)||0)>0).length}/${group.length}</span></div>
+            <div class="sorting-today-group-title"><strong>${type}</strong><span>${group.filter(handled).length}/${group.length}</span></div>
             ${group.map(r=>{
               const routeColor=r.route_color||"";
               const routeFg=routeTextColor(routeColor);
               const routeStyle=routeColor?` style="--route-bg:${esc(routeColor)};--route-fg:${routeFg}"`:"";
-              const stateInfo=receptionRowState(r);
+              const notSent=nothingSentFor(r);
+              const stateInfo=notSent?{label:"Nothing sent · nothing to process",kind:"not-sent"}:receptionRowState(r);
               const selected=Boolean(state.trolley&&state.trolleyDraft?.customer_id===r.customer_id&&state.trolleyDraft?.scheduled_for_date===r.scheduled_for_date&&state.trolleyDraft?.product_codes?.includes(r.product_code));
               const qty=Number(r.planned_trolley_quantity||0);
               const received=Number(r.received_count||0);
@@ -3326,15 +3383,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                 : scanned
                   ? `SCANNED ${received}${qty>0?`/${qty}`:""}${receivedSizeText?` · ${receivedSizeText}`:""}`
                   : r.no_trolley_eligible?"NO TROLLEY · ARRIVAL NOT CONFIRMED":"NOT SCANNED";
-              const statusClass=washed?"done":hasEvidence?"scanned":"pending";
-              const noTrolleyAction=r.no_trolley_eligible
+              const statusClass=washed?"done":hasEvidence?"scanned":notSent?"not-sent":"pending";
+              const rowKey=`${r.schedule_product_id}|${r.scheduled_for_date}`;
+              const nothingSentAction=state.nothingSentOpenKey!==rowKey
+                ? ""
+                : notSent
+                ? `<button type="button" class="sorting-nothing-sent-action undo" data-nothing-sent-undo="${esc(notSent.sorting_customer_nothing_sent_id)}">Undo Nothing sent</button>`
+                : (!hasEvidence&&!washed&&r.schedule_product_id&&r.operational_state!=="NOTHING_TO_WASH")
+                  ? `<button type="button" class="sorting-nothing-sent-action" data-nothing-sent-mark="${esc(r.schedule_product_id)}" data-nothing-sent-date="${esc(r.scheduled_for_date)}">Customer sent nothing</button>`
+                  : "";
+              const noTrolleyAction=r.no_trolley_eligible&&!notSent
                 ? `<button type="button" class="sorting-no-trolley-action${noTrolleyReceived?" recorded":""}" ${noTrolleyReceived?"disabled":""}
                     data-no-trolley-arrival="${esc(r.schedule_product_id)}"
                     data-no-trolley-customer="${esc(r.customer_id)}"
                     data-no-trolley-date="${esc(r.scheduled_for_date)}"
                     data-no-trolley-product="${esc(r.product_code)}">${noTrolleyReceived?"✓ Contents received without trolley":"Receive without trolley"}</button>`
                 : "";
-              return `<div class="sorting-reception-board-wrap"><button type="button" class="sorting-today-item sorting-reception-board-item${routeColor?" route-colored":""}${selected?" reception-selected":""}${washed?" is-washed":""}${hasEvidence?" is-received":""}${noReceiptWash?" reception-no-receipt-wash":""} state-${stateInfo.kind}"${routeStyle}
+              return `<div class="sorting-reception-board-wrap"><button type="button" class="sorting-today-item sorting-reception-board-item${routeColor?" route-colored":""}${selected?" reception-selected":""}${washed?" is-washed":""}${hasEvidence?" is-received":""}${notSent?" is-nothing-sent":""}${noReceiptWash?" reception-no-receipt-wash":""} state-${stateInfo.kind}"${routeStyle}
                 data-reception-board-customer="${esc(r.customer_id)}"
                 data-reception-board-date="${esc(r.scheduled_for_date)}"
                 data-reception-board-product="${esc(r.product_code)}">
@@ -3345,7 +3410,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   ${scanned?`<span class="sorting-reception-scan-line scanned">${esc(scanText)}</span>`:""}
                 </div>
                 <span class="sorting-today-trolleys sorting-reception-contract" title="Contracted trolley requirement">${esc(requirementText)}</span>
-              </button>${noTrolleyAction}</div>`;
+              </button>${(noTrolleyAction||nothingSentAction)?`<div class="sorting-reception-board-actions">${noTrolleyAction}${nothingSentAction}</div>`:""}</div>`;
             }).join("")}
           </div>`;
         }).join("")}
@@ -5226,10 +5291,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.trolleyTodayList.addEventListener("click",e=>{
     const noTrolley=e.target.closest("[data-no-trolley-arrival]");
     if(noTrolley){const row=noTrolleyRowFromButton(noTrolley);if(row)openNoTrolleyArrival(row);return;}
+    const markNs=e.target.closest("[data-nothing-sent-mark]");
+    if(markNs){markNothingSent(markNs);return;}
+    const undoNs=e.target.closest("[data-nothing-sent-undo]");
+    if(undoNs){undoNothingSent(undoNs);return;}
     const row=e.target.closest("[data-reception-board-customer]");
     if(!row)return;
     if(!state.trolley){
-      setMessage("Scan a trolley first, then tap the customer in this list.","warning");
+      // No trolley scanned: tapping a customer opens the "sent nothing" option for it.
+      const board=trolleyBoard().find(r=>r.customer_id===row.dataset.receptionBoardCustomer&&r.scheduled_for_date===row.dataset.receptionBoardDate&&r.product_code===row.dataset.receptionBoardProduct);
+      const key=board?`${board.schedule_product_id}|${board.scheduled_for_date}`:null;
+      state.nothingSentOpenKey=state.nothingSentOpenKey===key?null:key;
+      renderTrolleySidebar();
+      setMessage(state.nothingSentOpenKey?"Scan the trolley first. If this customer sent nothing, press \"Customer sent nothing\".":"","warning");
       return;
     }
     setTrolleyCustomer(
