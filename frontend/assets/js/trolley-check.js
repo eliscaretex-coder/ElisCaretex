@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     status: $("trolleyCheckStatus"), list: $("trolleyCheckList"), search: $("trolleyCheckSearch"),
     footer: $("trolleyCheckFooter"), footerText: $("trolleyCheckFooterText"), finish: $("trolleyCheckFinish"),
     dialog: $("trolleyCheckDialog"), dialogTitle: $("trolleyCheckDialogTitle"), dialogRoute: $("trolleyCheckDialogRoute"),
-    expected: $("trolleyCheckExpected"), last: $("trolleyCheckLast"), actions: $("trolleyCheckActions"),
+    expected: $("trolleyCheckExpected"), summary: $("trolleyCheckSummary"), last: $("trolleyCheckLast"), actions: $("trolleyCheckActions"),
     problem: $("trolleyCheckProblem"), counted: $("trolleyCheckCounted"), countedEmpty: $("trolleyCheckCountedEmpty"),
     emptyCounter: $("trolleyCheckEmptyCounter"), issues: $("trolleyCheckIssues"), note: $("trolleyCheckNote"),
     dialogMessage: $("trolleyCheckDialogMessage"),
@@ -210,8 +210,75 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (Number(e.planned_empty_trolleys) > 0) rows.push(`<div class="empty"><span>Empty trolley</span><strong>${Number(e.planned_empty_trolleys)} <em>${esc(typesText(e.planned_empty_types))}</em></strong></div>`);
     if (e.has_clothes) rows.push(`<div class="${e.clothes_recorded ? "yes" : "no"}"><span>Clothes</span><strong>${e.clothes_recorded ? `Recorded in Finish · ${Number(e.clothes_kg || 0).toFixed(1)} kg` : "Not recorded in the system"}</strong></div>`);
     if (e.has_mop) rows.push(`<div class="${e.mop_recorded ? "yes" : "no"}"><span>MOP</span><strong>${e.mop_recorded ? "Recorded in MOP Production" : "Not recorded in the system"}</strong></div>`);
-    if ((e.recorded_trolleys || []).length) rows.push(`<div><span>Scanned</span><strong class="codes">${(e.recorded_trolleys || []).map((t) => `<code>${esc(t)}</code>`).join(" ")}</strong></div>`);
+    rows.push(...scannedRows(e));
     return rows.join("");
+  }
+
+  // Scanned trolleys split by the area that recorded them (Finish = Clothes, MOP
+  // Production = MOP), with the size of each trolley and a size total per area.
+  function scannedRows(e) {
+    const list = (e.recorded_trolleys || []).map((t) => typeof t === "string" ? { code: t, size: "?", source: "FINISH" } : t);
+    if (!list.length) return [];
+    const sources = [["FINISH", "Scanned · Finish"], ["MOP", "Scanned · MOP"]];
+    return sources.map(([source, label]) => {
+      const items = list.filter((t) => (t.source || "FINISH") === source);
+      if (!items.length) return "";
+      const sizes = new Map();
+      items.forEach((t) => sizes.set(t.size || "?", (sizes.get(t.size || "?") || 0) + 1));
+      const sizeText = [...sizes.entries()].map(([size, n]) => `${n} ${size}`).join(" + ");
+      const chips = items.map((t) => `<code title="${esc(t.size_name || t.size || "")}">${esc(t.code)} <b>${esc(t.size || "?")}</b></code>`).join(" ");
+      return `<div class="scanned ${source.toLowerCase()}"><span>${esc(label)}</span><strong><em class="tc-scan-total">${items.length} · ${esc(sizeText)}</em><span class="codes">${chips}</span></strong></div>`;
+    }).filter(Boolean);
+  }
+
+  // Plain summary at the top of the customer sheet: planned trolleys vs trolleys
+  // scanned by each area, and exactly where the difference is.
+  function sizeMap(list) {
+    const m = new Map();
+    (list || []).forEach((t) => { const k = t.type || t.size || "?"; m.set(k, (m.get(k) || 0) + Number(t.quantity ?? 1)); });
+    return m;
+  }
+  function mapText(m) { return [...m.entries()].filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(" + ") || "0"; }
+  function mapTotal(m) { return [...m.values()].reduce((a, b) => a + b, 0); }
+
+  function summaryHtml(c) {
+    const e = c.expected || {};
+    const scanned = (e.recorded_trolleys || []).map((t) => typeof t === "string" ? { code: t, size: "?", source: "FINISH" } : t);
+    const plannedBy = e.planned_by_source || { FINISH: e.planned_types || [] };
+    const areas = [];
+    if (e.has_clothes || plannedBy.FINISH || scanned.some((t) => t.source === "FINISH")) areas.push(["FINISH", "Clothes (Finish)", e.has_clothes, e.clothes_recorded]);
+    if (e.has_mop || plannedBy.MOP || scanned.some((t) => t.source === "MOP")) areas.push(["MOP", "MOP", e.has_mop, e.mop_recorded]);
+    const lines = [];
+    let problems = 0;
+    let plannedAll = 0;
+    let scannedAll = 0;
+    areas.forEach(([source, label, has, recorded]) => {
+      const plan = sizeMap(plannedBy[source]);
+      const scan = sizeMap(scanned.filter((t) => (t.source || "FINISH") === source).map((t) => ({ type: t.size || "?", quantity: 1 })));
+      const p = mapTotal(plan), s = mapTotal(scan);
+      plannedAll += p; scannedAll += s;
+      if (!p && !s && !has) return;
+      const diffs = [];
+      new Set([...plan.keys(), ...scan.keys()]).forEach((k) => {
+        const d = (plan.get(k) || 0) - (scan.get(k) || 0);
+        if (d > 0) diffs.push(`${d} ${k} missing`);
+        if (d < 0) diffs.push(`${-d} ${k} extra`);
+      });
+      if (has && !recorded) {
+        problems += 1;
+        lines.push(`<li class="bad"><b>${esc(label)}</b> not recorded in the system${s ? ` (${s} trolley${s === 1 ? "" : "s"} scanned)` : ""}. If it is ready here, it was produced but not recorded.</li>`);
+        return;
+      }
+      if (!s && p) { problems += 1; lines.push(`<li class="bad"><b>${esc(label)}</b>: no trolley scanned. Plan ${esc(mapText(plan))}.</li>`); return; }
+      if (diffs.length) { problems += 1; lines.push(`<li class="bad"><b>${esc(label)}</b>: ${s} scanned, plan ${p} — <b>${esc(diffs.join(", "))}</b>.</li>`); return; }
+      lines.push(`<li class="good"><b>${esc(label)}</b>: ${s} of ${p} scanned (${esc(mapText(scan))})</li>`);
+    });
+    const empty = sizeMap(e.planned_empty_types);
+    if (mapTotal(empty)) lines.push(`<li class="info">Also send <b>${esc(mapText(empty))} empty</b> trolley${mapTotal(empty) === 1 ? "" : "s"} (not scanned: check it by eye).</li>`);
+    const head = problems
+      ? `<strong class="bad">${problems} thing${problems === 1 ? "" : "s"} to check</strong>`
+      : `<strong class="good">System matches the plan</strong><span>Count ${scannedAll} trolley${scannedAll === 1 ? "" : "s"} here${mapTotal(empty) ? ` + ${mapTotal(empty)} empty` : ""}.</span>`;
+    return `<div class="tc-summary ${problems ? "bad" : "good"}">${head}<ul>${lines.join("")}</ul></div>`;
   }
 
   function renderIssues(c) {
@@ -238,6 +305,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.note.value = hasIssues ? (cur.note || "") : "";
     el.dialogTitle.textContent = c.customer_name;
     el.dialogRoute.textContent = [c.route_display_name || c.route_code, c.production_order != null ? `Order ${c.production_order}` : "", c.scheduled ? "" : "Not on Schedule"].filter(Boolean).join(" · ");
+    el.summary.innerHTML = summaryHtml(c);
     el.expected.innerHTML = expectedHtml(c);
     el.last.hidden = !cur;
     if (cur) el.last.innerHTML = `Last: <b class="${RESULT[cur.result].cls}">${esc(RESULT[cur.result].label)}</b> by ${esc(cur.recorded_by_name)} at ${esc(fmtTime(cur.recorded_at))}${cur.revisions > 1 ? ` · ${cur.revisions} changes` : ""}`;
