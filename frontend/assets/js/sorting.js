@@ -145,6 +145,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     moveAreaPanel: $("sortingMoveAreaPanel"),
     moveAreaSelect: $("sortingMoveAreaSelect"),
     noTrolleyArrivalDialog: $("sortingNoTrolleyArrivalDialog"),
+    nothingSentButton: $("sortingTrolleyNothingSentButton"),
+    nothingSentDialog: $("sortingNothingSentDialog"),
+    nothingSentList: $("sortingNothingSentList"),
+    nothingSentMessage: $("sortingNothingSentMessage"),
+    nothingSentSave: $("sortingNothingSentSaveButton"),
     noTrolleyArrivalSummary: $("sortingNoTrolleyArrivalSummary"),
     noTrolleyArrivalNotes: $("sortingNoTrolleyArrivalNotes"),
     noTrolleyArrivalMessage: $("sortingNoTrolleyArrivalMessage"),
@@ -1273,6 +1278,53 @@ document.addEventListener("DOMContentLoaded", async () => {
       setMessage(result?.message||`${row.customer_name} marked as Nothing sent.`,"success");
     }catch(error){console.error(error);setMessage(friendly(error),"error");button.disabled=false;}
   }
+  function nothingSentCandidates(){
+    return trolleyBoard().filter(r=>{
+      const evidence=Number(r.received_count||0)>0||Number(r.no_trolley_arrival_count||0)>0;
+      return r.schedule_product_id&&!evidence&&Number(r.wash_count||0)===0
+        &&r.operational_state!=="NOTHING_TO_WASH"&&!nothingSentFor(r)
+        &&["TODAY","TOMORROW"].includes(r.day_relation);
+    });
+  }
+  function openNothingSentDialog(){
+    const operator=trolleySelectedOperator();
+    if(!operator){promptTrolleyStaffSelection("Select your name in RECEIVING AS first.");return;}
+    state.nothingSentPick=null;
+    renderNothingSentDialog();
+    el.nothingSentMessage.textContent="";
+    el.nothingSentDialog.showModal();
+  }
+  function renderNothingSentDialog(){
+    const rows=nothingSentCandidates();
+    const marked=(state.nothingSent||[]);
+    const item=r=>{
+      const key=`${r.schedule_product_id}|${r.scheduled_for_date}`;
+      const color=safeRouteColor(r.route_color);
+      return `<button type="button" class="sorting-nothing-sent-pick${state.nothingSentPick===key?" selected":""}" data-nothing-sent-pick="${esc(key)}"${color?` style="--route-bg:${esc(color)}"`:""}>
+        <strong>${esc(r.customer_name)}</strong><span>${esc(r.product_code)} · ${esc(r.day_relation==="TODAY"?"Today":shortDayDate(r.scheduled_for_date))}</span></button>`;
+    };
+    el.nothingSentList.innerHTML=(rows.length
+      ? `<div class="sorting-nothing-sent-picks">${rows.map(item).join("")}</div>`
+      : '<p class="sorting-nothing-sent-empty">Every customer already has a receipt, a wash or a mark.</p>')
+      +(marked.length?`<h3>Already marked</h3><div class="sorting-nothing-sent-marked">${marked.map(m=>`<div><span><strong>${esc(m.customer_name)}</strong> ${esc(m.product_code)} · ${esc(shortDayDate(m.scheduled_for_date))}</span><button type="button" class="sorting-nothing-sent-action undo" data-nothing-sent-undo="${esc(m.sorting_customer_nothing_sent_id)}">Undo</button></div>`).join("")}</div>`:"");
+    el.nothingSentSave.disabled=!state.nothingSentPick;
+  }
+  async function saveNothingSentPick(){
+    const operator=trolleySelectedOperator();
+    const row=nothingSentCandidates().find(r=>`${r.schedule_product_id}|${r.scheduled_for_date}`===state.nothingSentPick);
+    if(!operator||!row)return;
+    el.nothingSentSave.disabled=true;
+    el.nothingSentMessage.textContent="Saving…";
+    try{
+      const result=await rpc("record_sorting_customer_nothing_sent",{p_shift_code:state.shift,p_schedule_product_id:row.schedule_product_id,p_scheduled_for_date:row.scheduled_for_date,p_operator_staff_id:operator.staff_id,p_notes:null});
+      state.nothingSentPick=null;state.nothingSentOpenKey=null;
+      await loadNothingSent(state.washing?.business_date||state.sorting?.business_date);
+      renderTrolleySidebar();renderToday();
+      el.nothingSentDialog.close();
+      setMessage(result?.message||`${row.customer_name} marked as Nothing sent.`,"success");
+    }catch(error){console.error(error);el.nothingSentMessage.textContent=friendly(error);el.nothingSentSave.disabled=false;}
+  }
+
   async function undoNothingSent(button){
     const mark=(state.nothingSent||[]).find(n=>n.sorting_customer_nothing_sent_id===button.dataset.nothingSentUndo);
     if(!mark)return;
@@ -1283,6 +1335,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.nothingSentOpenKey=null;
       await loadNothingSent(state.washing?.business_date||state.sorting?.business_date);
       renderTrolleySidebar();renderToday();
+      if(el.nothingSentDialog?.open)renderNothingSentDialog();
       setMessage(result?.message||`${mark.customer_name} is waiting receipt again.`,"success");
     }catch(error){console.error(error);setMessage(friendly(error),"error");button.disabled=false;}
   }
@@ -2756,6 +2809,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(state.trolleyOperatorStaffId&&!rows.some(row=>row.staff_id===state.trolleyOperatorStaffId)){
       state.trolleyOperatorStaffId=null;
     }
+    if(!state.trolleyOperatorStaffId){
+      const saved=rememberedReceivingAs();
+      if(saved&&rows.some(row=>row.staff_id===saved))state.trolleyOperatorStaffId=saved;
+    }
     if(!rows.length){
       el.trolleyStaffBar.innerHTML='<span class="sorting-reception-no-staff">No Sorting staff available for this shift.</span>';
       updateTrolleyScanGate();
@@ -2772,9 +2829,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateTrolleyScanGate();
   }
 
+  // RECEIVING AS is remembered on this computer for the same business date and shift,
+  // so leaving the page or reloading does not ask for the name again.
+  const receivingAsStorageKey="elis.sorting.receivingAs";
+  function receivingAsContext(){
+    return {date:String(state.sorting?.business_date||state.washing?.business_date||"").slice(0,10),shift:state.shift};
+  }
+  function rememberReceivingAs(staffId){
+    try{localStorage.setItem(receivingAsStorageKey,JSON.stringify({...receivingAsContext(),staffId}));}catch{}
+  }
+  function rememberedReceivingAs(){
+    try{
+      const saved=JSON.parse(localStorage.getItem(receivingAsStorageKey)||"null");
+      const now=receivingAsContext();
+      return saved&&now.date&&saved.date===now.date&&saved.shift===now.shift?saved.staffId:null;
+    }catch{return null;}
+  }
+
   function selectTrolleyStaff(staffId){
     if(!trolleyOperatorRows().some(row=>row.staff_id===staffId))return;
     state.trolleyOperatorStaffId=staffId;
+    rememberReceivingAs(staffId);
     if(state.trolleyDraft)state.trolleyDraft.operator_staff_id=staffId;
     renderTrolleyStaffBar();
     renderTrolleyResult();
@@ -5306,6 +5381,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     lookupTrolley(code);
   });
 
+  el.nothingSentButton?.addEventListener("click",openNothingSentDialog);
+  el.nothingSentSave?.addEventListener("click",saveNothingSentPick);
+  el.nothingSentList?.addEventListener("click",e=>{
+    const pick=e.target.closest("[data-nothing-sent-pick]");
+    if(pick){state.nothingSentPick=state.nothingSentPick===pick.dataset.nothingSentPick?null:pick.dataset.nothingSentPick;renderNothingSentDialog();return;}
+    const undo=e.target.closest("[data-nothing-sent-undo]");
+    if(undo)undoNothingSent(undo);
+  });
   el.trolleyTodayList.addEventListener("click",e=>{
     const noTrolley=e.target.closest("[data-no-trolley-arrival]");
     if(noTrolley){const row=noTrolleyRowFromButton(noTrolley);if(row)openNoTrolleyArrival(row);return;}

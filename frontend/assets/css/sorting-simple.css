@@ -86,3 +86,18 @@ body.sorting-page .sorting-today-item.is-nothing-sent span{color:#64748b !import
 body.sorting-page .sorting-today-item.is-nothing-sent .sorting-today-main > span{font-weight:800}
 body.sorting-page .sorting-today-item.is-nothing-sent .sorting-today-trolleys{opacity:.55}
 body.sorting-page .sorting-today-status.not-sent{background:#94a3b8 !important;border-color:#94a3b8 !important}
+
+/* "Customer sent nothing" dialog opened from the Trolley Intake scan card. */
+body.sorting-page .sorting-reception-nothing-sent-button{margin-top:8px}
+body.sorting-page .sorting-nothing-sent-dialog{width:min(560px,calc(100vw - 16px));max-width:none;border:0;padding:0;background:transparent}
+body.sorting-page .sorting-nothing-sent-dialog::backdrop{background:#0f172a99}
+body.sorting-page .sorting-nothing-sent-dialog .sorting-dialog-card{max-height:calc(100vh - 24px);overflow:auto}
+body.sorting-page .sorting-nothing-sent-list{padding:4px 16px 0}
+body.sorting-page .sorting-nothing-sent-picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+body.sorting-page .sorting-nothing-sent-pick{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:56px;padding:9px 12px;border:2px solid #dbe4ea;border-left:6px solid var(--route-bg,#94a3b8);border-radius:10px;background:#fff;color:#0f172a;text-align:left;cursor:pointer}
+body.sorting-page .sorting-nothing-sent-pick strong{font-size:15px}
+body.sorting-page .sorting-nothing-sent-pick span{color:#64748b;font-size:12px;font-weight:700}
+body.sorting-page .sorting-nothing-sent-pick.selected{border-color:#0f766e;background:#ecfdf5;box-shadow:0 0 0 3px #99f6e4}
+body.sorting-page .sorting-nothing-sent-empty{margin:8px 0;color:#64748b}
+body.sorting-page .sorting-nothing-sent-list h3{margin:16px 0 6px;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+body.sorting-page .sorting-nothing-sent-marked > div{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:9px;background:#f1f5f9;margin-bottom:6px;color:#475569;font-size:13px}
