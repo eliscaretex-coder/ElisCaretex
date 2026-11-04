@@ -70,3 +70,19 @@ body.sorting-page .sorting-wash-customer small{display:block;font-size:10px;opac
   body.sorting-page #sortingTrolleyScanTitle{font-size:24px;line-height:1.2}
   body.sorting-page #sortingTrolleyScanHint{font-size:14px}
 }
+
+/* "Nothing sent": customer sent no trolley and no contents. */
+body.sorting-page .sorting-reception-board-actions{display:flex;gap:6px;margin:4px 0 2px}
+body.sorting-page .sorting-reception-board-actions .sorting-no-trolley-action{margin-top:0;flex:2}
+body.sorting-page .sorting-nothing-sent-action{flex:1;min-height:36px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+body.sorting-page .sorting-nothing-sent-action:hover{background:#f1f5f9;color:#0f172a}
+body.sorting-page .sorting-nothing-sent-action.undo{flex:0 0 auto;margin-left:auto;border-style:dashed}
+body.sorting-page .sorting-reception-board-actions .sorting-nothing-sent-action:only-child:not(.undo){flex:0 0 auto;margin-left:auto}
+body.sorting-page .sorting-nothing-sent-action:disabled{opacity:.5;cursor:default}
+body.sorting-page .sorting-today-item.is-nothing-sent,
+body.sorting-page .sorting-reception-board-item.is-nothing-sent:not(.is-received):not(.is-washed).route-colored{background:#f1f5f9 !important;background-image:none !important;color:#64748b !important;border-color:#cbd5e1 !important;box-shadow:inset 5px 0 0 #94a3b8 !important}
+body.sorting-page .sorting-today-item.is-nothing-sent strong,
+body.sorting-page .sorting-today-item.is-nothing-sent span{color:#64748b !important}
+body.sorting-page .sorting-today-item.is-nothing-sent .sorting-today-main > span{font-weight:800}
+body.sorting-page .sorting-today-item.is-nothing-sent .sorting-today-trolleys{opacity:.55}
+body.sorting-page .sorting-today-status.not-sent{background:#94a3b8 !important;border-color:#94a3b8 !important}
