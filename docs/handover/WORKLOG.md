@@ -169,6 +169,26 @@ Entry format:
   that trigger changes. `app_config` and `audit_log` read policies still use the legacy
   role (no screen reads them directly).
 
+## 2026-11-04 — Claude — Trolley check: record missing production straight away
+
+- Branch / commits: `claude/trolley-check-record-now`, Pull Request
+- Why: the owner asked whether a supervisor who finds production ready but not recorded
+  can fix it so the Finish / MOP Production "confirmation required" warning does not come
+  up after the delivery deadline. The check itself never changes production data (official
+  KG only comes from Finish KG lines and MOP batches), so the owner chose (decision card,
+  2026-11-04) to record the production right away from the check.
+- Changed: the trolley check customer sheet shows "Record Clothes in Finish" and/or
+  "Record MOP in MOP Production" when that stream is not recorded. The link carries
+  `?customer=<id>&date=<schedule date>`; `finish-production.js` opens that customer's
+  registration dialog after the first load and `sorting.js` (standalone MOP Production)
+  selects that customer in the MOP queue. If the customer is not actionable (no wash yet,
+  already recorded, not in the queue) the page says so. The parameters are removed from
+  the URL after use. No database change.
+- Validation: `node scripts/validate-repository.mjs` passed; Playwright with mocked RPCs:
+  the button links to the right customer, Finish opens the CHARLEVILLE registration
+  dialog and MOP Production selects CHARLEVILLE with its MOP types form.
+- Open / next: none.
+
 ## 2026-11-04 — Claude — Trolley check: customers by route, MOP types and ABS
 
 - Branch / commits: `claude/trolley-check-mop-detail`, Pull Request

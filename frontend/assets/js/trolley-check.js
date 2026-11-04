@@ -298,6 +298,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   function mapText(m) { return [...m.entries()].filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(" + ") || "0"; }
   function mapTotal(m) { return [...m.values()].reduce((a, b) => a + b, 0); }
 
+  // Production found ready but not recorded: open Finish / MOP Production on this
+  // customer so it is recorded now (with the real KG), instead of becoming a
+  // confirmation request after the delivery deadline.
+  function recordNowHtml(c) {
+    const e = c.expected || {};
+    const q = `customer=${encodeURIComponent(c.customer_id)}&date=${encodeURIComponent(state.date || "")}`;
+    const links = [];
+    if (e.has_clothes && !e.clothes_recorded) links.push(`<a class="tc-record-now clothes" href="./finish-production.html?${q}"><b>Record Clothes in Finish</b><small>Enter the KG and trolleys now</small></a>`);
+    if (e.has_mop && !e.mop_recorded) links.push(`<a class="tc-record-now mop" href="./mop-production.html?${q}"><b>Record MOP in MOP Production</b><small>Enter the MOP types and KG now</small></a>`);
+    if (!links.length) return "";
+    return `<div class="tc-record-now-wrap"><p>Produced but not recorded? Record it now, so no warning comes up after delivery.</p>${links.join("")}</div>`;
+  }
+
   function summaryHtml(c) {
     const e = c.expected || {};
     const scanned = (e.recorded_trolleys || []).map((t) => typeof t === "string" ? { code: t, size: "?", source: "FINISH" } : t);
@@ -363,7 +376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.note.value = hasIssues ? (cur.note || "") : "";
     el.dialogTitle.textContent = c.customer_name;
     el.dialogRoute.textContent = [c.route_display_name || c.route_code, c.production_order != null ? `Order ${c.production_order}` : "", c.scheduled ? "" : "Not on Schedule"].filter(Boolean).join(" · ");
-    el.summary.innerHTML = summaryHtml(c);
+    el.summary.innerHTML = summaryHtml(c) + recordNowHtml(c);
     el.expected.innerHTML = expectedHtml(c);
     el.last.hidden = !cur;
     if (cur) el.last.innerHTML = `Last: <b class="${RESULT[cur.result].cls}">${esc(RESULT[cur.result].label)}</b> by ${esc(cur.recorded_by_name)} at ${esc(fmtTime(cur.recorded_at))}${cur.revisions > 1 ? ` · ${cur.revisions} changes` : ""}`;
