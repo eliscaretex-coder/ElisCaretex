@@ -150,26 +150,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!list.length) {
       el.list.innerHTML = `<div class="trolley-check-empty">${(state.data.customers || []).length ? "No customer matches this filter." : "No customers on the production list of this day."}</div>`;
     } else {
-      el.list.innerHTML = list.map((c) => {
-        const color = safeColor(c.route_color);
-        const r = c.current?.result;
-        const meta = r ? RESULT[r] : null;
-        const order = c.production_order != null ? c.production_order : "";
-        const issues = (c.current?.issue_codes || []).map((code) => ISSUE_LABEL[code] || code).join(", ");
-        return `<button type="button" class="tc-row ${meta ? meta.cls : "todo"}${needsAttention(c) ? " attention" : ""}" data-customer="${esc(c.customer_id)}" style="--route:${color};--route-text:${textColor(color)}">
-          <span class="tc-order">${esc(order)}</span>
-          <span class="tc-main">
-            <strong>${esc(c.customer_name)}</strong>
-            <small><b class="tc-route">${esc(c.route_code || "—")}</b>${customerLine(c)}${c.scheduled ? "" : ' <span class="tc-extra">Not on Schedule</span>'}</small>
-            ${issues ? `<small class="tc-issues">${esc(issues)}${c.current?.note ? ` · “${esc(c.current.note)}”` : ""}</small>` : ""}
-          </span>
-          <span class="tc-pill ${meta ? meta.cls : "todo"}">${meta ? esc(meta.label) : "Check"}${r ? `<small>${esc(fmtTime(c.current.recorded_at))}</small>` : ""}</span>
-        </button>`;
-      }).join("");
+      el.list.innerHTML = routeGroups(list).map((g) => routeBlock(g)).join("");
     }
     const c = counts();
     el.footer.hidden = !canEdit() || !state.data?.check;
     el.footerText.textContent = `${c.checked}/${c.total} checked${c.total - c.checked ? ` · ${c.total - c.checked} left` : ""}`;
+  }
+
+  // Customers grouped by delivery route, like the Production Tracker route board.
+  // The server list is already in production order, so routes appear in the order
+  // their first customer is produced and customers keep their order inside the route.
+  function routeKey(c) {
+    const code = String(c.route_code || "").trim(), name = String(c.route_display_name || "").trim();
+    return (code ? `CODE:${code}` : name ? `NAME:${name}` : "UNASSIGNED").toUpperCase();
+  }
+
+  function routeGroups(list) {
+    const map = new Map();
+    list.forEach((c) => {
+      const key = routeKey(c);
+      if (!map.has(key)) map.set(key, { key, code: String(c.route_code || "").trim(), name: String(c.route_display_name || c.route_code || "").trim() || "Route not recorded", color: safeColor(c.route_color), customers: [] });
+      map.get(key).customers.push(c);
+    });
+    return [...map.values()];
+  }
+
+  function routeBlock(g) {
+    const all = (state.data?.customers || []).filter((c) => routeKey(c) === g.key);
+    const checked = all.filter((c) => c.current?.result).length;
+    const problems = all.filter((c) => c.current?.result === "PROBLEM").length;
+    const trolleys = all.reduce((n, c) => n + Number(c.expected?.planned_trolleys || 0), 0);
+    const empty = all.reduce((n, c) => n + Number(c.expected?.planned_empty_trolleys || 0), 0);
+    const done = all.length && checked === all.length;
+    return `<section class="tc-route-block${done ? " done" : ""}" style="--route:${g.color};--route-text:${textColor(g.color)}">
+      <header class="tc-route-head">
+        <span class="tc-route-mark">${esc(g.code || "R")}</span>
+        <strong>${esc(g.name)}</strong>
+        <small>${all.length} customer${all.length === 1 ? "" : "s"} · ${trolleys} trolley${trolleys === 1 ? "" : "s"}${empty ? ` + ${empty} empty` : ""}</small>
+        <span class="tc-route-count${problems ? " problem" : done ? " ok" : ""}">${done ? "✓ " : ""}${checked}/${all.length}</span>
+      </header>
+      ${g.customers.map(customerRow).join("")}
+    </section>`;
+  }
+
+  function customerRow(c) {
+    const r = c.current?.result;
+    const meta = r ? RESULT[r] : null;
+    const order = c.production_order != null ? c.production_order : "";
+    const issues = (c.current?.issue_codes || []).map((code) => ISSUE_LABEL[code] || code).join(", ");
+    return `<button type="button" class="tc-row ${meta ? meta.cls : "todo"}${needsAttention(c) ? " attention" : ""}" data-customer="${esc(c.customer_id)}">
+      <span class="tc-order">${esc(order)}</span>
+      <span class="tc-main">
+        <strong>${esc(c.customer_name)}</strong>
+        <small>${customerLine(c)}${c.scheduled ? "" : ' <span class="tc-extra">Not on Schedule</span>'}</small>
+        ${issues ? `<small class="tc-issues">${esc(issues)}${c.current?.note ? ` · “${esc(c.current.note)}”` : ""}</small>` : ""}
+      </span>
+      <span class="tc-pill ${meta ? meta.cls : "todo"}">${meta ? esc(meta.label) : "Check"}${r ? `<small>${esc(fmtTime(c.current.recorded_at))}</small>` : ""}</span>
+    </button>`;
   }
 
   function render() {
@@ -209,9 +246,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     rows.push(`<div><span>Trolleys</span><strong>${planned}${e.planned_types?.length ? ` <em>${esc(typesText(e.planned_types))}</em>` : ""}</strong></div>`);
     if (Number(e.planned_empty_trolleys) > 0) rows.push(`<div class="empty"><span>Empty trolley</span><strong>${Number(e.planned_empty_trolleys)} <em>${esc(typesText(e.planned_empty_types))}</em></strong></div>`);
     if (e.has_clothes) rows.push(`<div class="${e.clothes_recorded ? "yes" : "no"}"><span>Clothes</span><strong>${e.clothes_recorded ? `Recorded in Finish · ${Number(e.clothes_kg || 0).toFixed(1)} kg` : "Not recorded in the system"}</strong></div>`);
-    if (e.has_mop) rows.push(`<div class="${e.mop_recorded ? "yes" : "no"}"><span>MOP</span><strong>${e.mop_recorded ? "Recorded in MOP Production" : "Not recorded in the system"}</strong></div>`);
+    if (e.has_mop) rows.push(...mopRows(e));
     rows.push(...scannedRows(e));
     return rows.join("");
+  }
+
+  const kg = (v) => `${Number(v || 0).toFixed(1)} kg`;
+  const units = (v) => v == null ? "" : `${Number(v).toLocaleString("en-IE")} unit${Number(v) === 1 ? "" : "s"}`;
+
+  // MOP: recorded total, each MOP type with its units and kg, and the ABS status.
+  function mopRows(e) {
+    if (!e.mop_recorded) return [`<div class="no"><span>MOP</span><strong>Not recorded in the system</strong></div>`];
+    const out = [`<div class="yes"><span>MOP</span><strong>Recorded in MOP Production${e.mop_kg != null ? ` · ${kg(e.mop_kg)}` : ""}</strong></div>`];
+    (e.mop_lines || []).forEach((l) => {
+      out.push(`<div class="mop-line"><span>${esc(l.type || "MOP")}</span><strong>${esc([units(l.units), l.weight_kg != null ? kg(l.weight_kg) : ""].filter(Boolean).join(" · "))}</strong></div>`);
+    });
+    const abs = e.mop_abs || [];
+    if (abs.length) {
+      const text = abs.map((a) => esc([a.batch_reference ? `Batch ${a.batch_reference}` : "", a.quantity != null ? `${Number(a.quantity).toFixed(1)} ${String(a.unit_code || "KG").toLowerCase()}` : "", a.recorded_by || "", a.recorded_at ? fmtTime(a.recorded_at) : ""].filter(Boolean).join(" · "))).join("<br>");
+      out.push(`<div class="yes abs"><span>ABS</span><strong>Recorded<em class="tc-abs-detail">${text}</em></strong></div>`);
+    } else if (e.mop_abs_recorded === false) {
+      out.push(`<div class="no abs"><span>ABS</span><strong>Not recorded in ABS yet</strong></div>`);
+    }
+    return out;
   }
 
   // Scanned trolleys split by the area that recorded them (Finish = Clothes, MOP
@@ -273,6 +330,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (diffs.length) { problems += 1; lines.push(`<li class="bad"><b>${esc(label)}</b>: ${s} scanned, plan ${p} — <b>${esc(diffs.join(", "))}</b>.</li>`); return; }
       lines.push(`<li class="good"><b>${esc(label)}</b>: ${s} of ${p} scanned (${esc(mapText(scan))})</li>`);
     });
+    if (e.has_mop && e.mop_recorded && e.mop_abs_recorded === false) lines.push(`<li class="info abs">MOP not recorded in <b>ABS</b> yet.</li>`);
     const empty = sizeMap(e.planned_empty_types);
     if (mapTotal(empty)) lines.push(`<li class="info">Also send <b>${esc(mapText(empty))} empty</b> trolley${mapTotal(empty) === 1 ? "" : "s"} (not scanned: check it by eye).</li>`);
     const head = problems

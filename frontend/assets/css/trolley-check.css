@@ -185,3 +185,22 @@ body.trolley-check-page{margin:0;background:var(--tc-bg);color:var(--tc-ink);fon
 .tc-summary li::before{position:absolute;left:0;top:0;font-weight:900}
 .tc-summary li.good::before{content:"✓";color:#16a34a}.tc-summary li.bad::before{content:"!";color:#c2410c}.tc-summary li.info::before{content:"+";color:#0369a1}
 .tc-summary li.bad{color:#7c2d12}
+
+/* Customers grouped by delivery route (202611040003 follow-up). */
+.trolley-check-list{gap:12px}
+.tc-route-block{display:flex;flex-direction:column;gap:6px}
+.tc-route-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"mark name count" "mark meta count";align-items:center;column-gap:9px;padding:8px 10px;border:1px solid #0f172a2e;border-radius:11px;background:var(--route);color:var(--route-text)}
+.tc-route-mark{grid-area:mark;display:flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 6px;border-radius:8px;background:#0f172a1f;font-size:.78rem;font-weight:900}
+.tc-route-head strong{grid-area:name;font-size:.86rem;line-height:1.2;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-route-head small{grid-area:meta;font-size:.68rem;font-weight:700;opacity:.9}
+.tc-route-count{grid-area:count;border-radius:999px;padding:4px 10px;background:#ffffffe6;color:#172033;font-size:.74rem;font-weight:900;white-space:nowrap}
+.tc-route-count.ok{background:#16a34a;color:#fff}.tc-route-count.problem{background:#dc2626;color:#fff}
+.tc-route-block .tc-row{margin-left:8px;width:calc(100% - 8px)}
+
+/* MOP types, kg and ABS in the customer sheet. */
+.trolley-check-expected .mop-line{background:#fffbeb;padding-left:22px}
+.trolley-check-expected .mop-line span{color:#92400e;text-transform:none;font-size:.76rem}
+.trolley-check-expected .abs{align-items:flex-start}
+.trolley-check-expected .abs strong{display:flex;flex-direction:column;align-items:flex-end}
+.trolley-check-expected .tc-abs-detail{display:block;margin:2px 0 0;font-size:.7rem;color:var(--tc-muted)}
+.tc-summary li.info.abs::before{content:"!";color:#b45309}

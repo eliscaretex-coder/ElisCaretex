@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — Trolley check: customers by route, MOP types and ABS
+
+- Branch / commits: `claude/trolley-check-mop-detail`, Pull Request
+- Changed: the trolley check list is grouped by delivery route (route header with code,
+  name, customers, planned trolleys and checked count; routes in production order, as on
+  the Route board). For MOP customers the customer sheet lists each MOP type with units and
+  kg (from MOP Production lines), the MOP total, and the ABS status (batch, kg, who and
+  when, or "Not recorded in ABS yet"); the summary also warns when MOP is not in ABS.
+- Database: `202611040003_production_trolley_check_mop_detail.sql` **Prepared, not
+  applied**: replaces `production_trolley_check_expected` only (adds `mop_kg`, `mop_lines`,
+  `mop_abs_recorded`, `mop_abs`). No table or permission change. pgTAP:
+  `supabase/tests/202611040003_production_trolley_check_mop_detail_validation.sql`.
+- Validation: function created and called for 2026-11-03 inside a rolled-back transaction
+  on ElisCaretex-dev ("TESTE OK"; CASHEL: Cleaning Cloths 952 / 23.8 kg + Velcro Mop
+  366 / 36.6 kg, ABS batch 110 60.4 kg; HEATHER HOUSE: ABS pending); clothes kg and
+  trolley totals unchanged; `node scripts/validate-repository.mjs` passed; list and sheet
+  checked with Playwright on phone and desktop.
+- Open / next: owner applies the migration. Until then the sheet shows the MOP line
+  without types or ABS; route grouping works without it.
+
 ## 2026-11-04 — Claude — Trolley check: scanned sizes by area and a plain summary
 
 - Branch / commits: `claude/trolley-check-scanned-sizes`, Pull Request
@@ -88,8 +108,8 @@ Entry format:
   wrong ("1 S missing", "1 M extra", "MOP not recorded in the system", "no trolley
   scanned"), plus the empty trolleys to check by eye. Scanned trolleys are listed per area
   (Finish / MOP) with the size of each one.
-- Database: `202611040002_production_trolley_check_scanned_sizes.sql` **Prepared, not
-  applied**: replaces `production_trolley_check_expected` only (`recorded_trolleys` becomes
+- Database: `202611040002_production_trolley_check_scanned_sizes.sql` **Applied** by the
+  owner (verified 2026-11-04): replaces `production_trolley_check_expected` only (`recorded_trolleys` becomes
   `{code, size, size_name, source}`, new `planned_by_source`). No table or permission change.
 - Validation: function created and called for 2026-11-03 inside a rolled-back transaction
   on ElisCaretex-dev ("TESTE OK"; HEATHER HOUSE: 3 Finish + 1 MOP trolleys with sizes);
