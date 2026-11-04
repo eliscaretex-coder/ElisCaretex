@@ -80,6 +80,20 @@ Entry format:
 
 ---
 
+## 2026-11-04 — Claude — Sorting Area: cleaner Washing and Trolley Intake screens
+
+- Branch / commits: `claude/sorting-visual-simples`, Pull Request into `master`
+- Changed: new `frontend/assets/css/sorting-simple.css` (loaded last, `sorting.html` only) hides
+  secondary text: roster/workstation chips, section eyebrows, "Wash ID on Save" pill, duplicate
+  "Select your name" banner, Register Time field (clock still runs). `sorting.js`: shorter status
+  lines in both Today's Customers lists (no repeated date/route/"NOT SCANNED"), Recent washes drops
+  the Scheduled column (Ahead/Late shown inside the customer chip, trace code as tooltip) and
+  becomes cards on phones. No element ids, RPCs or behaviour changed.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs` passed. Screenshots before/after (desktop and
+  phone) with mocked RPC data in Playwright; not tested against the live database.
+- Open / next: MOP Production, Staff and Production Tracker tabs were not changed.
+
 ## 2026-11-04 — Claude — General review: overlapping rules in code and database
 
 - Branch / commits: `claude/revisao-regras-sobrepostas`, Pull Request into `master`.

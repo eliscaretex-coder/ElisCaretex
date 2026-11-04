@@ -841,14 +841,14 @@ document.addEventListener("DOMContentLoaded", async () => {
               const emptyOnly=!scanReady&&emptyCount>0;
               const washedNoScan=washed&&!scanReady;
               let gateLabel=washed
-                ? `${scanReady?"SCAN OK · ":"NO CONTENTS SCAN · "}Washed${r.last_wash_code?` · ${esc(r.last_wash_code)}`:""}`
+                ? `Washed${r.last_wash_code?` · ${esc(r.last_wash_code)}`:""}${scanReady?"":" · no contents scan"}`
                 : scanReady
-                  ? `SCAN OK · READY TO WASH · ${scanCount} trolley${scanCount===1?"":"s"}`
+                  ? `Ready to wash · ${scanCount} trolley${scanCount===1?"":"s"} scanned`
                   : emptyOnly
-                    ? "EMPTY ONLY · WASHING LOCKED"
-                    : "WAITING TROLLEY SCAN";
+                    ? "Empty only · washing locked"
+                    : "Waiting trolley scan";
               if(!washed&&!scanReady&&otherReceipt){
-                gateLabel=`RECEIVED AS ${esc(intakeProductCodes(otherReceipt).join(" + "))} · FIX IN INTAKE`;
+                gateLabel=`Received as ${esc(intakeProductCodes(otherReceipt).join(" + "))} · fix in Intake`;
               }
               const dotClass=washed?"done":scanReady?"scan-ready":otherReceipt?"other-service":emptyOnly?"empty-only":"pending";
               return `<div class="sorting-today-item${routeColor?" route-colored":""}${washed?" is-washed":""}${scanReady?" wash-scan-ready":""}${otherReceipt?" wash-other-service":""}${emptyOnly?" wash-empty-only":""}${washedNoScan?" wash-no-scan":""}"${routeStyle}
@@ -856,7 +856,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <span class="sorting-today-status ${dotClass}"></span>
                 <div class="sorting-today-main">
                   <strong>${esc(r.customer_name)}</strong>
-                  <span>${gateLabel} · ${esc(shortDayDate(r.scheduled_for_date))}${r.route_display_name?` · ${esc(r.route_display_name)}`:""}</span>
+                  <span>${gateLabel}</span>
                 </div>
                 <span class="sorting-today-trolleys">${trolleyQty} ${trolleyQty===1?"Trolley":"Trolleys"}</span>
               </div>`;
@@ -881,14 +881,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const color=c.route_color||"";
         const fg=routeTextColor(color);
         const style=color?` style="--wash-customer-bg:${esc(color)};--wash-customer-fg:${fg}"`:"";
-        return `<span class="sorting-wash-customer${color?" colored":""}"${style}>
+        const relation=c.schedule_relation==="TODAY"?"":c.schedule_relation==="EARLY"?"Ahead":c.schedule_relation==="LATE"?"Late":"Off schedule";
+        const relationText=relation?` · ${relation}${c.scheduled_for_date?` (${shortDayDate(c.scheduled_for_date)})`:""}`:"";
+        return `<span class="sorting-wash-customer${color?" colored":""}"${style} title="${esc(c.trace_code)}">
           <b>${esc(c.customer_name)}</b>
-          <small>${esc(c.trace_code)}</small>
+          ${relationText?`<small>${esc(relationText.slice(3))}</small>`:""}
         </span>`;
-      }).join("");
-      const scheduledHtml=cs.map(c=>{
-        const relation=c.schedule_relation==="EARLY"?"Ahead":c.schedule_relation==="LATE"?"Late":c.schedule_relation==="TODAY"?"Today":"Off schedule";
-        return `<span class="sorting-scheduled-line"><b>${esc(c.scheduled_for_date?shortDayDate(c.scheduled_for_date):"—")}</b><small>${esc(relation)}</small></span>`;
       }).join("");
       const mode=w.entry_mode==="LATE_ENTRY"
         ? '<span class="sorting-entry-badge late">Late entry</span>'
@@ -911,18 +909,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           <button type="button" class="sorting-mini-button danger" data-cancel-wash="${esc(w.wash_run_id)}">Cancel</button>
         </div>`:"—";
       return `<tr class="${cancelled?"sorting-wash-cancelled":""}">
-        <td class="sorting-washed-date">${esc(shortDayDate(w.business_date))}</td>
-        <td><span class="sorting-wash-code">${esc(w.wash_code)}</span>${mode}${status}${linkage}${receptionException}</td>
-        <td>${esc(w.washer_code)}</td>
-        <td><div class="sorting-customer-stack">${customerHtml}</div></td>
-        <td><div class="sorting-scheduled-stack">${scheduledHtml}</div></td>
-        <td>${esc(fmtTime(w.started_at))}</td>
-        <td>${Number(w.total_weight_kg||0).toFixed(1)} KG</td>
-        <td>${esc(w.operator_name)}</td>
-        <td>${esc(w.wash_type)}</td>
-        <td>${actions}</td>
+        <td class="sorting-washed-date" data-label="Washed">${esc(shortDayDate(w.business_date))}</td>
+        <td class="sorting-wash-id-cell" data-label="Wash ID"><span class="sorting-wash-code">${esc(w.wash_code)}</span>${mode}${status}${linkage}${receptionException}</td>
+        <td data-label="Washer">${esc(w.washer_code)}</td>
+        <td class="sorting-wash-customers-cell" data-label="Customers"><div class="sorting-customer-stack">${customerHtml}</div></td>
+        <td data-label="Start">${esc(fmtTime(w.started_at))}</td>
+        <td data-label="Weight">${Number(w.total_weight_kg||0).toFixed(1)} KG</td>
+        <td data-label="Staff">${esc(w.operator_name)}</td>
+        <td data-label="Type">${esc(w.wash_type)}</td>
+        <td class="sorting-wash-actions-cell" data-label="">${actions}</td>
       </tr>`;
-    }).join(""):'<tr><td colspan="10" class="sorting-today-empty">No washing loads recorded in the recent 3-day window.</td></tr>';
+    }).join(""):'<tr><td colspan="9" class="sorting-today-empty">No washing loads recorded in the recent 3-day window.</td></tr>';
   }
 
   function renderCustomerOptions(){
@@ -3344,8 +3341,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <span class="sorting-today-status ${statusClass}"></span>
                 <div class="sorting-today-main">
                   <strong>${esc(r.customer_name)}</strong>
-                  <span class="sorting-reception-state-line">${esc(stateInfo.label)} · ${esc(shortDayDate(r.scheduled_for_date))}${r.route_display_name?` · ${esc(r.route_display_name)}`:""}</span>
-                  <span class="sorting-reception-scan-line ${hasEvidence?"scanned":"waiting"}">${esc(scanText)}</span>
+                  <span class="sorting-reception-state-line">${esc(stateInfo.label)}</span>
+                  ${scanned?`<span class="sorting-reception-scan-line scanned">${esc(scanText)}</span>`:""}
                 </div>
                 <span class="sorting-today-trolleys sorting-reception-contract" title="Contracted trolley requirement">${esc(requirementText)}</span>
               </button>${noTrolleyAction}</div>`;
