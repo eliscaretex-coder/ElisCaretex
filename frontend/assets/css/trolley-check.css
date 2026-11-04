@@ -204,3 +204,11 @@ body.trolley-check-page{margin:0;background:var(--tc-bg);color:var(--tc-ink);fon
 .trolley-check-expected .abs strong{display:flex;flex-direction:column;align-items:flex-end}
 .trolley-check-expected .tc-abs-detail{display:block;margin:2px 0 0;font-size:.7rem;color:var(--tc-muted)}
 .tc-summary li.info.abs::before{content:"!";color:#b45309}
+
+/* Record production found ready but not recorded, straight from the check. */
+.tc-record-now-wrap{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.tc-record-now-wrap p{margin:0;font-size:.74rem;font-weight:700;color:#7c2d12}
+.tc-record-now{display:flex;flex-direction:column;gap:1px;padding:10px 12px;border-radius:11px;background:#0f766e;color:#fff;text-decoration:none}
+.tc-record-now.mop{background:#b45309}
+.tc-record-now b{font-size:.86rem}.tc-record-now b::after{content:" →"}
+.tc-record-now small{font-size:.7rem;opacity:.9}

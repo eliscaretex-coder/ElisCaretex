@@ -4602,6 +4602,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // Link from the end-of-shift trolley check (?customer=<id>&date=<schedule date>):
+  // select that customer so MOP found ready but not recorded is entered now.
+  function openMopCustomerFromLink(){
+    if(!standaloneMop)return;
+    const params=new URLSearchParams(location.search),customerId=params.get("customer");
+    if(!customerId)return;
+    const day=String(params.get("date")||"").slice(0,10),url=new URL(location.href);
+    url.searchParams.delete("customer");url.searchParams.delete("date");history.replaceState(null,"",url);
+    const rows=mopQueue().filter(r=>r.customer_id===customerId);
+    const row=rows.find(r=>String(r.scheduled_for_date||r.opened_business_date||"").slice(0,10)===day)||rows[0];
+    if(!row){setMessage("This customer is not waiting in the MOP queue: the wash is not recorded yet, or the MOP production is already recorded.","warning");return;}
+    selectMopFlow(row.production_flow_item_id);
+    setTimeout(()=>(el.mopForm&&!el.mopForm.hidden?el.mopForm:el.mopQueue?.querySelector(".sorting-mop-queue-item.active"))?.scrollIntoView({behavior:"smooth",block:"start"}),100);
+  }
+
   function selectMopFlow(flowId,{reconcile=true}={}){
     const row=mopQueue().find(r=>r.production_flow_item_id===flowId);
     if(!row)return;
@@ -5566,6 +5581,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.clockTimer=setInterval(tickClock,1000);
     await refreshAutoShift(true);
     await reload(false);
+    openMopCustomerFromLink();
     flushTrolleyOutbox({silent:true}).catch(error=>console.warn("Trolley outbox flush failed",error));
     state.refreshTimer=setInterval(async()=>{
       if(state.busy||document.visibilityState!=="visible")return;
