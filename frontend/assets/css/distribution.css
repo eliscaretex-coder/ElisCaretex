@@ -47,6 +47,7 @@
 .distribution-board-day-metrics > span:last-child { border-right: 0; }
 .distribution-board-day-metrics b { overflow: hidden; color: #172033; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
 .distribution-route-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(345px, 1fr)); gap: 8px; }
+.distribution-route-card .distribution-route-code { color: var(--route-text, #fff); box-shadow: inset 0 0 0 1px rgba(15, 39, 66, .14); }
 .distribution-route-card { min-width: 0; border: 1px solid #d9e2ea; border-left: 4px solid var(--route-color, #94a3b8); border-radius: 7px; background: #fff; overflow: hidden; }
 .distribution-route-card-head { min-height: 68px; display: flex; align-items: flex-start; gap: 9px; padding: 11px 12px 9px; border-bottom: 1px solid #e8eef3; }
 .distribution-route-code { min-width: 39px; min-height: 30px; padding: 8px 6px; border-radius: 5px; background: var(--route-color, #94a3b8); color: #fff; font-size: .72rem; font-weight: 900; text-align: center; overflow: hidden; text-overflow: ellipsis; }

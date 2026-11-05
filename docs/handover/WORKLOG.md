@@ -80,6 +80,31 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Distribution end-to-end review: duplicated route stops and screen fixes
+
+- Branch / commits: `claude/distribution-review-fixes`, Pull Request.
+- Changed: owner asked for a full review of Distribution. Report with priorities in the
+  project files (`distribuicao-pente-fino/README.md`). Fixed: (1) route run stops were
+  duplicated when a customer schedule got a new version (route 617 on 06/11 had 18 stops
+  for 11 customers; drivers saw 7 customers twice in My Driver Roster; 41 duplicates from
+  05/11 on). The sync now removes stale PLANNED scheduled stops and a statement trigger on
+  `customer_schedule_versions` re-syncs Draft/Ready runs from today. (2) Edit route is only
+  offered for Draft/Ready runs (saving always sent Draft/Ready and undid Dispatched/
+  Completed). (3) "Routes to plan" no longer counts a completed route. (4) Board route code
+  uses the contrast text colour (614 white, 615 yellow, 617 pink). (5) Weekly note kept
+  when a published roster week is revised. (6) Confirm before discarding unsaved roster
+  changes (week change, tab change, page close).
+- Database: `202611050003_distribution_run_stops_follow_schedule.sql`. **Prepared**, not
+  applied: owner applies `distribuicao-pente-fino/aplicar-no-sql-editor.sql`.
+- Validation: owner ran `distribuicao-pente-fino/teste-sem-gravar.sql` (migration inside a
+  rolled-back transaction, trigger fired): 0 duplicates and 0 runs differing from the
+  schedule from 05/11 on; route 617 on 06/11 = 11 stops. `node scripts/validate-repository.mjs`
+  passed. Screen fixes not tested in the browser.
+- Open / next: past runs keep their 152 duplicate stops (history, untouched). Data gaps:
+  no vehicle capacity, 14 defects open since July, no driver licence/CPC dates, route KM/
+  hours 0. Owner decisions: keep or drop Dispatch/Complete, stop status and Actuals (unused);
+  alerts for pending leave and next week's roster.
+
 ## 2026-11-05 — Claude — Daily board: truck capacity warning per route
 
 - Branch / commits: `claude/daily-board-truck-capacity`, Pull Request.
