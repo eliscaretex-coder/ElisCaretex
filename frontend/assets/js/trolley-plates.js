@@ -2,7 +2,7 @@
 
 // Trolley plates for Finish and MOP Production: one row per planned trolley of the
 // customer being processed, with the subunit(s) on the plate, the on-screen
-// instruction for the staff and a print-label icon. Finish also passes a scan
+// instruction for the staff and a print-label icon. Finish and MOP also pass a scan
 // handler: the header button then scans the trolleys in plate order (M #1, M #2…)
 // and each row shows the trolley scanned for it. Data comes from
 // get_production_flow_trolley_plates; a customer without planned trolleys shows nothing.
@@ -90,6 +90,7 @@
       .trolley-plates-notice ul{margin:2px 0 0;padding-left:18px;font-weight:600}
       .trolley-plates-notice button{min-height:28px;padding:2px 9px;font-size:12px;border-color:currentColor;color:inherit}
       .trolley-plates-error{font-size:12px;color:#b91c1c}
+      .trolley-plates-actions{display:inline-flex;gap:6px;flex-wrap:wrap}
       @media (max-width:560px){.trolley-plate,.trolley-plates.has-scan .trolley-plate{grid-template-columns:auto 1fr auto}.trolley-plates.has-scan .trolley-plate-scan{grid-column:1/3;justify-self:start}.trolley-plate-instruction{grid-column:1/-1}.trolley-plates-scanbar{grid-template-columns:1fr auto}.trolley-plates-scanbar .trolley-plates-later{grid-column:1/-1}}
     `;
     document.head.appendChild(style);
@@ -131,7 +132,9 @@
     container.classList.toggle("has-scan", Boolean(scan));
     let headAction = "";
     if (scan) headAction = `<button type="button" class="trolley-plates-scan-button" data-plate-scan>${SCAN_ICON}<span>Scan ${esc(plateLabel(trolleys[0]))}</span></button>`;
-    else if (trolleys.length > 1) headAction = '<button type="button" data-plate-print="all">Print all labels</button>';
+    // MOP asks for the print-all button next to the scan button as well.
+    if ((!scan || options.printAll) && trolleys.length > 1) headAction += '<button type="button" data-plate-print="all">Print all labels</button>';
+    if (scan && options.printAll) headAction = `<span class="trolley-plates-actions">${headAction}</span>`;
     container.innerHTML = `
       <div class="trolley-plates-head">
         <div class="trolley-plates-title">
@@ -365,7 +368,7 @@
     win.document.close();
   }
 
-  async function mount(container, { rpc, productionFlowItemId, scan = null }) {
+  async function mount(container, { rpc, productionFlowItemId, scan = null, printAll = false }) {
     if (!container) return null;
     injectStyles();
     const token = ++requestToken;
@@ -376,7 +379,7 @@
     try {
       const data = await rpc("get_production_flow_trolley_plates", { p_production_flow_item_id: productionFlowItemId });
       if (token !== requestToken) return null;
-      render(container, data, { scan });
+      render(container, data, { scan, printAll });
       return data;
     } catch (error) {
       if (token !== requestToken) return null;
