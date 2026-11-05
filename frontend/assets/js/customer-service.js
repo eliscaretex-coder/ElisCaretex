@@ -19,16 +19,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     CREATED:"Complaint logged", EDITED:"Complaint edited", NOTE:"Note", LINKED:"Linked to production", UNLINKED:"Production link removed",
     STATUS_OPEN:"Reopened", STATUS_INVESTIGATING:"Investigating", STATUS_RESOLVED:"Resolved", STATUS_CANCELLED:"Cancelled",
     ALERT_CREATED:"Customer alert created", ALERT_EDITED:"Customer alert changed", ALERT_ENDED:"Customer alert ended",
-    TASK_CREATED:"Task created", TASK_EDITED:"Task changed", TASK_OPEN:"Task reopened", TASK_IN_PROGRESS:"Task started", TASK_DONE:"Task done", TASK_CANCELLED:"Task cancelled"
+    TASK_CREATED:"Task created", TASK_EDITED:"Task changed", TASK_OPEN:"Task reopened", TASK_IN_PROGRESS:"Task started", TASK_DONE:"Task done", TASK_CANCELLED:"Task cancelled",
+    DUE_CHANGED:"Resolve-by date changed", OWNER_CHANGED:"Person changed"
   };
   const TITLES = {
-    complaints:["Complaints","Log customer complaints, find the shift and table that handled the goods, and follow them up."],
+    complaints:["Complaints","Every complaint has a resolve-by date. Overdue ones and customers with several complaints come first."],
     alerts:["Customer alerts","Alerts appear on the Sorting, Finish, MOP and Distribution screens while they are active."],
     tasks:["Tasks","Work for a department, followed until it is done."],
     results:["Results","How many complaints the company had, what they were about and where they came from."],
     settings:["Settings","Customer blocks for each person and the list of complaint types."]
   };
-  const state = { ws:null, tab:"complaints", complaints:[], detail:null, trace:null, traceRange:null, ask:null, complaintEdit:null, alertEdit:null, taskEdit:null, typeEdit:null, blockSelection:new Set() };
+  const state = { ws:null, tab:"complaints", quick:"all", complaints:[], detail:null, trace:null, traceRange:null, ask:null, complaintEdit:null, alertEdit:null, taskEdit:null, typeEdit:null, blockSelection:new Set() };
 
   const fmtDate = (v) => v ? new Intl.DateTimeFormat("en-IE",{day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${String(v).slice(0,10)}T12:00:00Z`)) : "—";
   const fmtShort = (v) => v ? new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"2-digit",month:"short",timeZone:"UTC"}).format(new Date(`${String(v).slice(0,10)}T12:00:00Z`)) : "—";
@@ -74,6 +75,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     return parts.join(" | ");
   }
 
+  // Deadlines ------------------------------------------------------------------------
+  const isActive = (c) => ["OPEN","INVESTIGATING"].includes(c?.status);
+  const plural = (n,word) => `${n} ${word}${Number(n)===1?"":"s"}`;
+  function dueChip(c){
+    if(!isActive(c)) return c.status==="RESOLVED"&&c.resolved_on_time===false?chip("late","Resolved late"):"";
+    if(c.due_state==="OVERDUE") return chip("overdue",`Overdue ${plural(Number(c.overdue_days)||1,"day")}`);
+    if(c.due_state==="DUE_TODAY") return chip("due-today","Due today");
+    return c.resolve_by?chip("due",`By ${fmtShort(c.resolve_by)}`):"";
+  }
+  const idleChip = (c) => isActive(c)&&Number(c.idle_days)>=3?chip("idle",`No update ${plural(Number(c.idle_days),"day")}`):"";
+  const targetDays = (sev) => Number(state.ws?.target_days?.[sev] ?? ({HIGH:2,MEDIUM:5,LOW:7}[sev]));
+  // Most urgent first: open before closed, most days overdue, nearest date, newest received.
+  function byUrgency(a,b){
+    return (isActive(b)-isActive(a)) || (Number(b.overdue_days||0)-Number(a.overdue_days||0))
+      || String(a.resolve_by||"9999").localeCompare(String(b.resolve_by||"9999")) || String(b.received_on).localeCompare(String(a.received_on));
+  }
+
   // Tabs ----------------------------------------------------------------------------
   function currentTab(){ const t=location.hash.replace("#",""); return TITLES[t]?t:"complaints"; }
   function showTab(tab){
@@ -99,70 +117,148 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.ws=data; fillCustomerList(); renderCounts();
     $("csNewComplaint").disabled=!me().can_create; $("csNewAlert").disabled=!me().can_create; $("csNewTask").disabled=!me().can_create;
   }
+  // The first four cards also filter the complaint list (click again to show all).
   function renderCounts(){
-    const c=state.ws?.counts||{};
-    $("csCounts").innerHTML=`
-      <article class="${Number(c.open_complaints)?"cs-attention":""}"><span>Open complaints</span><strong>${Number(c.open_complaints||0)}</strong><small>${me().scope==="ALL"?"All customers":"My block of customers"}</small></article>
-      <article><span>Active customer alerts</span><strong>${Number(c.active_alerts||0)}</strong><small>On the production screens</small></article>
-      <article><span>Open tasks</span><strong>${Number(c.open_tasks||0)}</strong><small>Waiting for a department</small></article>
-      <article class="${Number(c.overdue_tasks)?"low":""}"><span>Overdue tasks</span><strong>${Number(c.overdue_tasks||0)}</strong><small>Past their due date</small></article>`;
+    const c=state.ws?.counts||{}, q=state.tab==="complaints"?state.quick:"", n=(k)=>Number(c[k]||0);
+    const card=(key,label,value,sub,cls="")=>`<article class="cs-count ${cls} ${q===key?"active":""}" data-quick="${key}" role="button" tabindex="0" aria-pressed="${q===key}"><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`;
+    $("csCounts").innerHTML=
+      card("all","Open complaints",n("open_complaints"),`${me().scope==="ALL"?"All customers":"My block of customers"}${n("no_person_complaints")?` · ${n("no_person_complaints")} without a person`:""}`,n("open_complaints")?"cs-attention":"")+
+      card("overdue","Overdue",n("overdue_complaints"),"Past their resolve-by date",n("overdue_complaints")?"low":"")+
+      card("today","Due today",n("due_today_complaints"),"Resolve before the end of the day",n("due_today_complaints")?"cs-warn":"")+
+      card("idle","No update 3+ days",n("idle_complaints"),"Open, nothing written for 3 days",n("idle_complaints")?"cs-warn":"")+
+      `<article class="${n("overdue_tasks")?"low":""}"><span>Follow-up</span><strong>${plural(n("open_tasks"),"task")}</strong><small>${n("overdue_tasks")?`${n("overdue_tasks")} overdue · `:""}${plural(n("active_alerts"),"alert")} on the production screens</small></article>`;
+  }
+  function setQuick(key){
+    state.quick=state.quick===key&&key!=="all"?"all":key;
+    if(state.quick!=="all"&&$("csStatus").value!=="ACTIVE"){ $("csStatus").value="ACTIVE"; }
+    if(state.tab!=="complaints"){ location.hash="#complaints"; return; }
+    loadComplaints().catch(err=>setMessage(errorText(err,"Complaints could not be loaded."),"error"));
   }
 
   // Complaints list -------------------------------------------------------------------
   async function loadComplaints(){
-    const status=$("csStatus").value, customer=customerByLabel($("csCustomerFilter").value);
-    $("csFrom").disabled=$("csTo").disabled=status==="ACTIVE";
-    $("csListTitle").textContent=$("csStatus").selectedOptions[0]?.textContent||"Complaints";
+    const status=$("csStatus").value;
+    document.querySelectorAll("[data-period]").forEach(el=>{ el.hidden=status==="ACTIVE"; });
+    if(status!=="ACTIVE") state.quick="all";
     setMessage("Loading complaints…");
-    const data=await rpc("get_customer_service_complaints_v1",{p_from:$("csFrom").value||null,p_to:$("csTo").value||null,p_status:status,p_customer_id:customer?.customer_id||null,p_only_mine:$("csOnlyMine").checked});
+    const data=await rpc("get_customer_service_complaints_v1",{p_from:$("csFrom").value||null,p_to:$("csTo").value||null,p_status:status,p_customer_id:null,p_only_mine:$("csOnlyMine").checked});
     state.complaints=data?.complaints||[];
-    renderComplaints(); setMessage("");
+    renderCounts(); renderComplaints(); setMessage("");
+  }
+  function filteredComplaints(){
+    const q=$("csSearch").value.trim().toLowerCase(), f=state.quick;
+    return state.complaints.filter(c=>{
+      if(q&&!`${c.customer_name} ${c.customer_code||""} ${c.complaint_code} ${c.type_name} ${c.description} ${c.owner_name||""}`.toLowerCase().includes(q)) return false;
+      if(f==="overdue") return c.due_state==="OVERDUE";
+      if(f==="today") return c.due_state==="DUE_TODAY";
+      if(f==="idle") return isActive(c)&&Number(c.idle_days)>=3;
+      return true;
+    });
+  }
+  // One block per customer, so several complaints from the same customer are read together.
+  function groupByCustomer(rows){
+    const map=new Map();
+    rows.forEach(c=>{ if(!map.has(c.customer_id)) map.set(c.customer_id,{customer_id:c.customer_id,customer_name:c.customer_name,customer_code:c.customer_code,items:[]}); map.get(c.customer_id).items.push(c); });
+    const groups=[...map.values()];
+    groups.forEach(g=>{
+      g.items.sort(byUrgency);
+      const open=g.items.filter(isActive);
+      g.open=open.length; g.overdue=open.filter(c=>c.due_state==="OVERDUE").length; g.dueToday=open.filter(c=>c.due_state==="DUE_TODAY").length;
+      g.maxOverdue=Math.max(0,...open.map(c=>Number(c.overdue_days||0)));
+      g.next=open.map(c=>c.resolve_by).filter(Boolean).sort()[0]||"9999";
+      g.alert=g.items.some(c=>c.active_alert);
+      g.owner=customerById(g.customer_id)?.owner_name||g.items[0]?.owner_name||"";
+    });
+    return groups.sort((a,b)=>(b.overdue-a.overdue)||(b.maxOverdue-a.maxOverdue)||(b.dueToday-a.dueToday)||String(a.next).localeCompare(String(b.next))||(b.items.length-a.items.length)||String(a.customer_name).localeCompare(String(b.customer_name)));
+  }
+  function complaintRow(c){
+    const canEdit=me().can_edit, tasks=Number(c.open_task_count);
+    return `<div class="cs-crow sev-${esc(String(c.severity).toLowerCase())} ${c.due_state==="OVERDUE"?"is-overdue":""}" data-open-complaint="${esc(c.complaint_id)}" role="button" tabindex="0">
+        <span class="cs-c-main"><strong>${esc(c.complaint_code)} · ${esc(c.type_name)}</strong>${severityChip(c.severity)}<small>${esc(String(c.description||"").slice(0,110))}${String(c.description||"").length>110?"…":""}</small></span>
+        <span class="cs-c-when"><small>Received ${esc(fmtShort(c.received_on))}${c.owner_name?` · ${esc(c.owner_name)}`:" · no person"}</small>${dueChip(c)}${idleChip(c)}</span>
+        <span class="cs-c-follow">${c.link?`<small class="cs-link-text">${esc(linkSummary(c.link))}</small>`:""}${tasks?chip("task",plural(tasks,"open task")):""}${c.status==="INVESTIGATING"?statusChip(c.status):""}${!isActive(c)?`${statusChip(c.status)}${c.outcome?`<small>${esc(OUTCOME[c.outcome]||c.outcome)}</small>`:""}`:""}</span>
+        <span class="cs-c-act">${canEdit&&isActive(c)?`<button type="button" class="cs-button secondary" data-quick-resolve="${esc(c.complaint_id)}">Resolve…</button>`:""}</span>
+      </div>`;
   }
   function renderComplaints(){
-    const rows=state.complaints; $("csComplaintCount").textContent=String(rows.length);
-    if(!rows.length){ $("csComplaints").innerHTML='<div class="finish-results-empty">No complaints for this filter.</div>'; return; }
-    $("csComplaints").innerHTML=`<div class="cs-row-head cs-complaint-grid"><span>Complaint</span><span>Customer</span><span>Type</span><span>Production</span><span>Follow-up</span><span>Status</span></div>${rows.map(c=>`
-      <button type="button" class="cs-row cs-complaint-grid sev-${esc(String(c.severity).toLowerCase())}" data-open-complaint="${esc(c.complaint_id)}">
-        <span><strong>${esc(c.complaint_code)}</strong><small>Received ${esc(fmtShort(c.received_on))}${c.days_open!=null&&["OPEN","INVESTIGATING"].includes(c.status)?` · ${Number(c.days_open)} day${Number(c.days_open)===1?"":"s"} open`:""}</small></span>
-        <span><strong>${esc(c.customer_name)}</strong><small>${esc(c.owner_name||"No person")}</small></span>
-        <span><strong>${esc(c.type_name)}</strong><small>${severityChip(c.severity)} ${esc(String(c.description||"").slice(0,70))}</small></span>
-        <span>${c.link?`<small class="cs-link-text">${esc(linkSummary(c.link))}</small>`:'<small class="cs-muted">Not linked yet</small>'}</span>
-        <span>${c.active_alert?chip("alert","Alert on"):""}${Number(c.open_task_count)?chip("task",`${c.open_task_count} open task${Number(c.open_task_count)===1?"":"s"}`):Number(c.task_count)?chip("done","Tasks done"):""}</span>
-        <span>${statusChip(c.status)}${c.outcome?`<small>${esc(OUTCOME[c.outcome]||c.outcome)}</small>`:""}</span>
-      </button>`).join("")}`;
+    const rows=filteredComplaints(), groups=groupByCustomer(rows), status=$("csStatus").value;
+    const titles={all:status==="ACTIVE"?"Open complaints":$("csStatus").selectedOptions[0]?.textContent,overdue:"Overdue complaints",today:"Complaints due today",idle:"No update for 3 days or more"};
+    $("csListTitle").textContent=`${titles[state.quick]||"Complaints"}${groups.length?` · ${plural(groups.length,"customer")}`:""}`;
+    $("csComplaintCount").textContent=String(rows.length);
+    if(!rows.length){ $("csComplaints").innerHTML=`<div class="finish-results-empty">${state.complaints.length?"No complaints for this filter.":status==="ACTIVE"?"No open complaints. Well done.":"No complaints in this period."}</div>`; return; }
+    const canCreate=me().can_create;
+    $("csComplaints").innerHTML=groups.map(g=>`
+      <section class="cs-group ${g.overdue?"has-overdue":g.dueToday?"has-today":""}">
+        <header class="cs-group-head">
+          <div><strong>${esc(g.customer_name)}</strong><small>${esc([g.customer_code,g.owner||"No person"].filter(Boolean).join(" · "))}</small></div>
+          <div class="cs-group-stats">${g.open?chip("count",`${g.open} open`):""}${g.overdue?chip("overdue",`${g.overdue} overdue`):""}${g.dueToday?chip("due-today",`${g.dueToday} due today`):""}${g.alert?chip("alert","Alert on"):""}${!g.open?chip("count",plural(g.items.length,"complaint")):""}</div>
+          ${canCreate?`<button type="button" class="cs-button secondary" data-new-for="${esc(g.customer_id)}">+ Complaint</button>`:""}
+        </header>
+        ${g.items.map(complaintRow).join("")}
+      </section>`).join("");
   }
 
   // New / edit complaint ------------------------------------------------------------------
-  function openComplaintForm(complaint=null){
+  // One short form: customer, what went wrong (one click), what they said, severity. The rest is optional.
+  const checkedValue = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+  function renderTypeChoices(selected){
+    $("cfTypes").innerHTML=(state.ws?.types||[]).filter(t=>t.active||t.type_code===selected).map(t=>`<label><input type="radio" name="cfType" value="${esc(t.type_code)}"${t.type_code===selected?" checked":""}><span>${esc(t.type_name)}</span></label>`).join("");
+  }
+  function updateDueHint(){
+    const sev=checkedValue("cfSeverity")||"MEDIUM", days=targetDays(sev);
+    if(state.complaintEdit){ $("cfDueHint").textContent=state.complaintEdit.resolve_by?`Resolve by ${fmtShort(state.complaintEdit.resolve_by)}. A higher severity brings the date forward.`:""; return; }
+    const received=$("cfReceived").value||today(); let due=addDays(received,days); if(due<today()) due=today();
+    $("cfDueHint").textContent=`Must be resolved by ${fmtShort(due)} (${plural(days,"day")} for ${SEVERITY[sev].toLowerCase()}).`;
+  }
+  function updateCustomerOpen(){
+    const customer=customerByLabel($("cfCustomer").value), el=$("cfCustomerOpen");
+    const open=customer?state.complaints.filter(c=>c.customer_id===customer.customer_id&&isActive(c)&&c.complaint_id!==state.complaintEdit?.complaint_id):[];
+    el.hidden=!open.length;
+    el.innerHTML=open.length?`${esc(customer.customer_name)} already has ${plural(open.length,"open complaint")}: ${open.slice(0,4).map(c=>`<b>${esc(c.complaint_code)}</b> ${esc(c.type_name)}`).join(", ")}${open.length>4?"…":""}. If it is the same problem, add a note to that one instead.`:"";
+  }
+  function openComplaintForm(complaint=null,{customerId=null}={}){
     state.complaintEdit=complaint;
     $("csComplaintFormTitle").textContent=complaint?`Edit ${complaint.complaint_code}`:"New complaint";
-    const customer=complaint?customerById(complaint.customer_id):null;
+    const customer=customerById(complaint?.customer_id||customerId);
     $("cfCustomer").value=customer?customerLabel(customer):(complaint?.customer_name||"");
     $("cfReceived").value=complaint?.received_on?.slice(0,10)||today();
     $("cfReceived").max=addDays(today(),1);
     $("cfDelivery").value=complaint?.delivery_date?.slice(0,10)||"";
-    $("cfType").innerHTML=`<option value="">Choose the complaint…</option>${typeOptions(complaint?.type_code)}`;
-    $("cfSeverity").value=complaint?.severity||"MEDIUM";
+    renderTypeChoices(complaint?.type_code);
+    document.querySelectorAll('input[name="cfSeverity"]').forEach(i=>{ i.checked=i.value===(complaint?.severity||"MEDIUM"); });
     $("cfChannel").value=complaint?.channel||"";
     $("cfReference").value=complaint?.customer_reference||"";
     $("cfDescription").value=complaint?.description||"";
-    formMessage("cfMessage"); $("csComplaintDialog").showModal(); (complaint?$("cfDescription"):$("cfCustomer")).focus();
+    $("cfMore").open=Boolean(complaint&&(complaint.delivery_date||complaint.channel||complaint.customer_reference));
+    $("cfSaveAnother").hidden=Boolean(complaint);
+    formMessage("cfMessage"); updateDueHint(); updateCustomerOpen(); $("csComplaintDialog").showModal();
+    (complaint?$("cfDescription"):customer?$("cfTypes").querySelector("input")||$("cfDescription"):$("cfCustomer")).focus();
   }
-  async function saveComplaint(event){
-    event.preventDefault();
+  async function saveComplaint(event,{another=false}={}){
+    event?.preventDefault();
     const customer=customerByLabel($("cfCustomer").value);
-    if(!customer){ formMessage("cfMessage","Choose a customer from the list."); return; }
-    if(!$("cfType").value){ formMessage("cfMessage","Choose the complaint."); return; }
-    $("cfSave").disabled=true; formMessage("cfMessage","Saving…","");
+    if(!customer){ formMessage("cfMessage","Choose a customer from the list."); $("cfCustomer").focus(); return; }
+    if(!checkedValue("cfType")){ formMessage("cfMessage","Choose what went wrong."); return; }
+    if($("cfDescription").value.trim().length<3){ formMessage("cfMessage","Write what the customer said."); $("cfDescription").focus(); return; }
+    if(!$("cfReceived").value){ $("cfMore").open=true; formMessage("cfMessage","Give the date the complaint was received."); return; }
+    $("cfSave").disabled=$("cfSaveAnother").disabled=true; formMessage("cfMessage","Saving…","");
     try{
-      const result=await rpc("save_customer_service_complaint_v1",{p_complaint_id:state.complaintEdit?.complaint_id||null,p_customer_id:customer.customer_id,p_received_on:$("cfReceived").value,p_type_code:$("cfType").value,p_description:$("cfDescription").value,p_severity:$("cfSeverity").value,p_delivery_date:$("cfDelivery").value||null,p_channel:$("cfChannel").value||null,p_customer_reference:$("cfReference").value||null});
+      const editing=state.complaintEdit;
+      const result=await rpc("save_customer_service_complaint_v1",{p_complaint_id:editing?.complaint_id||null,p_customer_id:customer.customer_id,p_received_on:$("cfReceived").value,p_type_code:checkedValue("cfType"),p_description:$("cfDescription").value,p_severity:checkedValue("cfSeverity")||"MEDIUM",p_delivery_date:$("cfDelivery").value||null,p_channel:$("cfChannel").value||null,p_customer_reference:$("cfReference").value||null});
+      const saved=`${result.complaint_code} saved for ${result.customer_name}${result.resolve_by?`, resolve by ${fmtShort(result.resolve_by)}`:""}.`;
+      if(another){
+        // Same customer, same dates: only the problem and the words change.
+        $("cfDescription").value=""; document.querySelectorAll('input[name="cfType"]').forEach(i=>{ i.checked=false; });
+        formMessage("cfMessage",`${saved} Add the next one.`,"success");
+        await refreshAfterChange(); updateCustomerOpen(); $("cfTypes").querySelector("input")?.focus();
+        return;
+      }
       $("csComplaintDialog").close();
-      const isNew=!state.complaintEdit;
-      setMessage(`${result.complaint_code} saved for ${result.customer_name}.`,"success");
+      setMessage(saved,"success");
+      if(editing&&state.detail) await reloadDetail();
       await refreshAfterChange();
-      await openDetail(result.complaint_id,{trace:isNew});
     }catch(err){ console.error(err); formMessage("cfMessage",errorText(err,"The complaint could not be saved.")); }
-    finally{ $("cfSave").disabled=false; }
+    finally{ $("cfSave").disabled=$("cfSaveAnother").disabled=false; }
   }
 
   // Complaint detail -------------------------------------------------------------------
@@ -188,6 +284,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div><small>Received</small><strong>${esc(fmtDate(c.received_on))}</strong>${c.channel?`<em>${esc(CHANNEL[c.channel]||c.channel)}</em>`:""}</div>
           <div><small>Delivery</small><strong>${esc(c.delivery_date?fmtDate(c.delivery_date):"Not given")}</strong></div>
           <div><small>Severity</small><strong>${severityChip(c.severity)}</strong></div>
+          <div class="${c.due_state==="OVERDUE"?"cs-due-box overdue":c.due_state==="DUE_TODAY"?"cs-due-box today":""}"><small>Resolve by</small><strong>${esc(c.resolve_by?fmtDate(c.resolve_by):"—")}</strong><em>${active?(c.due_state==="OVERDUE"?`Overdue ${plural(Number(c.overdue_days),"day")}`:c.due_state==="DUE_TODAY"?"Due today":"On time"):c.resolved_on_time===true?"Resolved on time":c.resolved_on_time===false?"Resolved late":""}</em></div>
           <div><small>Status</small><strong>${statusChip(c.status)}</strong>${c.outcome?`<em>${esc(OUTCOME[c.outcome])}</em>`:""}</div>
           <div><small>Person</small><strong>${esc(c.owner_name||"—")}</strong><em>Logged by ${esc(c.created_by_name||"—")}</em></div>
         </div>
@@ -196,6 +293,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${c.resolution_notes?`<p class="cs-resolution"><b>${c.status==="CANCELLED"?"Cancelled":"Resolution"}:</b> ${esc(c.resolution_notes)}${c.resolved_by_name?` <small>— ${esc(c.resolved_by_name)}, ${esc(fmtDateTime(c.resolved_at))}</small>`:""}</p>`:""}
         ${canEdit?`<div class="cs-actions">
           ${c.status!=="CANCELLED"?'<button type="button" class="cs-button secondary" data-detail-action="edit">Edit</button>':""}
+          ${active?'<button type="button" class="cs-button secondary" data-detail-action="due">Change date…</button>':""}
           ${c.status==="OPEN"?'<button type="button" class="cs-button secondary" data-detail-action="investigating">Mark investigating</button>':""}
           ${active?'<button type="button" class="cs-button primary" data-detail-action="resolve">Resolve…</button><button type="button" class="cs-button danger" data-detail-action="cancel">Cancel complaint…</button>':""}
           ${!active?'<button type="button" class="cs-button secondary" data-detail-action="reopen">Reopen</button>':""}
@@ -242,6 +340,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(e.event_type?.startsWith("TASK_")&&x.department) return `<p class="cs-muted">${esc(DEPARTMENTS[x.department]||x.department)}${x.title&&e.event_type!=="TASK_CREATED"?` · ${esc(x.title)}`:""}</p>`;
     if(e.event_type?.startsWith("ALERT_")&&Array.isArray(x.areas)) return `<p class="cs-muted">${esc(x.areas.map(a=>AREAS[a]||a).join(", "))}${x.ends_on?` · until ${esc(fmtShort(x.ends_on))}`:""}</p>`;
     if(e.event_type==="STATUS_RESOLVED"&&x.outcome) return `<p class="cs-muted">${esc(OUTCOME[x.outcome]||x.outcome)}</p>`;
+    if(e.event_type==="DUE_CHANGED") return `<p class="cs-muted">${esc(x.from?fmtShort(x.from):"—")} → ${esc(fmtShort(x.to))}</p>`;
+    if(e.event_type==="CREATED"&&x.resolve_by) return `<p class="cs-muted">Resolve by ${esc(fmtShort(x.resolve_by))}</p>`;
+    if(e.event_type==="OWNER_CHANGED") return `<p class="cs-muted">${esc(x.owner_name||"No person")}</p>`;
+    if(e.event_type==="EDITED"&&x.resolve_by_to) return `<p class="cs-muted">Resolve by ${esc(fmtShort(x.resolve_by_to))}${x.link_removed?" · production link removed (other customer)":""}</p>`;
+    if(e.event_type==="EDITED"&&x.link_removed) return '<p class="cs-muted">Production link removed (other customer)</p>';
     return "";
   }
   function defaultTraceRange(c){
@@ -301,22 +404,44 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Ask dialog (resolve, cancel, task done, end alert) -----------------------------------------
-  function ask({eyebrow="Customer Service",title,notesLabel="Notes",outcome=false,required=true,confirm="Confirm",danger=false,onConfirm}){
-    state.ask={onConfirm,outcome,required};
+  function ask({eyebrow="Customer Service",title,notesLabel="Notes",outcome=false,date=null,check=null,required=true,confirm="Confirm",danger=false,onConfirm}){
+    state.ask={onConfirm,outcome,required,date:Boolean(date)};
     $("askEyebrow").textContent=eyebrow; $("askTitle").textContent=title; $("askNotesLabel").textContent=notesLabel;
-    $("askOutcomeWrap").hidden=!outcome; $("askOutcome").value=""; $("askNotes").value="";
+    $("askOutcomeWrap").hidden=!outcome; document.querySelectorAll('input[name="askOutcome"]').forEach(i=>{ i.checked=false; }); $("askNotes").value="";
+    $("askDateWrap").hidden=!date; if(date){ $("askDate").min=date.min||""; $("askDate").value=date.value||""; }
+    $("askCheckWrap").hidden=!check; $("askCheck").checked=Boolean(check?.checked); $("askCheckLabel").textContent=check?.label||"";
     $("askConfirm").textContent=confirm; $("askConfirm").classList.toggle("danger",danger); $("askConfirm").classList.toggle("primary",!danger);
     formMessage("askMessage"); $("csAskDialog").showModal(); $("askNotes").focus();
   }
   async function confirmAsk(event){
     event.preventDefault();
     const a=state.ask; if(!a) return;
-    if(a.outcome&&!$("askOutcome").value){ formMessage("askMessage","Say whether the complaint was justified."); return; }
-    if(a.required&&$("askNotes").value.trim().length<2){ formMessage("askMessage","Write a short note."); return; }
+    const outcome=checkedValue("askOutcome");
+    if(a.outcome&&!outcome){ formMessage("askMessage","Say whether the complaint was justified."); return; }
+    if(a.date&&!$("askDate").value){ formMessage("askMessage","Choose the new date."); return; }
+    if(a.required&&$("askNotes").value.trim().length<3){ formMessage("askMessage","Write a short note."); return; }
     $("askConfirm").disabled=true;
-    try{ await a.onConfirm({notes:$("askNotes").value.trim(),outcome:$("askOutcome").value||null}); $("csAskDialog").close(); }
+    try{ await a.onConfirm({notes:$("askNotes").value.trim(),outcome:outcome||null,date:$("askDate").value||null,check:!$("askCheckWrap").hidden&&$("askCheck").checked}); $("csAskDialog").close(); }
     catch(err){ console.error(err); formMessage("askMessage",errorText(err,"The change could not be saved.")); }
     finally{ $("askConfirm").disabled=false; }
+  }
+
+  // Resolve from the list or from the complaint: outcome + what was done, and its alerts can end at the same time.
+  function resolveComplaint(c){
+    const alerts=Number(c.own_active_alerts||0);
+    return ask({title:`Resolve ${c.complaint_code} · ${c.customer_name}`,notesLabel:"What was done for the customer",outcome:true,confirm:"Resolve",
+      check:alerts?{checked:true,label:`Also end its ${plural(alerts,"customer alert")} on the production screens`}:null,
+      onConfirm:async({notes,outcome,check})=>{
+        await rpc("set_customer_service_complaint_status_v1",{p_complaint_id:c.complaint_id,p_status:"RESOLVED",p_outcome:outcome,p_notes:notes});
+        let ended=0;
+        if(check){
+          const detail=state.detail?.complaint?.complaint_id===c.complaint_id?state.detail:await rpc("get_customer_service_complaint_v1",{p_complaint_id:c.complaint_id});
+          for(const a of (detail?.alerts||[]).filter(a=>a.state==="ACTIVE"||a.state==="SCHEDULED")){ await rpc("end_customer_service_alert_v1",{p_alert_id:a.alert_id,p_reason:`Complaint ${c.complaint_code} resolved`}); ended++; }
+        }
+        setMessage(`${c.complaint_code} resolved${ended?` and ${plural(ended,"alert")} ended`:""}.`,"success");
+        if(state.detail&&$("csDetailDialog").open) await reloadDetail();
+        await refreshAfterChange();
+      }});
   }
 
   async function detailAction(action){
@@ -328,7 +453,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(action==="unlink") return runAction(()=>rpc("link_customer_service_complaint_production_v1",{p_complaint_id:id,p_finish_entry_id:null,p_wash_run_id:null}),"Production link removed.");
     if(action==="investigating") return runAction(()=>rpc("set_customer_service_complaint_status_v1",{p_complaint_id:id,p_status:"INVESTIGATING",p_outcome:null,p_notes:null}),"Complaint marked as investigating.");
     if(action==="reopen") return runAction(()=>rpc("set_customer_service_complaint_status_v1",{p_complaint_id:id,p_status:"OPEN",p_outcome:null,p_notes:null}),"Complaint reopened.");
-    if(action==="resolve") return ask({title:`Resolve ${c.complaint_code}`,notesLabel:"What was done for the customer",outcome:true,confirm:"Resolve",onConfirm:async({notes,outcome})=>{ await rpc("set_customer_service_complaint_status_v1",{p_complaint_id:id,p_status:"RESOLVED",p_outcome:outcome,p_notes:notes}); setMessage(`${c.complaint_code} resolved.`,"success"); await reloadDetail(); await refreshAfterChange(); }});
+    if(action==="resolve") return resolveComplaint(c);
+    if(action==="due") return ask({title:`New date for ${c.complaint_code}`,notesLabel:"Why the date changes (kept in the history)",date:{min:today(),value:addDays(today(),2)},confirm:"Change date",onConfirm:async({notes,date})=>{ await rpc("set_customer_service_complaint_due_v1",{p_complaint_id:id,p_resolve_by:date,p_reason:notes}); setMessage(`${c.complaint_code} must now be resolved by ${fmtShort(date)}.`,"success"); await reloadDetail(); await refreshAfterChange(); }});
     if(action==="cancel") return ask({title:`Cancel ${c.complaint_code}`,notesLabel:"Why it is cancelled (for example, logged twice). Its alerts end and its open tasks are cancelled too.",confirm:"Cancel complaint",danger:true,onConfirm:async({notes})=>{ await rpc("set_customer_service_complaint_status_v1",{p_complaint_id:id,p_status:"CANCELLED",p_outcome:null,p_notes:notes}); setMessage(`${c.complaint_code} cancelled, with its alerts and open tasks.`,"success"); await reloadDetail(); await refreshAfterChange(); }});
     if(action==="new-alert") return openAlertForm({customer_id:c.customer_id,complaint_id:id,message:`${c.type_name}: ${c.description}`.slice(0,300)});
     if(action==="new-task"){ const type=(state.ws?.types||[]).find(t=>t.type_code===c.type_code); return openTaskForm({complaint_id:id,customer_id:c.customer_id,department_code:type?.default_department_code||"",title:`${c.type_name} — ${c.customer_name}`.slice(0,160)}); }
@@ -362,7 +488,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("caMessage").value=alert.message||"";
     const areas=new Set(alert.areas||["SORTING","FINISH"]);
     document.querySelectorAll(".cs-areas input").forEach(i=>{ i.checked=areas.has(i.value); });
-    $("caStart").value=String(alert.starts_on||today()).slice(0,10); $("caEnd").value=String(alert.ends_on||"").slice(0,10);
+    $("caStart").value=String(alert.starts_on||today()).slice(0,10);
+    // New alerts end by themselves after two weeks unless someone changes the date, so none stays on forever by mistake.
+    $("caEnd").value=String(alert.ends_on||(alert.alert_id?"":addDays(today(),14))).slice(0,10);
     formMessage("caMessageLine"); $("csAlertDialog").showModal(); $("caMessage").focus();
   }
   async function saveAlert(event){
@@ -451,7 +579,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const t=r.totals||{}, total=Number(t.complaints||0), decided=Number(t.justified||0)+Number(t.not_justified||0);
     $("csResultsTotals").innerHTML=`
       <article class="cs-attention"><span>Complaints</span><strong>${total}</strong><small>${Number(t.customers||0)} customer${Number(t.customers)===1?"":"s"} · ${Number(t.high||0)} high severity</small></article>
-      <article><span>Still open</span><strong>${Number(t.open||0)}</strong><small>${Number(t.resolved||0)} resolved</small></article>
+      <article class="${Number(t.overdue)?"low":""}"><span>Still open</span><strong>${Number(t.open||0)}</strong><small>${Number(t.overdue||0)} overdue · ${Number(t.resolved||0)} resolved</small></article>
+      <article><span>Resolved on time</span><strong>${Number(t.resolved_with_date)?`${Math.round(Number(t.resolved_on_time||0)/Number(t.resolved_with_date)*100)}%`:"—"}</strong><small>${Number(t.resolved_on_time||0)} of ${Number(t.resolved_with_date||0)} by their resolve-by date</small></article>
       <article class="${decided&&Number(t.justified)/decided>0.5?"low":""}"><span>Justified</span><strong>${Number(t.justified||0)}</strong><small>${decided?`${Math.round(Number(t.justified)/decided*100)}% of the decided ones`:"None decided yet"}</small></article>
       <article><span>Average to resolve</span><strong>${t.avg_days_to_resolve==null?"—":`${num(t.avg_days_to_resolve)} days`}</strong><small>From received to resolved</small></article>
       <article class="planned"><span>Linked to production</span><strong>${Number(t.linked||0)}</strong><small>${total?Math.round(Number(t.linked||0)/total*100):0}% · ${Number(t.tasks_open||0)} tasks open${Number(t.tasks_overdue)?`, ${Number(t.tasks_overdue)} overdue`:""}</small></article>`;
@@ -466,7 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const otherTables=[...new Set((r.by_finish_table||[]).map(x=>x.table_code).filter(x=>!tables.includes(x)))];
     $("csByTable").innerHTML=(r.by_finish_table||[]).length?`<table><thead><tr><th></th><th>Morning</th><th>Evening</th><th>Total</th></tr></thead><tbody>${[...tables,...otherTables].map(tb=>{const m=cell(tb,"MORNING"),e=cell(tb,"EVENING");return `<tr><th>${esc(tableName(tb))}</th><td class="${m?"hot":""}">${m}</td><td class="${e?"hot":""}">${e}</td><td><b>${m+e}</b></td></tr>`;}).join("")}</tbody></table>`:'<div class="finish-results-empty">No complaint linked to a Finish record in this period.</div>';
     $("csBySorting").innerHTML=bars(r.by_sorting_shift,x=>shiftName(x.shift_code),"complaints",{empty:"No complaint linked to a wash in this period."});
-    $("csByOwner").innerHTML=(r.by_owner||[]).length?`<table><thead><tr><th>Person</th><th>Complaints</th><th>Open</th><th>Resolved</th></tr></thead><tbody>${r.by_owner.map(x=>`<tr><th>${esc(x.owner_name)}</th><td>${Number(x.complaints)}</td><td>${Number(x.open)}</td><td>${Number(x.resolved)}</td></tr>`).join("")}</tbody></table>`:'<div class="finish-results-empty">Nothing in this period.</div>';
+    $("csByOwner").innerHTML=(r.by_owner||[]).length?`<table><thead><tr><th>Person</th><th>Complaints</th><th>Open</th><th>Overdue</th><th>Resolved</th><th>On time</th></tr></thead><tbody>${r.by_owner.map(x=>`<tr><th>${esc(x.owner_name)}</th><td>${Number(x.complaints)}</td><td>${Number(x.open)}</td><td class="${Number(x.overdue)?"hot":""}">${Number(x.overdue||0)}</td><td>${Number(x.resolved)}</td><td>${Number(x.resolved)?`${Number(x.on_time||0)} of ${Number(x.resolved)}`:"—"}</td></tr>`).join("")}</tbody></table>`:'<div class="finish-results-empty">Nothing in this period.</div>';
     $("csByDepartment").innerHTML=(r.by_department||[]).length?`<table><thead><tr><th>Department</th><th>Tasks</th><th>Open</th><th>Overdue</th></tr></thead><tbody>${r.by_department.map(x=>`<tr><th>${esc(DEPARTMENTS[x.department_code]||x.department_code)}</th><td>${Number(x.tasks)}</td><td>${Number(x.open)}</td><td class="${Number(x.overdue)?"hot":""}">${Number(x.overdue)}</td></tr>`).join("")}</tbody></table>`:'<div class="finish-results-empty">No tasks in this period.</div>';
     setMessage(`Results from ${fmtDate(r.from)} to ${fmtDate(r.to)}.`,"success");
   }
@@ -554,7 +683,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("csNewTask").addEventListener("click",()=>openTaskForm());
   $("csNewType").addEventListener("click",()=>openTypeForm());
   ["csFrom","csTo","csStatus","csOnlyMine"].forEach(id=>$(id).addEventListener("change",()=>loadComplaints().catch(err=>setMessage(errorText(err,"Complaints could not be loaded."),"error"))));
-  $("csCustomerFilter").addEventListener("change",()=>loadComplaints().catch(err=>setMessage(errorText(err,"Complaints could not be loaded."),"error")));
+  $("csSearch").addEventListener("input",renderComplaints);
+  $("cfSaveAnother").addEventListener("click",()=>saveComplaint(null,{another:true}));
+  document.querySelectorAll('input[name="cfSeverity"]').forEach(i=>i.addEventListener("change",updateDueHint));
+  $("cfReceived").addEventListener("change",updateDueHint);
+  ["input","change"].forEach(type=>$("cfCustomer").addEventListener(type,updateCustomerOpen));
+  $("csCounts").addEventListener("click",(event)=>{ const card=event.target.closest("[data-quick]"); if(card) setQuick(card.dataset.quick); });
+  $("csCounts").addEventListener("keydown",(event)=>{ const card=event.target.closest("[data-quick]"); if(card&&(event.key==="Enter"||event.key===" ")){ event.preventDefault(); setQuick(card.dataset.quick); } });
+  $("csComplaints").addEventListener("keydown",(event)=>{ const row=event.target.closest(".cs-crow"); if(row&&event.target===row&&(event.key==="Enter"||event.key===" ")){ event.preventDefault(); openDetail(row.dataset.openComplaint); } });
   $("csAlertsEnded").addEventListener("change",()=>loadAlerts().catch(err=>setMessage(errorText(err,"Alerts could not be loaded."),"error")));
   ["csTaskStatus","csTaskDepartment"].forEach(id=>$(id).addEventListener("change",()=>loadTasks().catch(err=>setMessage(errorText(err,"Tasks could not be loaded."),"error"))));
   ["csResultsFrom","csResultsTo"].forEach(id=>$(id).addEventListener("change",()=>loadResults().catch(err=>setMessage(errorText(err,"Results could not be loaded."),"error"))));
@@ -573,6 +709,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("cdBody").addEventListener("change",(event)=>{ if(event.target.matches('#cdTrace input[type="radio"]')) syncFlowHighlight(); });
   $("cdBody").addEventListener("keydown",(event)=>{ if(event.key==="Enter"&&event.target.id==="cdNote"){ event.preventDefault(); detailAction("note"); } });
   document.addEventListener("click",(event)=>{
+    const quickResolve=event.target.closest("[data-quick-resolve]"); if(quickResolve){ const c=state.complaints.find(x=>x.complaint_id===quickResolve.dataset.quickResolve); if(c) resolveComplaint(c); return; }
+    const newFor=event.target.closest("[data-new-for]"); if(newFor){ openComplaintForm(null,{customerId:newFor.dataset.newFor}); return; }
     const open=event.target.closest("[data-open-complaint]"); if(open){ openDetail(open.dataset.openComplaint); return; }
     const act=event.target.closest("[data-detail-action]"); if(act){ detailAction(act.dataset.detailAction); return; }
     const editAlert=event.target.closest("[data-edit-alert]"); if(editAlert){ const a=findAlert(editAlert.dataset.editAlert); if(a) openAlertForm(a); return; }
