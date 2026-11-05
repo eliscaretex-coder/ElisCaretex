@@ -14,7 +14,7 @@
   <title>Production Intelligence | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/production-insights.css?v=20261024-1">
+  <link rel="stylesheet" href="../assets/css/production-insights.css?v=20261105-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
@@ -22,7 +22,7 @@
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261104-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261104-1" defer></script>
-  <script src="../assets/js/production-insights.js?v=20261024-1" defer></script>
+  <script src="../assets/js/production-insights.js?v=20261105-1" defer></script>
 </head>
 <body class="production-insights-page">
   <div class="operational-tool-page-shell" data-operational-shell-root>
@@ -37,16 +37,16 @@
             <button type="button" data-period="YEAR">Year</button>
           </div>
           <div class="production-insights-stepper">
-            <button id="insightsPrev" type="button" aria-label="Previous period">&#8249;</button>
-            <input id="insightsAnchor" type="date" aria-label="Period date">
-            <button id="insightsNext" type="button" aria-label="Next period">&#8250;</button>
-            <button id="insightsToday" type="button">Today</button>
+            <button id="insightsPrev" type="button" aria-label="Previous month" title="Previous month">&#8249;</button>
+            <label class="production-insights-anchor" title="Pick any day inside the period"><span id="insightsAnchorText">—</span><input id="insightsAnchor" type="date" aria-label="Pick a day inside the period"></label>
+            <button id="insightsNext" type="button" aria-label="Next month" title="Next month">&#8250;</button>
+            <button id="insightsToday" type="button">This month</button>
           </div>
         </div>
         <div class="production-insights-period" id="dailyControls" hidden>
           <div class="production-insights-stepper">
             <button id="dailyPrev" type="button" aria-label="Previous day">&#8249;</button>
-            <input id="dailyDate" type="date" aria-label="Report date">
+            <label class="production-insights-anchor" title="Pick the report day"><span id="dailyDateText">—</span><input id="dailyDate" type="date" aria-label="Report date"></label>
             <button id="dailyNext" type="button" aria-label="Next day">&#8250;</button>
             <button id="dailyToday" type="button">Today</button>
             <button id="dailyPrint" type="button">Print</button>
@@ -63,7 +63,13 @@
         <button type="button" role="tab" data-tab="planning">Planning</button>
       </nav>
 
-      <p id="insightsPeriodLabel" class="production-insights-period-label"></p>
+      <section id="insightsPeriodBar" class="production-insights-periodbar" aria-live="polite">
+        <div class="production-insights-periodbar-main">
+          <span id="periodKind" class="production-insights-periodbar-kind">Month</span>
+          <div><small>Showing</small><strong id="periodTitle">—</strong><span id="periodRange"></span></div>
+        </div>
+        <div id="periodCompareBox" class="production-insights-periodbar-compare"><small id="periodCompareLabel">Compared with</small><strong id="periodCompare">—</strong><span id="periodCompareNote"></span></div>
+      </section>
       <p id="insightsMessage" class="production-insights-message" aria-live="polite"></p>
 
       <!-- Overview -->
@@ -71,12 +77,12 @@
         <aside class="production-insights-policy"><strong>Official KG</strong><span>Finish KG lines and MOP Production only. Sorting weights are approximate and never added to official totals.</span></aside>
         <div id="overviewKpis" class="production-insights-kpis production-insights-kpis-compare"></div>
         <section class="production-insights-card">
-          <header><div><p>Trend</p><h2 id="overviewTrendTitle">Official production</h2><span id="overviewTrendHint">Finish and MOP in the selected period.</span></div><div class="production-insights-legend"><i></i>Finish<i class="mop"></i>MOP</div></header>
+          <header><div><p>Trend <em class="production-insights-period-chip" data-period-chip></em></p><h2 id="overviewTrendTitle">Official production</h2><span id="overviewTrendHint">Finish and MOP in the selected period.</span></div><div class="production-insights-legend"><i></i>Finish<i class="mop"></i>MOP</div></header>
           <div id="overviewTrend" class="production-insights-trend"></div>
         </section>
         <div class="production-insights-areas" id="overviewAreas"></div>
         <section class="production-insights-card">
-          <header><div><p>Highlights</p><h2>What needs attention</h2><span>Automatic reading of the selected period.</span></div></header>
+          <header><div><p>Highlights <em class="production-insights-period-chip" data-period-chip></em></p><h2>What needs attention</h2><span>Automatic reading of the selected period.</span></div></header>
           <ul id="overviewHighlights" class="production-insights-highlights"></ul>
         </section>
       </section>
@@ -114,7 +120,7 @@
       <section class="production-insights-panel" data-panel="customers" hidden>
         <section class="production-insights-card">
           <header class="production-insights-customer-header">
-            <div><p>Customers</p><h2>KG processed and trolleys per customer</h2><span id="customersHint">Compared with the previous period.</span></div>
+            <div><p>Customers <em class="production-insights-period-chip" data-period-chip></em></p><h2>KG processed and trolleys per customer</h2><span id="customersHint">Compared with the previous period.</span></div>
             <div class="production-insights-filter-group">
               <select id="customersProduct" aria-label="Product"><option value="">All products</option><option value="CLOTHES">Clothes</option><option value="MOP">MOP</option></select>
               <input id="customersSearch" type="search" placeholder="Search customer…">
@@ -124,7 +130,7 @@
           <div id="customersTable" class="production-insights-table-wrap"></div>
         </section>
         <section id="insightsCustomerHistoryCard" class="production-insights-card production-insights-history-card" hidden>
-          <header><div><p>Customer KG history</p><h2 id="insightsCustomerHistoryTitle">Customer</h2><span>Official Finish and MOP records, with weekday-specific three-day averages.</span></div><button id="insightsCustomerHistoryClose" type="button">Close</button></header>
+          <header><div><p>Customer KG history <em class="production-insights-period-chip" data-period-chip></em></p><h2 id="insightsCustomerHistoryTitle">Customer</h2><span>Official Finish and MOP records, with weekday-specific three-day averages.</span></div><button id="insightsCustomerHistoryClose" type="button">Close</button></header>
           <div id="insightsCustomerSuggestions" class="production-insights-suggestions"></div>
           <div id="insightsCustomerHistory" class="production-insights-history"></div>
         </section>
@@ -134,24 +140,25 @@
       <section class="production-insights-panel" data-panel="performance" hidden>
         <aside class="production-insights-policy"><strong>Efficiency</strong><span id="performancePolicy">Finish uses the Finish Results basis (KG, units converted and ReWash) against the KG per staff hour target. Only days with staff hours are counted.</span></aside>
         <section class="production-insights-card">
-          <header><div><p>Shift</p><h2>Morning against Evening</h2><span>Which shift performed better in each area.</span></div></header>
+          <header><div><p>Shift <em class="production-insights-period-chip" data-period-chip></em></p><h2>Morning against Evening</h2><span>Which shift performed better in each area.</span></div></header>
           <div id="performanceShifts" class="production-insights-shift-compare"></div>
         </section>
         <section class="production-insights-card">
-          <header><div><p>Finish tables</p><h2>Performance by table and shift</h2><span>KG, staff hours, KG per staff hour and efficiency against target.</span></div><b id="performanceBest">—</b></header>
+          <header><div><p>Finish tables <em class="production-insights-period-chip" data-period-chip></em></p><h2>Performance by table and shift</h2><span>KG, staff hours, KG per staff hour and efficiency against target.</span></div><b id="performanceBest">—</b></header>
           <div id="performanceTables" class="production-insights-table-grid"></div>
         </section>
       </section>
 
       <!-- Staff -->
       <section class="production-insights-panel" data-panel="staff" hidden>
+        <p class="production-insights-section-note">Headcount, leavers, joiners and turnover for <b data-period-chip-text></b>.</p>
         <div id="staffKpis" class="production-insights-kpis"></div>
         <section class="production-insights-card">
-          <header><div><p>Turnover</p><h2>Last 12 months</h2><span>Leavers and turnover % per month (leavers ÷ average headcount).</span></div></header>
+          <header><div><p>Turnover</p><h2 id="staffMonthlyTitle">Last 12 months</h2><span>Leavers and turnover % per month (leavers ÷ average headcount).</span></div></header>
           <div id="staffMonthly" class="production-insights-trend"></div>
         </section>
         <section class="production-insights-card">
-          <header><div><p>Leavers</p><h2>Staff who left in the period</h2><span id="staffNote"></span></div><b id="staffLeaversCount">0</b></header>
+          <header><div><p>Leavers <em class="production-insights-period-chip" data-period-chip></em></p><h2>Staff who left in the period</h2><span id="staffNote"></span></div><b id="staffLeaversCount">0</b></header>
           <div id="staffLeavers" class="production-insights-table-wrap"></div>
         </section>
       </section>

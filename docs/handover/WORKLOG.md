@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Production Intelligence: make the selected period obvious
+
+- Branch / commits: `claude/production-intelligence-period`, Pull Request into `master`
+- Changed: a period bar under the tabs (Day / Week / Month / Year badge, the period name,
+  the exact date range, "in progress" days so far, and the comparison range). The header date
+  field now shows the period name ("November 2026", "Week 45, 2026") instead of a raw date,
+  and the arrows / Today button say "Previous month", "This week" and so on. Every
+  period-driven card (Overview, Customers, Shifts & tables, Staff) carries a period chip.
+  Daily report and Planning show what they cover; Planning says the selector does not apply.
+  Staff "Last 12 months" now names the end month. Frontend only.
+- Database: none
+- Validation: `node scripts/validate-repository.mjs`; screenshots on desktop and phone with
+  mocked RPC data (Playwright). Not tested against live data.
+- Open / next: owner to check the wording on live data.
+
 ## 2026-11-05 — Claude — MOP Production: scan queued trolleys in sequence
 
 - Branch / commits: `claude/mop-scan-sequencia`, Pull Request into `master`.

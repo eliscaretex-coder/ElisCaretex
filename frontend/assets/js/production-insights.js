@@ -34,15 +34,58 @@ document.addEventListener("DOMContentLoaded",async()=>{
     else if(period==="MONTH"){from=new Date(anchor.getFullYear(),anchor.getMonth(),1);to=new Date(anchor.getFullYear(),anchor.getMonth()+1,0);prevFrom=new Date(anchor.getFullYear(),anchor.getMonth()-1,1);}
     else{from=new Date(anchor.getFullYear(),0,1);to=new Date(anchor.getFullYear(),11,31);prevFrom=new Date(anchor.getFullYear()-1,0,1);granularity="MONTH";}
     // A period that is still running is compared with the same number of days before it.
-    if(to>today&&from<=today)to=today;
+    const fullTo=new Date(to),running=to>today&&from<=today;
+    if(running)to=today;
     const length=Math.round((to-from)/86400000);
-    return {from,to,compareFrom:prevFrom,compareTo:addDays(prevFrom,length),granularity};
+    return {from,to,fullTo,running,future:from>today,days:length+1,compareFrom:prevFrom,compareTo:addDays(prevFrom,length),granularity};
   }
-  function periodLabel(period,r){
-    if(period==="DAY")return `${fmt(iso(r.from),{weekday:"long",day:"2-digit",month:"long",year:"numeric"})} · compared with the same day last week`;
-    if(period==="WEEK")return `Week of ${fmt(iso(r.from))} · compared with the previous week`;
-    if(period==="MONTH")return `${fmt(iso(r.from),{month:"long",year:"numeric"})}${r.to.getDate()!==new Date(r.from.getFullYear(),r.from.getMonth()+1,0).getDate()?` (to ${fmt(iso(r.to),{day:"2-digit",month:"short"})})`:""} · compared with the same days of the previous month`;
-    return `${r.from.getFullYear()}${r.to.getMonth()!==11||r.to.getDate()!==31?` (to ${fmt(iso(r.to),{day:"2-digit",month:"short"})})`:""} · compared with the same period of ${r.from.getFullYear()-1}`;
+  // Week number (ISO 8601: weeks start on Monday, week 1 holds the first Thursday).
+  function isoWeek(d){const t=new Date(d.getFullYear(),d.getMonth(),d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);}
+  // "01 – 05 Nov 2026", "27 Oct – 02 Nov 2026", "29 Dec 2025 – 04 Jan 2026"
+  function fmtRange(a,b){
+    const A=iso(a),B=iso(b);
+    if(A===B)return fmt(A,{weekday:"short",day:"2-digit",month:"short",year:"numeric"});
+    if(a.getFullYear()!==b.getFullYear())return `${fmt(A)} – ${fmt(B)}`;
+    if(a.getMonth()!==b.getMonth())return `${fmt(A,{day:"2-digit",month:"short"})} – ${fmt(B)}`;
+    return `${fmt(A,{day:"2-digit"})} – ${fmt(B)}`;
+  }
+  const UNIT={DAY:"day",WEEK:"week",MONTH:"month",YEAR:"year"};
+  // Everything the page says about the selected period, in one place.
+  function describePeriod(period,r){
+    const days=n=>`${num(n)} day${n===1?"":"s"}`,F=iso(r.from);
+    const d={kind:{DAY:"Day",WEEK:"Week",MONTH:"Month",YEAR:"Year"}[period]};
+    if(period==="DAY"){d.title=fmt(F,{weekday:"long",day:"2-digit",month:"long",year:"numeric"});d.chip=fmt(F,{weekday:"short",day:"2-digit",month:"short",year:"numeric"});d.anchor=fmt(F,{weekday:"short",day:"2-digit",month:"short",year:"numeric"});d.range="One business day";d.compareNote="Same weekday, one week earlier";}
+    else if(period==="WEEK"){const w=isoWeek(r.from);d.title=`Week ${w} · ${fmtRange(r.from,r.fullTo)}`;d.chip=`Week ${w} · ${fmtRange(r.from,r.fullTo)}`;d.anchor=`Week ${w}, ${r.fullTo.getFullYear()}`;d.range=`Monday to Sunday · ${days(7)}`;d.compareNote="Previous week";}
+    else if(period==="MONTH"){d.title=fmt(F,{month:"long",year:"numeric"});d.chip=fmt(F,{month:"short",year:"numeric"});d.anchor=d.title;d.range=`${fmtRange(r.from,r.fullTo)} · ${days(r.fullTo.getDate())}`;d.compareNote="Same days of the previous month";}
+    else{d.title=String(r.from.getFullYear());d.chip=d.title;d.anchor=d.title;d.range=`${fmtRange(r.from,r.fullTo)} · monthly totals`;d.compareNote=`Same period of ${r.from.getFullYear()-1}`;}
+    if(r.running&&period!=="DAY"){d.range=`${fmtRange(r.from,r.to)} so far · ${days(r.days)} of this ${UNIT[period]} (in progress)`;if(period==="WEEK")d.chip=`Week ${isoWeek(r.from)} · ${fmtRange(r.from,r.to)}`;}
+    if(r.future)d.range+=" · future period, no production yet";
+    d.compare=fmtRange(r.compareFrom,r.compareTo);
+    return d;
+  }
+  function renderPeriodBar(){
+    const kind=$("periodKind"),box=$("periodCompareBox");$("insightsPeriodBar").dataset.kind=state.tab;
+    if(state.tab==="daily"){
+      const date=state.daily?.business_date||state.dailyDate||iso(new Date());
+      kind.textContent="Day";$("periodTitle").textContent=fmt(date,{weekday:"long",day:"2-digit",month:"long",year:"numeric"});$("periodRange").textContent="Daily report · one business day, both shifts";
+      $("dailyDateText").textContent=fmt(date,{weekday:"short",day:"2-digit",month:"short",year:"numeric"});box.hidden=true;return;
+    }
+    if(state.tab==="planning"){
+      const today=new Date(),monday=addDays(today,-((today.getDay()+6)%7)),first=new Date(today.getFullYear(),today.getMonth()-11,1);
+      kind.textContent="Forward";$("periodTitle").textContent=`6 weeks from this week · ${fmtRange(monday,addDays(monday,41))}`;$("periodRange").textContent=`History used: ${fmt(iso(first),{month:"short",year:"numeric"})} – ${fmt(iso(today),{month:"short",year:"numeric"})} (last 12 months)`;
+      box.hidden=false;$("periodCompareLabel").textContent="Period selector";$("periodCompare").textContent="Not used here";$("periodCompareNote").textContent="Planning always looks ahead from this week";return;
+    }
+    const r=periodRange(state.period,state.anchor),d=describePeriod(state.period,r);
+    kind.textContent=d.kind;$("periodTitle").textContent=d.title;$("periodRange").textContent=d.range;
+    box.hidden=false;$("periodCompareLabel").textContent="Compared with";$("periodCompare").textContent=d.compare;$("periodCompareNote").textContent=d.compareNote;
+    $("insightsAnchorText").textContent=d.anchor;
+    document.querySelectorAll("[data-period-chip]").forEach(el=>{el.textContent=d.chip;});
+    document.querySelectorAll("[data-period-chip-text]").forEach(el=>{el.textContent=d.chip;});
+    const unit=UNIT[state.period];
+    $("insightsPrev").setAttribute("aria-label",`Previous ${unit}`);$("insightsPrev").title=`Previous ${unit}`;
+    $("insightsNext").setAttribute("aria-label",`Next ${unit}`);$("insightsNext").title=`Next ${unit}`;
+    $("insightsToday").textContent=state.period==="DAY"?"Today":`This ${unit}`;
+    $("staffMonthlyTitle").textContent=`12 months to ${fmt(iso(r.to),{month:"long",year:"numeric"})}`;
   }
   function shiftAnchor(direction){
     const a=new Date(state.anchor);
@@ -60,7 +103,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
     document.querySelectorAll("[data-panel]").forEach(p=>{p.hidden=p.dataset.panel!==state.tab;});
     $("insightsPeriodControls").hidden=state.tab==="daily"||state.tab==="planning";
     $("dailyControls").hidden=state.tab!=="daily";
-    $("insightsPeriodLabel").hidden=state.tab==="daily"||state.tab==="planning";
+    renderPeriodBar();
     if(push){const url=new URL(location.href);url.searchParams.set("view",state.tab);history.replaceState(null,"",url);}
     setMessage("");
     if(state.tab==="daily"&&!state.daily)loadDaily();
@@ -71,7 +114,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
   // Manager view ----------------------------------------------------------------------
   async function loadManager(){
     const token=++state.loadToken,r=periodRange(state.period,state.anchor);
-    $("insightsPeriodLabel").textContent=periodLabel(state.period,r);
+    renderPeriodBar();
     document.querySelectorAll("[data-period]").forEach(b=>b.classList.toggle("active",b.dataset.period===state.period));
     setMessage("Loading production…");
     try{
@@ -179,7 +222,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
     try{
       const {data,error}=await client.rpc("get_production_daily_report",{p_business_date:state.dailyDate||null});
       if(error)throw error;if(token!==state.dailyToken)return;
-      state.daily=data||{};state.dailyDate=state.daily.business_date;$("dailyDate").value=state.dailyDate;renderDaily();setMessage("");
+      state.daily=data||{};state.dailyDate=state.daily.business_date;$("dailyDate").value=state.dailyDate;if(state.tab==="daily")renderPeriodBar();renderDaily();setMessage("");
     }catch(error){console.error(error);if(token===state.dailyToken)setMessage(error.message||"The daily report could not be loaded.","error");}
   }
 
@@ -273,6 +316,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
   $("dailyNext").addEventListener("click",()=>moveDaily(1));
   $("dailyToday").addEventListener("click",()=>{state.dailyDate=null;loadDaily();});
   $("dailyDate").addEventListener("change",()=>{if(!$("dailyDate").value)return;state.dailyDate=$("dailyDate").value;loadDaily();});
+  // The date fields are drawn as a period name; a tap opens the native date picker.
+  ["insightsAnchor","dailyDate"].forEach(id=>$(id).addEventListener("click",event=>{try{event.target.showPicker?.();}catch{}}));
   $("dailyPrint").addEventListener("click",()=>window.print());
   $("dailyFilter").addEventListener("click",event=>{const b=event.target.closest("[data-filter]");if(!b)return;state.dailyFilter=b.dataset.filter;renderDailyCustomers();});
 
