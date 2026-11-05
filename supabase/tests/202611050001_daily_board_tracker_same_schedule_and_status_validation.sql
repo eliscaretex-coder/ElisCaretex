@@ -58,12 +58,12 @@ select is((select count(*) from _board b left join _tracker_customers t
 select is((select count(*) from _board_load l
   where l.ready <> (select count(*) from _board b join _tracker_customers t
                       on t.production_date = b.production_date and t.customer_id = b.customer_id
-                    where b.delivery_date = l.delivery_date and t.customer_status = 'TRACKER_OK')
+                    where b.delivery_date = l.delivery_date and t.customer_status in ('TRACKER_OK', 'ABS_PENDING'))
     and not exists (select 1 from _board b left join _tracker_customers t
                       on t.production_date = b.production_date and t.customer_id = b.customer_id
                     where b.delivery_date = l.delivery_date and b.version_from > b.production_date
                       and t.scheduled is distinct from true))::integer, 0,
-  'customers ready on the Daily board = customers Tracker OK in the Tracker, every day');
+  'customers ready on the Daily board = customers Tracker OK or ABS pending in the Tracker, every day (MOP ready without ABS since 202611050002)');
 
 select is((select count(*) from _tracker t
   where (t.payload->'summary'->>'tracker_ok')::integer

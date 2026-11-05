@@ -74,6 +74,8 @@
 .distribution-production-breakdown { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .distribution-production-breakdown span { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid #d9e2ea; border-radius: 999px; background: #fff; color: #475569; font-size: .61rem; font-weight: 800; }
 .distribution-production-breakdown span b { color: #172033; font-size: .55rem; text-transform: uppercase; }
+.distribution-production-breakdown span.distribution-abs-pending { border-color: #f5c27a; background: #fff7eb; color: #9a5b00; }
+.distribution-board-day-abs { display: block; padding: 6px 11px; border-top: 1px solid #f5c27a; background: #fff7eb; color: #9a5b00; font-size: .61rem; font-weight: 800; text-align: left; }
 .distribution-production-breakdown em { margin-left: auto; color: #a16207; font-size: .59rem; font-style: normal; font-weight: 800; }
 .distribution-production-breakdown em.complete { color: #15803d; }
 @media(max-width:560px){.distribution-route-metrics.production-load{grid-template-columns:repeat(2,minmax(0,1fr))}.distribution-production-breakdown em{width:100%;margin-left:0}}
