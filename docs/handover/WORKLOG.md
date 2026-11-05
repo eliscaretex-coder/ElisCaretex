@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Daily board: MOP ready once the batch is saved, ABS shown apart
+
+- Branch / commits: `claude/daily-board-mop-ready-abs`, Pull Request.
+- Changed: owner checked route 614 (delivery 05/11): the board showed 3/12 ready while the
+  Tracker map showed 8, because the board required ABS for MOP and nobody entered ABS on
+  04/11 (0 of 21 MOP batches). Owner decision: MOP counts as ready once its MOP Production
+  batch is saved; MOP without ABS is shown apart. The route card shows an "ABS · N pending"
+  chip and the day card a "N MOP customers without ABS" line. The day card's partial-load
+  flag (`summary.load_is_partial`) is now returned by the database.
+- Database: `202611050002_distribution_board_mop_ready_without_abs.sql`
+  (`get_distribution_production_load`, read-only). **Prepared**, not applied: owner applies
+  `daily-board-tracker/mop-sem-abs/aplicar-no-sql-editor.sql`.
+- Validation: applied inside a rolled-back transaction on ElisCaretex-dev. Route 614 on
+  05/11 became 8/12 ready with 5 MOP customers without ABS (as the Tracker map shows), and
+  the comparison checks passed for the last two weeks: board ready = Tracker customers OK or
+  ABS pending, board MOP without ABS = Tracker ABS-pending customers. The 202611050001 test
+  was updated to the new ready rule. `node scripts/validate-repository.mjs` passed.
+- Open / next: the Tracker "OK" KPI still means everything done including ABS, so it is
+  lower than the board's ready count while ABS is pending. The database change of
+  202611050001 is now applied (owner, 05/11).
+
 ## 2026-11-05 — Claude — Daily board and Production Tracker: same customers, same "ready"
 
 - Branch / commits: `claude/daily-board-tracker-match`, Pull Request.
