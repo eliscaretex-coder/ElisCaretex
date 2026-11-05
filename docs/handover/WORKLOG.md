@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Daily board: truck capacity warning per route
+
+- Branch / commits: `claude/daily-board-truck-capacity`, Pull Request.
+- Changed: owner asked to compare the truck load with the vehicle capacity on the Daily
+  board. Each route card now shows, under Driver/Vehicle, two gauges for the assigned
+  vehicle: Weight (known truck load = Finish KG + MOP KG + trolley tare, "≥" while
+  partial) against `fleet_vehicles.capacity_kg`, and Trolleys (actual) against
+  `capacity_trolleys`. 90–100% is amber "Near truck capacity", above 100% red "Over truck
+  capacity" with the excess. When the planned trolleys exceed the capacity but the actual
+  count does not yet, it says "N trolleys planned, truck takes M". It is a warning only and
+  blocks nothing. No vehicle: nothing shown; no capacity: "Truck capacity not set in Fleet".
+- Database: none (capacity comes from `get_fleet_vehicle_master`, already loaded).
+- Validation: `node scripts/validate-repository.mjs`; the card block rendered in Chromium
+  with the real CSS for six cases (ok, near, over, planned over, only KG set, not set) at
+  1100 px and 390 px. Not tested in the live app with real data.
+- Open / next: all 14 active vehicles have empty capacity (checked 05/11); the owner will
+  fill KG and trolley capacity in Fleet → Edit. Until then every card shows "not set".
+
 ## 2026-11-05 — Claude — Daily board: MOP ready once the batch is saved, ABS shown apart
 
 - Branch / commits: `claude/daily-board-mop-ready-abs`, Pull Request.
