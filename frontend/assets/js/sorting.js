@@ -4317,6 +4317,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if(state.mopPlate?.flowId!==flowId)return;
       state.mopPlate.data=data||null;
       renderMopTrolley();
+      // Open the scan field straight away so the staff can scan the queued trolleys
+      // one after the other without touching the screen.
+      // Phones and tablets skip it so the on-screen keyboard does not pop up.
+      if(scan&&mopPlateScanActive()&&!document.querySelector("dialog[open]")&&!window.matchMedia?.("(pointer: coarse)").matches)api.openScan(el.mopTrolleyPlates);
     }).catch(error=>console.warn("MOP trolley plates unavailable",error));
   }
   function mopPlateAssignment(){
@@ -4416,6 +4420,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const {slots:after}=mopPlateAssignment();
     if(after.some((x,i)=>!x&&!plate.later.has(i)))window.ELIS_TROLLEY_PLATES?.openScan(el.mopTrolleyPlates);
   }
+
+  // Scanner keystrokes that arrive while nothing is focused (the staff touched another
+  // part of the screen, or the page just reloaded) still go to the trolley plates, so a
+  // row of trolleys can be scanned in sequence without going back to the computer.
+  const mopScanBuffer={text:"",at:0};
+  function captureMopScannerKeys(event){
+    if(!mopPlateScanActive()||event.ctrlKey||event.metaKey||event.altKey)return;
+    const target=event.target;
+    if(target&&(target.closest?.("input,textarea,select,[contenteditable='true']")||document.querySelector("dialog[open]")))return;
+    const now=Date.now();if(now-mopScanBuffer.at>400)mopScanBuffer.text="";mopScanBuffer.at=now;
+    if(event.key==="Enter"){
+      const code=mopScanBuffer.text.trim().toUpperCase();mopScanBuffer.text="";
+      if(/^T\d{1,10}T$/.test(code)){event.preventDefault();window.ELIS_TROLLEY_PLATES?.openScan(el.mopTrolleyPlates);addMopPlateTrolley(code);}
+      return;
+    }
+    if(event.key.length===1)mopScanBuffer.text+=event.key;
+  }
+  document.addEventListener("keydown",captureMopScannerKeys);
 
   // Add trolley later: a MOP Production saved with "No trolley yet" receives its
   // trolley(s) here. Each trolley gets the normal customer stay when it is linked.
