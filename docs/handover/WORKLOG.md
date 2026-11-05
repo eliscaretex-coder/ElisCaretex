@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Distribution board without Dispatch/Complete; leave and roster alerts
+
+- Branch / commits: `claude/distribution-board-simplify`, Pull Request.
+- Changed: owner decision after the review: Dispatch/Complete and per-stop status will not
+  be used (180 runs stayed Ready, no stop status ever recorded). The route card drops the
+  run status, the Dispatch and Complete buttons and the "x/y" stop counter; "Stops (N)"
+  opens a read-only list in delivery order (manual stops still possible). New top alerts:
+  "Leave: N pending requests" (opens Leave calendar) and, from Thursday to Sunday,
+  "Roster week of DD Mon: not created / draft not published" (opens that roster week;
+  red on Saturday and Sunday). Asset versions bumped in `distribution.html`, which #174
+  had not done.
+- Database: none. The run status RPCs stay for history.
+- Validation: `node scripts/validate-repository.mjs`; page rendered in Chromium with stubbed
+  RPCs: both alerts shown, roster alert opens week W46, cards show only Edit route and
+  Stops (N), stop list read-only, 614 code dark on white. Not tested with real data.
+- Open / next: Actuals kept as is (owner did not decide).
+
 ## 2026-11-05 — Claude — Distribution end-to-end review: duplicated route stops and screen fixes
 
 - Branch / commits: `claude/distribution-review-fixes`, Pull Request.
