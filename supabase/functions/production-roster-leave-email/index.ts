@@ -40,6 +40,14 @@ function encodedHeader(value: unknown) {
   return `=?UTF-8?B?${standardBase64FromUtf8(String(value ?? ""))}?=`;
 }
 
+function maskEmail(email: string) {
+  const value = String(email || "").trim().toLowerCase();
+  if (!value.includes("@")) return value;
+  const [local, domain] = value.split("@");
+  const tld = domain.includes(".") ? domain.slice(domain.lastIndexOf(".")) : "";
+  return `${local.slice(0, local.length <= 3 ? 1 : 2)}***@${domain.slice(0, 1)}***${tld}`;
+}
+
 function cleanHeaderValue(value: unknown) {
   return String(value ?? "").replace(/[\r\n]+/g, " ").trim();
 }
@@ -165,8 +173,30 @@ Deno.serve(async (req) => {
     return json({ ok: false, stage: "workflow_prepare", error: prepareError.message }, 400);
   }
 
-  const recipient = cleanHeaderValue(prepared?.sent_to || "");
-  const token = String(prepared?.review_token || "").trim();
+  // Since 202611050004 the prepare RPC no longer returns the review token or the
+  // full General Manager email to the signed-in Roster Manager (holding the token
+  // would let them approve as the General Manager). The token and address come
+  // from issue_production_roster_gm_review_token, callable only with the service role.
+  let recipient = cleanHeaderValue(prepared?.sent_to || "");
+  let token = String(prepared?.review_token || "").trim();
+  if (!token) {
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!serviceKey) {
+      const message = "Supabase function environment is incomplete.";
+      logFailure("supabase_environment", message);
+      return json({ ok: false, stage: "supabase_environment", error: message }, 500);
+    }
+    const service = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: issued, error: issueError } = await service.rpc("issue_production_roster_gm_review_token", {
+      p_leave_request_id: leaveRequestId,
+    });
+    if (issueError) {
+      logFailure("workflow_prepare", issueError.message);
+      return json({ ok: false, stage: "workflow_prepare", error: issueError.message }, 400);
+    }
+    recipient = cleanHeaderValue(issued?.sent_to || "");
+    token = String(issued?.review_token || "").trim();
+  }
   if (!recipient || !token) {
     const message = "General Manager review preparation returned incomplete data.";
     logFailure("workflow_prepare", message);
@@ -299,7 +329,7 @@ Deno.serve(async (req) => {
   return json({
     ok: true,
     leave_request_id: leaveRequestId,
-    sent_to: recipient,
+    sent_to: maskEmail(recipient),
     provider: "gmail",
     provider_message_id: payload?.id || null,
     provider_thread_id: payload?.threadId || null,

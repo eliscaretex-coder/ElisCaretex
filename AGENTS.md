@@ -111,6 +111,14 @@ or on file names alone.
 - A new `SECURITY DEFINER` RPC revokes `PUBLIC` execution and checks identity and
   permission internally. New UI permissions need matching database authorization
   and negative tests.
+- The browser never reads or writes tables directly: anon and authenticated have no table
+  grants in `public` (since `202611050004`). New tables are not granted to them by default,
+  and new functions are not executable by anon unless granted explicitly.
+- Never return a full email from an RPC. Use `public.mask_email(...)` (or
+  `mask_emails_in_jsonb` for free text). A screen that edits an email sends the masked
+  value back unchanged to mean "keep the stored email".
+- Account management follows "you cannot give what you do not have": a non-administrator
+  can only create or change accounts whose permissions are covered by their own.
 - `frontend/assets/js/config.js` holds only the project URL, the publishable key
   and the public app URL. Never commit service-role keys, secret keys, SMTP or
   personal passwords.
