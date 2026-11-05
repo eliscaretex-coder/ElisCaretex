@@ -80,6 +80,34 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Daily board and Production Tracker: same customers, same "ready"
+
+- Branch / commits: `claude/daily-board-tracker-match`, Pull Request.
+- Changed: owner asked whether the Distribution Daily board matches the customers the
+  Production Tracker shows as processed. It did not, for two reasons. (1) Both read models
+  only used PUBLISHED schedule versions, so any day before a schedule change lost its
+  customers (after the 05/11 legacy sync, the Tracker for production day 04/11 showed only
+  18 of the 62 customers delivered on 05/11 as scheduled; the board for past delivery days
+  showed 12 to 34 stops instead of 49 to 85). They now use the version in force on the day,
+  PUBLISHED or SUPERSEDED (the Production Intelligence rule). (2) The Tracker's overall
+  status and KPIs never counted a Clothes customer as done (V1 knew only MOP + ABS), so
+  "Tracker OK" was 0 on 04/11 while the board showed 32 ready. V4 now rebuilds the customer
+  status and summary with the board's rule: Clothes = active Finish contribution, MOP =
+  batch + ABS. Cancelled flow items are ignored by the Tracker, as on the board.
+- Database: `202611050001_daily_board_tracker_same_schedule_and_status.sql` (read-only
+  functions `get_production_tracker_v1`, `get_production_tracker_v4`,
+  `distribution_source_stops`). **Prepared**, not applied: owner applies
+  `daily-board-tracker/aplicar-no-sql-editor.sql` from the project folder.
+- Validation: the same changes were applied inside a rolled-back transaction on
+  ElisCaretex-dev and compared for every delivery day from 22/10 to 06/11: board "customers
+  ready" equals Tracker OK customers on every day, every board customer is scheduled in the
+  Tracker on its production day, and the Tracker OK KPI equals the table (all 7 comparison checks of
+  `supabase/tests/202611050001_…_validation.sql` passed). `node scripts/validate-repository.mjs` passed.
+- Open / next: the Tracker map still paints a MOP customer as "Processed" once the MOP
+  batch is saved, before ABS; the board and Tracker OK wait for ABS. A customer whose new
+  schedule version starts between its production and delivery day can still differ (each
+  page reads the version of its own day).
+
 ## 2026-11-05 — Claude — Production Intelligence: make the selected period obvious
 
 - Branch / commits: `claude/production-intelligence-period`, Pull Request into `master`
