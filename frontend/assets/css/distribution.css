@@ -81,6 +81,22 @@
 @media(max-width:560px){.distribution-route-metrics.production-load{grid-template-columns:repeat(2,minmax(0,1fr))}.distribution-production-breakdown em{width:100%;margin-left:0}}
 .distribution-route-assignment { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 9px 12px; color: #64748b; font-size: .7rem; }
 .distribution-route-assignment strong { display: block; margin-top: 2px; color: #283646; font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.distribution-capacity { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 8px 12px; border-top: 1px solid #e8eef3; color: #64748b; font-size: .66rem; }
+.distribution-capacity.unset { display: block; color: #94a3b8; font-weight: 700; }
+.distribution-capacity-gauge > span { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; color: #283646; font-weight: 700; }
+.distribution-capacity-gauge b { color: #64748b; font-weight: 800; margin-right: 2px; }
+.distribution-capacity-gauge em { margin-left: auto; font-style: normal; font-weight: 900; color: #087f84; }
+.distribution-capacity-gauge.near em { color: #b45309; }
+.distribution-capacity-gauge.over em, .distribution-capacity-gauge.over > span { color: #b42318; }
+.distribution-capacity-gauge.unset > span { color: #94a3b8; }
+.distribution-capacity-gauge i { display: block; height: 5px; margin-top: 4px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.distribution-capacity-gauge i span { display: block; height: 100%; border-radius: inherit; background: #0f8b8d; }
+.distribution-capacity-gauge.near i span { background: #d97706; }
+.distribution-capacity-gauge.over i span { background: #b42318; }
+.distribution-capacity-status { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.distribution-capacity-status strong { border-radius: 999px; padding: 3px 8px; font-size: .64rem; font-weight: 900; }
+.distribution-capacity-status .near { background: #fff4e5; color: #b45309; }
+.distribution-capacity-status .over { background: #fde8e7; color: #b42318; }
 .distribution-card-actions { padding: 8px 12px 11px; border-top: 1px solid #edf1f5; }
 .distribution-master-list { display: grid; gap: 7px; }
 .distribution-master-row { display: grid; grid-template-columns: minmax(190px, 1.4fr) repeat(3, minmax(110px, .65fr)) auto; align-items: center; gap: 10px; min-height: 56px; padding: 8px 10px; border: 1px solid #d9e2ea; border-radius: 7px; background: #fff; }
