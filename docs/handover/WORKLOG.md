@@ -80,6 +80,19 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — MOP Production: scan queued trolleys in sequence
+
+- Branch / commits: `claude/mop-scan-sequencia`, Pull Request into `master`.
+- Changed: selecting a MOP customer opens and focuses the plate scan field (desktop only,
+  no on-screen keyboard on touch screens), so a row of trolleys is scanned one after the
+  other. Scanner keystrokes that arrive while nothing is focused are also sent to the
+  plates (code like T123T followed by Enter); typing in fields and open dialogs is untouched.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Chromium with a mocked Supabase:
+  4 codes scanned with no click (2 with the field focused, 2 after clicking elsewhere)
+  filled M #1–#3 and listed the 4th as extra.
+- Open / next: owner tests with the real scanner on the MOP terminal.
+
 ## 2026-11-04 — Claude — MOP Production: scan trolleys per plate, "No trolley yet" and Add trolley later
 
 - Branch / commits: `claude/mop-trolley-scan-like-finish`, Pull Request into `master`.
