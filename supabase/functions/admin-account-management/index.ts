@@ -119,6 +119,19 @@ function assertRolesCovered(roles: string[], callerRoles: string[], what: string
   if (missing.length) throw new Error(`${what} has system roles (${missing.join(", ")}) that your account does not have.`);
 }
 
+async function jobTitleRank(client: ReturnType<typeof createClient>, jobTitleCode: string) {
+  if (!jobTitleCode) return null;
+  const { data,error } = await client.from("account_job_titles").select("hierarchy_rank").eq("job_title_code",jobTitleCode).eq("active",true).maybeSingle();
+  if (error) throw error;
+  return data?.hierarchy_rank === null || data?.hierarchy_rank === undefined ? null : Number(data.hierarchy_rank);
+}
+
+async function accountRank(client: ReturnType<typeof createClient>, authUserId: string) {
+  const { data,error } = await client.from("account_access_profiles").select("job_title_code").eq("auth_user_id",authUserId).maybeSingle();
+  if (error) throw error;
+  return jobTitleRank(client,String(data?.job_title_code || ""));
+}
+
 async function assertJobTitleScope(client: ReturnType<typeof createClient>,jobTitleCode: string,accessScope: string) {
   const { data,error } = await client.from("account_job_titles").select("department_scope").eq("job_title_code",jobTitleCode).eq("active",true).maybeSingle();
   if (error || !data) throw new Error("The selected job title is not available.");
@@ -312,19 +325,28 @@ Deno.serve(async (req) => {
     if (accountType === "USER" && ["create","update"].includes(action)) await assertJobTitleScope(admin,jobTitleCode,capabilities.accessScope);
     if (accountType === "USER" && operationalJobTitles.has(jobTitleCode) && !staffId && ["create","update"].includes(action)) throw new Error("Link this operational account to its Staff Master record.");
     const isSelf = Boolean(accountId) && accountId === identity.user.id;
+    let callerRank: number | null = null;
     if (!capabilities.isAdmin) {
-      if (accountType === "USER" && ["create","update"].includes(action) && jobTitleCode === "ADMINISTRATOR" && !isSelf) throw new Error("Only an Administrator can give the Administrator job title.");
+      // Job-title hierarchy (Administrator 1, IT Manager 10, General Manager 20,
+      // Production/Logistics Manager 30, ...). A non-administrator gives only job titles
+      // at their own level or below and acts only on accounts at their own level or below.
+      callerRank = await accountRank(admin,identity.user.id);
+      if (accountType === "USER" && ["create","update"].includes(action) && !isSelf) {
+        if (jobTitleCode === "ADMINISTRATOR") throw new Error("Only an Administrator can give the Administrator job title.");
+        const titleRank = await jobTitleRank(admin,jobTitleCode);
+        if (callerRank === null || titleRank === null || titleRank < callerRank) throw new Error("You can only give job titles at your own level or below.");
+      }
       if (action !== "create" && !isSelf) {
-        // A non-administrator may only act on accounts whose current access is
-        // fully covered by their own (this stops, for example, a General Manager
-        // from changing the Administrator's email and taking the account over).
-        const [callerGrants, callerRoles, targetGrants, targetRoles] = await Promise.all([
-          activeGrants(admin,identity.user.id), activeRoleCodes(admin,identity.user.id),
-          activeGrants(admin,accountId), activeRoleCodes(admin,accountId)
-        ]);
+        const targetRoles = await activeRoleCodes(admin,accountId);
         if (targetRoles.includes("ADMIN")) throw new Error("Only an Administrator can change an Administrator account.");
-        assertGrantsCovered(targetGrants,callerGrants,"The selected account");
-        assertRolesCovered(targetRoles,callerRoles,"The selected account");
+        const { data:targetProfile,error:targetProfileError } = await admin.from("account_access_profiles").select("account_type").eq("auth_user_id",accountId).maybeSingle();
+        if (targetProfileError) throw targetProfileError;
+        if (targetProfile?.account_type === "TERMINAL") {
+          if (!capabilities.canManage || capabilities.accessScope !== "ALL") throw new Error("Manage permission with All scope is required for terminal accounts.");
+        } else {
+          const targetRank = await accountRank(admin,accountId);
+          if (callerRank === null || targetRank === null || targetRank < callerRank) throw new Error("This account is above your level. Ask an Administrator or IT Manager.");
+        }
       }
     }
     let preserved: Awaited<ReturnType<typeof existingAccountConfiguration>> | null = null;
@@ -344,10 +366,18 @@ Deno.serve(async (req) => {
       selectedRoles = resolved.roleCodes;
       selectedPermissions = preserved ? preserved.permissions : resolved.permissions;
     }
-    if (!capabilities.isAdmin && !preserved && ["create","update"].includes(action)) {
+    // A job title may carry access the creator does not hold (the hierarchy allows it).
+    // Then the creator must never know the password: only an email invitation, which
+    // the new person completes themselves, is allowed.
+    const setsPassword = (action === "create" && loginMethod === "USERNAME") || (action === "update" && Boolean(password) && !isSelf);
+    if (!capabilities.isAdmin && accountType === "USER" && ["create","update"].includes(action) && setsPassword) {
       const [callerGrants, callerRoles] = await Promise.all([activeGrants(admin,identity.user.id), activeRoleCodes(admin,identity.user.id)]);
-      assertGrantsCovered(selectedPermissions as Grant[],callerGrants,"This job title");
-      assertRolesCovered(selectedRoles,callerRoles,"This job title");
+      try {
+        assertGrantsCovered(selectedPermissions as Grant[],callerGrants,"This job title");
+        assertRolesCovered(selectedRoles,callerRoles,"This job title");
+      } catch {
+        throw new Error("This job title has access your account does not have. Use an email invitation so only the new person sets the password.");
+      }
     }
     if (action === "create") {
       const passwordRequired = accountType === "TERMINAL" || loginMethod === "USERNAME";
