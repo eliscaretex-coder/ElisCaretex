@@ -266,7 +266,7 @@
         <section id="rosterSettingsLeave" class="roster-settings-section hidden">
           <div class="roster-settings-intro"><strong>Long Holiday approval</strong><span>Holidays longer than the configured number of calendar days require a General Manager decision before approval.</span></div>
           <div class="roster-leave-settings-grid">
-            <label class="roster-field"><span>General Manager email</span><input id="rosterLeaveGmEmail" type="email" autocomplete="email" placeholder="manager@example.com"></label>
+            <label class="roster-field"><span>General Manager email</span><input id="rosterLeaveGmEmail" type="text" inputmode="email" autocomplete="off" placeholder="manager@example.com" title="Shown masked. Only an Administrator can change it."></label>
             <label class="roster-field"><span>GM approval when Holiday is longer than</span><div class="roster-number-field"><input id="rosterLeaveGmThreshold" type="number" min="1" max="120" step="1"><span>days</span></div></label>
           </div>
           <div class="roster-leave-settings-actions"><button id="rosterLeaveSettingsSave" class="roster-button primary" type="button">Save leave settings</button></div>

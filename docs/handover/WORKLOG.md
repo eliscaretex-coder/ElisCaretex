@@ -104,6 +104,75 @@ Entry format:
 - Open / next: apply the SQL before or right after merging (the page works without it but
   shows no dates). Security advisors to run after applying.
 
+## 2026-11-06 — Claude — IT Manager job title: Administrator access without touching Administrators
+
+- Owner request: the IT Manager gives and removes permissions and creates accounts, but must
+  never remove an Administrator account or change an Administrator's permissions.
+- Migration `202611060001_it_manager_job_title_full_access.sql` (**Applied** by the owner 2026-11-06; verified 20/20 modules match, roles exclude ADMIN):
+  IT_MANAGER templates become a copy of the ADMINISTRATOR templates (all modules, ALL scope,
+  all actions) and IT_MANAGER gets every active legacy role except ADMIN. Existing IT Manager
+  accounts (none on 2026-11-06) are re-synced with `apply_account_job_title_template`.
+- Enforcement already live through `admin-account-management` v18 (PR #177): a
+  non-administrator cannot change, disable, delete or re-invite an account holding ADMIN,
+  cannot give the Administrator job title, cannot change their own job title or permissions,
+  and cannot give access they do not hold. Database checks using
+  `has_any_role(array['ADMIN'])` (for example the General Manager email) stay
+  Administrator-only. Hierarchy rank stays 10 (Administrator 1).
+- Also recorded: `202611050004_users_permissions_privacy_hardening.sql` was **Applied** by the
+  owner on 2026-11-06 (verified: masking functions exist, 0 anon/authenticated table grants).
+  Owner reports public sign-up turned off.
+
+## 2026-11-05 — Claude — Users and permissions hardening; emails masked everywhere
+
+- Branch / commits: `claude/users-permissions-hardening`, Pull Request.
+- Found (owner asked for a full review of users, permissions and staff privacy):
+  1. Supabase Auth public sign-up is open (`disable_signup=false`). A self-registered
+     account was treated as enabled (`current_account_is_enabled` returned true without a
+     profile) and could read the full customer list through
+     `finish_rewash_customer_options_v1`, an internal helper with no permission check.
+  2. `admin-account-management`: a user with Accounts & Access Edit (General Manager) could
+     change any account's email, including the Administrator's, and take it over with
+     "Forgot password". A Production Supervisor (Create, Production scope) could create a
+     Production Manager account. A non-administrator with Manage could give the
+     Administrator job title.
+  3. `prepare_production_roster_gm_review` returned the General Manager review token to the
+     Roster Manager, who could then approve long Holidays as the General Manager. Any
+     Roster Manager could also change the General Manager email.
+  4. Full emails returned by about 25 RPCs (account directory, notices, documents, stock,
+     driver master, Holiday history `decision_actor` stored the reviewer's email).
+  5. Disabled (banned) accounts kept database access until their token expired.
+  6. anon and authenticated still had direct grants (including TRUNCATE, which RLS does
+     not cover) on 20 public tables and views.
+- Changed:
+  - Migration `202611050004`: `mask_email`, `mask_emails_in_text`, `mask_emails_in_jsonb`;
+    every email output masked (`pa***@g***.com`); masked values sent back by the screens keep
+    the stored email; `current_account_is_enabled` needs a profile, staff link or active
+    terminal and rejects banned/deleted users; GM token issued only through
+    `issue_production_roster_gm_review_token` (service role); only Administrators change the
+    GM email; internal helpers revoked from authenticated; all direct table/sequence grants
+    for anon and authenticated revoked, and default privileges changed so new tables are not
+    granted to anon/authenticated and new functions are not executable by anon.
+  - `admin-account-management`: caller must be an enabled USER account; a non-administrator
+    can only create or change accounts whose permissions and roles are covered by their own;
+    only Administrators give the Administrator title or touch Administrator accounts; nobody
+    changes their own job title or permissions; changing a sign-in email needs Manage; a
+    masked or empty email keeps the current one.
+  - `production-roster-leave-email`: gets the token with the service role when the prepare
+    RPC no longer returns it (works before and after the migration); replies with the
+    masked address.
+  - Screens: driver email and GM email inputs accept the masked value; account editor hint.
+- Database: `202611050004_users_permissions_privacy_hardening.sql` prepared, NOT applied.
+  Owner applies it from the SQL Editor after deploying both Edge Functions.
+- Validation: all function patches and checks were run inside a rolled-back transaction on
+  ElisCaretex-dev (stranger account blocked, no full email in directory, notices, documents,
+  driver master, distribution and Holiday history; GM email change refused for a Production
+  Manager; Production Manager and Administrator keep their access; anon/authenticated have
+  no table access). `node scripts/validate-repository.mjs` passed; both Edge Functions parse
+  with esbuild. Edge Functions not deployed and not run.
+- Open / next: owner must turn off "Allow new users to sign up" in Supabase Auth. New
+  functions must now `grant execute ... to anon` explicitly when they are token endpoints,
+  and new tables are never read directly by the browser.
+
 ## 2026-11-05 — Claude — Distribution board without Dispatch/Complete; leave and roster alerts
 
 - Branch / commits: `claude/distribution-board-simplify`, Pull Request.

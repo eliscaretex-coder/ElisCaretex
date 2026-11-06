@@ -55,14 +55,68 @@ async function isAdministrator(client: ReturnType<typeof createClient>, authUser
 }
 
 async function accountCapabilities(client: ReturnType<typeof createClient>,authUserId: string) {
-  if (await isAdministrator(client,authUserId)) return { canCreate:true,canEdit:true,canManage:true,accessScope:"ALL" };
+  if (await isAdministrator(client,authUserId)) return { isAdmin:true,canCreate:true,canEdit:true,canManage:true,accessScope:"ALL" };
   const today = new Date().toISOString().slice(0,10);
   const { data,error } = await client.from("account_permission_grants")
     .select("can_create,can_edit,can_manage,access_scope")
     .eq("auth_user_id",authUserId).eq("module_code","ACCOUNTS_ACCESS").eq("active",true)
     .lte("effective_from",today).or(`effective_until.is.null,effective_until.gte.${today}`).maybeSingle();
   if (error) throw error;
-  return { canCreate:Boolean(data?.can_create || data?.can_manage),canEdit:Boolean(data?.can_edit || data?.can_manage),canManage:Boolean(data?.can_manage),accessScope:String(data?.access_scope || "OWN") };
+  return { isAdmin:false,canCreate:Boolean(data?.can_create || data?.can_manage),canEdit:Boolean(data?.can_edit || data?.can_manage),canManage:Boolean(data?.can_manage),accessScope:String(data?.access_scope || "OWN") };
+}
+
+const SCOPE_COVERS: Record<string,string[]> = {
+  OWN:["OWN"], TEAM:["OWN","TEAM"], PRODUCTION:["OWN","TEAM","PRODUCTION"],
+  DISTRIBUTION:["OWN","TEAM","DISTRIBUTION"], ALL:["OWN","TEAM","PRODUCTION","DISTRIBUTION","ALL"]
+};
+type Grant = { module_code:string; access_scope:string; can_view:boolean; can_create:boolean; can_edit:boolean; can_approve:boolean; can_manage:boolean };
+
+function maskEmail(email: string) {
+  const value = String(email || "").trim().toLowerCase();
+  if (!value.includes("@")) return value;
+  const [local, domain] = value.split("@");
+  const tld = domain.includes(".") ? domain.slice(domain.lastIndexOf(".")) : "";
+  return `${local.slice(0, local.length <= 3 ? 1 : 2)}***@${domain.slice(0, 1)}***${tld}`;
+}
+
+async function activeGrants(client: ReturnType<typeof createClient>, authUserId: string) {
+  const today = new Date().toISOString().slice(0,10);
+  const { data,error } = await client.from("account_permission_grants")
+    .select("module_code,access_scope,can_view,can_create,can_edit,can_approve,can_manage")
+    .eq("auth_user_id",authUserId).eq("active",true)
+    .lte("effective_from",today).or(`effective_until.is.null,effective_until.gte.${today}`);
+  if (error) throw error;
+  return (data || []) as Grant[];
+}
+
+async function activeRoleCodes(client: ReturnType<typeof createClient>, authUserId: string) {
+  const { data,error } = await client.from("account_roles").select("roles!inner(role_code)").eq("auth_user_id",authUserId).eq("active",true);
+  if (error) throw error;
+  return (data || []).map((item) => String((item.roles as unknown as { role_code:string }).role_code));
+}
+
+// "You cannot give (or manage someone who has) more than you have."
+// Every grant must be covered by the caller's own grant on the same module:
+// same or wider scope, and every action flag the caller also holds.
+function assertGrantsCovered(grants: Grant[], callerGrants: Grant[], what: string) {
+  const byModule = new Map<string,Grant[]>();
+  for (const grant of callerGrants) byModule.set(grant.module_code,[...(byModule.get(grant.module_code) || []),grant]);
+  for (const grant of grants) {
+    const covered = (byModule.get(grant.module_code) || []).some((own) =>
+      (SCOPE_COVERS[own.access_scope] || []).includes(grant.access_scope)
+      && (!grant.can_view || own.can_view || own.can_create || own.can_edit || own.can_approve || own.can_manage)
+      && (!grant.can_create || own.can_create || own.can_manage)
+      && (!grant.can_edit || own.can_edit || own.can_manage)
+      && (!grant.can_approve || own.can_approve || own.can_manage)
+      && (!grant.can_manage || own.can_manage));
+    if (!covered) throw new Error(`${what} has ${grant.module_code} access beyond your own permissions.`);
+  }
+}
+
+function assertRolesCovered(roles: string[], callerRoles: string[], what: string) {
+  const own = new Set(callerRoles);
+  const missing = roles.filter((role) => !own.has(role));
+  if (missing.length) throw new Error(`${what} has system roles (${missing.join(", ")}) that your account does not have.`);
 }
 
 async function assertJobTitleScope(client: ReturnType<typeof createClient>,jobTitleCode: string,accessScope: string) {
@@ -218,6 +272,9 @@ Deno.serve(async (req) => {
   const { data: identity, error: identityError } = await requester.auth.getUser();
   if (identityError || !identity.user) return respond({ ok: false, error: "Authentication is required." }, 401);
 
+  const { data: callerAccess, error: callerAccessError } = await requester.rpc("get_current_account_access");
+  if (callerAccessError || !callerAccess?.account_enabled || callerAccess?.account_type !== "USER") return respond({ ok:false,error:"This account is not enabled for account management." },403);
+
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const action = value(body, "action");
   let capabilities;
@@ -226,7 +283,10 @@ Deno.serve(async (req) => {
   const permitted = action === "create" ? capabilities.canCreate : action === "update" ? capabilities.canEdit : capabilities.canManage;
   if (!permitted) return respond({ ok:false,error:"This account does not have permission for this account action." },403);
   const accountId = value(body, "auth_user_id");
-  const email = value(body, "email").toLowerCase();
+  const submittedEmail = value(body, "email").toLowerCase();
+  // The account list shows emails masked (pa***@g***.com). A masked or empty value
+  // on update means "keep the current email".
+  const email = submittedEmail.includes("*") ? "" : submittedEmail;
   const password = value(body, "password");
   const staffId = value(body, "staff_id");
   const accountType = value(body, "account_type") === "TERMINAL" ? "TERMINAL" : "USER";
@@ -251,10 +311,28 @@ Deno.serve(async (req) => {
     if (accountType === "TERMINAL" && ["create","update"].includes(action) && (!capabilities.canManage || capabilities.accessScope !== "ALL")) throw new Error("Manage permission with All scope is required for terminal accounts.");
     if (accountType === "USER" && ["create","update"].includes(action)) await assertJobTitleScope(admin,jobTitleCode,capabilities.accessScope);
     if (accountType === "USER" && operationalJobTitles.has(jobTitleCode) && !staffId && ["create","update"].includes(action)) throw new Error("Link this operational account to its Staff Master record.");
+    const isSelf = Boolean(accountId) && accountId === identity.user.id;
+    if (!capabilities.isAdmin) {
+      if (accountType === "USER" && ["create","update"].includes(action) && jobTitleCode === "ADMINISTRATOR" && !isSelf) throw new Error("Only an Administrator can give the Administrator job title.");
+      if (action !== "create" && !isSelf) {
+        // A non-administrator may only act on accounts whose current access is
+        // fully covered by their own (this stops, for example, a General Manager
+        // from changing the Administrator's email and taking the account over).
+        const [callerGrants, callerRoles, targetGrants, targetRoles] = await Promise.all([
+          activeGrants(admin,identity.user.id), activeRoleCodes(admin,identity.user.id),
+          activeGrants(admin,accountId), activeRoleCodes(admin,accountId)
+        ]);
+        if (targetRoles.includes("ADMIN")) throw new Error("Only an Administrator can change an Administrator account.");
+        assertGrantsCovered(targetGrants,callerGrants,"The selected account");
+        assertRolesCovered(targetRoles,callerRoles,"The selected account");
+      }
+    }
     let preserved: Awaited<ReturnType<typeof existingAccountConfiguration>> | null = null;
-    if (action === "update" && !capabilities.canManage) {
+    // Nobody changes their own job title or permissions: a non-administrator
+    // editing their own account keeps the current configuration.
+    if (action === "update" && (!capabilities.canManage || (isSelf && !capabilities.isAdmin))) {
       if (!accountId) throw new Error("Account identifier is required.");
-      if (password) throw new Error("Manage permission is required to replace an account password.");
+      if (password && !isSelf) throw new Error("Manage permission is required to replace an account password.");
       preserved = await existingAccountConfiguration(admin,accountId);
       if (!preserved.profile) throw new Error("The account access profile was not found.");
       if (preserved.profile.account_type !== accountType || (accountType === "USER" && preserved.profile.job_title_code !== jobTitleCode)) throw new Error("Manage permission is required to change account type or job title.");
@@ -265,6 +343,11 @@ Deno.serve(async (req) => {
       const resolved = await resolveJobAccess(admin, jobTitleCode, capabilities.canManage ? selectedPermissions : []);
       selectedRoles = resolved.roleCodes;
       selectedPermissions = preserved ? preserved.permissions : resolved.permissions;
+    }
+    if (!capabilities.isAdmin && !preserved && ["create","update"].includes(action)) {
+      const [callerGrants, callerRoles] = await Promise.all([activeGrants(admin,identity.user.id), activeRoleCodes(admin,identity.user.id)]);
+      assertGrantsCovered(selectedPermissions as Grant[],callerGrants,"This job title");
+      assertRolesCovered(selectedRoles,callerRoles,"This job title");
     }
     if (action === "create") {
       const passwordRequired = accountType === "TERMINAL" || loginMethod === "USERNAME";
@@ -287,7 +370,7 @@ Deno.serve(async (req) => {
 
     if (!accountId) throw new Error("Account identifier is required.");
     if (accountId === identity.user.id && ["disable", "delete"].includes(action)) throw new Error("You cannot disable or delete your own signed-in account.");
-    if (accountId === identity.user.id && action === "update" && jobTitleCode !== "ADMINISTRATOR") throw new Error("You cannot remove your own Administrator job title.");
+    if (accountId === identity.user.id && action === "update" && capabilities.isAdmin && jobTitleCode !== "ADMINISTRATOR") throw new Error("You cannot remove your own Administrator job title.");
 
     const { data: terminal, error: terminalError } = await admin
       .from("production_station_devices")
@@ -322,12 +405,22 @@ Deno.serve(async (req) => {
         await setAccountPermissions(admin,accountId,selectedPermissions,identity.user.id);
         return respond({ ok:true });
       }
-      if (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@")) : !loginIdentifier)) throw new Error("Complete the job title and sign-in method.");
+      const { data:currentUser,error:currentUserError } = await admin.auth.admin.getUserById(accountId);
+      if (currentUserError || !currentUser.user) throw currentUserError || new Error("The account was not found.");
+      const currentEmail = String(currentUser.user.email || "").toLowerCase();
+      const nextEmail = loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : (email || (currentEmail.endsWith(".eliscaretex.local") ? "" : currentEmail));
+      if (!jobTitleCode || (loginMethod === "EMAIL" ? (!nextEmail || !nextEmail.includes("@")) : !loginIdentifier)) throw new Error("Complete the job title and sign-in method.");
       if (password && password.length < 12) throw new Error("Replacement passwords must have at least 12 characters.");
-      const changes: Record<string, string> = { email:loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email };
+      // Changing where an account signs in (email or username) hands the account to
+      // whoever controls the new address, so it needs Manage permission.
+      if (nextEmail !== currentEmail && !capabilities.canManage) throw new Error("Manage permission is required to change an account's sign-in email or username.");
+      const changes: Record<string, string> = {};
+      if (nextEmail !== currentEmail) changes.email = nextEmail;
       if (password) changes.password = password;
-      const { error } = await admin.auth.admin.updateUserById(accountId, changes);
-      if (error) throw error;
+      if (Object.keys(changes).length) {
+        const { error } = await admin.auth.admin.updateUserById(accountId, changes);
+        if (error) throw error;
+      }
       await assertLinkableStaff(admin, staffId, accountId);
       await setStaffLink(admin, accountId, staffId);
       await setAccountRoles(admin, accountId, selectedRoles, accountType, displayName, jobTitleCode, loginMethod, loginIdentifier);
