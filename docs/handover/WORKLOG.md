@@ -84,7 +84,7 @@ Entry format:
 
 - Owner request: the IT Manager gives and removes permissions and creates accounts, but must
   never remove an Administrator account or change an Administrator's permissions.
-- Migration `202611060001_it_manager_job_title_full_access.sql` (**Prepared**, not applied):
+- Migration `202611060001_it_manager_job_title_full_access.sql` (**Applied** by the owner 2026-11-06; verified 20/20 modules match, roles exclude ADMIN):
   IT_MANAGER templates become a copy of the ADMINISTRATOR templates (all modules, ALL scope,
   all actions) and IT_MANAGER gets every active legacy role except ADMIN. Existing IT Manager
   accounts (none on 2026-11-06) are re-synced with `apply_account_job_title_template`.
