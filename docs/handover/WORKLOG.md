@@ -80,6 +80,27 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Finish: administrator clean-up of the delivery check
+
+- Branch / commits: `claude/finish-queue-admin-cleanup`, Pull Request into `master`.
+- Changed: washed Clothes customers with no Finish record after their delivery cutoff kept
+  reopening "Finish confirmation required" every two hours (7 customers, up to 9 days late).
+  Administrators get a "Clean up list" button in that dialog and a "Clean up" button in the
+  Customers header: select customers, give a reason, clear; a Cleared tab offers Restore.
+  Nothing is deleted; Production Flow items, washes and earlier answers are untouched.
+- Database: `202611060016_finish_delivery_check_admin_cleanup.sql` — **Prepared, not applied**.
+  New table `finish_delivery_check_clearances` (RLS on, no grants), `can_clear_finish_delivery_check()`,
+  internal `finish_delivery_check_item_open`, `get_finish_delivery_check_cleanup`,
+  `clear_finish_delivery_check_items`, `restore_finish_delivery_check_item` (audit_log on both).
+  Patches `get_finish_delivery_reconciliation_context` from its live definition with exact
+  single-match replacements (excludes cleared customers, adds `can_clear_open_items`).
+  Permission: ADMIN or FINISH MANAGE (legacy ADMIN/MANAGER): Administrator and Production Manager.
+- Validation: migration + `supabase/tests/202611060016_..._validation.sql` run on ElisCaretex-dev
+  in a rolled-back transaction: PASSED (anon, supervisor and Finish terminal refused; admin
+  clears and restores a real customer; delivery check verified); nothing persisted.
+  `node scripts/validate-repository.mjs` passed. Screenshots with mocked RPCs.
+- Open / next: owner applies `aplicar-no-sql-editor.sql`.
+
 ## 2026-11-06 — Claude — MOP Production: administrator clean-up of the washed queue
 
 - Branch / commits: `claude/mop-queue-admin-cleanup`, Pull Request into `master`.

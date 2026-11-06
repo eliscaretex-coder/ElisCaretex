@@ -1033,6 +1033,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(state.trackerData)state.operationalTrackers.set(currentDate,state.trackerData);
     extraTrackers.forEach((tracker,index)=>{if(tracker?.schema_version==="PRODUCTION_TRACKER_V4")state.operationalTrackers.set(extraDates[index],tracker);});
     state.deliveryReconciliation=reconciliation;
+    syncFinishCleanupButtons();
     renderQueue();
     presentDeliveryReconciliation();
   }
@@ -1062,7 +1063,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function presentDeliveryReconciliation(){
     const item=activeDeliveryReconciliation();
-    if(!item||el.deliveryReconciliationDialog.open||el.productionDialog.open||el.trolleyDialog.open||el.staffDialog.open)return;
+    if(!item||el.deliveryReconciliationDialog.open||el.productionDialog.open||el.trolleyDialog.open||el.staffDialog.open||$("finishCleanupDialog")?.open)return;
     renderDeliveryReconciliation();
     el.deliveryReconciliationDialog.showModal();
   }
@@ -1090,6 +1091,115 @@ document.addEventListener("DOMContentLoaded", async () => {
       setMessage(result?.message||"Delivery check saved.","success");
     }catch(err){console.error(err);setDeliveryReconciliationMessage(err.message||"Delivery check could not be saved.","error");}
     finally{state.deliveryReconciliationSaving=false;buttons.forEach(button=>button.disabled=false);}
+  }
+  // Administrator clean-up: washed customers whose Finish was never entered keep
+  // coming back in the delivery check. An administrator can clear them with a
+  // reason. Nothing is deleted and a cleared customer can be restored.
+  function syncFinishCleanupButtons(){
+    const allowed=Boolean(state.deliveryReconciliation?.can_clear_open_items);
+    ["finishCleanupButton","finishDeliveryCleanupButton"].forEach(id=>{const b=$(id);if(b)b.hidden=!allowed;});
+  }
+  function ensureFinishCleanupUi(){
+    if($("finishCleanupDialog"))return;
+    document.body.insertAdjacentHTML("beforeend",`<dialog id="finishCleanupDialog" class="finish-dialog finish-cleanup-dialog">
+      <section class="finish-dialog-card">
+        <header class="finish-dialog-header"><div><p>Administrator</p><h2>Clean up Finish delivery check</h2><span>Clear washed customers whose Finish was never entered, so they stop asking for confirmation. Nothing is deleted: the wash stays in history and a cleared customer can be restored.</span></div><button id="finishCleanupClose" type="button" class="finish-dialog-close" aria-label="Close">×</button></header>
+        <div class="finish-cleanup-body">
+          <div class="finish-cleanup-tabs" role="tablist"><button type="button" data-finish-cleanup-tab="open" class="active">Waiting <span id="finishCleanupOpenCount">0</span></button><button type="button" data-finish-cleanup-tab="cleared">Cleared <span id="finishCleanupClearedCount">0</span></button></div>
+          <div id="finishCleanupOpenPane" class="finish-cleanup-pane">
+            <label class="finish-cleanup-all"><input id="finishCleanupSelectAll" type="checkbox"> Select all</label>
+            <div id="finishCleanupList" class="finish-cleanup-list"></div>
+            <label class="finish-cleanup-reason">Reason <span>(required)</span><input id="finishCleanupReason" type="text" maxlength="1000" placeholder="Example: delivered, Finish quantity never entered"></label>
+          </div>
+          <div id="finishCleanupClearedPane" class="finish-cleanup-pane" hidden><div id="finishCleanupClearedList" class="finish-cleanup-list"></div></div>
+          <p id="finishCleanupMessage" class="finish-message" aria-live="polite"></p>
+          <div class="finish-form-actions finish-cleanup-actions"><span id="finishCleanupSelected">0 selected</span><button id="finishCleanupCancel" type="button" class="secondary">Close</button><button id="finishCleanupSave" type="button" class="primary" disabled>Clear selected</button></div>
+        </div>
+      </section></dialog>`);
+    const dialog=$("finishCleanupDialog");
+    const close=()=>{if(state.finishCleanup?.saving)return;state.finishCleanup=null;dialog.close();presentDeliveryReconciliation();};
+    $("finishCleanupClose").addEventListener("click",close);
+    $("finishCleanupCancel").addEventListener("click",close);
+    dialog.addEventListener("cancel",e=>{e.preventDefault();close();});
+    dialog.querySelector(".finish-cleanup-tabs").addEventListener("click",e=>{const b=e.target.closest("[data-finish-cleanup-tab]");if(!b||!state.finishCleanup)return;state.finishCleanup.tab=b.dataset.finishCleanupTab;renderFinishCleanup();});
+    $("finishCleanupSelectAll").addEventListener("change",e=>{const c=state.finishCleanup;if(!c)return;c.selected=e.target.checked?new Set((c.data?.open_items||[]).map(r=>r.production_flow_item_id)):new Set();renderFinishCleanup();});
+    $("finishCleanupList").addEventListener("change",e=>{const box=e.target.closest("[data-finish-cleanup-item]");const c=state.finishCleanup;if(!box||!c)return;if(box.checked)c.selected.add(box.dataset.finishCleanupItem);else c.selected.delete(box.dataset.finishCleanupItem);renderFinishCleanup();});
+    $("finishCleanupReason").addEventListener("input",()=>renderFinishCleanup());
+    $("finishCleanupSave").addEventListener("click",saveFinishCleanup);
+    $("finishCleanupClearedList").addEventListener("click",e=>{const b=e.target.closest("[data-finish-cleanup-restore]");if(b)restoreFinishCleanup(b.dataset.finishCleanupRestore);});
+  }
+  async function openFinishCleanup(){
+    if(!state.deliveryReconciliation?.can_clear_open_items)return;
+    ensureFinishCleanupUi();
+    if(el.deliveryReconciliationDialog.open)el.deliveryReconciliationDialog.close();
+    state.finishCleanup={tab:"open",selected:new Set(),data:null,saving:false,loading:true};
+    $("finishCleanupReason").value="";$("finishCleanupMessage").textContent="";
+    renderFinishCleanup();
+    $("finishCleanupDialog").showModal();
+    await loadFinishCleanup();
+  }
+  async function loadFinishCleanup(){
+    const c=state.finishCleanup;if(!c)return;
+    c.loading=true;renderFinishCleanup();
+    try{const data=await rpc("get_finish_delivery_check_cleanup",{p_cleared_limit:50});if(state.finishCleanup!==c)return;c.data=data;}
+    catch(err){console.error(err);$("finishCleanupMessage").textContent=err.message||"The clean-up list could not be loaded.";}
+    finally{if(state.finishCleanup===c){c.loading=false;renderFinishCleanup();}}
+  }
+  function renderFinishCleanup(){
+    const c=state.finishCleanup;if(!c)return;
+    const open=Array.isArray(c.data?.open_items)?c.data.open_items:[],cleared=Array.isArray(c.data?.cleared)?c.data.cleared:[];
+    const ids=new Set(open.map(r=>r.production_flow_item_id));
+    c.selected=new Set([...c.selected].filter(id=>ids.has(id)));
+    $("finishCleanupOpenCount").textContent=String(open.length);
+    $("finishCleanupClearedCount").textContent=String(cleared.filter(r=>!r.restored_at).length);
+    document.querySelectorAll("[data-finish-cleanup-tab]").forEach(b=>b.classList.toggle("active",b.dataset.finishCleanupTab===c.tab));
+    $("finishCleanupOpenPane").hidden=c.tab!=="open";
+    $("finishCleanupClearedPane").hidden=c.tab!=="cleared";
+    const loading='<div class="finish-empty">Loading…</div>';
+    $("finishCleanupList").innerHTML=c.loading&&!c.data?loading:open.length?open.map(r=>{
+      const late=Number(r.overdue_days||0),np=r.previous_outcome_code==="NOT_PROCESSED",route=String(r.route_name||r.route_code||"").trim();
+      return `<label class="finish-cleanup-row"><input type="checkbox" data-finish-cleanup-item="${esc(r.production_flow_item_id)}"${c.selected.has(r.production_flow_item_id)?" checked":""}><span><strong>${esc(r.customer_name||"—")}</strong><small>Scheduled ${esc(fmtDate(r.scheduled_for_date))} · Delivery ${esc(fmtDate(r.delivery_date))} · Washed ${Number(r.washed_kg_total||0).toFixed(1)} kg${route?` · ${esc(route)}`:""}</small></span><span class="finish-cleanup-tags">${np?'<em class="np">Not processed</em>':""}${late>0?`<em class="late">${late} day${late===1?"":"s"} late</em>`:""}</span></label>`;
+    }).join(""):'<div class="finish-empty">No customer is waiting for a delivery check.</div>';
+    const all=$("finishCleanupSelectAll");
+    all.checked=open.length>0&&c.selected.size===open.length;all.indeterminate=c.selected.size>0&&c.selected.size<open.length;all.disabled=!open.length;
+    $("finishCleanupClearedList").innerHTML=c.loading&&!c.data?loading:cleared.length?cleared.map(r=>{
+      const status=r.restored_at?`<span class="finish-cleanup-note">Restored${r.restored_by_name?` by ${esc(r.restored_by_name)}`:""} · ${esc(fmtDate(r.restored_at))}</span>`
+        :r.finish_recorded_since?'<span class="finish-cleanup-note">Finish entered later</span>'
+        :`<button type="button" class="secondary" data-finish-cleanup-restore="${esc(r.clearance_id)}"${c.saving?" disabled":""}>Restore</button>`;
+      return `<div class="finish-cleanup-row cleared${r.restored_at?" restored":""}"><span><strong>${esc(r.customer_name||"—")}</strong><small>Scheduled ${esc(fmtDate(r.scheduled_for_date))} · Delivery ${esc(fmtDate(r.delivery_date))} · Washed ${Number(r.washed_kg_total||0).toFixed(1)} kg</small><small>Cleared ${esc(fmtDate(r.cleared_at))} ${esc(fmtTime(r.cleared_at))}${r.cleared_by_name?` by ${esc(r.cleared_by_name)}`:""} · “${esc(r.reason)}”</small></span>${status}</div>`;
+    }).join(""):'<div class="finish-empty">Nothing has been cleared yet.</div>';
+    const reasonOk=String($("finishCleanupReason").value||"").trim().length>=3,save=$("finishCleanupSave");
+    save.hidden=c.tab!=="open";
+    save.disabled=c.saving||!c.selected.size||!reasonOk;
+    save.textContent=c.saving?"Clearing…":c.selected.size>1?`Clear ${c.selected.size} customers`:"Clear selected";
+    $("finishCleanupSelected").textContent=c.tab==="open"?(c.selected.size&&!reasonOk?`${c.selected.size} selected · write a reason`:`${c.selected.size} selected`):"";
+  }
+  async function saveFinishCleanup(){
+    const c=state.finishCleanup;if(!c||c.saving||!c.selected.size)return;
+    const reason=String($("finishCleanupReason").value||"").trim();
+    if(reason.length<3){$("finishCleanupMessage").textContent="Write a short reason first.";return;}
+    if(!confirm(`Clear ${c.selected.size} customer${c.selected.size===1?"":"s"} from the Finish delivery check? You can restore them later from the Cleared tab.`))return;
+    c.saving=true;renderFinishCleanup();
+    try{
+      const result=await rpc("clear_finish_delivery_check_items",{p_production_flow_item_ids:[...c.selected],p_reason:reason});
+      const skipped=Array.isArray(result?.skipped)?result.skipped.length:0;
+      $("finishCleanupMessage").textContent=`${Number(result?.cleared_count||0)} customer(s) cleared.${skipped?` ${skipped} skipped (already entered or cleared).`:""}`;
+      c.selected=new Set();$("finishCleanupReason").value="";
+      await Promise.all([loadFinishCleanup(),load()]);
+    }catch(err){console.error(err);$("finishCleanupMessage").textContent=err.message||"The customers could not be cleared.";}
+    finally{if(state.finishCleanup===c){c.saving=false;renderFinishCleanup();}}
+  }
+  async function restoreFinishCleanup(clearanceId){
+    const c=state.finishCleanup;if(!c||c.saving)return;
+    const row=(c.data?.cleared||[]).find(r=>r.clearance_id===clearanceId);
+    if(!confirm(`Put ${row?.customer_name||"this customer"} back in the Finish delivery check?`))return;
+    c.saving=true;renderFinishCleanup();
+    try{
+      await rpc("restore_finish_delivery_check_item",{p_clearance_id:clearanceId,p_reason:null});
+      $("finishCleanupMessage").textContent=`${row?.customer_name||"Customer"} is back in the delivery check.`;
+      await Promise.all([loadFinishCleanup(),load()]);
+    }catch(err){console.error(err);$("finishCleanupMessage").textContent=err.message||"The customer could not be restored.";}
+    finally{if(state.finishCleanup===c){c.saving=false;renderFinishCleanup();}}
   }
   function staffCandidateByName(name){const key=String(name||"").trim().toLocaleLowerCase();return state.staffCandidates.find(row=>String(row.display_name||"").trim().toLocaleLowerCase()===key)||null;}
   function renderStaffCandidates(){el.staffCandidates.innerHTML=state.staffCandidates.map(row=>`<option value="${esc(row.display_name)}"></option>`).join("");}
@@ -1150,6 +1260,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.deliveryReconciliationDialog?.addEventListener("cancel",event=>event.preventDefault());
   el.deliveryReconciliationForm?.addEventListener("submit",event=>{event.preventDefault();saveDeliveryReconciliation("PROCESSED_CONFIRMED");});
   el.deliveryNotProcessed?.addEventListener("click",()=>saveDeliveryReconciliation("NOT_PROCESSED"));
+  $("finishCleanupButton")?.addEventListener("click",openFinishCleanup);
+  $("finishDeliveryCleanupButton")?.addEventListener("click",openFinishCleanup);
   if(el.tableFocusTabs)el.tableFocusTabs.addEventListener("click",e=>{const b=e.target.closest("[data-focus-table]");if(!b||state.lockedTable)return;state.activeTable=b.dataset.focusTable;el.table.value=state.activeTable;renderMetrics();renderRewashCard();renderRecent();setMessage(`${tableName(state.activeTable)} selected. New customer records will default to this Table.`,"success");});
   document.addEventListener("elis:customer-alerts-changed",()=>{if(state.data)renderQueue();});
   if(el.queueModeTabs)el.queueModeTabs.addEventListener("click",e=>{const b=e.target.closest("[data-queue-mode]");if(!b)return;state.queueMode=b.dataset.queueMode==="AVAILABLE"?"AVAILABLE":"TODAY";renderQueue();});
