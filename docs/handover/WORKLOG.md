@@ -80,6 +80,31 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — L trolleys count as M (Finish plates, MOP, trolley checks)
+
+- Branch / commits: `claude/large-trolley-counts-as-medium`, Pull Request into `master`.
+- Owner rule (2026-11-06): L trolleys are used as M, so an L scanned where an M is planned is
+  not a wrong trolley. No published plan asks for L (checked: active requirements are only
+  S, M and GRAY).
+- Cause of the owner's report: the Finish backend (`validate_finish_trolley_selection`,
+  202608260001) already accepted L for M, but the Finish plate scan (`plateAssignment` in
+  `finish-production.js`) compared sizes exactly and showed "wrong size: L" on an M plate.
+  MOP had the same plate check in `sorting.js` and its backend validator compared types exactly.
+- Changed: Finish and MOP plate scans let an L fill an M plate (an exact size is still
+  preferred). End-of-shift Trolley Check summary and the Production Tracker trolley cell count
+  L toward M. MOP validator gets the Finish rule.
+- Database: `202611060018_mop_large_trolley_counts_as_medium.sql` (**Prepared, not applied**):
+  `validate_mop_trolley_selection` counts unreserved Large trolleys toward Medium, as Finish does.
+- Validation: before the change, live MOP validator returned "M: planned 1, scanned 0 / L not in
+  plan" for 1 L on a 1×M plan. The migration plus
+  `supabase/tests/202611060018_..._validation.sql` were run in one transaction against
+  ElisCaretex-dev and rolled back: L accepted for M, M still OK, 2 L for 1 M refused, L for S
+  refused, grants unchanged. `node scripts/validate-repository.mjs` passes.
+- Open / next: owner applies `aplicar-no-sql-editor.sql` (copy in
+  `/mnt/project-files/trolley-l-como-m/`) and merges the PR.
+
+---
+
 ## 2026-11-06 — Claude — Legacy sync kept dropping the units on the trolleys (HIGHFIELD restored)
 
 - Branch / commits: `claude/legacy-sync-keep-trolley-units`, Pull Request into `master`.

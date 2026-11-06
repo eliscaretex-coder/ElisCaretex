@@ -292,7 +292,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   // scanned by each area, and exactly where the difference is.
   function sizeMap(list) {
     const m = new Map();
-    (list || []).forEach((t) => { const k = t.type || t.size || "?"; m.set(k, (m.get(k) || 0) + Number(t.quantity ?? 1)); });
+    // L trolleys are used as M, so an L counts toward the planned M.
+    (list || []).forEach((t) => { const raw = String(t.type || t.size || "?").toUpperCase(); const k = raw === "L" || raw === "LARGE" ? "M" : raw; m.set(k, (m.get(k) || 0) + Number(t.quantity ?? 1)); });
     return m;
   }
   function mapText(m) { return [...m.entries()].filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(" + ") || "0"; }

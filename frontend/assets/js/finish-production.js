@@ -516,6 +516,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   // M #2…, and each scanned code is drawn on the plate row it belongs to.
   // A code goes to the first open row of its own size; a code of the wrong size or a
   // trolley that cannot be used takes the next open row and is shown as wrong there.
+  // L trolleys are used as M: a Large trolley fits a Medium plate (an exact size is preferred).
+  function sizeFits(plate,scanned){return plate===scanned||((plate==="M"||plate==="MEDIUM")&&(scanned==="L"||scanned==="LARGE"));}
   function plateRows(){return Array.isArray(state.plates?.trolleys)?state.plates.trolleys:[];}
   function plateLabel(t){return `${t.display_code||"?"} #${t.position}`;}
   function plateAssignment(){
@@ -528,7 +530,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const d=detail.get(code),type=d?typeOf(d):"",usable=Boolean(d&&d.exists&&d.usable),picked=targets.has(code)&&targets.get(code)<rows.length&&!slots[targets.get(code)]?targets.get(code):-1;
       const later=state.platesLater||new Set(),open=(i)=>!slots[i]&&!later.has(i);
       let index=picked>=0?picked:usable?rows.findIndex((r,i)=>open(i)&&typeOf(r)===type):-1;
-      const fits=index>=0&&(!d||!usable||typeOf(rows[index])===type);if(index<0)index=slots.findIndex((x,i)=>open(i));if(index<0)index=slots.findIndex(x=>!x);
+      if(index<0&&picked<0&&usable)index=rows.findIndex((r,i)=>open(i)&&sizeFits(typeOf(r),type));
+      const fits=index>=0&&(!d||!usable||sizeFits(typeOf(rows[index]),type));if(index<0)index=slots.findIndex((x,i)=>open(i));if(index<0)index=slots.findIndex(x=>!x);
       if(index<0){extras.push({code,d});return;}
       let stateName="ok",label="",title="Trolley scanned for this plate";
       if(!d){stateName="checking";label="checking…";title="Checking the trolley";}
