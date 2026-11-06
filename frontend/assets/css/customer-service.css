@@ -225,3 +225,7 @@ p.cs-form-hint{margin:-4px 0 0;padding:6px 9px;border-radius:8px;background:#fff
 .cs-cycle.none{background:#f1f5f9;color:var(--cs-muted);font-weight:600}
 .cs-trace-more{grid-column:1/-1}
 .cs-trace-more summary{cursor:pointer;color:var(--cs-muted);font-size:.7rem;font-weight:800;margin-bottom:6px}
+
+/* Task for a person */
+.cs-form-grid label .cs-field-hint{display:block;margin-top:4px;font-size:.8rem;font-weight:500;color:var(--cs-muted);text-transform:none;letter-spacing:normal}
+.cs-task-person{color:#0f766e;font-weight:700}

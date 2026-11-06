@@ -62,7 +62,7 @@
       <header><strong>⚠ Customer Service</strong><span>${esc(summary)}</span><button type="button" data-toggle>${isCollapsed ? "Show" : "Hide"}</button></header>
       ${isCollapsed ? "" : `<div class="customer-alerts-list">
         ${state.alerts.map((a) => `<article class="alert"><b>${esc(a.customer_name)}</b><p>${esc(a.message)}</p>${a.ends_on ? `<small>Until ${esc(fmtDate(a.ends_on))}</small>` : ""}</article>`).join("")}
-        ${state.tasks.map((t) => `<article class="task ${t.overdue ? "overdue" : ""}"><b>Task${t.customer_name ? ` · ${esc(t.customer_name)}` : ""}</b><p>${esc(t.title)}${t.details ? ` — ${esc(t.details)}` : ""}</p><small>${t.due_on ? `${t.overdue ? "Overdue since" : "Due"} ${esc(fmtDate(t.due_on))}` : "No due date"}</small>
+        ${state.tasks.map((t) => `<article class="task ${t.overdue ? "overdue" : ""}"><b>${t.assigned_name ? `Task for ${esc(t.assigned_name)}` : "Task"}${t.customer_name ? ` · ${esc(t.customer_name)}` : ""}</b><p>${esc(t.title)}${t.details ? ` — ${esc(t.details)}` : ""}</p><small>${t.due_on ? `${t.overdue ? "Overdue since" : "Due"} ${esc(fmtDate(t.due_on))}` : "No due date"}</small>
           ${state.openTask === t.task_id
             ? `<form data-task="${esc(t.task_id)}"><input name="notes" required minlength="2" maxlength="500" placeholder="What was done and who did it"><button type="submit">Save</button><button type="button" data-cancel>Back</button></form>`
             : `<button type="button" data-done="${esc(t.task_id)}">Mark done</button>`}

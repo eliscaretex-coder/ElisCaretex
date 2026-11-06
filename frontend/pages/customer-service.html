@@ -17,13 +17,13 @@
   <link rel="stylesheet" href="../assets/css/finish-results.css">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
-  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261106-1">
+  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261106-2">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261104-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261104-1" defer></script>
-  <script src="../assets/js/customer-service.js?v=20261106-1" defer></script>
+  <script src="../assets/js/customer-service.js?v=20261106-2" defer></script>
 </head>
 <body class="finish-results-page cs-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -99,11 +99,12 @@
             </select>
           </label>
           <label>Department<select id="csTaskDepartment"><option value="">All departments</option></select></label>
+          <label>Person<select id="csTaskPerson"><option value="">Everyone</option><option value="NONE">No person (whole department)</option></select></label>
           <span class="cs-spacer"></span>
           <button id="csNewTask" class="cs-button primary" type="button">+ New task</button>
         </div>
         <section class="finish-results-section">
-          <header><div><p>Followed until done</p><h2>Department tasks</h2></div><strong id="csTaskCount" class="finish-results-count">0</strong></header>
+          <header><div><p>Followed until done</p><h2>Tasks</h2></div><strong id="csTaskCount" class="finish-results-count">0</strong></header>
           <div id="csTasks" class="cs-list"></div>
         </section>
       </section>
@@ -162,6 +163,7 @@
   </div>
 
   <datalist id="csCustomerList"></datalist>
+  <datalist id="csPeopleList"></datalist>
 
   <!-- New / edit complaint -->
   <dialog id="csComplaintDialog" class="cs-dialog">
@@ -234,6 +236,7 @@
         <label class="cs-span" id="ctCustomerWrap">Customer (optional)<input id="ctCustomer" list="csCustomerList" autocomplete="off"></label>
         <label>Department<select id="ctDepartment" required></select></label>
         <label>Due on<input id="ctDue" type="date"></label>
+        <label class="cs-span">Person (optional)<input id="ctPerson" list="csPeopleList" autocomplete="off" placeholder="Leave empty for the whole department, or type a name"><small class="cs-field-hint" id="ctPersonHint">Supervisors, managers or a General Operative with extra work.</small></label>
         <label class="cs-span">What must be done<input id="ctTask" maxlength="160" required placeholder="For example: search for 2 missing duvet covers"></label>
         <label class="cs-span">Details<textarea id="ctDetails" rows="3"></textarea></label>
       </div>
