@@ -80,6 +80,13 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Staff Master: remove the COVER explanation banner
+
+- Owner request: removed the "Staff Master stores the original operational role..." banner
+  from the Staff Master directory (`staff.js`); `staff.js?v=20261106-2`.
+- Also recorded: `202611060002_account_creation_by_hierarchy.sql` **Applied** by the owner on
+  2026-11-06 (verified: Production Manager Accounts & access scope is ALL).
+
 ## 2026-11-06 — Claude — Customer Service tasks can go to a person
 
 - Branch: `claude/customer-service-task-person`.

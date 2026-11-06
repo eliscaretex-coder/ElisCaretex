@@ -581,10 +581,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       ${driverTransfersCard()}
 
-      <div class="staff-info-callout">
-        Staff Master stores the original operational role. Temporary COVER work is planned separately and may currently use Team Leader, Sorting Area or Supervisor capability.
-      </div>
-
       <section class="staff-card">
         <header class="staff-card-header">
           <div>
