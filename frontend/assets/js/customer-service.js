@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const TITLES = {
     complaints:["Complaints","Every complaint has a resolve-by date. Overdue ones and customers with several complaints come first."],
     alerts:["Customer alerts","Alerts appear on the Sorting, Finish, MOP and Distribution screens while they are active."],
-    tasks:["Tasks","Work for a department, followed until it is done."],
+    tasks:["Tasks","Work for a department or a person, followed until it is done."],
     results:["Results","How many complaints the company had, what they were about and where they came from."],
     settings:["Settings","Customer blocks for each person and the list of complaint types."]
   };
@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       </section>
 
       <section class="cs-card">
-        <header><h3>Tasks</h3>${canEdit&&active?'<button type="button" class="cs-button secondary" data-detail-action="new-task">+ Task for a department</button>':""}</header>
+        <header><h3>Tasks</h3>${canEdit&&active?'<button type="button" class="cs-button secondary" data-detail-action="new-task">+ Task</button>':""}</header>
         ${(d.tasks||[]).length?d.tasks.map(taskRow).join(""):'<p class="cs-muted">No task for this complaint.</p>'}
       </section>
 
@@ -339,7 +339,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function eventDetail(e){
     const x=e.details||{};
     if(e.event_type==="LINKED"){ const parts=[]; if(x.finish_table) parts.push(`${tableName(x.finish_table)} ${shiftName(x.finish_shift)} ${fmtShort(x.finish_date)}`); if(x.mop_shift) parts.push(`MOP ${shiftName(x.mop_shift)} ${fmtShort(x.mop_date)}`); if(x.sorting_shift) parts.push(`washed ${shiftName(x.sorting_shift)} ${fmtShort(x.sorting_date)}`); return parts.length?`<p class="cs-muted">${esc(parts.join(" · "))}</p>`:""; }
-    if(e.event_type?.startsWith("TASK_")&&x.department) return `<p class="cs-muted">${esc(DEPARTMENTS[x.department]||x.department)}${x.title&&e.event_type!=="TASK_CREATED"?` · ${esc(x.title)}`:""}</p>`;
+    if(e.event_type?.startsWith("TASK_")&&x.department) return `<p class="cs-muted">${x.person?`For ${esc(x.person)} · `:""}${esc(DEPARTMENTS[x.department]||x.department)}${x.title&&e.event_type!=="TASK_CREATED"?` · ${esc(x.title)}`:""}</p>`;
     if(e.event_type?.startsWith("ALERT_")&&Array.isArray(x.areas)) return `<p class="cs-muted">${esc(x.areas.map(a=>AREAS[a]||a).join(", "))}${x.ends_on?` · until ${esc(fmtShort(x.ends_on))}`:""}</p>`;
     if(e.event_type==="STATUS_RESOLVED"&&x.outcome) return `<p class="cs-muted">${esc(OUTCOME[x.outcome]||x.outcome)}</p>`;
     if(e.event_type==="DUE_CHANGED") return `<p class="cs-muted">${esc(x.from?fmtShort(x.from):"—")} → ${esc(fmtShort(x.to))}</p>`;
@@ -537,7 +537,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<article class="cs-item task ${esc(String(t.status).toLowerCase())} ${t.overdue?"overdue":""}">
       <div><strong>${esc(t.title)}</strong>${chip(String(t.status).toLowerCase(),TASK_STATUS[t.status]||t.status)}${t.overdue?chip("overdue","Overdue"):""}
         ${t.details?`<p>${esc(t.details)}</p>`:""}
-        <small>${esc(DEPARTMENTS[t.department_code]||t.department_code)}${t.due_on?` · due ${esc(fmtShort(t.due_on))}`:""}${t.customer_name?` · ${esc(t.customer_name)}`:""}${t.complaint_code?` · ${esc(t.complaint_code)}`:""} · by ${esc(t.created_by_name||"—")}</small>
+        <small>${t.assigned_name?`<b class="cs-task-person">For ${esc(t.assigned_name)}</b> · `:""}${esc(DEPARTMENTS[t.department_code]||t.department_code)}${t.due_on?` · due ${esc(fmtShort(t.due_on))}`:""}${t.customer_name?` · ${esc(t.customer_name)}`:""}${t.complaint_code?` · ${esc(t.complaint_code)}`:""} · by ${esc(t.created_by_name||"—")}</small>
         ${t.completed_at?`<small>${t.status==="DONE"?"Done":"Closed"} ${esc(fmtDateTime(t.completed_at))} by ${esc(t.completed_by_name||"—")}${t.completion_notes?`: ${esc(t.completion_notes)}`:""}</small>`:""}
       </div>
       ${canEdit?`<div class="cs-item-actions">
@@ -550,14 +550,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   async function loadTasks(){
     setMessage("Loading tasks…");
-    const rows=await rpc("get_customer_service_tasks_v1",{p_status:$("csTaskStatus").value,p_department_code:$("csTaskDepartment").value||null});
+    loadPeople().catch(err=>console.warn("People could not be loaded.",err));
+    const rows=await rpc("get_customer_service_tasks_v2",{p_status:$("csTaskStatus").value,p_department_code:$("csTaskDepartment").value||null,p_assignee_key:$("csTaskPerson").value||null});
     state.tasks=rows||[]; $("csTaskCount").textContent=String(state.tasks.length);
     $("csTasks").innerHTML=state.tasks.length?state.tasks.map(taskRow).join(""):'<div class="finish-results-empty">No tasks for this filter.</div>';
     setMessage("");
   }
   function findTask(id){ return [...(state.tasks||[]),...(state.detail?.tasks||[])].find(t=>t.task_id===id); }
+  // People a task can go to (loaded once, when first needed).
+  const personLabel=p=>`${p.name} · ${p.detail}`;
+  async function loadPeople(){
+    if(state.people) return state.people;
+    state.people=(await rpc("get_customer_service_task_people_v1"))||[];
+    $("csPeopleList").innerHTML=state.people.map(p=>`<option value="${esc(personLabel(p))}">${p.has_login?"Sees it in Notifications":"Sees it on the production screen"}</option>`).join("");
+    const keep=$("csTaskPerson").value;
+    $("csTaskPerson").innerHTML=`<option value="">Everyone</option><option value="NONE">No person (whole department)</option>${state.people.map(p=>`<option value="${esc(p.key)}">${esc(p.name)}</option>`).join("")}`;
+    $("csTaskPerson").value=keep;
+    return state.people;
+  }
+  function personByLabel(text){ const t=String(text||"").trim().toLowerCase(); return (state.people||[]).find(p=>personLabel(p).toLowerCase()===t)||(state.people||[]).filter(p=>p.name.toLowerCase()===t).at(0)||null; }
+  function personHint(){
+    const p=personByLabel($("ctPerson").value);
+    $("ctPersonHint").textContent=!$("ctPerson").value.trim()?"Supervisors, managers or a General Operative with extra work."
+      :p?(p.has_login?`${p.name} sees it in Notifications and on the production screen of the department.`:`${p.name} has no sign-in: the task shows "For ${p.name}" on the production screen of the department.`)
+      :"Choose a name from the list.";
+  }
   function openTaskForm(task={}){
     state.taskEdit=task;
+    $("ctPerson").value=task.assigned_name?(()=>{ const p=(state.people||[]).find(x=>x.key===task.assigned_key); return p?personLabel(p):task.assigned_name; })():"";
+    loadPeople().then(()=>{ if(task.assigned_key){ const p=state.people.find(x=>x.key===task.assigned_key); if(p) $("ctPerson").value=personLabel(p); } personHint(); }).catch(err=>console.warn("People could not be loaded.",err));
     $("ctTitle").textContent=task.task_id?"Edit task":"New task";
     const customer=customerById(task.customer_id);
     $("ctCustomer").value=customer?customerLabel(customer):(task.customer_name||""); $("ctCustomer").disabled=Boolean(task.complaint_id||task.task_id);
@@ -571,9 +592,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const t=state.taskEdit||{}, typed=$("ctCustomer").value.trim(), customer=typed?customerByLabel(typed):null;
     if(typed&&!customer&&!t.customer_id){ formMessage("ctMessage","Choose a customer from the list, or leave it empty."); return; }
     if(!$("ctDepartment").value){ formMessage("ctMessage","Choose the department."); return; }
+    const typedPerson=$("ctPerson").value.trim(), person=typedPerson?personByLabel(typedPerson):null;
+    const keepPerson=typedPerson&&!person&&t.assigned_key&&typedPerson===t.assigned_name;
+    if(typedPerson&&!person&&!keepPerson){ formMessage("ctMessage","Choose a person from the list, or leave it empty for the whole department."); return; }
     try{
-      await rpc("save_customer_service_task_v1",{p_task_id:t.task_id||null,p_department_code:$("ctDepartment").value,p_title:$("ctTask").value,p_details:$("ctDetails").value||null,p_due_on:$("ctDue").value||null,p_complaint_id:t.complaint_id||null,p_customer_id:customer?.customer_id||t.customer_id||null});
-      $("csTaskDialog").close(); setMessage(`Task saved for ${DEPARTMENTS[$("ctDepartment").value]}.`,"success");
+      await rpc("save_customer_service_task_v2",{p_task_id:t.task_id||null,p_department_code:$("ctDepartment").value,p_title:$("ctTask").value,p_details:$("ctDetails").value||null,p_due_on:$("ctDue").value||null,p_complaint_id:t.complaint_id||null,p_customer_id:customer?.customer_id||t.customer_id||null,p_assignee_key:person?.key||(keepPerson?t.assigned_key:null)});
+      $("csTaskDialog").close(); setMessage(`Task saved for ${person?person.name:keepPerson?t.assigned_name:DEPARTMENTS[$("ctDepartment").value]}.`,"success");
       if(state.detail&&$("csDetailDialog").open) await reloadDetail();
       await refreshAfterChange();
     }catch(err){ console.error(err); formMessage("ctMessage",errorText(err,"The task could not be saved.")); }
@@ -712,7 +736,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("csCounts").addEventListener("keydown",(event)=>{ const card=event.target.closest("[data-quick]"); if(card&&(event.key==="Enter"||event.key===" ")){ event.preventDefault(); setQuick(card.dataset.quick); } });
   $("csComplaints").addEventListener("keydown",(event)=>{ const row=event.target.closest(".cs-crow"); if(row&&event.target===row&&(event.key==="Enter"||event.key===" ")){ event.preventDefault(); openDetail(row.dataset.openComplaint); } });
   $("csAlertsEnded").addEventListener("change",()=>loadAlerts().catch(err=>setMessage(errorText(err,"Alerts could not be loaded."),"error")));
-  ["csTaskStatus","csTaskDepartment"].forEach(id=>$(id).addEventListener("change",()=>loadTasks().catch(err=>setMessage(errorText(err,"Tasks could not be loaded."),"error"))));
+  $("ctPerson").addEventListener("input",personHint);
+  ["csTaskStatus","csTaskDepartment","csTaskPerson"].forEach(id=>$(id).addEventListener("change",()=>loadTasks().catch(err=>setMessage(errorText(err,"Tasks could not be loaded."),"error"))));
   ["csResultsFrom","csResultsTo"].forEach(id=>$(id).addEventListener("change",()=>loadResults().catch(err=>setMessage(errorText(err,"Results could not be loaded."),"error"))));
   document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>setPreset(b.dataset.preset)));
   $("csBlockSearch").addEventListener("input",renderBlocks);

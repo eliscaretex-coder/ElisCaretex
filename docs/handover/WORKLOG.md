@@ -80,14 +80,39 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Customer Service tasks can go to a person
+
+- Branch: `claude/customer-service-task-person`.
+- Owner request: tasks went only to departments; they should also go to people
+  (supervisors, managers, or a General Operative given extra work).
+- Migration `202611060011_customer_service_task_for_a_person.sql` (**Prepared**; tested in a
+  rolled-back transaction against ElisCaretex-dev: 52 people listed, no email; task for a GO
+  shows "For <name>" on the Sorting screen; task for the Production Supervisor appears in
+  their Notifications inbox and counter and they mark it done; Customer Service cannot
+  complete it through the personal route; unknown person refused; anon has no execute):
+  tasks gain `assigned_staff_id`, `assigned_auth_user_id`, `assigned_name` (snapshot).
+  New `get_customer_service_task_people_v1` (Staff Master people plus non-terminal accounts
+  without a Staff Master record, key `S:`/`U:`), `save_customer_service_task_v2`,
+  `get_customer_service_tasks_v2` (person filter), `complete_my_customer_service_task_v1`
+  (only the assignee). `get_production_customer_alerts_v1` returns `assigned_name`;
+  `get_my_notification_inbox` lists my open tasks (kind `TASK`) and
+  `get_my_notification_summary` counts them (`task_count`). The department stays required.
+- Screens: Customer Service task form has "Person (optional)" with a hint saying where the
+  person will see it; Tasks tab has a Person filter and rows say "For <name>". Production
+  screens say "Task for <name>". Notifications shows the task under Needs action with a
+  "Mark done" box.
+- Validation: `node scripts/validate-repository.mjs` passed; screenshots with stubbed data.
+  pgTAP file `supabase/tests/202611060011_customer_service_task_for_a_person_validation.sql`.
+- Open: apply the migration before merging (the screens call the v2 functions).
+
 ## 2026-11-06 — Claude — Customer Service Production link: Finish and MOP Production first
 
 - Branch: `claude/customer-service-trace-mop`.
 - Owner request: the Production link search showed Finish and Sorting side by side; what
   matters is Finish for clothes-only customers, and Finish plus MOP Production for
   customers who also have MOP, with the wash reached through them (full cycle on one row).
-- Migration `202611060010_customer_service_trace_finish_mop.sql` (**Prepared**, not yet
-  applied; the rolled-back test could not run from the session):
+- Migration `202611060010_customer_service_trace_finish_mop.sql` (**Applied** by the owner on
+  2026-11-06, objects verified; merged in PR #181):
   complaints gain `linked_mop_batch_id`, `mop_business_date`, `mop_shift_code`,
   `mop_operator_name` (cleared by a trigger when the customer changes);
   `get_customer_service_production_trace_v1` returns `has_mop`, each Finish row with the
