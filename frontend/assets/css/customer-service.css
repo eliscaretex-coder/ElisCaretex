@@ -10,9 +10,9 @@
 .cs-tabs{display:flex;gap:4px;margin:4px 0 2px;overflow-x:auto;border-bottom:1px solid var(--cs-line)}
 .cs-tabs a{padding:8px 12px;border-bottom:3px solid transparent;color:var(--cs-muted);font-size:.78rem;font-weight:800;text-decoration:none;white-space:nowrap}
 .cs-tabs a.active{border-bottom-color:var(--cs-teal);color:var(--cs-ink)}
-.cs-counts{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:10px}
+.cs-counts{grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:10px}
 .finish-results-totals article.cs-attention{background:#fff7ed}
-.cs-results-totals{grid-template-columns:repeat(5,minmax(0,1fr))}
+.cs-results-totals{grid-template-columns:repeat(6,minmax(0,1fr))}
 
 .cs-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:0 0 8px}
 .cs-filters.cs-inner{margin:0;padding:8px 10px;border-bottom:1px solid #e2e8f0}
@@ -67,7 +67,7 @@
 .cs-card{background:#fff;border:1px solid var(--cs-line);border-radius:10px;padding:10px 12px}
 .cs-card>header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 8px;padding:0;border:0;background:none}
 .cs-card>header h3{margin:0;font-size:.86rem}.cs-card>header small{color:var(--cs-muted);font-size:.65rem}
-.cs-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.cs-summary-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
 .cs-summary-grid>div{padding:7px;border-radius:8px;background:#f8fafc}
 .cs-summary-grid small{display:block;color:var(--cs-muted);font-size:.56rem;font-weight:900;text-transform:uppercase}
 .cs-summary-grid strong{display:block;margin-top:2px;font-size:.8rem}.cs-summary-grid em{display:block;color:var(--cs-muted);font-style:normal;font-size:.62rem}
@@ -141,16 +141,75 @@
 .cs-block em{color:var(--cs-teal);font-style:normal;font-size:.62rem;font-weight:800}
 .cs-block.none em{color:var(--cs-amber)}
 
+/* Counts that filter the list */
+.cs-counts article.cs-count{cursor:pointer;transition:box-shadow .15s}
+.cs-counts article.cs-count:hover{box-shadow:0 0 0 2px rgba(15,118,110,.25)}
+.cs-counts article.cs-count.active{box-shadow:0 0 0 2px var(--cs-teal)}
+.finish-results-totals article.cs-warn{background:#fffbeb}
+
+/* Complaints grouped by customer */
+.cs-group{border-bottom:6px solid #eef2f6}
+.cs-group:last-child{border-bottom:0}
+.cs-group-head{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;box-shadow:inset 4px 0 0 #94a3b8}
+.cs-group.has-overdue .cs-group-head{box-shadow:inset 4px 0 0 var(--cs-red);background:#fef2f2}
+.cs-group.has-today .cs-group-head{box-shadow:inset 4px 0 0 #f59e0b;background:#fffbeb}
+.cs-group-head>div:first-child{flex:1;min-width:0}
+.cs-group-head strong{display:block;font-size:.82rem}
+.cs-group-head small{color:var(--cs-muted);font-size:.64rem}
+.cs-group-stats{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px}
+.cs-crow{display:grid;grid-template-columns:minmax(220px,2.2fr) minmax(170px,1.3fr) minmax(140px,1.2fr) 92px;gap:8px;align-items:center;padding:7px 10px 7px 22px;border-bottom:1px solid #eef2f6;background:#fff;font-size:.7rem;cursor:pointer}
+.cs-crow:hover,.cs-crow:focus-visible{background:#f8fafc;outline:none}
+.cs-crow:last-child{border-bottom:0}
+.cs-crow strong{font-size:.74rem;margin-right:4px}
+.cs-crow small{display:block;margin-top:2px;color:var(--cs-muted);font-size:.64rem}
+.cs-crow.sev-high .cs-c-main strong{color:var(--cs-red)}
+.cs-c-when .cs-chip{margin-top:3px}
+.cs-c-act{text-align:right}
+.cs-chip.due{background:#f1f5f9;color:#334155}.cs-chip.due-today{background:#fde68a;color:#78350f}
+.cs-chip.idle{background:#ede9fe;color:#5b21b6}.cs-chip.late{background:#ffedd5;color:#9a3412}
+.cs-chip.count{background:#0f172a;color:#fff}
+.cs-due-box.overdue{background:#fef2f2 !important}.cs-due-box.overdue em{color:var(--cs-red) !important;font-weight:800}
+.cs-due-box.today{background:#fffbeb !important}.cs-due-box.today em{color:var(--cs-amber) !important;font-weight:800}
+
+/* Short complaint form */
+.cs-choice-set{margin:0;padding:0;border:0;min-width:0}
+.cs-choice-set legend{margin-bottom:4px;padding:0;color:var(--cs-muted);font-size:.62rem;font-weight:900;text-transform:uppercase}
+.cs-choice{display:flex;flex-wrap:wrap;gap:5px}
+.cs-form-grid .cs-choice label{display:inline-flex;flex-direction:row;text-transform:none;font-size:.74rem;color:var(--cs-ink);cursor:pointer}
+.cs-choice input{position:absolute;opacity:0;width:1px;height:1px}
+.cs-choice span{display:inline-block;padding:6px 10px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;font-weight:700}
+.cs-choice input:checked+span{border-color:var(--cs-teal);background:var(--cs-teal);color:#fff}
+.cs-choice input:focus-visible+span{box-shadow:0 0 0 2px rgba(15,118,110,.35)}
+.cs-severity input[value="HIGH"]:checked+span{border-color:var(--cs-red);background:var(--cs-red)}
+.cs-severity input[value="MEDIUM"]:checked+span{border-color:#d97706;background:#d97706}
+.cs-severity input[value="LOW"]:checked+span{border-color:#0369a1;background:#0369a1}
+.cs-form-hint{display:block;margin:4px 0 0;color:var(--cs-muted);font-size:.68rem;font-weight:600}
+p.cs-form-hint{margin:-4px 0 0;padding:6px 9px;border-radius:8px;background:#fffbeb;color:#78350f}
+.cs-more{border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px}
+.cs-more summary{cursor:pointer;color:var(--cs-muted);font-size:.7rem;font-weight:800}
+.cs-inner-grid{padding:8px 0 2px}
+.cs-form-message.success{margin-bottom:6px;color:#166534}
+#askCheckWrap[hidden],#askDateWrap[hidden],#askOutcomeWrap[hidden],[data-period][hidden]{display:none}
+
 @media(max-width:1000px){
+  .cs-crow{grid-template-columns:1fr auto;gap:4px 10px;padding-left:14px}
+  .cs-c-main{grid-column:1/-1}
+  .cs-c-follow:empty{display:none}
+  .cs-counts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cs-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .cs-complaint-grid{grid-template-columns:1fr 1fr;gap:4px 10px}
   .cs-row-head{display:none}
-  .cs-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cs-trace{grid-template-columns:1fr}
   .cs-results-grid{grid-template-columns:1fr}
   .cs-results-totals{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:700px){
-  .cs-counts,.cs-results-totals{grid-template-columns:1fr 1fr}
+  .cs-counts,.cs-results-totals,.cs-summary-grid{grid-template-columns:1fr 1fr}
+  .cs-group-head{flex-wrap:wrap}
+  .cs-group-stats{justify-content:flex-start;order:3;width:100%}
+  .cs-crow{grid-template-columns:1fr}
+  .cs-c-act{text-align:left}
+  .cs-dialog footer{flex-wrap:wrap}
   .cs-form-grid{grid-template-columns:1fr}
   .cs-item{flex-direction:column}
   .cs-item-actions{justify-content:flex-start}

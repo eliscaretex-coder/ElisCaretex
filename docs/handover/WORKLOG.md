@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-11-05 — Claude — Customer Service review: grouped by customer, resolve-by dates, short form
+
+- Branch / commits: `claude/customer-service-review`, Pull Request into `master`
+- Changed: owner asked for a full review for dozens of complaints a week. Complaints list is
+  grouped by customer (overdue customers first) with Resolve straight from the row; every
+  complaint has a resolve-by date from its severity (High 2, Medium 5, Low 7 days; app_config
+  `customer_service_target_days` can change them), moved only with a written reason; count
+  cards (Open, Overdue, Due today, No update 3+ days) filter the list. New complaint form is
+  one short screen (customer, one-click problem, text, severity; the rest folded), warns when
+  the customer already has open complaints, and has "Save and add another". Resolving can end
+  the complaint's alerts; new alerts end after 14 days by default. Results add overdue and
+  resolved on time. Fixes: moving a complaint to another customer now changes its person and
+  drops the old production link; reopening clears the old outcome; a higher severity brings
+  the date forward; giving customers to another person moves their open complaints too.
+- Database: `202611050011_customer_service_deadlines.sql` — **Prepared**, not applied. The
+  owner applies it from the shared folder `customer-service/revisao/aplicar-no-sql-editor.sql`.
+  `teste-sem-gravar.sql` (whole migration plus the flow, rolled back by a forced error) ran on
+  ElisCaretex-dev on 2026-11-05 and ended with "TESTE OK"; the column was confirmed absent
+  afterwards. pgTAP file `supabase/tests/202611050011_customer_service_deadlines_validation.sql`.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright with a stubbed client,
+  desktop and 390 px, no horizontal scroll or page errors.
+- Open / next: apply the SQL before or right after merging (the page works without it but
+  shows no dates). Security advisors to run after applying.
+
 ## 2026-11-06 — Claude — IT Manager job title: Administrator access without touching Administrators
 
 - Owner request: the IT Manager gives and removes permissions and creates accounts, but must
