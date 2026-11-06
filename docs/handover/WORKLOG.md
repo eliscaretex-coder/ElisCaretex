@@ -80,6 +80,25 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Production computers sign in with their Computer name
+
+- Branch / commits: `claude/production-computer-sign-in-by-name`, Pull Request into `master`.
+- Changed: the technical sign-in email of a production computer now follows its Computer
+  name instead of its Computer code (`TABLE2_PC1` -> `table2-pc1@terminal.eliscaretex.local`).
+  The login screen normalises what is typed the same way, so the operator types the computer
+  name. A database trigger keeps the auth email in step on create, rename or re-bind, only for
+  `@terminal.eliscaretex.local` accounts. Computer names must be unique after normalisation.
+  The Users list shows the computer name (not the masked email) for production terminals.
+  `admin-account-management` builds the email from the name on create (the trigger already
+  covers the old deployed version).
+- Database: `202611060016_production_computer_sign_in_by_name.sql` — **prepared, not applied**.
+  The owner applies it from the SQL Editor. It also renames FINISH-T2-PC01's sign-in to
+  `table2-pc1`; the other three computers have name = code, so their sign-in does not change.
+- Validation: `node scripts/validate-repository.mjs` passed. The validation SQL (8 checks:
+  grants, normalisation, backfill, rename as service_role, duplicate names, empty name,
+  personal accounts untouched) was not run by Claude; the owner runs `teste-sem-gravar.sql`.
+- Open / next: redeploy the `admin-account-management` Edge Function after merge (optional).
+
 ## 2026-11-06 — Claude — Finish: administrator clean-up of the delivery check
 
 - Branch / commits: `claude/finish-queue-admin-cleanup`, Pull Request into `master`.
