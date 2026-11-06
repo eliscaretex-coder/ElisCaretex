@@ -92,6 +92,22 @@ Entry format:
 - Validation: continuation bookkeeping tested in Node with mocked Script Properties;
   `node scripts/validate-repository.mjs` passes. Owner replaces `LegacySyncFinish.gs` and
   `Index.html` in Apps Script and deploys a new web app version.
+## 2026-11-06 — Claude — Legacy sync: schedule batches timed out after the run-stop resync
+
+- Branch / commits: `claude/legacy-sync-schedule-timeout`, Pull Request into `master`.
+- Cause: since `202611050003` a statement trigger on `customer_schedule_versions` resyncs every
+  Draft/Ready route run from today (0.3–0.6 s each time). A legacy schedule batch writes several
+  such statements per customer, so the call passed the 8 s Data API statement timeout. Every
+  legacy sync run since 05/11 21:05 failed with `legacy-sync-finish HTTP 500: Database call
+  failed` (Edge Function log: `57014 canceling statement due to statement timeout`). Not caused
+  by the users/permissions hardening.
+- Changed: the trigger skips while the transaction setting `app.defer_distribution_resync` is
+  `on`; the legacy sync dispatcher sets it for the `schedule` kind and resyncs the open runs once
+  at the end of the call. Customer Studio and every other caller behave as before.
+- Database: `202611060013_legacy_sync_schedule_resync_once.sql` **Prepared, not applied**.
+- Validation: `supabase/tests/202611060013_legacy_sync_schedule_resync_once_validation.sql`
+  (5 checks) passes on a local replica with `202611050003` applied.
+- Open / next: owner applies the migration and the test, then "Sync now".
 
 ## 2026-11-06 — Claude — Staff Master: remove the COVER explanation banner
 
