@@ -17,13 +17,13 @@
   <link rel="stylesheet" href="../assets/css/finish-results.css">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
-  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261106-2">
+  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261106-3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261104-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261104-1" defer></script>
-  <script src="../assets/js/customer-service.js?v=20261106-2" defer></script>
+  <script src="../assets/js/customer-service.js?v=20261106-3" defer></script>
 </head>
 <body class="finish-results-page cs-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -125,6 +125,9 @@
         <div class="cs-results-grid">
           <section class="finish-results-section cs-wide"><header><div><p>Over time</p><h2 id="csPeriodTitle">Complaints per day</h2></div></header><div id="csByPeriod" class="cs-chart"></div></section>
           <section class="finish-results-section"><header><div><p>What went wrong</p><h2>By complaint type</h2></div></header><div id="csByType" class="cs-bars"></div></section>
+          <section class="finish-results-section"><header><div><p>Clothes or MOP</p><h2>By product</h2></div></header><div id="csByProduct" class="cs-donut-box"></div></section>
+          <section class="finish-results-section"><header><div><p>From the complaint type</p><h2>By responsible department</h2></div></header><div id="csByResponsible" class="cs-donut-box"></div></section>
+          <section class="finish-results-section"><header><div><p>Complaint handling</p><h2>By status</h2></div></header><div id="csByStatus" class="cs-status-box"></div></section>
           <section class="finish-results-section"><header><div><p>Who complains most</p><h2>By customer</h2></div></header><div id="csByCustomer" class="cs-bars"></div></section>
           <section class="finish-results-section"><header><div><p>Linked to Finish</p><h2>By table and shift</h2></div></header><div id="csByTable" class="cs-matrix"></div></section>
           <section class="finish-results-section"><header><div><p>Linked to Sorting</p><h2>By washing shift</h2></div></header><div id="csBySorting" class="cs-bars"></div></section>
