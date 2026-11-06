@@ -231,7 +231,7 @@ function showResult(result) {
     const r = result.results || {}, plan = result.plan || {};
     PARTS.forEach(([key, name]) => out.appendChild(group(name, r[key], (plan[key] || {}).held,
       [(r[key] || {}).refusal].concat((plan[key] || {}).notes || []).filter(Boolean).join(' '))));
-    if (result.stopped === 'TIME_BUDGET') notice('Stopped after 5 minutes. Run it again to continue.', 'warn');
+    if (result.stopped === 'TIME_BUDGET') notice(result.continues ? 'Stopped after 5 minutes. It continues by itself every 5 minutes until everything is copied.' : 'Stopped after 5 minutes. Run it again to continue.', 'warn');
   }
   $('raw').textContent = JSON.stringify(result, null, 2);
   $('rawBox').hidden = false;
@@ -341,7 +341,8 @@ function syncNotice(text, cls) { $('syncNotice').textContent = text || ''; $('sy
 function drawPanel(p) {
   panel = p;
   drawSync(p);
-  $('triggerText').textContent = p.triggerInstalled ? 'Installed' : 'Not installed';
+  $('triggerText').textContent = (p.triggerInstalled ? 'Installed' : 'Not installed')
+    + (p.continuing ? (p.triggerInstalled ? ' · continuing the last sync (round ' + p.continuing.count + ')' : ' · install it to continue the last sync') : '');
   $('triggerText').className = p.triggerInstalled ? 'ok' : 'warn';
   $('triggerButton').textContent = p.triggerInstalled ? 'Remove' : 'Install';
   $('triggerButton').className = p.triggerInstalled ? 'danger' : 'secondary';
@@ -412,7 +413,7 @@ $('syncNow').onclick = async () => {
   try {
     const result = await server('syncFinishNow');
     drawPanel(await server('getFinishSyncPanel'));
-    syncNotice(result.error ? 'Stopped: ' + result.error : result.stopped === 'TIME_BUDGET' ? 'Stopped after 5 minutes. Press Sync now again to continue.' : 'Sync finished.', result.error ? 'bad' : 'ok');
+    syncNotice(result.error ? 'Stopped: ' + result.error : result.stopped === 'TIME_BUDGET' ? (result.continues ? 'Stopped after 5 minutes. It continues by itself every 5 minutes until everything is copied; no need to press Sync now again.' : 'Stopped after 5 minutes. Press Sync now again to continue.') : 'Sync finished.', result.error ? 'bad' : 'ok');
   }
   catch (e) { syncNotice('Error: ' + e.message, 'bad'); }
   finally { busy(false); }

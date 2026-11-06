@@ -92,6 +92,10 @@ Setup: apply the migrations, redeploy `legacy-sync-finish`, replace `LegacySyncF
 `installLegacySyncTrigger()` once (or press Install on the page), then press "Turn on".
 `removeLegacySyncTrigger()` stops the polling.
 
+Each run stops after 5 minutes (Apps Script limit). A run stopped that way is continued by the
+next `legacySyncTick` (every 5 minutes) with the same dates, up to 24 rounds, until nothing is left;
+turning the sync OFF cancels it. The trigger must be installed for this.
+
 ## Parts of the sync (owner decision 2026-10-27: everything the legacy apps record)
 
 Each nightly run, `Sync now` or manual import runs the parts in this order. Each part has its own
