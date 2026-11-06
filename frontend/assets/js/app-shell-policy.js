@@ -494,6 +494,31 @@
       .map((module) => ({ ...module,children:Array.isArray(module.children) ? module.children.filter((child) => !child.permission || access.can(child.permission)) : module.children }));
   }
 
+  // Large Home shortcuts for production areas, so the area computer opens its
+  // daily tasks in one tap. Each one is shown only when the account can open it.
+  const HOME_SHORTCUTS = Object.freeze({
+    SORTING_OPERATOR: [
+      {
+        id: "shortcut-trolley-intake", label: "Trolley Intake",
+        description: "Scan and receive dirty trolleys",
+        href: "./pages/sorting.html#trolley", icon: "trolley",
+        permission: NAVIGATION_PERMISSIONS.SORTING
+      },
+      {
+        id: "shortcut-mop-production", label: "MOP Production",
+        description: "Record MOP production",
+        href: "./pages/mop-production.html", icon: "mop",
+        permission: NAVIGATION_PERMISSIONS.MOP_PRODUCTION
+      }
+    ]
+  });
+
+  function homeShortcuts(roleCodes, overrides) {
+    const access = navigationAccess(roleCodes, overrides);
+    return (HOME_SHORTCUTS[primaryRole(roleCodes)] || [])
+      .filter((shortcut) => access.can(shortcut.permission));
+  }
+
   function primaryOperationalModule(roleCodes,overrides) {
     const modules = operationalModules(roleCodes,overrides);
     const roleCode = primaryRole(roleCodes);
@@ -526,6 +551,7 @@
     operationalContext,
     operationalModules,
     primaryOperationalModule,
+    homeShortcuts,
     navigationAccess,
     permissionOverrides,
     uniqueRoleCodes

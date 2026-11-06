@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Home: Trolley Intake and MOP Production shortcuts for the Sorting area
+
+- Branch / commits: `claude/sorting-home-shortcuts`, Pull Request into `master`.
+- Changed: the Home page shows two large shortcuts (Trolley Intake → `sorting.html#trolley`,
+  MOP Production → `mop-production.html`) for accounts whose operational area is Sorting
+  (primary role `SORTING_OPERATOR`, e.g. the production computer `SORTING-PC01`). Each shortcut
+  appears only when the account can open that workspace (`homeShortcuts()` in
+  `app-shell-policy.js`). Administrative shells and other areas are unchanged.
+- Database: none. Checked read-only that `SORTING-PC01` (role `SORTING_OPERATOR`, no
+  per-module grants) can call `get_sorting_trolley_intake_context_v3`,
+  `get_sorting_mop_production_context` and `get_sorting_mop_recent_trace` (impersonated in a
+  rolled-back block); no permission change needed.
+- Validation: `node scripts/validate-repository.mjs` passed. Home rendered in Chromium with a
+  stubbed Supabase client: Sorting terminal shows both shortcuts (desktop and phone width), a
+  Finish terminal shows none.
+- Open / next: owner confirmation on the Sorting computer.
+
 ## 2026-11-06 — Claude — Users: compatibility roles selectable when creating a production computer
 
 - Branch / commits: `claude/terminal-roles-on-create`, Pull Request into `master`.

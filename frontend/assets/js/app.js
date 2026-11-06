@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const operationalModuleGrid = document.getElementById("operationalModuleGrid");
   const operationalPrimaryAction = document.getElementById("operationalPrimaryAction");
+  const operationalShortcuts = document.getElementById("operationalShortcuts");
   const operationalAreaCode = document.getElementById("operationalAreaCode");
   const operationalAreaName = document.getElementById("operationalAreaName");
   const operationalDate = document.getElementById("operationalDate");
@@ -47,6 +48,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     operationalShell.classList.add("hidden");
     loginView.classList.remove("hidden");
     operationalModuleGrid.replaceChildren();
+    operationalShortcuts.replaceChildren();
+    operationalShortcuts.classList.add("hidden");
   }
 
   function showHome() {
@@ -145,6 +148,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     operationalPrimaryAction.appendChild(link);
   }
 
+  function renderShortcuts(shortcuts) {
+    operationalShortcuts.replaceChildren(...shortcuts.map((shortcut) => {
+      const link = document.createElement("a");
+      link.className = "operational-shortcut";
+      link.href = shortcut.href;
+      link.dataset.shortcutId = shortcut.id;
+      const icon = document.createElement("span");
+      icon.className = "operational-shortcut-icon";
+      icon.innerHTML = shellPolicy.ICONS[shortcut.icon] || shellPolicy.ICONS.home;
+      const copy = document.createElement("span");
+      copy.className = "operational-shortcut-copy";
+      const title = document.createElement("strong");
+      title.textContent = shortcut.label;
+      const description = document.createElement("small");
+      description.textContent = shortcut.description;
+      copy.append(title, description);
+      link.append(icon, copy);
+      return link;
+    }));
+    operationalShortcuts.classList.toggle("hidden", shortcuts.length === 0);
+  }
+
   function renderHome(profile, roleCodes) {
     const administrative = shellPolicy.resolveAccountShell(profile, roleCodes) === "administrative";
     const context = shellPolicy.operationalContext(roleCodes);
@@ -174,6 +199,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).format(new Date());
 
     renderModuleGroups(modules);
+    renderShortcuts(administrative ? [] : shellPolicy.homeShortcuts(roleCodes, permissionOverrides));
     renderOperationalPrimaryAction(
       administrative ? null : shellPolicy.primaryOperationalModule(roleCodes, permissionOverrides)
     );
