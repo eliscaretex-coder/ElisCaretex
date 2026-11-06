@@ -87,13 +87,32 @@ Entry format:
 - Also recorded: `202611060002_account_creation_by_hierarchy.sql` **Applied** by the owner on
   2026-11-06 (verified: Production Manager Accounts & access scope is ALL).
 
+## 2026-11-06 — Claude — Customer Service Results closer to the Elis group dashboards
+
+- Branch: `claude/customer-service-results-charts`.
+- Owner request: compare the Results charts with the Elis eForce / Power BI complaint
+  dashboards (all plants: per 100 accounts, % accounts complained, by type, service line,
+  responsible department, status).
+- Migration `202611060012_customer_service_results_like_group_dashboards.sql` (**Prepared**;
+  tested in a rolled-back transaction against ElisCaretex-dev: last 12 months 1 complaint,
+  140 active customers, by product and by department add up to the total; anon no execute):
+  `get_customer_service_results_v1` (same signature) adds `totals.active_customers`,
+  `totals.investigating`, `by_product` (CLOTHES / MOP / NOT_KNOWN, our service line) and
+  `by_responsible` (complaint type's department).
+- Screen (Results): new "Per 100 customers" KPI (with % of customers that complained),
+  donuts "By product" and "By responsible department", and a "By status" bar
+  (open / investigating / resolved with average days and on-time %).
+- Validation: `node scripts/validate-repository.mjs` passed; screenshots with stubbed data.
+  pgTAP file `supabase/tests/202611060012_customer_service_results_like_group_dashboards_validation.sql`.
+- Open: apply the migration before merging (the new charts are empty without it).
+
 ## 2026-11-06 — Claude — Customer Service tasks can go to a person
 
 - Branch: `claude/customer-service-task-person`.
 - Owner request: tasks went only to departments; they should also go to people
   (supervisors, managers, or a General Operative given extra work).
-- Migration `202611060011_customer_service_task_for_a_person.sql` (**Prepared**; tested in a
-  rolled-back transaction against ElisCaretex-dev: 52 people listed, no email; task for a GO
+- Migration `202611060011_customer_service_task_for_a_person.sql` (**Applied** by the owner on
+  2026-11-06, objects verified; merged in PR #182; tested before in a rolled-back transaction against ElisCaretex-dev: 52 people listed, no email; task for a GO
   shows "For <name>" on the Sorting screen; task for the Production Supervisor appears in
   their Notifications inbox and counter and they mark it done; Customer Service cannot
   complete it through the personal route; unknown person refused; anon has no execute):

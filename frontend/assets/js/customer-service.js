@@ -616,6 +616,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const max=Math.max(...rows.map(r=>Number(r[value]||0)),1);
     return rows.map(r=>`<div class="cs-bar"><span>${esc(label(r))}</span><div><i style="width:${Math.max(2,Number(r[value]||0)/max*100)}%"></i></div><b>${Number(r[value]||0)}</b>${extra?`<small>${esc(extra(r))}</small>`:""}</div>`).join("");
   }
+  // Donut chart (SVG), legend with count and share. Empty slices are left out.
+  function donut(rows,{label,color,empty="Nothing in this period."}){
+    const list=(rows||[]).filter(r=>Number(r.complaints)>0), total=list.reduce((a,r)=>a+Number(r.complaints),0);
+    if(!total) return `<div class="finish-results-empty">${empty}</div>`;
+    const R=42, C=2*Math.PI*R; let offset=0;
+    const arcs=list.map((r,i)=>{ const len=Number(r.complaints)/total*C, arc=`<circle r="${R}" cx="60" cy="60" fill="none" stroke="${color(r,i)}" stroke-width="18" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}"><title>${esc(label(r))}: ${Number(r.complaints)}</title></circle>`; offset+=len; return arc; }).join("");
+    return `<div class="cs-donut"><svg viewBox="0 0 120 120" role="img" aria-label="${esc(list.map(r=>`${label(r)} ${r.complaints}`).join(", "))}"><g transform="rotate(-90 60 60)">${arcs}</g><text x="60" y="60" text-anchor="middle" dominant-baseline="central">${total}</text></svg>
+      <ul>${list.map((r,i)=>`<li><i style="background:${color(r,i)}"></i><span>${esc(label(r))}</span><b>${Number(r.complaints)}</b><small>${Math.round(Number(r.complaints)/total*100)}%</small></li>`).join("")}</ul></div>`;
+  }
+  const PRODUCT={CLOTHES:["Clothes","#0f766e"],MOP:["MOP","#7c3aed"],NOT_KNOWN:["Clothes or MOP, not linked yet","#cbd5e1"]};
+  const PALETTE=["#0f766e","#2563eb","#7c3aed","#d97706","#db2777","#0891b2","#65a30d","#94a3b8"];
   async function loadResults(){
     if(!$("csResultsFrom").value) setPreset("month",false);
     setMessage("Loading results…");
@@ -627,6 +638,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article><span>Resolved on time</span><strong>${Number(t.resolved_with_date)?`${Math.round(Number(t.resolved_on_time||0)/Number(t.resolved_with_date)*100)}%`:"—"}</strong><small>${Number(t.resolved_on_time||0)} of ${Number(t.resolved_with_date||0)} by their resolve-by date</small></article>
       <article class="${decided&&Number(t.justified)/decided>0.5?"low":""}"><span>Justified</span><strong>${Number(t.justified||0)}</strong><small>${decided?`${Math.round(Number(t.justified)/decided*100)}% of the decided ones`:"None decided yet"}</small></article>
       <article><span>Average to resolve</span><strong>${t.avg_days_to_resolve==null?"—":`${num(t.avg_days_to_resolve)} days`}</strong><small>From received to resolved</small></article>
+      <article><span>Per 100 customers</span><strong>${Number(t.active_customers)?num(total/Number(t.active_customers)*100):"—"}</strong><small>${Number(t.active_customers)?`${Math.round(Number(t.customers||0)/Number(t.active_customers)*1000)/10}% of ${Number(t.active_customers)} customers complained`:"No active customers"}</small></article>
       <article class="planned"><span>Linked to production</span><strong>${Number(t.linked||0)}</strong><small>${total?Math.round(Number(t.linked||0)/total*100):0}% · ${Number(t.tasks_open||0)} tasks open${Number(t.tasks_overdue)?`, ${Number(t.tasks_overdue)} overdue`:""}</small></article>`;
     const periodName={day:"day",week:"week",month:"month"}[r.period]||"day";
     $("csPeriodTitle").textContent=`Complaints per ${periodName}`;
@@ -634,6 +646,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const per=r.by_period||[], maxP=Math.max(...per.map(x=>Number(x.complaints)),1);
     $("csByPeriod").innerHTML=per.length?`<div class="cs-columns">${per.map(x=>`<div class="cs-column" title="${esc(periodLabel(x.period_start))}: ${Number(x.complaints)} complaint(s), ${Number(x.justified)} justified"><b>${Number(x.complaints)}</b><div><i style="height:${Number(x.complaints)/maxP*100}%"></i><em style="height:${Number(x.justified)/maxP*100}%"></em></div><span>${esc(periodLabel(x.period_start))}</span></div>`).join("")}</div><p class="cs-legend"><i></i> Complaints <em></em> Justified</p>`:'<div class="finish-results-empty">No complaints in this period.</div>';
     $("csByType").innerHTML=bars(r.by_type,x=>x.type_name,"complaints",{extra:x=>Number(x.justified)?`${x.justified} justified`:""});
+    $("csByProduct").innerHTML=donut(r.by_product,{label:x=>PRODUCT[x.product_code]?.[0]||x.product_code,color:x=>PRODUCT[x.product_code]?.[1]||"#94a3b8"});
+    $("csByResponsible").innerHTML=donut(r.by_responsible,{label:x=>x.department_code==="NOT_SET"?"Not set on the type":(DEPARTMENTS[x.department_code]||x.department_code),color:(x,i)=>x.department_code==="NOT_SET"?"#cbd5e1":PALETTE[i%PALETTE.length]});
+    const st=[["Open",Number(t.open||0)-Number(t.investigating||0),"#b91c1c"],["Investigating",Number(t.investigating||0),"#d97706"],["Resolved",Number(t.resolved||0),"#0f766e"]];
+    $("csByStatus").innerHTML=total?`${st.map(([n,v,c])=>`<div class="cs-status-row"><span>${n}</span><div><i style="width:${Math.max(v?2:0,v/total*100)}%;background:${c}"></i></div><b>${v}</b><small>${Math.round(v/total*100)}%</small></div>`).join("")}<p class="cs-muted">Average ${t.avg_days_to_resolve==null?"—":`${num(t.avg_days_to_resolve)} days`} from received to resolved · ${Number(t.resolved_with_date)?`${Math.round(Number(t.resolved_on_time||0)/Number(t.resolved_with_date)*100)}% on time`:"none resolved yet"}</p>`:'<div class="finish-results-empty">No complaints in this period.</div>';
     $("csByCustomer").innerHTML=bars(r.by_customer,x=>x.customer_name,"complaints",{extra:x=>Number(x.open)?`${x.open} open`:""});
     const tables=["FINISH_TABLE_1","FINISH_TABLE_2","FINISH_TABLE_3"], cell=(tb,sh)=>Number((r.by_finish_table||[]).find(x=>x.table_code===tb&&x.shift_code===sh)?.complaints||0);
     const otherTables=[...new Set((r.by_finish_table||[]).map(x=>x.table_code).filter(x=>!tables.includes(x)))];
