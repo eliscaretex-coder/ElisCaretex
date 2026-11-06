@@ -92,6 +92,29 @@ Entry format:
 - Validation: continuation bookkeeping tested in Node with mocked Script Properties;
   `node scripts/validate-repository.mjs` passes. Owner replaces `LegacySyncFinish.gs` and
   `Index.html` in Apps Script and deploys a new web app version.
+## 2026-11-06 — Claude — Legacy sync: leave requests (production and drivers)
+
+- Branch / commits: `claude/legacy-sync-leave`, Pull Request into `master`.
+- Changed: new sync part `leave` (switch `LEAVE_IMPORT`, OFF by default, 100 writes per run).
+  CentralDB `LeaveRequests` -> `production_roster_leave_requests` (history event
+  `LEGACY_SYNC_IMPORTED` / `LEGACY_SYNC_UPDATED`); Distribution `Driver Leave Requests` ->
+  `distribution_driver_absences` (note keeps `[Legacy request: …]`; an approval removes the driver
+  from Draft roster entries, as in V2). Requests already in V2 are adopted (driver note, earlier
+  `LEGACY_ROSTER_20260808` import). Only fields changed in the legacy app are written. A legacy
+  Pending never reopens a V2 decision; a V2 decision changed since the last sync is held
+  (`LEAVE_DECIDED_DIFFERENTLY_IN_V2`), as are overlaps with leave already in V2
+  (`LEAVE_OVERLAPS_IN_V2`). Decider emails are stored masked; the requester's Email and
+  EmailConsent columns are never read. Apps Script: `lsfCollectLeave_`, part after rosters;
+  Index.html: part name and texts for the new review codes.
+- Database: `202611060014_legacy_sync_leave_requests.sql` **Prepared, not applied**.
+- Validation: `supabase/tests/202611060014_legacy_sync_leave_requests_validation.sql` (11 checks)
+  passes on a local replica. A local import of the 72 live legacy requests (production and
+  drivers): 36 adopted, 32 created, 2 updated (one approval by the General Manager, one rejection),
+  2 held as `LEAVE_OVERLAPS_IN_V2` (requests submitted twice in the legacy app); a second run
+  writes nothing.
+- Open / next: owner applies the migration and the test, updates `LegacySyncFinish.gs` and
+  `Index.html` (new web app version), then switches the sync OFF and ON to enable `LEAVE_IMPORT`.
+
 ## 2026-11-06 — Claude — Legacy sync: schedule batches timed out after the run-stop resync
 
 - Branch / commits: `claude/legacy-sync-schedule-timeout`, Pull Request into `master`.
