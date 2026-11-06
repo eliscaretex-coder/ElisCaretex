@@ -151,6 +151,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const permissionOverrides = shellPolicy.permissionOverrides(profile);
     const modules = shellPolicy.operationalModules(roleCodes, permissionOverrides)
       .filter((module) => module.id !== "home");
+    // Area shortcuts (e.g. Trolley Intake and MOP Production for Sorting) sit right
+    // after the area's own card, with the same look as the other workspace cards.
+    if (!administrative) {
+      const shortcuts = shellPolicy.homeShortcuts(roleCodes, permissionOverrides);
+      const anchor = modules.findIndex((module) => module.id === "sorting");
+      modules.splice(anchor >= 0 ? anchor + 1 : modules.length, 0, ...shortcuts);
+    }
     const roleName = administrative
       ? (shellPolicy.ROLE_LABELS[roleCodes[0]] || context.roleName)
       : context.roleName;
