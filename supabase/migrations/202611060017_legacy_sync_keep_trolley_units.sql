@@ -130,11 +130,18 @@ revoke all on function integration.legacy_sync_schedule_write_draft(uuid,text[],
 
 do $restore$
 declare
-  v_case record;
+  v_cases jsonb;
+  v_case jsonb;
+  v_customer_id uuid;
+  v_source_id uuid;
   v_new_version_id uuid;
   v_restored integer;
 begin
-  for v_case in
+  -- The cases are read first: ALTER TABLE below is refused while a loop query
+  -- over the plates table is still open in this session.
+  select coalesce(jsonb_agg(to_jsonb(c)), '[]'::jsonb)
+  into v_cases
+  from (
     with cur as (
       select c.customer_id, c.customer_name,
              nullif(integration.legacy_sync_schedule_versions(c.customer_id)->>'current', '')::uuid as current_id
@@ -169,12 +176,17 @@ begin
                         and v.status <> 'CANCELLED'
                         and v.source_code is distinct from 'LEGACY_IMPORT')
     order by cur.customer_name
-  loop
+  ) c;
+
+  for v_case in select value from jsonb_array_elements(v_cases) loop
+    v_customer_id := (v_case->>'customer_id')::uuid;
+    v_source_id := (v_case->>'source_id')::uuid;
     -- New revision: an unchanged copy of the current one (with the fixed copy).
     v_new_version_id := integration.legacy_sync_schedule_publish(
-      v_case.customer_id, v_case.current_id, array[]::text[], '{}'::jsonb,
+      v_customer_id, (v_case->>'current_id')::uuid, array[]::text[], '{}'::jsonb,
       format('Units restored: the legacy sync dropped the trolley units; copied from revision %s published %s.',
-             v_case.source_number, to_char(v_case.source_published_at at time zone 'Europe/Dublin', 'DD/MM/YYYY HH24:MI')));
+             v_case->>'source_number',
+             to_char((v_case->>'source_published_at')::timestamptz at time zone 'Europe/Dublin', 'DD/MM/YYYY HH24:MI')));
 
     -- The plates trigger accepts only DRAFT parents; this new revision was published
     -- by the call above in this same transaction, so the trigger is paused for it only.
@@ -190,7 +202,7 @@ begin
       from public.customer_schedule_days d
       join public.customer_schedule_trolley_requirements r on r.schedule_day_id = d.schedule_day_id and r.active
       left join public.customer_schedule_products p on p.schedule_product_id = r.owner_schedule_product_id
-      where d.active and d.schedule_version_id in (v_new_version_id, v_case.source_id)
+      where d.active and d.schedule_version_id in (v_new_version_id, v_source_id)
     )
     insert into public.customer_schedule_trolley_plates(schedule_trolley_requirement_id, plate_number,
       subunit_ids, instructions, created_by)
@@ -201,7 +213,7 @@ begin
             order by old_subunit.ordinal),
       pl.instructions, pl.created_by
     from ranked n
-    join ranked o on o.schedule_version_id = v_case.source_id
+    join ranked o on o.schedule_version_id = v_source_id
       and o.production_weekday = n.production_weekday and o.product_key = n.product_key
       and o.trolley_type_id = n.trolley_type_id and o.empty_trolley = n.empty_trolley
       and o.ordinal = n.ordinal
@@ -214,7 +226,7 @@ begin
       enable trigger customer_schedule_trolley_plates_require_draft;
 
     raise notice 'Units restored for %: % trolley plates in the new revision %.',
-      v_case.customer_name, v_restored, v_new_version_id;
+      v_case->>'customer_name', v_restored, v_new_version_id;
   end loop;
 end;
 $restore$;
