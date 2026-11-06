@@ -117,8 +117,15 @@ or on file names alone.
 - Never return a full email from an RPC. Use `public.mask_email(...)` (or
   `mask_emails_in_jsonb` for free text). A screen that edits an email sends the masked
   value back unchanged to mean "keep the stored email".
-- Account management follows "you cannot give what you do not have": a non-administrator
-  can only create or change accounts whose permissions are covered by their own.
+- Account management follows the job-title hierarchy (`account_job_titles.hierarchy_rank`):
+  a non-administrator gives only job titles at their own level or below, never the
+  Administrator title, and acts only on accounts at their own level or below, never on an
+  account holding ADMIN. Nobody changes their own job title or permissions. When a title
+  carries access the creator does not hold, only an email invitation is allowed (the
+  creator never sets that password).
+- New employees are registered from Staff Master → Add Staff, which starts with the job
+  title: production titles create the Staff Master record and the sign-in together, office
+  and management titles create only the sign-in, drivers go to Distribution.
 - `frontend/assets/js/config.js` holds only the project URL, the publishable key
   and the public app URL. Never commit service-role keys, secret keys, SMTP or
   personal passwords.

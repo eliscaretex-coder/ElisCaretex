@@ -80,6 +80,35 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Account creation by hierarchy; Add Staff starts with the job title
+
+- Owner request: the Production Manager creates any job title up to manager level except
+  General Manager; the General Manager can create accounts too; registering a new person
+  must be error-proof because staff go straight to Staff Master.
+- Rule change (`admin-account-management`): the "cannot give what you do not have" check
+  is replaced by the job-title hierarchy. A non-administrator gives job titles with
+  `hierarchy_rank` >= their own (never Administrator) and edits/disables/deletes only
+  accounts at their level or below (never ADMIN holders; terminals need Manage + All).
+  When the title carries access the creator does not hold, only an email invitation is
+  allowed (no username/password set by the creator, no password replacement).
+- Migration `202611060002_account_creation_by_hierarchy.sql` (**Prepared**, tested in a
+  rolled-back transaction: PM gives Logistics Manager, Production Manager, Auditor,
+  Supervisor, Customer Service, Maintenance, Team Leader, Cleaner, Driver, operatives and is
+  blocked from General Manager, IT Manager, Administrator; GM blocked only from IT Manager and
+  Administrator): Production Manager Accounts & access scope PRODUCTION -> ALL (template
+  and current grants, still no Manage); `get_admin_account_job_access` returns
+  `hierarchy_rank`, `can_assign`, `my_hierarchy_rank`, `my_is_admin`.
+- Screens (`staff.js`, `staff.html`): Add Staff starts with "Who are you adding?" (job
+  title first, only titles you can give). Production titles show the roster form and set
+  the primary role; office/management titles hide the roster form and create only the
+  sign-in (email required); Driver points to Distribution → Drivers. Accounts & access
+  lists only assignable titles, shows "Above your level" instead of actions on higher
+  accounts, and its Add account subtitle points new employees to Staff Master.
+- `admin-account-management` v19 **Applied** (deployed 2026-11-06 with the owner's go-ahead;
+  boots, not exercised end to end).
+- Not run in a browser; `node scripts/validate-repository.mjs` passed and the Edge Function
+  parses with esbuild.
+
 ## 2026-11-05 — Claude — Customer Service review: grouped by customer, resolve-by dates, short form
 
 - Branch / commits: `claude/customer-service-review`, Pull Request into `master`
@@ -103,6 +132,7 @@ Entry format:
   desktop and 390 px, no horizontal scroll or page errors.
 - Open / next: apply the SQL before or right after merging (the page works without it but
   shows no dates). Security advisors to run after applying.
+
 
 ## 2026-11-06 — Claude — IT Manager job title: Administrator access without touching Administrators
 

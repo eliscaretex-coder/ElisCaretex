@@ -25,6 +25,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     systemAccessSection: document.getElementById("staffSystemAccessSection"),
     accountJobTitleForStaff: document.getElementById("staffAccountJobTitle"),
     accountEmailForStaff: document.getElementById("staffAccountEmail"),
+    accountEmailForStaffLabel: document.getElementById("staffAccountEmailLabel"),
+    kindNotice: document.getElementById("staffKindNotice"),
     defaultShift: document.getElementById("staffDefaultShift"),
     rosterEligible: document.getElementById("staffRosterEligible"),
     joinedOn: document.getElementById("staffJoinedOn"),
@@ -392,7 +394,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       state.accounts = Array.isArray(data?.accounts) ? data.accounts : [];
       state.accountRoles = Array.isArray(data?.available_roles) ? data.available_roles : [];
       state.accountModules = Array.isArray(data?.available_modules) ? data.available_modules : [];
-      state.accountJobTitles = Array.isArray(jobAccess?.job_titles) ? jobAccess.job_titles : [];
+      storeJobAccess(jobAccess);
       state.directoryStaff = Array.isArray(staffDirectory?.staff) ? staffDirectory.staff : [];
       renderAccounts(data || {});
     } catch (error) {
@@ -653,6 +655,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? `<button class="staff-row-button danger" type="button" data-account-disable="${escapeHtml(account.auth_user_id)}">Disable</button>`
       : `<button class="staff-row-button" type="button" data-account-enable="${escapeHtml(account.auth_user_id)}">Enable</button>`;
     if (!state.canEditAccounts && !state.canManageAccounts) return '<span class="staff-subtext">Read only</span>';
+    if (accountAboveMyLevel(account)) return '<span class="staff-subtext" title="Only an Administrator or an account above this level can change it.">Above your level</span>';
     return `<div class="staff-row-actions account-row-actions">
       ${state.canEditAccounts ? `<button class="staff-row-button account-edit-button" type="button" data-account-edit="${escapeHtml(account.auth_user_id)}">Edit</button>` : ""}
       ${state.canManageAccounts ? `<details class="account-actions-menu"><summary>More</summary><div>
@@ -700,10 +703,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     return (state.accessProfile?.permissions || []).find((item) => item.module_code === "ACCOUNTS_ACCESS")?.access_scope || "OWN";
   }
 
+  // Job titles the signed-in account may give: their own hierarchy level or below
+  // (can_assign from get_admin_account_job_access; the Edge Function enforces it).
   function availableAccountJobTitles() {
     const scope = accountAccessScope();
-    if (scope === "ALL") return state.accountJobTitles;
-    return state.accountJobTitles.filter((item) => item.department_scope === scope);
+    return state.accountJobTitles.filter((item) => item.can_assign !== false && (scope === "ALL" || item.department_scope === scope));
+  }
+
+  function accountAboveMyLevel(account) {
+    if (state.myIsAdmin || account.auth_user_id === state.myUserId) return false;
+    if ((account.role_codes || []).includes("ADMIN") || account.job_title_code === "ADMINISTRATOR") return true;
+    if (account.terminal?.device_code) return false;
+    const title = state.accountJobTitles.find((item) => item.job_title_code === account.job_title_code);
+    const myRank = Number(state.myHierarchyRank);
+    if (!title || !Number.isFinite(myRank) || title.hierarchy_rank === null || title.hierarchy_rank === undefined) return false;
+    return Number(title.hierarchy_rank) < myRank;
+  }
+
+  function storeJobAccess(jobAccess) {
+    state.accountJobTitles = Array.isArray(jobAccess?.job_titles) ? jobAccess.job_titles : [];
+    state.myIsAdmin = Boolean(jobAccess?.my_is_admin);
+    state.myHierarchyRank = jobAccess?.my_hierarchy_rank ?? null;
   }
 
   function renderAccountPermissionOptions(grants = []) {
@@ -794,7 +814,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.body.style.overflow = "hidden";
     if (!account) {
       elements.accountTitle.textContent = "Add account";
-      elements.accountSubtitle.textContent = "Create a sign-in and optionally link it to an active Staff Master record.";
+      elements.accountSubtitle.textContent = "New employee? Use Staff Master → Add Staff instead: it creates the roster record and the sign-in together. Use this for production computers or special cases.";
       elements.accountSave.textContent = "Create account";
       elements.accountName.focus();
       return;
@@ -1046,6 +1066,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.driverExisting.innerHTML = '<option value="">Create a new Driver record</option>';
     state.driverTransferOptions = [];
     state.editorPrimaryRoleCode = "";
+    elements.editorForm.querySelectorAll(".staff-production-only").forEach((element) => element.classList.remove("hidden"));
+    elements.editorSave.disabled = false;
     setMessage(elements.editorMessage);
   }
 
@@ -1111,8 +1133,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         populateEditorReference({});
         elements.systemAccessSection.classList.toggle("hidden",!state.canCreateAccounts);
         elements.accountJobTitleForStaff.innerHTML=option("","Select job title")+availableAccountJobTitles().map((item)=>option(item.job_title_code,item.job_title_name)).join("");
-        elements.accountJobTitleForStaff.value=jobTitleForOperationalRole(elements.primaryRole.value);
-        elements.displayName.focus();
+        elements.accountJobTitleForStaff.value="";
+        applyNewPersonKind();
+        (state.canCreateAccounts ? elements.accountJobTitleForStaff : elements.displayName).focus();
         return;
       }
 
@@ -1156,6 +1179,72 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function selectedCoverRoles() {
     return [...elements.coverOptions.querySelectorAll('input[name="staffCoverRole"]:checked')].map((input) => input.value);
+  }
+
+  // "Add Staff" starts with the job title, so whoever registers a new person here gets
+  // the right result: production staff get a Staff Master record (roster) and their
+  // sign-in together; office and management staff get only a sign-in; drivers are
+  // registered in Distribution.
+  const PRODUCTION_JOB_TITLES = new Set(["GENERAL_OPERATIVE","TEAM_LEADER","LABEL_OPERATIVE","CLEANER","MAINTENANCE","PRODUCTION_SUPERVISOR","PRODUCTION_MANAGER"]);
+
+  function newPersonKind() {
+    if (!state.canCreateAccounts) return "PRODUCTION";
+    const code = elements.accountJobTitleForStaff.value;
+    if (!code) return "NONE";
+    if (code === "DRIVER") return "DRIVER";
+    return PRODUCTION_JOB_TITLES.has(code) ? "PRODUCTION" : "OFFICE";
+  }
+
+  function operationalRoleForJobTitle(code) {
+    return ({PRODUCTION_MANAGER:"PRODUCTION_MANAGER",PRODUCTION_SUPERVISOR:"SUPERVISOR",LABEL_OPERATIVE:"LABEL",TEAM_LEADER:"TEAM_LEADER",CLEANER:"CLEANER",MAINTENANCE:"MAINTENANCE",GENERAL_OPERATIVE:"GENERAL_OPERATIVE"})[code] || "";
+  }
+
+  function applyNewPersonKind(syncRole = false) {
+    const isNew = !elements.editorId.value;
+    const kind = isNew ? newPersonKind() : "PRODUCTION";
+    elements.editorForm.querySelectorAll(".staff-production-only").forEach((element) => element.classList.toggle("hidden", kind !== "PRODUCTION"));
+    if (!isNew) return;
+    elements.editorSave.disabled = kind === "NONE" || kind === "DRIVER";
+    elements.editorSave.textContent = kind === "OFFICE" ? "Create sign-in" : "Add Staff";
+    elements.accountEmailForStaffLabel.textContent = kind === "OFFICE" ? "Personal email *" : "Personal email";
+    const notices = {
+      NONE:"Choose the job title first.",
+      PRODUCTION:"Production staff: the Staff Master record (Production Roster) and the sign-in are created together. Without an email the record is created and the sign-in stays pending.",
+      OFFICE:"Office and management staff are not on the Production Roster, so no Staff Master record is created. Only the sign-in is created, with the standard permissions of this job title.",
+      DRIVER:"Drivers are registered in Distribution → Drivers, because licence and CPC details are needed. Their sign-in is then created in Accounts & access with the Driver job title."
+    };
+    elements.kindNotice.textContent = notices[kind];
+    if (syncRole && kind === "PRODUCTION") {
+      const code = elements.accountJobTitleForStaff.value;
+      const current = elements.primaryRole.value;
+      const keepCurrent = code === "GENERAL_OPERATIVE" && current && jobTitleForOperationalRole(current) === "GENERAL_OPERATIVE";
+      const role = keepCurrent ? current : operationalRoleForJobTitle(code);
+      if (role && [...elements.primaryRole.options].some((item) => item.value === role)) elements.primaryRole.value = role;
+    }
+  }
+
+  async function saveOfficeSignIn(displayName) {
+    const email = elements.accountEmailForStaff.value.trim();
+    if (!displayName || !email || !email.includes("@") || email.includes("*")) {
+      setMessage(elements.editorMessage, "Complete the name and the personal email. The person receives a link to create their own password.", "error");
+      return;
+    }
+    state.busy = true;
+    elements.editorSave.disabled = true;
+    setMessage(elements.editorMessage, "Creating sign-in...");
+    try {
+      const titleName = state.accountJobTitles.find((item) => item.job_title_code === elements.accountJobTitleForStaff.value)?.job_title_name || "the selected job title";
+      await accountAdmin("create",{account_type:"USER",display_name:displayName,job_title_code:elements.accountJobTitleForStaff.value,login_method:"EMAIL",email,permissions:[],role_codes:[],redirect_to:passwordSetupUrl});
+      closeEditor(true);
+      setMessage(elements.pageMessage, `Sign-in created for ${displayName} as ${titleName}. They received an email to create their password. Find the account under Accounts & access.`, "success");
+      await loadDirectory();
+    } catch (error) {
+      console.error("Failed to create sign-in:", error);
+      setMessage(elements.editorMessage, friendlyError(error), "error");
+    } finally {
+      state.busy = false;
+      elements.editorSave.disabled = false;
+    }
   }
 
   function jobTitleForOperationalRole(roleCode) {
@@ -1207,6 +1296,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const staffId = elements.editorId.value;
     const displayName = elements.displayName.value.trim();
     const reason = elements.changeReason.value.trim();
+
+    if (!staffId) {
+      const kind = newPersonKind();
+      if (kind === "NONE") { setMessage(elements.editorMessage, "Choose the job title first.", "error"); return; }
+      if (kind === "DRIVER") { setMessage(elements.editorMessage, "Register drivers in Distribution → Drivers.", "error"); return; }
+      if (kind === "OFFICE") return saveOfficeSignIn(displayName);
+    }
 
     if (!displayName || !elements.primaryRole.value || !reason) {
       setMessage(elements.editorMessage, "Complete the staff name, primary role and audit reason.", "error");
@@ -1541,8 +1637,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   elements.defaultArea.addEventListener("change", () => populateStationOptions("", true));
   elements.primaryRole.addEventListener("change",()=>{
-    if (!elements.editorId.value && elements.accountJobTitleForStaff.options.length>1) elements.accountJobTitleForStaff.value=jobTitleForOperationalRole(elements.primaryRole.value);
+    if (elements.editorId.value || !state.canCreateAccounts || newPersonKind() !== "PRODUCTION") return;
+    const title = jobTitleForOperationalRole(elements.primaryRole.value);
+    if (title !== "DRIVER" && [...elements.accountJobTitleForStaff.options].some((item) => item.value === title)) elements.accountJobTitleForStaff.value = title;
   });
+  elements.accountJobTitleForStaff.addEventListener("change",()=>applyNewPersonKind(true));
   elements.editorForm.addEventListener("submit", saveEditor);
   elements.transferDriver.addEventListener("click", prepareDriverTransfer);
   elements.driverExisting.addEventListener("change", () => {
@@ -1604,6 +1703,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    state.myUserId = sessionData.session.user?.id || "";
     const [reference,accessProfile] = await Promise.all([rpc("get_staff_master_reference_data"),rpc("get_current_account_access")]);
     state.reference = reference;
     state.accessProfile = accessProfile || {};
@@ -1618,8 +1718,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (state.canCreateAccounts) {
       try {
         const jobAccess=await rpc("get_admin_account_job_access");
-        state.accountJobTitles=Array.isArray(jobAccess?.job_titles)?jobAccess.job_titles:[];
-      } catch { state.accountJobTitles=[]; }
+        storeJobAccess(jobAccess);
+      } catch { storeJobAccess(null); }
     }
     if (state.view === "accounts" && !state.canViewAccounts) {
       state.view = "directory";
