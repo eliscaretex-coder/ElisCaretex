@@ -17,13 +17,13 @@
   <link rel="stylesheet" href="../assets/css/finish-results.css">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
-  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261025-1">
+  <link rel="stylesheet" href="../assets/css/customer-service.css?v=20261105-1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   <script src="../assets/js/config.js" defer></script>
   <script src="../assets/js/supabase-client.js" defer></script>
   <script src="../assets/js/app-shell-policy.js?v=20261104-1" defer></script>
   <script src="../assets/js/operational-page-nav.js?v=20261104-1" defer></script>
-  <script src="../assets/js/customer-service.js?v=20261025-1" defer></script>
+  <script src="../assets/js/customer-service.js?v=20261105-1" defer></script>
 </head>
 <body class="finish-results-page cs-page">
   <div class="finish-results-shell" data-operational-shell-root>
@@ -55,23 +55,21 @@
       <!-- Complaints -->
       <section class="cs-view" data-view="complaints">
         <div class="cs-filters">
-          <label>From<input id="csFrom" type="date"></label>
-          <label>To<input id="csTo" type="date"></label>
-          <label>Status
+          <label class="cs-grow">Search<input id="csSearch" type="search" placeholder="Customer, CS code or what they said" autocomplete="off"></label>
+          <label>Show
             <select id="csStatus">
-              <option value="ACTIVE">Open and investigating</option>
+              <option value="ACTIVE">Open (not resolved yet)</option>
               <option value="ALL">All in the period</option>
-              <option value="OPEN">Open</option>
-              <option value="INVESTIGATING">Investigating</option>
               <option value="RESOLVED">Resolved</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
           </label>
-          <label class="cs-grow">Customer<input id="csCustomerFilter" list="csCustomerList" placeholder="All customers" autocomplete="off"></label>
+          <label data-period hidden>From<input id="csFrom" type="date"></label>
+          <label data-period hidden>To<input id="csTo" type="date"></label>
           <label class="cs-check"><input id="csOnlyMine" type="checkbox"> Only my customers</label>
         </div>
         <section class="finish-results-section">
-          <header><div><p>Complaints</p><h2 id="csListTitle">Open and investigating</h2></div><strong id="csComplaintCount" class="finish-results-count">0</strong></header>
+          <header><div><p>Grouped by customer · most urgent first</p><h2 id="csListTitle">Open complaints</h2></div><strong id="csComplaintCount" class="finish-results-count">0</strong></header>
           <div id="csComplaints" class="cs-list"></div>
         </section>
       </section>
@@ -170,21 +168,32 @@
     <form id="csComplaintForm" method="dialog">
       <header><div><p>Customer Service</p><h2 id="csComplaintFormTitle">New complaint</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
       <div class="cs-form-grid">
-        <label class="cs-span">Customer<input id="cfCustomer" list="csCustomerList" required autocomplete="off" placeholder="Start typing the customer name"></label>
-        <label>Received on<input id="cfReceived" type="date" required></label>
-        <label>Delivery it refers to<input id="cfDelivery" type="date"></label>
-        <label class="cs-span">Complaint<select id="cfType" required></select></label>
-        <label>Severity
-          <select id="cfSeverity"><option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option><option value="HIGH">High</option></select>
-        </label>
-        <label>Received by
-          <select id="cfChannel"><option value="">—</option><option value="PHONE">Phone</option><option value="EMAIL">Email</option><option value="DRIVER">Driver</option><option value="IN_PERSON">In person</option><option value="OTHER">Other</option></select>
-        </label>
-        <label class="cs-span">Customer reference (optional)<input id="cfReference" maxlength="120" placeholder="Their ticket, email subject, ward…"></label>
-        <label class="cs-span">What the customer said<textarea id="cfDescription" rows="4" required maxlength="4000"></textarea></label>
+        <label class="cs-span">1. Customer<input id="cfCustomer" list="csCustomerList" required autocomplete="off" placeholder="Start typing the customer name or code"></label>
+        <p id="cfCustomerOpen" class="cs-span cs-form-hint" hidden></p>
+        <fieldset class="cs-span cs-choice-set"><legend>2. What went wrong</legend><div id="cfTypes" class="cs-choice"></div></fieldset>
+        <label class="cs-span">3. What the customer said<textarea id="cfDescription" rows="3" required maxlength="4000" placeholder="For example: 2 duvet covers missing from Tuesday's delivery."></textarea></label>
+        <fieldset class="cs-span cs-choice-set"><legend>4. How serious</legend>
+          <div class="cs-choice cs-severity">
+            <label><input type="radio" name="cfSeverity" value="LOW"><span>Low</span></label>
+            <label><input type="radio" name="cfSeverity" value="MEDIUM" checked><span>Medium</span></label>
+            <label><input type="radio" name="cfSeverity" value="HIGH"><span>High</span></label>
+          </div>
+          <small id="cfDueHint" class="cs-form-hint"></small>
+        </fieldset>
+        <details id="cfMore" class="cs-span cs-more">
+          <summary>More details (optional): received date, delivery, how it came in, reference</summary>
+          <div class="cs-form-grid cs-inner-grid">
+            <label>Received on<input id="cfReceived" type="date" required></label>
+            <label>Delivery it refers to<input id="cfDelivery" type="date"></label>
+            <label>Received by
+              <select id="cfChannel"><option value="">—</option><option value="PHONE">Phone</option><option value="EMAIL">Email</option><option value="DRIVER">Driver</option><option value="IN_PERSON">In person</option><option value="OTHER">Other</option></select>
+            </label>
+            <label>Customer reference<input id="cfReference" maxlength="120" placeholder="Their ticket, email subject, ward…"></label>
+          </div>
+        </details>
       </div>
       <p id="cfMessage" class="cs-form-message" aria-live="polite"></p>
-      <footer><button type="button" class="cs-button secondary" data-close>Cancel</button><button id="cfSave" type="submit" class="cs-button primary">Save complaint</button></footer>
+      <footer><button type="button" class="cs-button secondary" data-close>Cancel</button><button id="cfSaveAnother" type="button" class="cs-button secondary">Save and add another</button><button id="cfSave" type="submit" class="cs-button primary">Save complaint</button></footer>
     </form>
   </dialog>
 
@@ -238,10 +247,16 @@
     <form id="csAskForm" method="dialog">
       <header><div><p id="askEyebrow">Customer Service</p><h2 id="askTitle">Confirm</h2></div><button type="button" class="cs-close" data-close aria-label="Close">&times;</button></header>
       <div class="cs-form-grid">
-        <label class="cs-span" id="askOutcomeWrap">Was the complaint justified?
-          <select id="askOutcome"><option value="">Choose…</option><option value="JUSTIFIED">Yes, our mistake</option><option value="NOT_JUSTIFIED">No</option><option value="UNDETERMINED">Could not tell</option></select>
-        </label>
+        <fieldset class="cs-span cs-choice-set" id="askOutcomeWrap"><legend>Was the complaint justified?</legend>
+          <div class="cs-choice">
+            <label><input type="radio" name="askOutcome" value="JUSTIFIED"><span>Yes, our mistake</span></label>
+            <label><input type="radio" name="askOutcome" value="NOT_JUSTIFIED"><span>No</span></label>
+            <label><input type="radio" name="askOutcome" value="UNDETERMINED"><span>Could not tell</span></label>
+          </div>
+        </fieldset>
+        <label class="cs-span" id="askDateWrap">New resolve-by date<input id="askDate" type="date"></label>
         <label class="cs-span"><span id="askNotesLabel">Notes</span><textarea id="askNotes" rows="3"></textarea></label>
+        <label class="cs-check cs-span" id="askCheckWrap"><input id="askCheck" type="checkbox" checked> <span id="askCheckLabel"></span></label>
       </div>
       <p id="askMessage" class="cs-form-message" aria-live="polite"></p>
       <footer><button type="button" class="cs-button secondary" data-close>Back</button><button id="askConfirm" type="submit" class="cs-button primary">Confirm</button></footer>
