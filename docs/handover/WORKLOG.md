@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Customer Service Production link: Finish and MOP Production first
+
+- Branch: `claude/customer-service-trace-mop`.
+- Owner request: the Production link search showed Finish and Sorting side by side; what
+  matters is Finish for clothes-only customers, and Finish plus MOP Production for
+  customers who also have MOP, with the wash reached through them (full cycle on one row).
+- Migration `202611060010_customer_service_trace_finish_mop.sql` (**Prepared**, not yet
+  applied; the rolled-back test could not run from the session):
+  complaints gain `linked_mop_batch_id`, `mop_business_date`, `mop_shift_code`,
+  `mop_operator_name` (cleared by a trigger when the customer changes);
+  `get_customer_service_production_trace_v1` returns `has_mop`, each Finish row with the
+  washes of the same `production_flow_item_id`, and MOP batches (RECORDED, not superseded)
+  with operator, trolleys, products and washes; new `link_customer_service_complaint_production_v2`
+  links Finish, MOP and wash (auto-picks the flow's wash) and checks each record belongs to
+  the complaint's customer; results add `by_mop_shift`.
+- Screens (`customer-service.js/.css/.html`): Production link shows "Finish · clothes" and,
+  only for MOP customers, "MOP Production", each row with a "Washed ..." line; the full
+  Sorting list is folded as a fallback. The complaint card shows the MOP link.
+- Validation: `node scripts/validate-repository.mjs` passed; screenshots with stubbed data.
+  pgTAP file `supabase/tests/202611060010_customer_service_trace_finish_mop_validation.sql`.
+- Open: run `teste-sem-gravar.sql`, then apply the migration; the frontend needs it
+  (it calls `link_customer_service_complaint_production_v2`). Only 248 of 1,717 live MOP
+  flows have a recorded wash, so many MOP rows will say "No wash recorded".
+
 ## 2026-11-06 — Claude — Account creation by hierarchy; Add Staff starts with the job title
 
 - Owner request: the Production Manager creates any job title up to manager level except
