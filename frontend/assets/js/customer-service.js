@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const TITLES = {
     complaints:["Complaints","Every complaint has a resolve-by date. Overdue ones and customers with several complaints come first."],
     alerts:["Customer alerts","Alerts appear on the Sorting, Finish, MOP and Distribution screens while they are active."],
-    tasks:["Tasks","Work for a department, followed until it is done."],
+    tasks:["Tasks","Work for a department or a person, followed until it is done."],
     results:["Results","How many complaints the company had, what they were about and where they came from."],
     settings:["Settings","Customer blocks for each person and the list of complaint types."]
   };
@@ -71,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!link) return "";
     const parts=[];
     if(link.finish_table_code) parts.push(`${tableName(link.finish_table_code)} · ${shiftName(link.finish_shift_code)} · ${fmtShort(link.finish_business_date)}`);
+    if(link.mop_shift_code) parts.push(`MOP ${shiftName(link.mop_shift_code)} · ${fmtShort(link.mop_business_date)}`);
     if(link.sorting_shift_code) parts.push(`Washed ${shiftName(link.sorting_shift_code)} · ${fmtShort(link.sorting_business_date)}`);
     return parts.join(" | ");
   }
@@ -301,12 +302,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       </section>
 
       <section class="cs-card">
-        <header><h3>Production link</h3><small>Which shift and table handled this delivery</small></header>
+        <header><h3>Production link</h3><small>Finish (clothes) and MOP Production, with the wash of the same goods</small></header>
         ${c.link?`<div class="cs-linked">
           ${c.link.finish_table_code?`<div><small>Finish</small><strong>${esc(tableName(c.link.finish_table_code))} · ${esc(shiftName(c.link.finish_shift_code))}</strong><em>${esc(fmtDate(c.link.finish_business_date))}${c.link.finish_processed_by?` · processed by ${esc(c.link.finish_processed_by)}`:""}</em></div>`:""}
+          ${c.link.mop_shift_code?`<div><small>MOP Production</small><strong>${esc(shiftName(c.link.mop_shift_code))} shift</strong><em>${esc(fmtDate(c.link.mop_business_date))}${c.link.mop_operator_name?` · by ${esc(c.link.mop_operator_name)}`:""}</em></div>`:""}
           ${c.link.sorting_shift_code?`<div><small>Washing</small><strong>${esc(shiftName(c.link.sorting_shift_code))} shift</strong><em>${esc(fmtDate(c.link.sorting_business_date))} · ${esc(c.link.sorting_washer_name||"")}${c.link.sorting_operator_name?` · ${esc(c.link.sorting_operator_name)}`:""}</em></div>`:""}
           ${canEdit?'<button type="button" class="cs-button secondary" data-detail-action="unlink">Remove link</button>':""}
-        </div>`:'<p class="cs-muted">Not linked yet. Search the production records below and pick the Finish record and the wash that match.</p>'}
+        </div>`:'<p class="cs-muted">Not linked yet. Search below and pick the Finish record (or the MOP batch) that matches. Its wash is linked with it.</p>'}
         <div class="cs-trace-controls">
           <label>From<input id="cdTraceFrom" type="date" value="${esc(range.from)}"></label>
           <label>To<input id="cdTraceTo" type="date" value="${esc(range.to)}"></label>
@@ -321,7 +323,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       </section>
 
       <section class="cs-card">
-        <header><h3>Tasks</h3>${canEdit&&active?'<button type="button" class="cs-button secondary" data-detail-action="new-task">+ Task for a department</button>':""}</header>
+        <header><h3>Tasks</h3>${canEdit&&active?'<button type="button" class="cs-button secondary" data-detail-action="new-task">+ Task</button>':""}</header>
         ${(d.tasks||[]).length?d.tasks.map(taskRow).join(""):'<p class="cs-muted">No task for this complaint.</p>'}
       </section>
 
@@ -336,8 +338,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function eventDetail(e){
     const x=e.details||{};
-    if(e.event_type==="LINKED"){ const parts=[]; if(x.finish_table) parts.push(`${tableName(x.finish_table)} ${shiftName(x.finish_shift)} ${fmtShort(x.finish_date)}`); if(x.sorting_shift) parts.push(`washed ${shiftName(x.sorting_shift)} ${fmtShort(x.sorting_date)}`); return parts.length?`<p class="cs-muted">${esc(parts.join(" · "))}</p>`:""; }
-    if(e.event_type?.startsWith("TASK_")&&x.department) return `<p class="cs-muted">${esc(DEPARTMENTS[x.department]||x.department)}${x.title&&e.event_type!=="TASK_CREATED"?` · ${esc(x.title)}`:""}</p>`;
+    if(e.event_type==="LINKED"){ const parts=[]; if(x.finish_table) parts.push(`${tableName(x.finish_table)} ${shiftName(x.finish_shift)} ${fmtShort(x.finish_date)}`); if(x.mop_shift) parts.push(`MOP ${shiftName(x.mop_shift)} ${fmtShort(x.mop_date)}`); if(x.sorting_shift) parts.push(`washed ${shiftName(x.sorting_shift)} ${fmtShort(x.sorting_date)}`); return parts.length?`<p class="cs-muted">${esc(parts.join(" · "))}</p>`:""; }
+    if(e.event_type?.startsWith("TASK_")&&x.department) return `<p class="cs-muted">${x.person?`For ${esc(x.person)} · `:""}${esc(DEPARTMENTS[x.department]||x.department)}${x.title&&e.event_type!=="TASK_CREATED"?` · ${esc(x.title)}`:""}</p>`;
     if(e.event_type?.startsWith("ALERT_")&&Array.isArray(x.areas)) return `<p class="cs-muted">${esc(x.areas.map(a=>AREAS[a]||a).join(", "))}${x.ends_on?` · until ${esc(fmtShort(x.ends_on))}`:""}</p>`;
     if(e.event_type==="STATUS_RESOLVED"&&x.outcome) return `<p class="cs-muted">${esc(OUTCOME[x.outcome]||x.outcome)}</p>`;
     if(e.event_type==="DUE_CHANGED") return `<p class="cs-muted">${esc(x.from?fmtShort(x.from):"—")} → ${esc(fmtShort(x.to))}</p>`;
@@ -359,34 +361,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     try{ state.trace=await rpc("get_customer_service_production_trace_v1",{p_customer_id:c.customer_id,p_from:from,p_to:to}); $("cdTrace").innerHTML=renderTrace(); }
     catch(err){ console.error(err); $("cdTrace").innerHTML=`<p class="cs-form-message error">${esc(errorText(err,"Production records could not be loaded."))}</p>`; }
   }
+  // The wash of the same goods (same production flow), shown on the Finish or MOP row: the full cycle on one line.
+  function cycleLine(row){
+    const w=(row.washes||[])[0];
+    if(!w) return '<span class="cs-cycle none">No wash recorded for these goods</span>';
+    return `<span class="cs-cycle">Washed ${esc(fmtShort(w.business_date))} · ${esc(shiftName(w.shift_code))} · ${esc(w.washer_name||w.wash_code||"")}${w.operator_name?` · ${esc(w.operator_name)}`:""}${(row.washes||[]).length>1?` (+${row.washes.length-1})`:""}</span>`;
+  }
   function renderTrace(){
     const t=state.trace, c=state.detail?.complaint; if(!t) return '<p class="cs-muted">Choose the period and search. The delivery date of the complaint is the best starting point.</p>';
-    const canEdit=me().can_edit, linkFin=c?.link?.finish_entry_id, linkWash=c?.link?.wash_run_id, delivery=String(c?.delivery_date||"").slice(0,10);
-    const finish=t.finish||[], washes=t.washes||[];
+    const canEdit=me().can_edit, link=c?.link||{}, delivery=String(c?.delivery_date||"").slice(0,10);
+    const finish=t.finish||[], mop=t.mop||[], washes=t.washes||[], hasMop=Boolean(t.has_mop);
+    const pick=(name,value,flow,checked)=>canEdit?`<input type="radio" name="${name}" value="${esc(value)}" data-flow="${esc(flow||"")}"${checked?" checked":""}>`:"";
     const finishRows=finish.length?finish.map(f=>`
-      <label class="cs-trace-row ${f.finish_production_entry_id===linkFin?"linked":""} ${delivery&&String(f.delivery_date).slice(0,10)===delivery?"match":""}">
-        ${canEdit?`<input type="radio" name="cdFinish" value="${esc(f.finish_production_entry_id)}" data-flow="${esc(f.production_flow_item_id||"")}"${f.finish_production_entry_id===linkFin?" checked":""}>`:""}
+      <label class="cs-trace-row ${f.finish_production_entry_id===link.finish_entry_id?"linked":""} ${delivery&&String(f.delivery_date).slice(0,10)===delivery?"match":""}">
+        ${pick("cdFinish",f.finish_production_entry_id,f.production_flow_item_id,f.finish_production_entry_id===link.finish_entry_id)}
         <span><strong>${esc(fmtShort(f.business_date))} · ${esc(shiftName(f.shift_code))}</strong><small>Delivery ${esc(fmtShort(f.delivery_date))} · recorded ${esc(fmtTime(f.recorded_at))}</small></span>
         <span><strong>${esc(f.table_name||tableName(f.table_code))}</strong><small>Processed by ${esc(f.processed_by||"—")}</small></span>
         <span><strong>${num(f.kg)} kg</strong><small>${Number(f.units)?`${num(f.units,0)} units · `:""}${(f.batches||[]).length?`Batch ${esc(f.batches.join(", "))}`:""}</small></span>
-        <span class="cs-staff">${(f.table_staff||[]).length?esc(f.table_staff.join(", ")):"No staff recorded"}</span>
+        <span class="cs-staff">${(f.table_staff||[]).length?`Table: ${esc(f.table_staff.join(", "))}`:"No staff recorded"}<br>${cycleLine(f)}</span>
       </label>`).join(""):'<p class="cs-muted">No Finish records for this customer in the period.</p>';
-    const washRows=washes.length?washes.map(w=>`
-      <label class="cs-trace-row ${w.wash_run_id===linkWash?"linked":""}">
-        ${canEdit?`<input type="radio" name="cdWash" value="${esc(w.wash_run_id)}" data-flow="${esc(w.production_flow_item_id||"")}"${w.wash_run_id===linkWash?" checked":""}>`:""}
+    const mopRows=mop.length?mop.map(b=>`
+      <label class="cs-trace-row ${b.mop_production_batch_id===link.mop_batch_id?"linked":""} ${delivery&&String(b.delivery_date).slice(0,10)===delivery?"match":""}">
+        ${pick("cdMop",b.mop_production_batch_id,b.production_flow_item_id,b.mop_production_batch_id===link.mop_batch_id)}
+        <span><strong>${esc(fmtShort(b.business_date))} · ${esc(shiftName(b.shift_code))}</strong><small>Delivery ${esc(fmtShort(b.delivery_date))} · recorded ${esc(fmtTime(b.recorded_at))}</small></span>
+        <span><strong>${esc(b.operator_name||"—")}</strong><small>${(b.trolleys||[]).length?`Trolley ${esc(b.trolleys.join(", "))}`:"No trolley recorded"}</small></span>
+        <span><strong>${num(b.kg)} kg</strong><small>${Number(b.units)?`${num(b.units,0)} units`:""}</small></span>
+        <span class="cs-staff">${(b.products||[]).map(p=>`${esc(p.name)} ${Number(p.units)?num(p.units,0):`${num(p.kg)} kg`}`).join(" · ")||"—"}<br>${cycleLine(b)}</span>
+      </label>`).join(""):'<p class="cs-muted">No MOP batches for this customer in the period.</p>';
+    const washRows=washes.map(w=>`
+      <label class="cs-trace-row ${w.wash_run_id===link.wash_run_id?"linked":""}">
+        ${pick("cdWash",w.wash_run_id,w.production_flow_item_id,false)}
         <span><strong>${esc(fmtShort(w.business_date))} · ${esc(shiftName(w.shift_code))}</strong><small>${esc(fmtTime(w.registered_at))}${w.scheduled_for_date?` · for ${esc(fmtShort(w.scheduled_for_date))}`:""}</small></span>
         <span><strong>${esc(w.washer_name||"—")}</strong><small>${esc(w.wash_type||"")} · operator ${esc(w.operator_name||"—")}</small></span>
         <span><strong>${num(w.customer_kg||w.total_kg)} kg</strong><small>${w.customer_kg?`of ${num(w.total_kg)} kg load`:"load"}</small></span>
         <span class="cs-staff">${(w.sorting_staff||[]).length?esc(w.sorting_staff.join(", ")):"No staff recorded"}</span>
-      </label>`).join(""):'<p class="cs-muted">No washes for this customer in the period.</p>';
-    return `<div class="cs-trace-block"><h4>Finish <small>${finish.length} record${finish.length===1?"":"s"}${delivery?" · rows for the complaint delivery date are highlighted":""}</small></h4>${finishRows}</div>
-      <div class="cs-trace-block"><h4>Washing <small>${washes.length} wash${washes.length===1?"":"es"}</small></h4>${washRows}</div>
-      ${canEdit&&(finish.length||washes.length)?'<div class="cs-actions"><button type="button" class="cs-button primary" data-detail-action="link">Link the selected records</button></div>':""}`;
+      </label>`).join("");
+    const highlight=delivery?" · rows for the complaint delivery date are highlighted":"";
+    return `<div class="cs-trace-block ${hasMop?"":"cs-wide"}"><h4>Finish · clothes <small>${plural(finish.length,"record")}${highlight}</small></h4>${finishRows}</div>
+      ${hasMop?`<div class="cs-trace-block"><h4>MOP Production <small>${plural(mop.length,"batch")}</small></h4>${mopRows}</div>`:""}
+      ${washes.length?`<details class="cs-trace-more"><summary>Sorting: all ${plural(washes.length,"wash")} in the period (only needed when a record above shows no wash)</summary><div class="cs-trace-block">${washRows}</div></details>`:""}
+      ${canEdit&&(finish.length||mop.length||washes.length)?'<div class="cs-actions"><button type="button" class="cs-button primary" data-detail-action="link">Link the selected records</button></div>':""}`;
   }
   async function linkSelected(){
-    const fin=document.querySelector('input[name="cdFinish"]:checked')?.value||null, wash=document.querySelector('input[name="cdWash"]:checked')?.value||null;
-    if(!fin&&!wash){ setMessage("Select a Finish record and/or a wash first.","error"); return; }
-    await runAction(()=>rpc("link_customer_service_complaint_production_v1",{p_complaint_id:state.detail.complaint.complaint_id,p_finish_entry_id:fin,p_wash_run_id:wash}),"Production link saved.");
+    const val=(n)=>document.querySelector(`input[name="${n}"]:checked`)?.value||null;
+    const fin=val("cdFinish"), mop=val("cdMop"), wash=val("cdWash");
+    if(!fin&&!mop&&!wash){ setMessage("Select a Finish record or a MOP batch first.","error"); return; }
+    await runAction(()=>rpc("link_customer_service_complaint_production_v2",{p_complaint_id:state.detail.complaint.complaint_id,p_finish_entry_id:fin,p_mop_batch_id:mop,p_wash_run_id:wash}),"Production link saved.");
   }
   // When a wash is picked, highlight the Finish records of the same production flow (and back).
   function syncFlowHighlight(){
@@ -450,7 +470,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(action==="edit") return openComplaintForm(c);
     if(action==="trace") return loadTrace();
     if(action==="link") return linkSelected();
-    if(action==="unlink") return runAction(()=>rpc("link_customer_service_complaint_production_v1",{p_complaint_id:id,p_finish_entry_id:null,p_wash_run_id:null}),"Production link removed.");
+    if(action==="unlink") return runAction(()=>rpc("link_customer_service_complaint_production_v2",{p_complaint_id:id,p_finish_entry_id:null,p_mop_batch_id:null,p_wash_run_id:null}),"Production link removed.");
     if(action==="investigating") return runAction(()=>rpc("set_customer_service_complaint_status_v1",{p_complaint_id:id,p_status:"INVESTIGATING",p_outcome:null,p_notes:null}),"Complaint marked as investigating.");
     if(action==="reopen") return runAction(()=>rpc("set_customer_service_complaint_status_v1",{p_complaint_id:id,p_status:"OPEN",p_outcome:null,p_notes:null}),"Complaint reopened.");
     if(action==="resolve") return resolveComplaint(c);
@@ -517,7 +537,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<article class="cs-item task ${esc(String(t.status).toLowerCase())} ${t.overdue?"overdue":""}">
       <div><strong>${esc(t.title)}</strong>${chip(String(t.status).toLowerCase(),TASK_STATUS[t.status]||t.status)}${t.overdue?chip("overdue","Overdue"):""}
         ${t.details?`<p>${esc(t.details)}</p>`:""}
-        <small>${esc(DEPARTMENTS[t.department_code]||t.department_code)}${t.due_on?` · due ${esc(fmtShort(t.due_on))}`:""}${t.customer_name?` · ${esc(t.customer_name)}`:""}${t.complaint_code?` · ${esc(t.complaint_code)}`:""} · by ${esc(t.created_by_name||"—")}</small>
+        <small>${t.assigned_name?`<b class="cs-task-person">For ${esc(t.assigned_name)}</b> · `:""}${esc(DEPARTMENTS[t.department_code]||t.department_code)}${t.due_on?` · due ${esc(fmtShort(t.due_on))}`:""}${t.customer_name?` · ${esc(t.customer_name)}`:""}${t.complaint_code?` · ${esc(t.complaint_code)}`:""} · by ${esc(t.created_by_name||"—")}</small>
         ${t.completed_at?`<small>${t.status==="DONE"?"Done":"Closed"} ${esc(fmtDateTime(t.completed_at))} by ${esc(t.completed_by_name||"—")}${t.completion_notes?`: ${esc(t.completion_notes)}`:""}</small>`:""}
       </div>
       ${canEdit?`<div class="cs-item-actions">
@@ -530,14 +550,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   async function loadTasks(){
     setMessage("Loading tasks…");
-    const rows=await rpc("get_customer_service_tasks_v1",{p_status:$("csTaskStatus").value,p_department_code:$("csTaskDepartment").value||null});
+    loadPeople().catch(err=>console.warn("People could not be loaded.",err));
+    const rows=await rpc("get_customer_service_tasks_v2",{p_status:$("csTaskStatus").value,p_department_code:$("csTaskDepartment").value||null,p_assignee_key:$("csTaskPerson").value||null});
     state.tasks=rows||[]; $("csTaskCount").textContent=String(state.tasks.length);
     $("csTasks").innerHTML=state.tasks.length?state.tasks.map(taskRow).join(""):'<div class="finish-results-empty">No tasks for this filter.</div>';
     setMessage("");
   }
   function findTask(id){ return [...(state.tasks||[]),...(state.detail?.tasks||[])].find(t=>t.task_id===id); }
+  // People a task can go to (loaded once, when first needed).
+  const personLabel=p=>`${p.name} · ${p.detail}`;
+  async function loadPeople(){
+    if(state.people) return state.people;
+    state.people=(await rpc("get_customer_service_task_people_v1"))||[];
+    $("csPeopleList").innerHTML=state.people.map(p=>`<option value="${esc(personLabel(p))}">${p.has_login?"Sees it in Notifications":"Sees it on the production screen"}</option>`).join("");
+    const keep=$("csTaskPerson").value;
+    $("csTaskPerson").innerHTML=`<option value="">Everyone</option><option value="NONE">No person (whole department)</option>${state.people.map(p=>`<option value="${esc(p.key)}">${esc(p.name)}</option>`).join("")}`;
+    $("csTaskPerson").value=keep;
+    return state.people;
+  }
+  function personByLabel(text){ const t=String(text||"").trim().toLowerCase(); return (state.people||[]).find(p=>personLabel(p).toLowerCase()===t)||(state.people||[]).filter(p=>p.name.toLowerCase()===t).at(0)||null; }
+  function personHint(){
+    const p=personByLabel($("ctPerson").value);
+    $("ctPersonHint").textContent=!$("ctPerson").value.trim()?"Supervisors, managers or a General Operative with extra work."
+      :p?(p.has_login?`${p.name} sees it in Notifications and on the production screen of the department.`:`${p.name} has no sign-in: the task shows "For ${p.name}" on the production screen of the department.`)
+      :"Choose a name from the list.";
+  }
   function openTaskForm(task={}){
     state.taskEdit=task;
+    $("ctPerson").value=task.assigned_name?(()=>{ const p=(state.people||[]).find(x=>x.key===task.assigned_key); return p?personLabel(p):task.assigned_name; })():"";
+    loadPeople().then(()=>{ if(task.assigned_key){ const p=state.people.find(x=>x.key===task.assigned_key); if(p) $("ctPerson").value=personLabel(p); } personHint(); }).catch(err=>console.warn("People could not be loaded.",err));
     $("ctTitle").textContent=task.task_id?"Edit task":"New task";
     const customer=customerById(task.customer_id);
     $("ctCustomer").value=customer?customerLabel(customer):(task.customer_name||""); $("ctCustomer").disabled=Boolean(task.complaint_id||task.task_id);
@@ -551,9 +592,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const t=state.taskEdit||{}, typed=$("ctCustomer").value.trim(), customer=typed?customerByLabel(typed):null;
     if(typed&&!customer&&!t.customer_id){ formMessage("ctMessage","Choose a customer from the list, or leave it empty."); return; }
     if(!$("ctDepartment").value){ formMessage("ctMessage","Choose the department."); return; }
+    const typedPerson=$("ctPerson").value.trim(), person=typedPerson?personByLabel(typedPerson):null;
+    const keepPerson=typedPerson&&!person&&t.assigned_key&&typedPerson===t.assigned_name;
+    if(typedPerson&&!person&&!keepPerson){ formMessage("ctMessage","Choose a person from the list, or leave it empty for the whole department."); return; }
     try{
-      await rpc("save_customer_service_task_v1",{p_task_id:t.task_id||null,p_department_code:$("ctDepartment").value,p_title:$("ctTask").value,p_details:$("ctDetails").value||null,p_due_on:$("ctDue").value||null,p_complaint_id:t.complaint_id||null,p_customer_id:customer?.customer_id||t.customer_id||null});
-      $("csTaskDialog").close(); setMessage(`Task saved for ${DEPARTMENTS[$("ctDepartment").value]}.`,"success");
+      await rpc("save_customer_service_task_v2",{p_task_id:t.task_id||null,p_department_code:$("ctDepartment").value,p_title:$("ctTask").value,p_details:$("ctDetails").value||null,p_due_on:$("ctDue").value||null,p_complaint_id:t.complaint_id||null,p_customer_id:customer?.customer_id||t.customer_id||null,p_assignee_key:person?.key||(keepPerson?t.assigned_key:null)});
+      $("csTaskDialog").close(); setMessage(`Task saved for ${person?person.name:keepPerson?t.assigned_name:DEPARTMENTS[$("ctDepartment").value]}.`,"success");
       if(state.detail&&$("csDetailDialog").open) await reloadDetail();
       await refreshAfterChange();
     }catch(err){ console.error(err); formMessage("ctMessage",errorText(err,"The task could not be saved.")); }
@@ -692,7 +736,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("csCounts").addEventListener("keydown",(event)=>{ const card=event.target.closest("[data-quick]"); if(card&&(event.key==="Enter"||event.key===" ")){ event.preventDefault(); setQuick(card.dataset.quick); } });
   $("csComplaints").addEventListener("keydown",(event)=>{ const row=event.target.closest(".cs-crow"); if(row&&event.target===row&&(event.key==="Enter"||event.key===" ")){ event.preventDefault(); openDetail(row.dataset.openComplaint); } });
   $("csAlertsEnded").addEventListener("change",()=>loadAlerts().catch(err=>setMessage(errorText(err,"Alerts could not be loaded."),"error")));
-  ["csTaskStatus","csTaskDepartment"].forEach(id=>$(id).addEventListener("change",()=>loadTasks().catch(err=>setMessage(errorText(err,"Tasks could not be loaded."),"error"))));
+  $("ctPerson").addEventListener("input",personHint);
+  ["csTaskStatus","csTaskDepartment","csTaskPerson"].forEach(id=>$(id).addEventListener("change",()=>loadTasks().catch(err=>setMessage(errorText(err,"Tasks could not be loaded."),"error"))));
   ["csResultsFrom","csResultsTo"].forEach(id=>$(id).addEventListener("change",()=>loadResults().catch(err=>setMessage(errorText(err,"Results could not be loaded."),"error"))));
   document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>setPreset(b.dataset.preset)));
   $("csBlockSearch").addEventListener("input",renderBlocks);

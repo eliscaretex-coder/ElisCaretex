@@ -220,3 +220,12 @@ p.cs-form-hint{margin:-4px 0 0;padding:6px 9px;border-radius:8px;background:#fff
 .finish-results-topbar .cs-button.secondary{border-color:#ffffff80;background:transparent;color:#fff}
 .finish-results-topbar .cs-button.primary{border-color:#fff;background:#fff;color:#0f766e}
 .cs-events small{display:block}
+.cs-trace-block.cs-wide{grid-column:1/-1}
+.cs-cycle{display:inline-block;margin-top:3px;padding:1px 7px;border-radius:6px;background:#ecfeff;color:#155e75;font-weight:700}
+.cs-cycle.none{background:#f1f5f9;color:var(--cs-muted);font-weight:600}
+.cs-trace-more{grid-column:1/-1}
+.cs-trace-more summary{cursor:pointer;color:var(--cs-muted);font-size:.7rem;font-weight:800;margin-bottom:6px}
+
+/* Task for a person */
+.cs-form-grid label .cs-field-hint{display:block;margin-top:4px;font-size:.8rem;font-weight:500;color:var(--cs-muted);text-transform:none;letter-spacing:normal}
+.cs-task-person{color:#0f766e;font-weight:700}
