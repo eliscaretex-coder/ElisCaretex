@@ -104,6 +104,8 @@ Entry format:
   sign-in (email required); Driver points to Distribution → Drivers. Accounts & access
   lists only assignable titles, shows "Above your level" instead of actions on higher
   accounts, and its Add account subtitle points new employees to Staff Master.
+- `admin-account-management` v19 **Applied** (deployed 2026-11-06 with the owner's go-ahead;
+  boots, not exercised end to end).
 - Not run in a browser; `node scripts/validate-repository.mjs` passed and the Edge Function
   parses with esbuild.
 
