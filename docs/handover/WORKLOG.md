@@ -80,6 +80,24 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — IT Manager job title: Administrator access without touching Administrators
+
+- Owner request: the IT Manager gives and removes permissions and creates accounts, but must
+  never remove an Administrator account or change an Administrator's permissions.
+- Migration `202611060001_it_manager_job_title_full_access.sql` (**Prepared**, not applied):
+  IT_MANAGER templates become a copy of the ADMINISTRATOR templates (all modules, ALL scope,
+  all actions) and IT_MANAGER gets every active legacy role except ADMIN. Existing IT Manager
+  accounts (none on 2026-11-06) are re-synced with `apply_account_job_title_template`.
+- Enforcement already live through `admin-account-management` v18 (PR #177): a
+  non-administrator cannot change, disable, delete or re-invite an account holding ADMIN,
+  cannot give the Administrator job title, cannot change their own job title or permissions,
+  and cannot give access they do not hold. Database checks using
+  `has_any_role(array['ADMIN'])` (for example the General Manager email) stay
+  Administrator-only. Hierarchy rank stays 10 (Administrator 1).
+- Also recorded: `202611050004_users_permissions_privacy_hardening.sql` was **Applied** by the
+  owner on 2026-11-06 (verified: masking functions exist, 0 anon/authenticated table grants).
+  Owner reports public sign-up turned off.
+
 ## 2026-11-05 — Claude — Users and permissions hardening; emails masked everywhere
 
 - Branch / commits: `claude/users-permissions-hardening`, Pull Request.
