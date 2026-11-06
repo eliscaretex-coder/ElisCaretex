@@ -4215,6 +4215,152 @@ document.addEventListener("DOMContentLoaded", async () => {
         <span class="dot"></span><span><strong>${esc(row.customer_name)}</strong><small>${esc(shortDayDate(row.scheduled_for_date||row.opened_business_date))} · Washed ${washed.toFixed(1)} kg · Delivery ${esc(shortDayDate(row.delivery_due_date))}</small><span class="mop-trolley-plan${row.output_trolley_required?"":" none"}">🛒 ${esc(mopQueueTrolleyRequirement(row))}</span></span><span class="state">${esc(mopStatusLabel(row))}</span>
       </button>`;
     }).join(""):'<div class="sorting-empty">No washed MOP customers are waiting for production.</div>';
+    const cleanup=$("sortingMopCleanupButton");
+    if(cleanup)cleanup.hidden=!state.mop?.can_clear_open_items;
+  }
+
+  // Administrator clean-up: washed MOP customers whose production was never
+  // entered can be cleared from the queue with a reason. Nothing is deleted:
+  // the wash stays in history and a cleared customer can be restored.
+  function ensureMopCleanupUi(){
+    if(document.getElementById("sortingMopCleanupDialog"))return;
+    document.body.insertAdjacentHTML("beforeend",`<dialog id="sortingMopCleanupDialog" class="sorting-dialog sorting-mop-cleanup-dialog">
+      <div class="sorting-dialog-card">
+        <header class="sorting-dialog-header"><div><p class="sorting-section-eyebrow">Administrator</p><h2>Clean up MOP queue</h2><p>Clear washed customers whose MOP production was never entered. Nothing is deleted: the wash stays in history and a cleared customer can be restored.</p></div><button id="sortingMopCleanupClose" class="sorting-dialog-close" type="button" aria-label="Close">×</button></header>
+        <div class="sorting-mop-cleanup-tabs" role="tablist">
+          <button type="button" data-mop-cleanup-tab="open" class="active">Waiting <span id="sortingMopCleanupOpenCount">0</span></button>
+          <button type="button" data-mop-cleanup-tab="cleared">Cleared <span id="sortingMopCleanupClearedCount">0</span></button>
+        </div>
+        <div id="sortingMopCleanupOpenPane" class="sorting-mop-cleanup-pane">
+          <div class="sorting-mop-cleanup-tools">
+            <label>Show<select id="sortingMopCleanupFilter"><option value="late">Delivery day already passed</option><option value="all">All waiting customers</option></select></label>
+            <label class="sorting-mop-cleanup-all"><input id="sortingMopCleanupSelectAll" type="checkbox"> Select all shown</label>
+          </div>
+          <div id="sortingMopCleanupList" class="sorting-mop-cleanup-list"></div>
+          <label class="sorting-field sorting-mop-cleanup-reason">Reason <span>(required)</span><input id="sortingMopCleanupReason" type="text" maxlength="1000" placeholder="Example: washed and sent, production quantity never entered"></label>
+        </div>
+        <div id="sortingMopCleanupClearedPane" class="sorting-mop-cleanup-pane" hidden>
+          <div id="sortingMopCleanupClearedList" class="sorting-mop-cleanup-list"></div>
+        </div>
+        <p id="sortingMopCleanupMessage" class="sorting-dialog-message" aria-live="polite"></p>
+        <footer class="sorting-dialog-footer"><span id="sortingMopCleanupSelected">0 selected</span><div><button id="sortingMopCleanupCancel" class="sorting-secondary-button" type="button">Close</button><button id="sortingMopCleanupSave" class="sorting-primary-button" type="button" disabled>Clear selected</button></div></footer>
+      </div></dialog>`);
+    const dialog=$("sortingMopCleanupDialog");
+    const close=()=>{if(!state.mopCleanup?.saving){state.mopCleanup=null;dialog.close();}};
+    $("sortingMopCleanupClose").addEventListener("click",close);
+    $("sortingMopCleanupCancel").addEventListener("click",close);
+    dialog.addEventListener("cancel",e=>{e.preventDefault();close();});
+    dialog.querySelector(".sorting-mop-cleanup-tabs").addEventListener("click",e=>{
+      const b=e.target.closest("[data-mop-cleanup-tab]");if(!b||!state.mopCleanup)return;
+      state.mopCleanup.tab=b.dataset.mopCleanupTab;renderMopCleanup();
+    });
+    $("sortingMopCleanupFilter").addEventListener("change",e=>{if(!state.mopCleanup)return;state.mopCleanup.filter=e.target.value;state.mopCleanup.selected=new Set();renderMopCleanup();});
+    $("sortingMopCleanupSelectAll").addEventListener("change",e=>{
+      const c=state.mopCleanup;if(!c)return;
+      c.selected=e.target.checked?new Set(mopCleanupShown().map(r=>r.production_flow_item_id)):new Set();
+      renderMopCleanup();
+    });
+    $("sortingMopCleanupList").addEventListener("change",e=>{
+      const box=e.target.closest("[data-mop-cleanup-item]");const c=state.mopCleanup;if(!box||!c)return;
+      if(box.checked)c.selected.add(box.dataset.mopCleanupItem);else c.selected.delete(box.dataset.mopCleanupItem);
+      renderMopCleanup();
+    });
+    $("sortingMopCleanupReason").addEventListener("input",()=>renderMopCleanup());
+    $("sortingMopCleanupSave").addEventListener("click",saveMopCleanup);
+    $("sortingMopCleanupClearedList").addEventListener("click",e=>{const b=e.target.closest("[data-mop-cleanup-restore]");if(b)restoreMopCleanup(b.dataset.mopCleanupRestore);});
+  }
+  function mopCleanupToday(){return String(state.mopCleanup?.data?.local_date||"").slice(0,10);}
+  function mopCleanupShown(){
+    const c=state.mopCleanup;const rows=Array.isArray(c?.data?.open_items)?c.data.open_items:[];
+    if(c?.filter==="all")return rows;
+    const today=mopCleanupToday();
+    return rows.filter(r=>r.delivery_due_date&&String(r.delivery_due_date).slice(0,10)<today);
+  }
+  function mopCleanupDaysLate(row){
+    const today=mopCleanupToday(),due=String(row.delivery_due_date||"").slice(0,10);
+    if(!today||!due)return 0;
+    return Math.round((new Date(`${today}T12:00:00`)-new Date(`${due}T12:00:00`))/86400000);
+  }
+  async function openMopCleanup(){
+    if(!state.mop?.can_clear_open_items)return;
+    ensureMopCleanupUi();
+    state.mopCleanup={tab:"open",filter:"late",selected:new Set(),data:null,saving:false,loading:true};
+    $("sortingMopCleanupReason").value="";$("sortingMopCleanupFilter").value="late";
+    $("sortingMopCleanupMessage").textContent="";
+    renderMopCleanup();
+    $("sortingMopCleanupDialog").showModal();
+    await loadMopCleanup();
+  }
+  async function loadMopCleanup(){
+    const c=state.mopCleanup;if(!c)return;
+    c.loading=true;renderMopCleanup();
+    try{const data=await rpc("get_sorting_mop_queue_cleanup",{p_cleared_limit:50});if(state.mopCleanup!==c)return;c.data=data;}
+    catch(error){console.error(error);$("sortingMopCleanupMessage").textContent=friendly(error);}
+    finally{if(state.mopCleanup===c){c.loading=false;renderMopCleanup();}}
+  }
+  function renderMopCleanup(){
+    const c=state.mopCleanup;if(!c)return;
+    const open=Array.isArray(c.data?.open_items)?c.data.open_items:[],cleared=Array.isArray(c.data?.cleared)?c.data.cleared:[];
+    const shown=mopCleanupShown();
+    const shownIds=new Set(shown.map(r=>r.production_flow_item_id));
+    c.selected=new Set([...c.selected].filter(id=>shownIds.has(id)));
+    $("sortingMopCleanupOpenCount").textContent=String(open.length);
+    $("sortingMopCleanupClearedCount").textContent=String(cleared.filter(r=>!r.restored_at).length);
+    document.querySelectorAll("[data-mop-cleanup-tab]").forEach(b=>b.classList.toggle("active",b.dataset.mopCleanupTab===c.tab));
+    $("sortingMopCleanupOpenPane").hidden=c.tab!=="open";
+    $("sortingMopCleanupClearedPane").hidden=c.tab!=="cleared";
+    const loading='<div class="sorting-empty">Loading…</div>';
+    $("sortingMopCleanupList").innerHTML=c.loading&&!c.data?loading:shown.length?shown.map(r=>{
+      const late=mopCleanupDaysLate(r),np=r.latest_reconciliation_decision==="NOT_PROCESSED";
+      const route=String(r.route_display_name||"").trim();
+      return `<label class="sorting-mop-cleanup-row"><input type="checkbox" data-mop-cleanup-item="${esc(r.production_flow_item_id)}"${c.selected.has(r.production_flow_item_id)?" checked":""}>
+        <span><strong>${esc(r.customer_name||"—")}</strong><small>Scheduled ${esc(shortDayDate(r.scheduled_for_date||r.opened_business_date))} · Delivery ${esc(shortDayDate(r.delivery_due_date))} · Washed ${Number(r.washed_kg_total||0).toFixed(1)} kg${route?` · ${esc(route)}`:""}</small></span>
+        <span class="sorting-mop-cleanup-tags">${np?'<em class="np">Not processed</em>':""}${late>0?`<em class="late">${late} day${late===1?"":"s"} late</em>`:""}</span>
+      </label>`;
+    }).join(""):`<div class="sorting-empty">${c.filter==="all"?"No washed MOP customers are waiting.":"No customers past their delivery day. Choose “All waiting customers” to see the rest."}</div>`;
+    const all=$("sortingMopCleanupSelectAll");
+    all.checked=shown.length>0&&c.selected.size===shown.length;all.indeterminate=c.selected.size>0&&c.selected.size<shown.length;all.disabled=!shown.length;
+    $("sortingMopCleanupClearedList").innerHTML=c.loading&&!c.data?loading:cleared.length?cleared.map(r=>{
+      const when=r.cleared_at?`${fmtDate(r.cleared_at)} ${fmtTime(r.cleared_at)}`:"—";
+      const status=r.restored_at
+        ?`<span class="sorting-mop-cleanup-restored">Restored${r.restored_by_name?` by ${esc(r.restored_by_name)}`:""} · ${esc(fmtDate(r.restored_at))}</span>`
+        :r.production_recorded_since?'<span class="sorting-mop-cleanup-restored">Production entered later</span>'
+        :`<button type="button" class="sorting-secondary-button" data-mop-cleanup-restore="${esc(r.clearance_id)}"${c.saving?" disabled":""}>Restore</button>`;
+      return `<div class="sorting-mop-cleanup-row cleared${r.restored_at?" restored":""}"><span><strong>${esc(r.customer_name||"—")}</strong><small>Scheduled ${esc(shortDayDate(r.scheduled_for_date))} · Delivery ${esc(shortDayDate(r.delivery_due_date))} · Washed ${Number(r.washed_kg_total||0).toFixed(1)} kg</small><small>Cleared ${esc(when)}${r.cleared_by_name?` by ${esc(r.cleared_by_name)}`:""} · “${esc(r.reason)}”</small></span>${status}</div>`;
+    }).join(""):'<div class="sorting-empty">Nothing has been cleared yet.</div>';
+    const reasonOk=String($("sortingMopCleanupReason").value||"").trim().length>=3;
+    const save=$("sortingMopCleanupSave");
+    save.hidden=c.tab!=="open";
+    save.disabled=c.saving||!c.selected.size||!reasonOk;
+    save.textContent=c.saving?"Clearing…":c.selected.size>1?`Clear ${c.selected.size} customers`:"Clear selected";
+    $("sortingMopCleanupSelected").textContent=c.tab==="open"?(c.selected.size&&!reasonOk?`${c.selected.size} selected · write a reason`:`${c.selected.size} selected`):"";
+  }
+  async function saveMopCleanup(){
+    const c=state.mopCleanup;if(!c||c.saving||!c.selected.size)return;
+    const reason=String($("sortingMopCleanupReason").value||"").trim();
+    if(reason.length<3){$("sortingMopCleanupMessage").textContent="Write a short reason first.";return;}
+    if(!confirm(`Clear ${c.selected.size} customer${c.selected.size===1?"":"s"} from the MOP queue? You can restore them later from the Cleared tab.`))return;
+    c.saving=true;renderMopCleanup();
+    try{
+      const result=await rpc("clear_sorting_mop_queue_items",{p_production_flow_item_ids:[...c.selected],p_reason:reason});
+      const skipped=Array.isArray(result?.skipped)?result.skipped.length:0;
+      $("sortingMopCleanupMessage").textContent=`${Number(result?.cleared_count||0)} customer(s) cleared.${skipped?` ${skipped} skipped (already entered or cleared).`:""}`;
+      c.selected=new Set();$("sortingMopCleanupReason").value="";
+      await Promise.all([loadMopCleanup(),loadMop()]);
+    }catch(error){console.error(error);$("sortingMopCleanupMessage").textContent=friendly(error);}
+    finally{if(state.mopCleanup===c){c.saving=false;renderMopCleanup();}}
+  }
+  async function restoreMopCleanup(clearanceId){
+    const c=state.mopCleanup;if(!c||c.saving)return;
+    const row=(c.data?.cleared||[]).find(r=>r.clearance_id===clearanceId);
+    if(!confirm(`Put ${row?.customer_name||"this customer"} back in the MOP queue?`))return;
+    c.saving=true;renderMopCleanup();
+    try{
+      await rpc("restore_sorting_mop_queue_item",{p_clearance_id:clearanceId,p_reason:null});
+      $("sortingMopCleanupMessage").textContent=`${row?.customer_name||"Customer"} is back in the MOP queue.`;
+      await Promise.all([loadMopCleanup(),loadMop()]);
+    }catch(error){console.error(error);$("sortingMopCleanupMessage").textContent=friendly(error);}
+    finally{if(state.mopCleanup===c){c.saving=false;renderMopCleanup();}}
   }
 
   function mopModelRows(row){
@@ -5907,6 +6053,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.mopCancelSave?.addEventListener("click",saveMopCancellation);
   el.mopCancelDialog?.addEventListener("cancel",e=>{if(state.mopCancelSaving){e.preventDefault();return;}state.pendingMopCancelBatch=null;});
   el.mopQueue?.addEventListener("click",e=>{const b=e.target.closest("[data-mop-flow]");if(b)selectMopFlow(b.dataset.mopFlow);});
+  $("sortingMopCleanupButton")?.addEventListener("click",openMopCleanup);
   el.mopAddTrolley?.addEventListener("click",()=>{setMopSaveMessage("");addMopTrolley();});
   el.mopTrolleyInput?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addMopTrolley();}});
   el.mopTrolleyChips?.addEventListener("click",async e=>{const b=e.target.closest("[data-mop-remove-trolley]");if(!b)return;state.mopTrolleyCodes=state.mopTrolleyCodes.filter(code=>code!==b.dataset.mopRemoveTrolley);state.mopTrolleyValidation=null;renderMopTrolley();try{await validateMopTrolleySelection();}catch(error){console.error(error);setMopSaveMessage(friendly(error),"error");}});
