@@ -4295,3 +4295,39 @@ body.sorting-page{background:#e7edf3;color:#111827}
 .sorting-mop-link-dialog .sorting-dialog-footer>span{flex:1}
 @media(max-width:560px){.sorting-mop-link-count{grid-template-columns:auto 1fr}.sorting-mop-link-dialog .sorting-dialog-footer button{flex:1 1 auto}}
 .sorting-mop-trolley-input-wrap[hidden],.sorting-mop-trolley-chips[hidden],.sorting-mop-help[hidden]{display:none!important}
+
+/* MOP Production: administrator clean-up of the washed queue */
+.sorting-mop-queue-head-actions{display:flex;align-items:center;gap:8px}
+.sorting-mop-cleanup-button{border:1px solid rgba(255,255,255,.35);border-radius:8px;background:transparent;color:#fff;font:inherit;font-size:11px;font-weight:800;padding:6px 9px;cursor:pointer}
+.sorting-mop-cleanup-button:hover{background:rgba(255,255,255,.12)}
+.sorting-mop-cleanup-dialog{width:min(720px,calc(100vw - 24px));padding:0;border:0;border-radius:13px}
+.sorting-mop-cleanup-dialog::backdrop{background:rgba(15,23,42,.48)}
+.sorting-mop-cleanup-dialog .sorting-dialog-card{max-height:calc(100vh - 32px)}
+.sorting-mop-cleanup-dialog .sorting-dialog-header p:last-child{font-size:12px}
+.sorting-mop-cleanup-tabs{display:flex;gap:6px;padding:10px 15px 0}
+.sorting-mop-cleanup-tabs button{border:1px solid #cbd5e1;border-radius:999px;background:#fff;padding:6px 12px;font:inherit;font-size:12px;font-weight:800;color:#334155;cursor:pointer}
+.sorting-mop-cleanup-tabs button span{margin-left:4px;color:#64748b}
+.sorting-mop-cleanup-tabs button.active{background:#0f172a;border-color:#0f172a;color:#fff}
+.sorting-mop-cleanup-tabs button.active span{color:#cbd5e1}
+.sorting-mop-cleanup-pane{display:flex;flex-direction:column;gap:10px;padding:10px 15px;min-height:0;overflow:auto}
+.sorting-mop-cleanup-pane[hidden]{display:none}
+.sorting-mop-cleanup-tools{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#334155}
+.sorting-mop-cleanup-tools label{display:flex;align-items:center;gap:6px}
+.sorting-mop-cleanup-tools select{border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;font:inherit}
+.sorting-mop-cleanup-list{display:flex;flex-direction:column;gap:5px;max-height:48vh;overflow:auto}
+.sorting-mop-cleanup-row{display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;padding:8px 10px;cursor:pointer}
+.sorting-mop-cleanup-row.cleared{cursor:default}
+.sorting-mop-cleanup-row.restored{opacity:.6}
+.sorting-mop-cleanup-row input{width:18px;height:18px;flex:0 0 auto}
+.sorting-mop-cleanup-row>span:first-of-type{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sorting-mop-cleanup-row strong{font-size:13px;color:#0f172a}
+.sorting-mop-cleanup-row small{font-size:11px;color:#64748b}
+.sorting-mop-cleanup-tags{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.sorting-mop-cleanup-tags em{font-style:normal;font-size:10px;font-weight:900;border-radius:999px;padding:3px 7px;white-space:nowrap}
+.sorting-mop-cleanup-tags em.np{background:#e2e8f0;color:#334155}
+.sorting-mop-cleanup-tags em.late{background:#fee2e2;color:#991b1b}
+.sorting-mop-cleanup-restored{font-size:11px;color:#64748b;white-space:nowrap}
+.sorting-mop-cleanup-reason input{width:100%}
+.sorting-mop-cleanup-dialog .sorting-dialog-message{padding:0 15px;font-size:12px}
+.sorting-mop-cleanup-dialog .sorting-dialog-footer>span{font-size:12px}
+@media(max-width:560px){.sorting-mop-cleanup-row{flex-wrap:wrap}.sorting-mop-cleanup-tags{width:100%;justify-content:flex-start;padding-left:28px}.sorting-mop-cleanup-dialog .sorting-dialog-footer{flex-wrap:wrap}.sorting-mop-cleanup-dialog .sorting-dialog-footer>div{flex:1;justify-content:flex-end}}

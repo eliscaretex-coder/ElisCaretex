@@ -80,6 +80,31 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — MOP Production: administrator clean-up of the washed queue
+
+- Branch / commits: `claude/mop-queue-admin-cleanup`, Pull Request into `master`.
+- Changed: new "Clean up" button in the MOP Production queue header (visible only when
+  `can_clear_open_items` is true). The dialog lists washed MOP customers with no production
+  entered (default: delivery day already passed), clears the selected ones with a required
+  reason, and lists cleared customers with Restore. Nothing is deleted; Production Flow
+  items and washes are untouched. Cleared items leave the MOP queue and no longer count
+  in the "other overdue" check that blocks LIVE MOP saves.
+- Database: `202611060015_mop_queue_admin_cleanup.sql` — **Prepared, not applied**. New table
+  `sorting_mop_queue_clearances` (RLS on, no grants), `can_clear_sorting_mop_queue()`,
+  `get_sorting_mop_queue_cleanup`, `clear_sorting_mop_queue_items`,
+  `restore_sorting_mop_queue_item` (audit_log on clear and restore). Patches
+  `get_sorting_mop_production_context` and `save_sorting_mop_production` from their live
+  definitions with exact single-match text replacements (fails if the text differs).
+  Permission: ADMIN role or MOP module MANAGE (legacy accounts: ADMIN or MANAGER); today
+  that is the Administrator and the Production Manager. Terminals are refused.
+- Validation: migration + `supabase/tests/202611060015_mop_queue_admin_cleanup_validation.sql`
+  run against ElisCaretex-dev inside a rolled-back transaction: PASSED (anon/supervisor/
+  terminal refused, admin clears and restores a real item, queue and audit verified);
+  confirmed nothing persisted. `node scripts/validate-repository.mjs` passed. Browser
+  screenshots with mocked RPCs (desktop and phone). Security advisors not run (not applied).
+- Open / next: owner applies `aplicar-no-sql-editor.sql`; at the time of writing 66 washed
+  MOP items were waiting, 63 already confirmed Not processed by staff.
+
 ## 2026-11-06 — Claude — Legacy sync continues by itself after the 5-minute limit
 
 - Branch / commits: `claude/legacy-sync-continue`, Pull Request into `master`.
