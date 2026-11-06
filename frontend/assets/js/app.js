@@ -329,7 +329,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loginCandidates = loginIdentifier.includes("@") ? [loginIdentifier] : [
       `${loginIdentifier.toLowerCase()}@staff.eliscaretex.local`,
       `${loginIdentifier.toLowerCase()}@workstation.eliscaretex.local`,
-      `${loginIdentifier.toLowerCase()}@terminal.eliscaretex.local`
+      // Production computers sign in with their Computer name (TABLE2_PC1 -> table2-pc1),
+      // the same rule as public.production_computer_sign_in_name in the database.
+      `${loginIdentifier.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}@terminal.eliscaretex.local`
     ];
 
     if (!loginIdentifier || !password) {

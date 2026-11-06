@@ -382,7 +382,9 @@ Deno.serve(async (req) => {
     if (action === "create") {
       const passwordRequired = accountType === "TERMINAL" || loginMethod === "USERNAME";
       if (!displayName || (passwordRequired && password.length < 12) || (accountType === "USER" && (!jobTitleCode || (loginMethod === "EMAIL" ? (!email || !email.includes("@") || !validRedirect) : !loginIdentifier))) || (accountType === "TERMINAL" && (!deviceCode || !deviceName || !stationId))) throw new Error(passwordRequired ? "Complete the account details and an initial password with at least 12 characters." : "Complete the account details and a valid invitation destination.");
-      const technicalEmail = accountType === "TERMINAL" ? `${deviceCode.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}@terminal.eliscaretex.local` : loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email;
+      // Production computers sign in with their Computer name; the database trigger
+      // production_station_devices_sync_sign_in keeps this email in step on rename.
+      const technicalEmail = accountType === "TERMINAL" ? `${deviceName.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")}@terminal.eliscaretex.local` : loginMethod === "USERNAME" ? `${loginIdentifier}@staff.eliscaretex.local` : email;
       const { data, error } = loginMethod === "EMAIL" && accountType === "USER"
         ? await admin.auth.admin.inviteUserByEmail(technicalEmail,{ redirectTo:validRedirect })
         : await admin.auth.admin.createUser({ email:technicalEmail,password,email_confirm:true });
