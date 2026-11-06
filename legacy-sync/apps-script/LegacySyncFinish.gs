@@ -42,6 +42,8 @@
  * two trigger functions, plus getDashboard /
  * saveConfig / saveConnection / testSource from Code.gs.
  * The poll runs an import only when V2 says so: once per night while the sync is ON.
+ * A run stopped by the 5-minute budget is continued by the next tick with the same dates until
+ * nothing is left (at most LSF.maxContinuations rounds), so "Sync now" is pressed only once.
  * The ON/OFF switch and "Sync now" are on the web app page (Index.html).
  */
 const LSF = {
@@ -50,6 +52,9 @@ const LSF = {
   finishBatch: 60,
   rewashBatch: 40,
   timeBudgetMs: 5 * 60 * 1000,
+  // A run stopped by the time budget is continued by the next legacySyncTick (every 5 minutes),
+  // with the same dates, until nothing is left; at most this many continuations in a row.
+  maxContinuations: 24,
   entrySheets: ['FinishEntries', 'FinishEntriesHistory'],
   washSheets: ['WashItems', 'WashItemsHistory'],
   entryFields: ['EntryID', 'CreatedAt', 'BusinessDate', 'Shift', 'TableID', 'EntryType', 'WashItemID', 'CustomerID',
@@ -847,8 +852,25 @@ function importFinishSync(fromDate, toDate, reason) {
   } finally {
     lock.releaseLock();
   }
+  lsfSetContinuation_(result);
   Logger.log(JSON.stringify(result, null, 2));
   return result;
+}
+
+/**
+ * Remembers a run stopped by the time budget, so legacySyncTick continues it with the same
+ * dates. Cleared when a run ends without stopping, fails, or reaches maxContinuations.
+ */
+function lsfSetContinuation_(result) {
+  const p = PropertiesService.getScriptProperties();
+  const before = JSON.parse(p.getProperty('LSF_CONTINUE') || 'null');
+  const count = result.reason === 'CONTINUE' && before ? before.count + 1 : 1;
+  if (result.stopped === 'TIME_BUDGET' && !result.error && result.from && result.to && count <= LSF.maxContinuations) {
+    p.setProperty('LSF_CONTINUE', JSON.stringify({from: result.from, to: result.to, count: count}));
+    result.continues = true;
+  } else {
+    p.deleteProperty('LSF_CONTINUE');
+  }
 }
 
 /** Registers, schedules and rosters go in batches (each record is still its own transaction in V2). */
@@ -873,6 +895,18 @@ function lsfImportBatches_(kind, runId, records, plans, result, started) {
 
 /** Time trigger (every 5 minutes): asks V2 whether to run, and runs the window V2 returns. */
 function legacySyncTick() {
+  // A run stopped by the time budget is finished first, while the sync is ON.
+  const pending = JSON.parse(PropertiesService.getScriptProperties().getProperty('LSF_CONTINUE') || 'null');
+  if (pending) {
+    if (!lsfControl_('STATUS').auto_enabled) {
+      PropertiesService.getScriptProperties().deleteProperty('LSF_CONTINUE');
+      return {continued: false, reason: 'The sync is OFF'};
+    }
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(1000)) return {continued: false, reason: 'A synchronization is already running'};
+    lock.releaseLock();
+    return importFinishSync(pending.from, pending.to, 'CONTINUE');
+  }
   const r = lsfCall_({operation: 'poll'});
   if (!r.ok) throw Error('Poll refused: ' + r.error);
   const claim = r.result || {};
@@ -906,6 +940,7 @@ function getFinishSyncPanel() {
     endpointConfigured: /^https:\/\/[a-z0-9-]+\.supabase\.co\/functions\/v1\/legacy-sync-finish$/.test(String(p.getProperty('LSF_ENDPOINT') || '').trim()),
     secretConfigured: /^[0-9a-f]{64}$/i.test(String(p.getProperty('LSF_SECRET') || '').trim()),
     triggerInstalled: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'legacySyncTick'; }),
+    continuing: JSON.parse(p.getProperty('LSF_CONTINUE') || 'null'),
     today: today,
     yesterday: Utilities.formatDate(new Date(Date.parse(today + 'T12:00:00Z') - 86400000), 'UTC', 'yyyy-MM-dd'),
     v2: null,

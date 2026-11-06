@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Legacy sync continues by itself after the 5-minute limit
+
+- Branch / commits: `claude/legacy-sync-continue`, Pull Request into `master`.
+- Owner request: "Sync now" stopped after 5 minutes (`TIME_BUDGET`) and had to be pressed again
+  every 5 minutes until everything was copied.
+- Changed (Apps Script only, no database change): a run stopped by the time budget is saved in
+  Script Property `LSF_CONTINUE`; the next `legacySyncTick` (every 5 minutes) runs it again with
+  the same dates (requested by "CONTINUE") until a run ends without stopping, fails, the sync is
+  turned OFF, or 24 rounds are reached. The page says it continues by itself and shows the round.
+- Validation: continuation bookkeeping tested in Node with mocked Script Properties;
+  `node scripts/validate-repository.mjs` passes. Owner replaces `LegacySyncFinish.gs` and
+  `Index.html` in Apps Script and deploys a new web app version.
 ## 2026-11-06 — Claude — Legacy sync: schedule batches timed out after the run-stop resync
 
 - Branch / commits: `claude/legacy-sync-schedule-timeout`, Pull Request into `master`.
