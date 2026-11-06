@@ -853,6 +853,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.accountTerminalCode.required = terminal;
     elements.accountTerminalName.required = terminal;
     elements.accountTerminalStation.required = terminal;
+    // The compatibility roles are editable only for production computers, so redraw them
+    // when the type changes (otherwise a new computer keeps the disabled USER boxes).
+    renderAccountRoleOptions(selectedAccountRoles());
   }
 
   function closeAccountEditor(force = false) {

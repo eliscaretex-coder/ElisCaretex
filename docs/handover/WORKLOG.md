@@ -80,6 +80,16 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Users: compatibility roles selectable when creating a production computer
+
+- Branch / commits: `claude/terminal-roles-on-create`, Pull Request into `master`.
+- Changed: `applyAccountType()` in `staff.js` now redraws the Technical compatibility access
+  boxes, so choosing "Production computer" on a new account enables them at once (before, they
+  stayed disabled until the account was saved and reopened). Selections are kept.
+- Database: none.
+- Validation: `node scripts/validate-repository.mjs` passed. Not run in a browser.
+- Open / next: none.
+
 ## 2026-11-06 — Claude — Production computers sign in with their Computer name
 
 - Branch / commits: `claude/production-computer-sign-in-by-name`, Pull Request into `master`.
