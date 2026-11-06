@@ -112,6 +112,7 @@ part whose switch is OFF is refused by the database and skipped; the others stil
 | ReWash | Finish Area HOUSEHOLD entries + `RewashProduction` | ReWash entries and lines | `FINISH_REWASH_HISTORICAL_IMPORT` | `202610270003` |
 | Schedules | CentralDB `Routes` (name and colour) and `CustomerSchedule` (one record per customer) | `distribution_routes`; a change is a new published `customer_schedule_versions` revision | `SCHEDULE_IMPORT` | `202610280002` |
 | Rosters | Weekly Shift Roster `RosterStoreV2` (one record per week and shift) and Distribution `Roster` (one record per week); current and future weeks only | A change is a new published `production_roster_versions` / `distribution_roster_versions` version (previous one SUPERSEDED, history kept) built with the same rules as publishing in V2; Distribution route runs follow. Days before today are never changed. First meeting: the legacy week wins; afterwards only cells changed in the legacy app are written and V2 edits are kept | `ROSTER_IMPORT` | `202610300002` |
+| Leave requests | CentralDB `LeaveRequests` (production staff; never `Email` or `EmailConsent`) and Distribution `Driver Leave Requests` (every row, every run) | `production_roster_leave_requests` with a `LEGACY_SYNC_*` history event, `distribution_driver_absences` (the note keeps `[Legacy request: …]`). Requests already in V2 are adopted (driver note, earlier import). Only fields changed in the legacy app are written; a decision taken in V2 is never reopened by a legacy Pending | `LEAVE_IMPORT` | `202611060014` |
 | Trolleys | Trolley codes of Finish `FinishEntries` and CentralDB `MopProduction` (out) + CentralDB `TrolleyReturns` (back), in time order | `trolley_customer_stays`, trolley status and events, `sorting_trolley_intakes` with products and Production Flow `TROLLEY_RECEIVED_*`, presence evidence | `TROLLEY_CUSTODY_IMPORT` | `202610270009` |
 
 Rosters need two spreadsheet IDs (not secrets): `sources.roster` and `sources.distribution` in the
@@ -121,4 +122,7 @@ rules refuse it: a person, driver or vehicle not in V2 yet (waits for the regist
 in V2, a cover role the person is not authorised for, Sorting Clothes/MOP undecided, a driver on
 approved leave in V2, a blocked vehicle, or a route run that has already started.
 
-Planned next: leave requests (owner decision 2026-10-27: the legacy sheets are still where the team edits them).
+Leave requests are held for review, never guessed, when V2 decided the request differently since the
+last sync and the legacy app changes its dates or decision, when the person already has leave in V2 on
+those days (often a request submitted twice in the legacy app), or when the person is not in V2 yet
+(waits for the registers). A decider's email is stored masked.

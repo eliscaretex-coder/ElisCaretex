@@ -13,6 +13,8 @@
  *   roster  Weekly Shift Roster RosterStoreV2 (one record per week and shift) and Distribution "Roster"
  *           (one record per week), current and future weeks only; a change is a new published roster
  *           version in V2, and days before today are never changed
+ *   leave   CentralDB LeaveRequests (production staff) and Distribution "Driver Leave Requests": every
+ *           request, every run; a decision already taken in V2 is never reopened
  *   attendance Finish Area StaffSessions (+ History) and RosterNotWorking, Sorting "Staff": who worked,
  *           where and when, in the order it was typed
  *   wash    Sorting workbook "Sorting Area" + CentralDB WashItems (+ WashItemsHistory) + Sorting "Staff"
@@ -115,14 +117,22 @@ const LSF = {
     'TrolleyMop', 'MopOrder', 'MopProducts', 'ClothesNotes', 'MopInstructions', 'Information', 'DeliveryOrder', 'DeliveryNotes'],
   // Rosters: a production week is about 7 KB of JSON, so a few per request.
   rosterBatch: 10,
+  // Leave requests: never the requester's Email or EmailConsent.
+  leaveBatch: 40,
+  leaveFields: ['RequestID', 'UserID', 'Name', 'Type', 'StartDate', 'EndDate', 'Reason', 'Status', 'SubmittedAt',
+    'DecidedAt', 'DecidedBy', 'DecisionNote'],
+  driverLeaveFields: ['RequestID', 'CreatedAt', 'UpdatedAt', 'DriverID', 'DriverName', 'LeaveType', 'StartDate', 'EndDate',
+    'Days', 'Notes', 'Status', 'ReviewedAt', 'ReviewedBy', 'DecisionNotes', 'Source'],
+  leaveDates: ['StartDate', 'EndDate'],
+  leaveInstants: ['SubmittedAt', 'DecidedAt', 'CreatedAt', 'UpdatedAt', 'ReviewedAt'],
   // Parts sent through the generic dry_run / import operations.
-  kinds: ['master', 'schedule', 'roster', 'attendance', 'wash', 'mop', 'trolley'],
+  kinds: ['master', 'schedule', 'roster', 'leave', 'attendance', 'wash', 'mop', 'trolley'],
   // Import order: registers first (new people, customers and trolleys exist before their work),
   // then customer schedules (they need the customers), then rosters (they need staff, drivers,
-  // vehicles and routes);
+  // vehicles and routes); leave requests after the rosters (V2 checks them against approved leave);
   // attendance next (V2 checks who worked); trolleys last, because a trolley leaving production
   // needs its Finish or MOP record in V2.
-  parts: ['master', 'schedule', 'roster', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
+  parts: ['master', 'schedule', 'roster', 'leave', 'attendance', 'wash', 'mop', 'normal', 'rewash', 'trolley']
 };
 
 function lsfConnection_() {
@@ -677,6 +687,37 @@ function lsfCollectRosters_() {
   return {records: records, notes: notes.slice(0, 20)};
 }
 
+/**
+ * CentralDB LeaveRequests and Distribution "Driver Leave Requests": one record per RequestID (the first
+ * row is kept). Dates are sent as yyyy-MM-dd and timestamps as Dublin local time.
+ */
+function lsfCollectLeave_() {
+  const notes = [], records = [];
+  const read = function (ss, sheet, fields, type, label) {
+    const seen = {};
+    lsfReadSheet_(ss, sheet, fields, true).forEach(function (r) {
+      const row = {};
+      fields.forEach(function (f) {
+        const v = r[f];
+        if (LSF.leaveInstants.indexOf(f) >= 0) row[f] = lsfLocal_(v);
+        else row[f] = lsfText_(v, LSF.leaveDates.indexOf(f) >= 0 || v instanceof Date ? 'date' : null);
+      });
+      const id = row.RequestID;
+      if (!id) return;
+      if (seen[id]) { notes.push(label + ': duplicate RequestID ' + id + ' (first row kept).'); return; }
+      seen[id] = true;
+      records.push({record_type: type, source_record_id: id, row: row});
+    });
+  };
+  const central = lsConfig_().sources.central;
+  if (!central || !central.enabled || !central.id) notes.push('CentralDB is not configured or not enabled.');
+  else read(SpreadsheetApp.openById(central.id), 'LeaveRequests', LSF.leaveFields, 'PRODUCTION_LEAVE', 'LeaveRequests');
+  const distributionId = lsfSourceId_('distribution', 'LSF_DISTRIBUTION_SPREADSHEET_ID');
+  if (!distributionId) notes.push('Distribution spreadsheet not set (Script Property LSF_DISTRIBUTION_SPREADSHEET_ID).');
+  else read(SpreadsheetApp.openById(distributionId), 'Driver Leave Requests', LSF.driverLeaveFields, 'DRIVER_LEAVE', 'Driver Leave Requests');
+  return {records: records, notes: notes.slice(0, 20)};
+}
+
 function lsfCollectAll_(range) {
   const collected = lsfCollect_(range);
   const washes = lsfCollectWashes_(range);
@@ -711,6 +752,14 @@ function lsfCollectAll_(range) {
   } catch (e) {
     collected.roster = [];
     collected.notes.roster = ['Roster sheets could not be read: ' + String(e.message || e)];
+  }
+  try {
+    const leave = lsfCollectLeave_();
+    collected.leave = leave.records;
+    if (leave.notes.length) collected.notes.leave = leave.notes;
+  } catch (e) {
+    collected.leave = [];
+    collected.notes.leave = ['Leave request sheets could not be read: ' + String(e.message || e)];
   }
   try {
     const attendance = lsfCollectAttendance_(range);
@@ -806,7 +855,7 @@ function importFinishSync(fromDate, toDate, reason) {
   if (!lock.tryLock(1000)) throw Error('A synchronization is already running');
   const started = Date.now();
   let runId = null;
-  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, schedule: {}, roster: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
+  const result = {mode: 'COMMIT', reason: reason || 'MANUAL', results: {master: {}, schedule: {}, roster: {}, leave: {}, attendance: {}, wash: {}, mop: {}, normal: {}, rewash: {}, trolley: {}}, stopped: null};
   try {
     const range = lsfRange_(fromDate, toDate);
     result.from = range.from; result.to = range.to;
@@ -827,7 +876,7 @@ function importFinishSync(fromDate, toDate, reason) {
     });
     for (const g of groups) {
       if (!plans[g.kind]) continue;
-      if (g.kind === 'master' || g.kind === 'schedule' || g.kind === 'roster') { lsfImportBatches_(g.kind, runId, collected[g.kind], plans[g.kind], result, started); continue; }
+      if (g.kind === 'master' || g.kind === 'schedule' || g.kind === 'roster' || g.kind === 'leave') { lsfImportBatches_(g.kind, runId, collected[g.kind], plans[g.kind], result, started); continue; }
       const records = collected[g.kind];
       for (let i = 0; i < records.length && !result.stopped; i++) {
         const outcome = plans[g.kind][i].outcome;

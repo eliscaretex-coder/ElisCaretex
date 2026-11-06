@@ -261,8 +261,8 @@ async function importNow() {
 }
 
 // Parts of the sync, in the order they run (LSF.parts in LegacySyncFinish.gs).
-const PARTS = [['master', 'Registers'], ['schedule', 'Schedules'], ['roster', 'Rosters'], ['attendance', 'Attendance'], ['wash', 'Washes'], ['mop', 'MOP'], ['normal', 'Finish'], ['rewash', 'ReWash'], ['trolley', 'Trolleys']];
-const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', MOP_PRODUCTION_IMPORT: 'MOP', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash', TROLLEY_CUSTODY_IMPORT: 'Trolleys', ATTENDANCE_IMPORT: 'Attendance', MASTER_DATA_IMPORT: 'Registers', SCHEDULE_IMPORT: 'Schedules', ROSTER_IMPORT: 'Rosters'};
+const PARTS = [['master', 'Registers'], ['schedule', 'Schedules'], ['roster', 'Rosters'], ['leave', 'Leave requests'], ['attendance', 'Attendance'], ['wash', 'Washes'], ['mop', 'MOP'], ['normal', 'Finish'], ['rewash', 'ReWash'], ['trolley', 'Trolleys']];
+const IMPORT_NAMES = {SORTING_WASH_IMPORT: 'Washes', MOP_PRODUCTION_IMPORT: 'MOP', FINISH_HISTORICAL_IMPORT: 'Finish', FINISH_REWASH_HISTORICAL_IMPORT: 'ReWash', TROLLEY_CUSTODY_IMPORT: 'Trolleys', ATTENDANCE_IMPORT: 'Attendance', MASTER_DATA_IMPORT: 'Registers', SCHEDULE_IMPORT: 'Schedules', ROSTER_IMPORT: 'Rosters', LEAVE_IMPORT: 'Leave requests'};
 
 const RESULT_LABELS = {IMPORTED: 'new', UPDATED: 'updated', ADOPTED: 'matched', ADOPTED_AND_UPDATED: 'matched + updated', BLOCKED: 'to review', RUN_LIMIT_REACHED: 'run limit'};
 
@@ -451,8 +451,8 @@ const WAITING = {
   TROLLEY_NOT_IN_V2: 'Waits for the trolley register. It is copied by itself once the trolley is in V2.',
   CUSTOMER_NOT_IN_V2: 'Waits for the customer register. It is copied by itself once the customer is in V2.',
   ROUTE_NOT_IN_V2: 'Waits for the route list. It is copied by itself once the route is in V2.',
-  STAFF_NOT_IN_V2: 'Waits for the User register. The roster week is copied by itself once this person is in V2.',
-  DRIVER_NOT_IN_V2: 'Waits for the Driver register. The roster week is copied by itself once the driver is in V2.',
+  STAFF_NOT_IN_V2: 'Waits for the User register. The roster week or leave request is copied by itself once this person is in V2.',
+  DRIVER_NOT_IN_V2: 'Waits for the Driver register. The roster week or leave request is copied by itself once the driver is in V2.',
   VEHICLE_NOT_IN_V2: 'Waits for the Vehicles register. The roster week is copied by itself once the vehicle is in V2.'
 };
 // Held because of work in V2, not because of the sheet.
@@ -468,7 +468,10 @@ const FIX_IN_V2 = {
   DRIVER_ON_LEAVE_IN_V2: 'Where to fix: the Distribution roster or the leave in V2. The driver has approved leave in V2 on this day.',
   VEHICLE_NOT_AVAILABLE: 'Where to fix: the Distribution roster or the vehicle in V2. The vehicle is blocked on this day (off road, service or similar).',
   RUN_ALREADY_STARTED: 'Nothing to fix: the route run of this day has already started in V2, so its driver and vehicle are not changed. Choose "Do not import" if the legacy change is no longer wanted.',
-  ROUTE_INACTIVE_IN_V2: 'Where to fix: V2 routes. The route is inactive in V2; reactivate it or change the legacy roster.'
+  ROUTE_INACTIVE_IN_V2: 'Where to fix: V2 routes. The route is inactive in V2; reactivate it or change the legacy roster.',
+  LEAVE_DECIDED_DIFFERENTLY_IN_V2: 'Where to fix: the leave request in V2 or in the legacy app. V2 has already decided this request differently, so the new legacy dates or decision are not copied over it.',
+  LEAVE_OVERLAPS_IN_V2: 'Where to fix: the legacy app (often a request submitted twice) or the leave in V2. This person already has leave in V2 on some of these days.',
+  LEAVE_PERSON_DIFFERS_IN_V2: 'Where to fix: the legacy request or the leave in V2. The request belongs to another person in V2.'
 };
 const ACTIONS = {FIX_IN_SOURCE: 'Will fix in the sheet', NOT_IMPORTED: 'Do not import'};
 
