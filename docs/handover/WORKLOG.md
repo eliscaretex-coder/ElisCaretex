@@ -80,6 +80,30 @@ Entry format:
 
 ---
 
+## 2026-11-06 — Claude — Legacy sync kept dropping the units on the trolleys (HIGHFIELD restored)
+
+- Branch / commits: `claude/legacy-sync-keep-trolley-units`, Pull Request into `master`.
+- Owner report: the units saved on the HIGHFIELD trolleys were gone.
+- Cause: `integration.legacy_sync_schedule_publish` (202610280002) predates trolley plates
+  (202610290001) and copied every part of the current revision except the plates. The legacy
+  sync of 03/11 20:10 (Tue/Sat mop.order) published HIGHFIELD without its 55 plates; the
+  revisions of 05/11 and 06/11 copied the empty state. `legacy_sync_schedule_write_draft` also
+  dropped the plates of a day whose legacy trolley text changed. ADARE (6 plates) was not hit
+  yet because its last legacy revision (29/10 19:08) came before its units were added.
+- Database: `202611060017_legacy_sync_keep_trolley_units.sql` (**Prepared, not applied**):
+  patches both functions in place (plates are copied; rebuilt trolleys keep the plates of the
+  same product/trolley type/empty flag up to the new quantity) and restores the units in a new
+  revision "Units restored: ..." for every customer whose current revision lost them to the
+  legacy sync (only HIGHFIELD on 06/11). Test: `supabase/tests/202611060017_..._validation.sql`
+  (ends with "PASSED" and rolls back). Copies for the owner in
+  `/mnt/project-files/legacy-sync-units-highfield/`.
+- Validation: plates of the 30/10 revision checked against the current trolley rows (all 15
+  rows match by weekday, product, trolley type, same quantities). The no-save test was not run
+  yet (the database tool asked for confirmation and got no answer).
+- Open / next: owner runs `teste-sem-gravar.sql`, then `aplicar-no-sql-editor.sql`.
+
+---
+
 ## 2026-11-06 — Claude — Home: Trolley Intake and MOP Production shortcuts for the Sorting area
 
 - Branch / commits: `claude/sorting-home-shortcuts`, Pull Request into `master`.
@@ -97,6 +121,8 @@ Entry format:
   stubbed Supabase client: Sorting terminal shows Sorting, Trolley Intake, MOP Production,
   Production Tracker in that order (desktop and phone width); a Finish terminal is unchanged.
 - Open / next: owner confirmation on the Sorting computer.
+
+---
 
 ## 2026-11-06 — Claude — Users: compatibility roles selectable when creating a production computer
 
