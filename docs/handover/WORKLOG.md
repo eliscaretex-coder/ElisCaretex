@@ -120,13 +120,14 @@ Entry format:
     masked address.
   - Screens: driver email and GM email inputs accept the masked value; account editor hint.
 - Database: `202611050004_users_permissions_privacy_hardening.sql` prepared, NOT applied.
-  Owner applies it from the SQL Editor after deploying both Edge Functions.
+  Owner applies it from the SQL Editor (both Edge Functions are already deployed).
 - Validation: all function patches and checks were run inside a rolled-back transaction on
   ElisCaretex-dev (stranger account blocked, no full email in directory, notices, documents,
   driver master, distribution and Holiday history; GM email change refused for a Production
   Manager; Production Manager and Administrator keep their access; anon/authenticated have
   no table access). `node scripts/validate-repository.mjs` passed; both Edge Functions parse
-  with esbuild. Edge Functions not deployed and not run.
+  with esbuild. **Applied** 2026-11-06 with the owner's go-ahead: `admin-account-management`
+  v18 and `production-roster-leave-email` v7 deployed (both boot; not exercised end to end).
 - Open / next: owner must turn off "Allow new users to sign up" in Supabase Auth. New
   functions must now `grant execute ... to anon` explicitly when they are token endpoints,
   and new tables are never read directly by the browser.
