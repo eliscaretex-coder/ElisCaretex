@@ -14,7 +14,7 @@
   <title>Finish Production | ElisCaretex</title>
   <link rel="stylesheet" href="../assets/css/global.css">
   <link rel="stylesheet" href="../assets/css/app-shell.css">
-  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261103-4">
+  <link rel="stylesheet" href="../assets/css/finish-production.css?v=20261106-1">
   <link rel="stylesheet" href="../assets/css/enterprise-ui.css">
   <link rel="stylesheet" href="../assets/css/navigation.css?v=20261028-1">
   <link rel="stylesheet" href="../assets/css/customer-alerts.css?v=20261022-1">
@@ -26,7 +26,7 @@
   <script src="../assets/js/customer-alerts.js?v=20261106-1" data-area="FINISH" defer></script>
   <script src="../assets/js/production-station-kiosk.js" defer></script>
   <script src="../assets/js/trolley-plates.js?v=20261103-3" defer></script>
-  <script src="../assets/js/finish-production.js?v=20261104-1" defer></script>
+  <script src="../assets/js/finish-production.js?v=20261106-1" defer></script>
 </head>
 <body class="finish-page" data-production-station-area="FINISH">
   <div class="finish-page-shell" data-operational-shell-root>
@@ -95,7 +95,7 @@
             <header>
               <div class="finish-queue-title-row">
                 <div><p>Finish work</p><h2>Customers</h2><span id="finishQueueModeHint" hidden></span></div>
-                <div class="finish-queue-summary"><strong id="finishQueueCount" class="finish-queue-count">0</strong><span id="finishQueueWashedSummary" class="finish-queue-washed-summary">0 washed · 0.0 kg</span></div>
+                <div class="finish-queue-summary"><button id="finishCleanupButton" type="button" class="finish-cleanup-button" title="Administrator: clear old washed customers that never had Finish entered" hidden>Clean up</button><strong id="finishQueueCount" class="finish-queue-count">0</strong><span id="finishQueueWashedSummary" class="finish-queue-washed-summary">0 washed · 0.0 kg</span></div>
               </div>
               <div id="finishQueueModeTabs" class="finish-queue-mode-tabs" role="group" aria-label="Customer list mode">
                 <button type="button" class="active" data-queue-mode="TODAY">Operational</button>
@@ -247,7 +247,7 @@
           <label class="finish-delivery-reconciliation-wide">Note / reason<input id="finishDeliveryReconciliationNotes" type="text" maxlength="1000" placeholder="Optional operational note"></label>
         </div>
         <p id="finishDeliveryReconciliationMessage" class="finish-message" aria-live="polite"></p>
-        <div class="finish-form-actions finish-delivery-reconciliation-actions"><button id="finishDeliveryNotProcessedButton" type="button" class="secondary danger-outline">Not processed · remind in 2 hours</button><button type="submit" class="primary">Confirm processed</button></div>
+        <div class="finish-form-actions finish-delivery-reconciliation-actions"><button id="finishDeliveryCleanupButton" type="button" class="secondary" hidden>Clean up list</button><button id="finishDeliveryNotProcessedButton" type="button" class="secondary danger-outline">Not processed · remind in 2 hours</button><button type="submit" class="primary">Confirm processed</button></div>
       </form>
     </section>
   </dialog>
