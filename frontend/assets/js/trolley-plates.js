@@ -419,9 +419,19 @@
   // Where each blocked trolley is in use now, per customer being scanned:
   // "code|flow" -> info from get_production_trolley_move_v1 (or "loading").
   const holders = new Map();
+  const todayDublin = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin" }).format(new Date());
+  function notReceivedYet(info) {
+    if (info.trolley_status === "AT_CUSTOMER" || !info.from_area_code) return true;
+    return Boolean(info.from_delivery_date) && String(info.from_delivery_date).slice(0, 10) < todayDublin();
+  }
   function holderText(info) {
     if (!info || info === "loading") return "Checking where it is used…";
     if (!info.from_customer_name) return info.reason || "";
+    // Delivered already (at the customer, not from production, or delivery date passed):
+    // it cannot be moved; it must come back through Sorting Intake first (owner, 2026-11-07).
+    if (!info.can_move && notReceivedYet(info)) {
+      return `Delivered to <b>${esc(info.from_customer_name)}</b>${info.from_delivery_date ? ` (delivery ${esc(shortDate(info.from_delivery_date))})` : ""}. This trolley has not been received in Intake yet. Scan it in Sorting Intake first.`;
+    }
     const where = [areaName(info.from_area_code), info.from_table, info.from_delivery_date ? `delivery ${shortDate(info.from_delivery_date)}` : ""].filter(Boolean).join(" · ");
     return `In use for <b>${esc(info.from_customer_name)}</b> (${esc(where)})${info.can_move ? "" : ` · ${esc(info.reason || "cannot be moved")}`}`;
   }
@@ -440,11 +450,14 @@
           .finally(() => { try { onReady?.(); } catch (_) { /* screen re-renders on next change */ } });
       });
     }
-    return `<div class="trolley-plates-move">${codes.map((code) => {
+    let anyMovable = false;
+    const rows = codes.map((code) => {
       const info = rpc && targetFlowId ? holders.get(`${code}|${targetFlowId}`) : undefined;
       const canMove = !info || info === "loading" || info.can_move;
+      if (canMove) anyMovable = true;
       return `<div class="trolley-plates-move-row">${info !== undefined ? `<span><b>${esc(code)}</b> · ${holderText(info)}</span>` : ""}${canMove ? `<button type="button" ${attr}="${esc(code)}" title="Take ${esc(code)} out of the other customer and use it here">Use ${esc(code)} for this customer</button>` : ""}</div>`;
-    }).join("")}<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending and get an alert.</small></div>`;
+    }).join("");
+    return `<div class="trolley-plates-move">${rows}${anyMovable ? "<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending and get an alert.</small>" : ""}</div>`;
   }
   const areaName = (code) => (code === "MOP" ? "MOP Production" : code === "FINISH" ? "Finish" : code || "production");
   const shortDate = (value) => {

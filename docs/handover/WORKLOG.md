@@ -80,6 +80,18 @@ Entry format:
 
 ---
 
+## 2026-11-07 — Claude — Delivered trolley: "scan it in Sorting Intake first"
+
+- Branch / commits: `claude/trolley-not-received-text`, Pull Request into `master`. Frontend only.
+- Owner rule (2026-11-07): a trolley already delivered cannot be moved to another customer.
+  When Finish / MOP scans a trolley that is at a customer (AT_CUSTOMER, a non-production stay,
+  or a production stay whose delivery date has passed), the notice now says "Delivered to X
+  (delivery …). This trolley has not been received in Intake yet. Scan it in Sorting Intake
+  first." No move button and no move hint are shown. The database rule
+  (`release_production_trolley_v1`) already refused these moves.
+- Validation: `node scripts/validate-repository.mjs` passed; Playwright with mocked RPCs,
+  desktop and 390 px.
+
 ## 2026-11-07 — Claude — Where a blocked trolley is used, and "Trolley taken" alert
 
 - Branch / commits: `claude/trolley-taken-alert`, Pull Request into `master`. Follows the
