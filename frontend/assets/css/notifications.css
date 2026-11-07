@@ -7,3 +7,4 @@
 .notify-task-form input{flex:1 1 220px;min-width:0;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
 .notify-task-form button{padding:8px 14px;border:0;border-radius:8px;background:#0f766e;color:#fff;font-weight:700;cursor:pointer}
 .notify-task-form button:disabled{opacity:.6;cursor:default}
+.notify-recipient-note{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:#fff6e5;color:#8a4b00;font-size:12px;line-height:1.4}
