@@ -94,6 +94,7 @@ Entry format:
   (nothing kept); `node scripts/validate-repository.mjs` passed; screenshots with mocked data.
 - Open / next: on 2026-11-07 none of the 13 active drivers is linked to a Staff Master
   record with a sign-in, so notices reach drivers only after their sign-ins are created.
+
 ## 2026-11-06 — Claude — L trolleys count as M (Finish plates, MOP, trolley checks)
 
 - Branch / commits: `claude/large-trolley-counts-as-medium`, Pull Request into `master`.
