@@ -325,3 +325,4 @@
 .distribution-infringement-metrics article.sev-4 strong, .distribution-infringement-metrics article.sev-4 span { color: #fff; }
 @media (max-width: 620px) { .distribution-infringement-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }.distribution-infringement-section .distribution-toolbar { flex-wrap: wrap; }.distribution-infringement-section .distribution-card-actions { flex-wrap: wrap; } }
 @media print { .distribution-infringement-badge { display: none !important; } }
+a.distribution-button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}

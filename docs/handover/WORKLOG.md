@@ -80,6 +80,21 @@ Entry format:
 
 ---
 
+## 2026-11-07 — Claude — Notices from Distribution managers to drivers
+
+- Branch / commits: `claude/notices-to-drivers`, Pull Request into `master`.
+- Changed: reuses the staff notices (Notifications → New notice). Recipients "All drivers"
+  and a Drivers group; a warning shows how many active drivers have no sign-in yet. Drivers
+  tab in Distribution gets "Message drivers" (opens the notice with All drivers chosen).
+- Database: `202611070001_staff_notices_to_drivers.sql` — **Prepared** (owner applies).
+  DRIVER gets Notifications VIEW; LOGISTICS_MANAGER gets Notifications CREATE with scope
+  DISTRIBUTION; senders with ALL/DISTRIBUTION scope or Distribution EDIT also reach active
+  drivers linked to Staff Master with a sign-in. Signatures unchanged.
+- Validation: scenario test passed on ElisCaretex-dev inside a rolled-back transaction
+  (nothing kept); `node scripts/validate-repository.mjs` passed; screenshots with mocked data.
+- Open / next: on 2026-11-07 none of the 13 active drivers is linked to a Staff Master
+  record with a sign-in, so notices reach drivers only after their sign-ins are created.
+
 ## 2026-11-06 — Claude — L trolleys count as M (Finish plates, MOP, trolley checks)
 
 - Branch / commits: `claude/large-trolley-counts-as-medium`, Pull Request into `master`.
