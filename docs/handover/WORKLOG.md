@@ -80,6 +80,23 @@ Entry format:
 
 ---
 
+## 2026-11-07 — Claude — Finish: "remind in 2 hours" only up to 1 day late
+
+- Branch / commits: `claude/finish-limit-remind-later`, Pull Request
+- Changed: the Finish delivery check ("Finish confirmation required") hides
+  "Not processed · remind in 2 hours" when the customer is more than 1 day late
+  (`overdue_days` > 1, Dublin date minus Delivery Date) and says how many days late it is.
+  Staff then must confirm the approximate processing; an administrator can still clear the
+  customer with "Clean up list". The RPCs refuse the answer too, so it cannot be bypassed.
+- Database: `202611070003_finish_remind_later_only_first_day.sql` patches
+  `resolve_finish_delivery_reconciliation_v1` and `_v2` from their live definitions.
+  **Prepared**, not applied (owner applies from the SQL Editor).
+- Validation: `supabase/tests/202611070003_..._validation.sql` run inside a rolled-back
+  transaction against ElisCaretex-dev: PASSED (a 10-day-late customer was refused by v1 and
+  v2 and could still be confirmed processed; a same-day customer still got the 2-hour
+  reminder). `node scripts/validate-repository.mjs` passes. Dialog screenshots taken.
+- Open / next: apply the migration; run the validation file after applying.
+
 ## 2026-11-07 — Claude — Use a trolley already scanned for another customer
 
 - Branch / commits: `claude/move-trolley-between-customers`, Pull Request into `master`.
