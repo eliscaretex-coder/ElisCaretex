@@ -30,6 +30,8 @@
       .trolley-plates-move{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
       .trolley-plates-move button,.trolley-plates-notice .trolley-plates-move button{border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:8px;min-height:34px;padding:6px 12px;font-size:14px;font-weight:700;cursor:pointer}
       .trolley-plates-move small{flex-basis:100%;color:#475569}
+      .trolley-plates-move-row{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+      .trolley-plates-move-row span{color:#0f172a;font-weight:600}
       .trolley-plates{border:1px solid #d6dde6;border-radius:12px;background:#f8fafc;padding:8px 10px;margin:8px 0;display:grid;gap:6px}
       .trolley-plates[hidden]{display:none}
       .trolley-plates-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -414,10 +416,35 @@
       .filter((x) => x && x.exists && !x.usable && x.open_stay_id && !x.same_finish_flow)
       .map((x) => String(x.trolley_code || "").toUpperCase());
   }
-  function moveButtonsHtml(validation, attr = "data-plate-move") {
+  // Where each blocked trolley is in use now, per customer being scanned:
+  // "code|flow" -> info from get_production_trolley_move_v1 (or "loading").
+  const holders = new Map();
+  function holderText(info) {
+    if (!info || info === "loading") return "Checking where it is used…";
+    if (!info.from_customer_name) return info.reason || "";
+    const where = [areaName(info.from_area_code), info.from_table, info.from_delivery_date ? `delivery ${shortDate(info.from_delivery_date)}` : ""].filter(Boolean).join(" · ");
+    return `In use for <b>${esc(info.from_customer_name)}</b> (${esc(where)})${info.can_move ? "" : ` · ${esc(info.reason || "cannot be moved")}`}`;
+  }
+  function moveButtonsHtml(validation, attr = "data-plate-move", opts = {}) {
     const codes = movableCodes(validation);
     if (!codes.length) return "";
-    return `<div class="trolley-plates-move">${codes.map((code) => `<button type="button" ${attr}="${esc(code)}" title="Take ${esc(code)} out of the other customer and use it here">Use ${esc(code)} for this customer</button>`).join(" ")}<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending.</small></div>`;
+    const { rpc, targetFlowId, onReady } = opts;
+    if (rpc && targetFlowId) {
+      codes.forEach((code) => {
+        const key = `${code}|${targetFlowId}`;
+        if (holders.has(key)) return;
+        holders.set(key, "loading");
+        rpc("get_production_trolley_move_v1", { p_trolley_code: code, p_target_flow_item_id: targetFlowId })
+          .then((info) => holders.set(key, info || null))
+          .catch(() => holders.set(key, { can_move: true, reason: "" }))
+          .finally(() => { try { onReady?.(); } catch (_) { /* screen re-renders on next change */ } });
+      });
+    }
+    return `<div class="trolley-plates-move">${codes.map((code) => {
+      const info = rpc && targetFlowId ? holders.get(`${code}|${targetFlowId}`) : undefined;
+      const canMove = !info || info === "loading" || info.can_move;
+      return `<div class="trolley-plates-move-row">${info !== undefined ? `<span><b>${esc(code)}</b> · ${holderText(info)}</span>` : ""}${canMove ? `<button type="button" ${attr}="${esc(code)}" title="Take ${esc(code)} out of the other customer and use it here">Use ${esc(code)} for this customer</button>` : ""}</div>`;
+    }).join("")}<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending and get an alert.</small></div>`;
   }
   const areaName = (code) => (code === "MOP" ? "MOP Production" : code === "FINISH" ? "Finish" : code || "production");
   const shortDate = (value) => {
@@ -439,7 +466,10 @@
       if (reason.length >= 5) break;
       window.alert("Write the reason (at least 5 characters). It is saved in the trolley history.");
     }
-    return rpc("release_production_trolley_v1", { p_trolley_code: info.trolley_code, p_target_flow_item_id: targetFlowId, p_reason: reason });
+    const result = await rpc("release_production_trolley_v1", { p_trolley_code: info.trolley_code, p_target_flow_item_id: targetFlowId, p_reason: reason });
+    holders.delete(`${String(code).toUpperCase()}|${targetFlowId}`);
+    window.ELIS_CUSTOMER_ALERTS?.refresh?.();
+    return result;
   }
 
   // print: the Schedule Planner prints the same label from the published schedule,

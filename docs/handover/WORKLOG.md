@@ -80,6 +80,26 @@ Entry format:
 
 ---
 
+## 2026-11-07 — Claude — Where a blocked trolley is used, and "Trolley taken" alert
+
+- Branch / commits: `claude/trolley-taken-alert`, Pull Request into `master`. Follows the
+  "Use a trolley already scanned for another customer" entry below (owner feedback after a
+  Finish test).
+- Changed: the blocked-trolley notice (Finish and MOP plates, Finish trolley dialog) now says
+  where the trolley is in use ("In use for X (Finish · Table 2 · delivery Mon)"), loaded with
+  `get_production_trolley_move_v1`. The customer that lost the trolley gets a "Trolley taken"
+  alert in the alert bar at the top of Finish / MOP (`customer-alerts.js`, now refreshing every
+  2 minutes there) and a badge on that customer: which trolley, for which customer, the reason,
+  who and when. It ends by itself when that customer is no longer Trolley pending or its
+  delivery date passes.
+- Database: `202611070003_trolley_taken_alerts.sql` — **Prepared**, the owner applies it from
+  `mover-trolley-customer/alerta/aplicar-no-sql-editor.sql` (`teste-sem-gravar.sql` next to
+  it). New read-only `get_trolley_taken_alerts_v1(area)` from `trolley_events`
+  RELEASED_FROM_PRODUCTION_CUSTOMER; production read role; anon revoked. The page works
+  without it (no trolley alerts).
+- Validation: `node scripts/validate-repository.mjs` passed; the alert query ran read-only
+  on ElisCaretex-dev; Playwright with mocked RPCs, desktop and 390 px, no horizontal scroll.
+- Open / next: apply the SQL; run the security advisors.
 ## 2026-11-07 — Claude — Finish: "remind in 2 hours" only up to 1 day late
 
 - Branch / commits: `claude/finish-limit-remind-later`, Pull Request
