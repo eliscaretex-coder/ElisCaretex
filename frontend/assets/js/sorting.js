@@ -4528,7 +4528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const notes=[];
     if(plate.flash)notes.push(`<div>${esc(plate.flash)}</div>`);
     const hard=v?.hard_issues||[];
-    if(hard.length)notes.push(`<div><strong>Trolley problem</strong><ul>${hard.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>${api.moveButtonsHtml?.(v)||""}</div>`);
+    if(hard.length)notes.push(`<div><strong>Trolley problem</strong><ul>${hard.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>${api.moveButtonsHtml?.(v,"data-plate-move",{rpc,targetFlowId:mopSelected()?.production_flow_item_id,onReady:renderMopTrolley})||""}</div>`);
     if(hard.length||wrong)view.notice={tone:"bad",html:`<div>${notes.join("")||"<div>A scanned trolley does not fit its plate. Remove it with × and scan the right one.</div>"}</div>`};
     else if(extras.length)view.notice={tone:"warn",html:`<div>${notes.join("")}<div>Extra trolley${extras.length===1?"":"s"} for this customer: ${extras.map(c=>`<b>${esc(c)}</b> <button type="button" data-plate-remove="${esc(c)}">Remove</button>`).join(" ")}. Saved as more trolleys than the published plan.</div></div>`};
     else if(pendingCount&&!next)view.notice={tone:"pending",html:`<div>${notes.join("")}<div>⌛ No trolley yet for ${slots.map((x,i)=>!x&&later.has(i)?mopPlateLabel(rows[i]):null).filter(Boolean).map(esc).join(", ")}. Save now and use Add trolley in MOP Production Trace when the trolley is ready.</div></div>`};

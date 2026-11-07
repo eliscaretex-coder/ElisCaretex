@@ -5,11 +5,15 @@
 // of the page only while Customer Service has an active alert or an open task for
 // that area, and refreshes every few minutes. Other scripts can call
 // window.ELIS_CUSTOMER_ALERTS.badge(customerId, code, name) to mark a customer in their own lists.
+// Finish and MOP also list "Trolley taken": a trolley of one of their customers was moved
+// to another customer and that customer is still Trolley pending (get_trolley_taken_alerts_v1).
 (function initCustomerAlerts() {
   const area = String(document.currentScript?.dataset.area || "").toUpperCase();
-  const refreshMs = 4 * 60 * 1000;
+  // Finish and MOP refresh faster so a "Trolley taken" alert reaches the other table soon.
+  const refreshMs = (area === "FINISH" || area === "MOP" ? 2 : 4) * 60 * 1000;
   const hiddenKey = `elis.customer-alerts.collapsed.${area}`;
-  const state = { alerts: [], tasks: [], byCustomer: new Map(), openTask: null };
+  const state = { alerts: [], tasks: [], trolleys: [], byCustomer: new Map(), openTask: null };
+  const fmtTime = (v) => v ? new Intl.DateTimeFormat("en-IE",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Dublin"}).format(new Date(v)) : "";
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
   const fmtDate = (v) => v ? new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"2-digit",month:"short",timeZone:"UTC"}).format(new Date(`${String(v).slice(0,10)}T12:00:00Z`)) : "";
   let bar = null;
@@ -30,7 +34,8 @@
     badge(id, code, name) {
       const list = find(id, code, name);
       return list ? `<span class="customer-alert-badge" title="${esc(list.join(" · "))}">⚠ Customer alert</span>` : "";
-    }
+    },
+    refresh: () => load()
   });
 
   function mount() {
@@ -49,18 +54,20 @@
 
   function render() {
     if (!mount()) return;
-    const count = state.alerts.length + state.tasks.length;
+    const count = state.alerts.length + state.tasks.length + state.trolleys.length;
     bar.hidden = count === 0;
     if (!count) { bar.innerHTML = ""; return; }
     const isCollapsed = collapsed();
     bar.classList.toggle("collapsed", isCollapsed);
     const summary = [
+      state.trolleys.length ? `${state.trolleys.length} trolley${state.trolleys.length === 1 ? "" : "s"} taken by another customer` : "",
       state.alerts.length ? `${state.alerts.length} customer alert${state.alerts.length === 1 ? "" : "s"}` : "",
       state.tasks.length ? `${state.tasks.length} task${state.tasks.length === 1 ? "" : "s"} for this area` : ""
     ].filter(Boolean).join(" · ");
     bar.innerHTML = `
-      <header><strong>⚠ Customer Service</strong><span>${esc(summary)}</span><button type="button" data-toggle>${isCollapsed ? "Show" : "Hide"}</button></header>
+      <header><strong>${state.alerts.length || state.tasks.length ? "⚠ Customer Service" : "⚠ Trolley taken"}</strong><span>${esc(summary)}</span><button type="button" data-toggle>${isCollapsed ? "Show" : "Hide"}</button></header>
       ${isCollapsed ? "" : `<div class="customer-alerts-list">
+        ${state.trolleys.map((t) => `<article class="alert trolley-taken"><b>${esc(t.customer_name)} · missing trolley ${esc(t.trolley_code)}</b><p>${esc(t.trolley_code)} was taken for ${esc(t.to_customer_name || "another customer")}${t.reason ? `: ${esc(t.reason)}` : ""}. Scan another trolley for ${esc(t.customer_name)}${area === "MOP" ? " with Add trolley in MOP Production Trace" : " with Edit"}.</p><small>${esc(t.moved_by || "")}${t.moved_at ? ` · ${esc(fmtDate(t.moved_at))} ${esc(fmtTime(t.moved_at))}` : ""}${t.table_name ? ` · ${esc(t.table_name)}` : ""}${t.delivery_date ? ` · delivery ${esc(fmtDate(t.delivery_date))}` : ""}</small></article>`).join("")}
         ${state.alerts.map((a) => `<article class="alert"><b>${esc(a.customer_name)}</b><p>${esc(a.message)}</p>${a.ends_on ? `<small>Until ${esc(fmtDate(a.ends_on))}</small>` : ""}</article>`).join("")}
         ${state.tasks.map((t) => `<article class="task ${t.overdue ? "overdue" : ""}"><b>${t.assigned_name ? `Task for ${esc(t.assigned_name)}` : "Task"}${t.customer_name ? ` · ${esc(t.customer_name)}` : ""}</b><p>${esc(t.title)}${t.details ? ` — ${esc(t.details)}` : ""}</p><small>${t.due_on ? `${t.overdue ? "Overdue since" : "Due"} ${esc(fmtDate(t.due_on))}` : "No due date"}</small>
           ${state.openTask === t.task_id
@@ -107,7 +114,18 @@
       if (error) throw error;
       state.alerts = data?.alerts || [];
       state.tasks = data?.tasks || [];
+      state.trolleys = [];
+      if (area === "FINISH" || area === "MOP") {
+        const taken = await client.rpc("get_trolley_taken_alerts_v1", { p_area_code: area });
+        // Older database without the function: keep the Customer Service alerts only.
+        if (!taken.error) state.trolleys = taken.data?.items || [];
+      }
       state.byCustomer = new Map();
+      state.trolleys.forEach((t) => {
+        const message = `Missing trolley: ${t.trolley_code} was taken for ${t.to_customer_name || "another customer"}`;
+        [`id:${t.customer_id}`, t.customer_code && `code:${String(t.customer_code).trim().toLowerCase()}`, `name:${String(t.customer_name || "").trim().toLowerCase()}`]
+          .filter(Boolean).forEach((key) => state.byCustomer.set(key, [...(state.byCustomer.get(key) || []), message]));
+      });
       state.alerts.forEach((a) => {
         [`id:${a.customer_id}`, a.customer_code && `code:${String(a.customer_code).trim().toLowerCase()}`, `name:${String(a.customer_name || "").trim().toLowerCase()}`]
           .filter(Boolean).forEach((key) => state.byCustomer.set(key, [...(state.byCustomer.get(key) || []), a.message]));
