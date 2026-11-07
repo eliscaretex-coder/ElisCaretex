@@ -92,7 +92,8 @@ Entry format:
   2 minutes there) and a badge on that customer: which trolley, for which customer, the reason,
   who and when. It ends by itself when that customer is no longer Trolley pending or its
   delivery date passes.
-- Database: `202611070003_trolley_taken_alerts.sql` — **Prepared**, the owner applies it from
+- Database: `202611070003_trolley_taken_alerts.sql` — **Applied** by the owner on 2026-11-07
+  (function, role check and grants confirmed by query). Applied from
   `mover-trolley-customer/alerta/aplicar-no-sql-editor.sql` (`teste-sem-gravar.sql` next to
   it). New read-only `get_trolley_taken_alerts_v1(area)` from `trolley_events`
   RELEASED_FROM_PRODUCTION_CUSTOMER; production read role; anon revoked. The page works
