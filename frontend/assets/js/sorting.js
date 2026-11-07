@@ -4469,6 +4469,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       if(scan&&mopPlateScanActive()&&!document.querySelector("dialog[open]")&&!window.matchMedia?.("(pointer: coarse)").matches)api.openScan(el.mopTrolleyPlates);
     }).catch(error=>console.warn("MOP trolley plates unavailable",error));
   }
+  // L trolleys are used as M: a Large trolley fits a Medium plate (an exact size is preferred).
+  function mopSizeFits(plate,scanned){return plate===scanned||((plate==="M"||plate==="MEDIUM")&&(scanned==="L"||scanned==="LARGE"));}
   function mopPlateAssignment(){
     const rows=mopPlateRows(),plate=state.mopPlate,v=state.mopTrolleyValidation;
     const detail=new Map((v?.scanned||[]).map(x=>[String(x.trolley_code||"").toUpperCase(),x])),slots=rows.map(()=>null),extras=[];
@@ -4478,7 +4480,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const d=detail.get(code),type=d?typeOf(d):"",usable=Boolean(d&&d.exists&&d.usable),open=i=>!slots[i]&&!later.has(i);
       const picked=pinned(code)&&!slots[targets.get(code)]?targets.get(code):-1;
       let index=picked>=0?picked:usable?rows.findIndex((r,i)=>open(i)&&typeOf(r)===type):-1;
-      const fits=index>=0&&(!d||!usable||typeOf(rows[index])===type);
+      if(index<0&&picked<0&&usable)index=rows.findIndex((r,i)=>open(i)&&mopSizeFits(typeOf(r),type));
+      const fits=index>=0&&(!d||!usable||mopSizeFits(typeOf(rows[index]),type));
       if(index<0)index=slots.findIndex((x,i)=>open(i));
       if(index<0){extras.push(code);return;}
       let st="ok",label="",title="Trolley scanned for this plate";
@@ -5436,9 +5439,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function trackerAllTrolleys(p){const map=new Map();[...(p.mop_trolleys||[]),...(p.lifecycle_trolleys||[])].forEach(t=>{const code=String(t.trolley_code||"").trim();if(!code)return;const prev=map.get(code)||{};map.set(code,{...prev,...t,trolley_code:code});});return [...map.values()];}
   function trackerTrolleyTypeLabel(t){return String(t.display_code||t.trolley_type_code||"?").toUpperCase();}
+  // L trolleys are used as M, so an L counts toward the planned M.
+  function trackerTrolleyCountKey(t){const k=trackerTrolleyTypeLabel(t);return k==="L"||k==="LARGE"?"M":k;}
   function trackerPlannedTrolleyCounts(p){const map=new Map();(p.planned_trolley_requirements||[]).forEach(r=>{const code=String(r.display_code||r.trolley_type_code||"?").toUpperCase();map.set(code,(map.get(code)||0)+Number(r.quantity||0));});return map;}
   function trackerProductTrolleyCell(p){
-    const actual=trackerAllTrolleys(p),planned=Number(p.planned_trolley_quantity||0),plan=trackerPlannedTrolleyCounts(p),actualCounts=new Map();actual.forEach(t=>{const k=trackerTrolleyTypeLabel(t);actualCounts.set(k,(actualCounts.get(k)||0)+1);});const types=[...new Set([...plan.keys(),...actualCounts.keys()])];
+    const actual=trackerAllTrolleys(p),planned=Number(p.planned_trolley_quantity||0),plan=trackerPlannedTrolleyCounts(p),actualCounts=new Map();actual.forEach(t=>{const k=trackerTrolleyCountKey(t);actualCounts.set(k,(actualCounts.get(k)||0)+1);});const types=[...new Set([...plan.keys(),...actualCounts.keys()])];
     if(!actual.length&&!planned)return '<span class="sorting-tracker-dash">—</span>';
     return `<div class="sorting-tracker-trolley-cell"><strong>${actual.length} actual${planned>0?` / ${planned} planned`:""}</strong>${types.length?`<div class="sorting-tracker-trolley-types">${types.map(k=>`<span class="${(actualCounts.get(k)||0)<(plan.get(k)||0)?"missing":""}"><b>${esc(k)}</b>${actualCounts.get(k)||0}${plan.has(k)?`/${plan.get(k)}`:""}</span>`).join("")}</div>`:""}${actual.length?`<div class="sorting-tracker-trolleys">${actual.map(t=>`<span title="${esc(t.trolley_type_name||"Trolley type not resolved")}">${esc(t.trolley_code)} <b>${esc(trackerTrolleyTypeLabel(t))}</b></span>`).join("")}</div>`:""}${planned>actual.length?`<em>${planned-actual.length} planned trolley${planned-actual.length===1?"":"s"} still missing</em>`:""}</div>`;
   }
