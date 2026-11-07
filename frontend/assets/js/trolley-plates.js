@@ -27,6 +27,9 @@
     const style = document.createElement("style");
     style.id = "trolleyPlatesStyles";
     style.textContent = `
+      .trolley-plates-move{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+      .trolley-plates-move button,.trolley-plates-notice .trolley-plates-move button{border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:8px;min-height:34px;padding:6px 12px;font-size:14px;font-weight:700;cursor:pointer}
+      .trolley-plates-move small{flex-basis:100%;color:#475569}
       .trolley-plates{border:1px solid #d6dde6;border-radius:12px;background:#f8fafc;padding:8px 10px;margin:8px 0;display:grid;gap:6px}
       .trolley-plates[hidden]{display:none}
       .trolley-plates-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -184,6 +187,8 @@
       if (event.target.closest("[data-plate-add]")) { submitScan(container); return; }
       if (event.target.closest("[data-plate-later]")) { toggleScanBar(container, false); scan.onLater?.(); return; }
       if (event.target.closest("[data-plate-review]")) { scan.onReview?.(); return; }
+      const move = event.target.closest("[data-plate-move]");
+      if (move) { scan.onMove?.(move.dataset.plateMove); return; }
       const remove = event.target.closest("[data-plate-remove]");
       if (remove) { scan.onRemove?.(remove.dataset.plateRemove); return; }
       const unlater = event.target.closest("[data-plate-unlater]");
@@ -400,9 +405,46 @@
     container._plateScan = null;
   }
 
+  // A clean trolley already saved for another customer that is still in production
+  // can be moved here: the scan validation lists it with its open stay. These helpers
+  // draw the "Move here" buttons and run the move (it frees the trolley; the normal
+  // save then assigns it to this customer). Same rule for Finish and MOP Production.
+  function movableCodes(validation) {
+    return (Array.isArray(validation?.scanned) ? validation.scanned : [])
+      .filter((x) => x && x.exists && !x.usable && x.open_stay_id && !x.same_finish_flow)
+      .map((x) => String(x.trolley_code || "").toUpperCase());
+  }
+  function moveButtonsHtml(validation, attr = "data-plate-move") {
+    const codes = movableCodes(validation);
+    if (!codes.length) return "";
+    return `<div class="trolley-plates-move">${codes.map((code) => `<button type="button" ${attr}="${esc(code)}" title="Take ${esc(code)} out of the other customer and use it here">Use ${esc(code)} for this customer</button>`).join(" ")}<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending.</small></div>`;
+  }
+  const areaName = (code) => (code === "MOP" ? "MOP Production" : code === "FINISH" ? "Finish" : code || "production");
+  const shortDate = (value) => {
+    if (!value) return "";
+    const date = new Date(`${String(value).slice(0, 10)}T12:00:00Z`);
+    return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat("en-IE", { weekday: "short", day: "2-digit", month: "short", timeZone: "Europe/Dublin" }).format(date);
+  };
+  // Returns the release result, or null when the user cancelled. Throws on a refusal.
+  async function moveTrolley({ rpc, code, targetFlowId }) {
+    const info = await rpc("get_production_trolley_move_v1", { p_trolley_code: code, p_target_flow_item_id: targetFlowId });
+    if (!info?.can_move) throw new Error(info?.reason || `${code} cannot be moved.`);
+    const where = [areaName(info.from_area_code), info.from_table, info.from_delivery_date ? `delivery ${shortDate(info.from_delivery_date)}` : ""].filter(Boolean).join(" · ");
+    const question = `${info.trolley_code} was scanned for ${info.from_customer_name || "another customer"} (${where}).\n\nUse it for ${info.to_customer_name || "this customer"}? ${info.from_customer_name || "The other customer"} will show "Trolley pending" and needs another trolley.\n\nWhy is this trolley moved? (required)`;
+    let reason = "";
+    for (;;) {
+      const answer = window.prompt(question, reason);
+      if (answer === null) return null;
+      reason = answer.trim();
+      if (reason.length >= 5) break;
+      window.alert("Write the reason (at least 5 characters). It is saved in the trolley history.");
+    }
+    return rpc("release_production_trolley_v1", { p_trolley_code: info.trolley_code, p_target_flow_item_id: targetFlowId, p_reason: reason });
+  }
+
   // print: the Schedule Planner prints the same label from the published schedule,
   // without a production item.
   // setScan / openScan: Finish draws the scanned trolley of each plate row and opens
   // the inline scan field; other pages mount the plates without a scan.
-  window.ELIS_TROLLEY_PLATES = { mount, clear, print: printLabels, setScan, openScan: (container) => toggleScanBar(container, true) };
+  window.ELIS_TROLLEY_PLATES = { mount, clear, print: printLabels, setScan, openScan: (container) => toggleScanBar(container, true), moveButtonsHtml, moveTrolley };
 })();

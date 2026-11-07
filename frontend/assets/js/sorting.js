@@ -4457,7 +4457,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.mopPlate={flowId:row.production_flow_item_id,data:null,targets:new Map(),later:new Set(),target:null,flash:""};
     if(!api)return;
     const options={rpc,productionFlowItemId:row.production_flow_item_id};
-    if(scan)Object.assign(options,{printAll:true,scan:{onAdd:addMopPlateTrolley,onRemove:removeMopPlateTrolley,onPick:pickMopPlate,onUnlater:unlaterMopPlate,onLater:setMopPlateLater,onReview:()=>api.openScan(el.mopTrolleyPlates)}});
+    if(scan)Object.assign(options,{printAll:true,scan:{onAdd:addMopPlateTrolley,onMove:moveMopTrolleyHere,onRemove:removeMopPlateTrolley,onPick:pickMopPlate,onUnlater:unlaterMopPlate,onLater:setMopPlateLater,onReview:()=>api.openScan(el.mopTrolleyPlates)}});
     const flowId=row.production_flow_item_id;
     api.mount(el.mopTrolleyPlates,options).then(data=>{
       if(state.mopPlate?.flowId!==flowId)return;
@@ -4528,7 +4528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const notes=[];
     if(plate.flash)notes.push(`<div>${esc(plate.flash)}</div>`);
     const hard=v?.hard_issues||[];
-    if(hard.length)notes.push(`<div><strong>Trolley problem</strong><ul>${hard.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`);
+    if(hard.length)notes.push(`<div><strong>Trolley problem</strong><ul>${hard.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>${api.moveButtonsHtml?.(v)||""}</div>`);
     if(hard.length||wrong)view.notice={tone:"bad",html:`<div>${notes.join("")||"<div>A scanned trolley does not fit its plate. Remove it with × and scan the right one.</div>"}</div>`};
     else if(extras.length)view.notice={tone:"warn",html:`<div>${notes.join("")}<div>Extra trolley${extras.length===1?"":"s"} for this customer: ${extras.map(c=>`<b>${esc(c)}</b> <button type="button" data-plate-remove="${esc(c)}">Remove</button>`).join(" ")}. Saved as more trolleys than the published plan.</div></div>`};
     else if(pendingCount&&!next)view.notice={tone:"pending",html:`<div>${notes.join("")}<div>⌛ No trolley yet for ${slots.map((x,i)=>!x&&later.has(i)?mopPlateLabel(rows[i]):null).filter(Boolean).map(esc).join(", ")}. Save now and use Add trolley in MOP Production Trace when the trolley is ready.</div></div>`};
@@ -4549,6 +4549,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.mopTrolleyCodes.push(code);state.mopTrolleyValidation=null;setMopSaveMessage("");renderMopTrolley();
     try{await validateMopTrolleySelection();}
     catch(error){console.error(error);setMopSaveMessage(friendly(error),"error");}
+  }
+  // A trolley saved for another customer that is still in production is taken out of it
+  // (that customer shows Trolley pending) and the scan is checked again for this customer.
+  async function moveMopTrolleyHere(code){
+    const api=window.ELIS_TROLLEY_PLATES,row=mopSelected(),plate=state.mopPlate;
+    if(!api?.moveTrolley||!row||!code)return;
+    try{
+      const result=await api.moveTrolley({rpc,code,targetFlowId:row.production_flow_item_id});
+      if(!result||mopSelected()!==row)return;
+      if(plate)plate.flash=result.message||`${code} moved to this customer.`;
+      setMopSaveMessage(result.message||`${code} moved to this customer.`,"success");
+      await validateMopTrolleySelection();
+    }catch(error){console.error(error);if(plate)plate.flash=friendly(error);setMopSaveMessage(friendly(error),"error");renderMopTrolley();}
   }
   async function removeMopPlateTrolley(code){
     const plate=state.mopPlate;if(!plate)return;

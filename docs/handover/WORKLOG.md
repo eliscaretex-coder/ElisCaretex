@@ -80,6 +80,35 @@ Entry format:
 
 ---
 
+## 2026-11-07 — Claude — Use a trolley already scanned for another customer
+
+- Branch / commits: `claude/move-trolley-between-customers`, Pull Request into `master`.
+- Owner request: a clean trolley saved for customer A in Finish or MOP Production is often
+  taken for customer B. Before, the scan for B was hard-blocked ("open customer stay"), the
+  Finish Edit refused to remove a trolley and the MOP correction had no way to move it.
+  Sorting Intake already had correct/remove receipt and is unchanged.
+- Changed: when the scan shows that block, the plates notice (Finish and MOP) and the Finish
+  trolley dialog show "Use T…T for this customer". It asks "was scanned for X (area · table ·
+  delivery). Use it for this customer? Why is this trolley moved? (required)". With a reason of
+  at least 5 characters the trolley leaves A: A's current record loses the link and becomes
+  Trolley pending when it has fewer trolleys than planned (A adds another with Edit / Add
+  trolley); the mistaken production stay is removed; the trolley is AVAILABLE and the normal
+  save for B assigns it. Not allowed when the trolley is not IN_PRODUCTION or its planned
+  delivery date has passed (treated as delivered). L-as-M plan checks unchanged.
+- Database: `202611070002_move_production_trolley_between_customers.sql` — **Applied** by the
+  owner on 2026-11-07 from `mover-trolley-customer/aplicar-no-sql-editor.sql`; objects, the
+  reason rule and grants confirmed by query. New RPCs `get_production_trolley_move_v1` and
+  `release_production_trolley_v1` (Finish or MOP access of the target customer, PUBLIC/anon
+  revoked); internal `production_trolley_move_state` and
+  `require_production_trolley_move_access` not callable. Evidence: `trolley_events`
+  RECORD_CORRECTED (reason + full removed stay in metadata) and `audit_log`
+  RELEASE_PRODUCTION_TROLLEY. Older revision rows of A keep the trolley code with `stay_id` null.
+- Validation: `node scripts/validate-repository.mjs` passed. Playwright harness with the real
+  `trolley-plates.js` and mocked RPCs (desktop and 390 px, no horizontal scroll): button,
+  required-reason prompt and reason sent. `teste-sem-gravar.sql` prepared for the owner (Finish
+  and MOP move, refusal without reason / delivered / same customer, grants).
+- Open / next: run the security advisors; confirm on the floor with a real move.
+
 ## 2026-11-07 — Claude — Notices from Distribution managers to drivers
 
 - Branch / commits: `claude/notices-to-drivers`, Pull Request into `master`.
