@@ -1061,7 +1061,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if(!item)return;
     const overdueDays=Number(item.overdue_days||0),pendingCount=Number(state.deliveryReconciliation?.pending_count||state.deliveryReconciliation?.items?.length||1);
     if(el.deliveryReconciliationTitle)el.deliveryReconciliationTitle.textContent=overdueDays>0?"Overdue Finish confirmation required":"Finish confirmation required";
-    if(el.deliveryReconciliationSubtitle)el.deliveryReconciliationSubtitle.textContent=`A washed customer has no Finish record after its delivery deadline.${pendingCount>1?` ${pendingCount} confirmations are waiting.`:""}`;
+    // Remind in 2 hours only up to 1 day late (owner decision 2026-11-07); the RPC refuses it after that.
+    const canRemindLater=overdueDays<=1;
+    if(el.deliveryNotProcessed)el.deliveryNotProcessed.hidden=!canRemindLater;
+    if(el.deliveryReconciliationSubtitle)el.deliveryReconciliationSubtitle.textContent=`A washed customer has no Finish record after its delivery deadline.${canRemindLater?"":` It is ${overdueDays} days late: confirm the approximate processing.`}${pendingCount>1?` ${pendingCount} confirmations are waiting.`:""}`;
     const washedKg=Number(item.washed_kg_total||0),scheduled=scheduledDateBadge(item.scheduled_for_date)||fmtDate(item.scheduled_for_date),delivery=fmtDate(item.delivery_date);
     el.deliveryReconciliationSummary.innerHTML=`<strong>${esc(item.customer_name||"Customer")}</strong><span>${esc(item.route_code||"Route")} · scheduled ${esc(scheduled)} · delivery ${esc(delivery)}</span><b>${washedKg.toFixed(1)} kg washed</b>`;
     el.deliveryReconciliationProcessedOn.value=String(item.delivery_date||state.deliveryReconciliation?.local_date||fmtDateKey()).slice(0,10);
@@ -1269,7 +1272,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   el.rewashForm?.addEventListener("submit",async event=>{event.preventDefault();const lines=rewashLinesFromForm(),invalidCustomer=lines.find(line=>!line.customer_id),invalidKg=lines.find(line=>!(Number(line.quantity_kg)>0));if(!el.rewashProcessedBy.value){setRewashMessage("Select the staff member who processed this ReWash.","error");el.rewashProcessedBy.focus();return;}if(invalidCustomer){setRewashMessage("Choose a valid Clothes or Others customer for every ReWash line.","error");return;}if(invalidKg){setRewashMessage("Each ReWash line needs a KG value greater than zero.","error");return;}el.rewashSave.disabled=true;setRewashMessage("");try{const result=await rpc("record_finish_rewash_v1",{p_shift_code:state.shift,p_table_code:activeTableCode(),p_processed_by_staff_id:el.rewashProcessedBy.value,p_lines:lines,p_notes:el.rewashNotes.value.trim()||null});closeRewashDialog();await load();setMessage(result?.status==="corrected"?"ReWash updated.":"ReWash saved.","success");}catch(err){console.error(err);setRewashMessage(err.message||"ReWash could not be saved.","error");}finally{el.rewashSave.disabled=false;}});
   el.deliveryReconciliationDialog?.addEventListener("cancel",event=>event.preventDefault());
   el.deliveryReconciliationForm?.addEventListener("submit",event=>{event.preventDefault();saveDeliveryReconciliation("PROCESSED_CONFIRMED");});
-  el.deliveryNotProcessed?.addEventListener("click",()=>saveDeliveryReconciliation("NOT_PROCESSED"));
+  el.deliveryNotProcessed?.addEventListener("click",()=>{if(Number(activeDeliveryReconciliation()?.overdue_days||0)>1)return;saveDeliveryReconciliation("NOT_PROCESSED");});
   $("finishCleanupButton")?.addEventListener("click",openFinishCleanup);
   $("finishDeliveryCleanupButton")?.addEventListener("click",openFinishCleanup);
   if(el.tableFocusTabs)el.tableFocusTabs.addEventListener("click",e=>{const b=e.target.closest("[data-focus-table]");if(!b||state.lockedTable)return;state.activeTable=b.dataset.focusTable;el.table.value=state.activeTable;renderMetrics();renderRewashCard();renderRecent();setMessage(`${tableName(state.activeTable)} selected. New customer records will default to this Table.`,"success");});
