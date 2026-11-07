@@ -28,7 +28,7 @@
     style.id = "trolleyPlatesStyles";
     style.textContent = `
       .trolley-plates-move{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
-      .trolley-plates-move button{border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer}
+      .trolley-plates-move button,.trolley-plates-notice .trolley-plates-move button{border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:8px;min-height:34px;padding:6px 12px;font-size:14px;font-weight:700;cursor:pointer}
       .trolley-plates-move small{flex-basis:100%;color:#475569}
       .trolley-plates{border:1px solid #d6dde6;border-radius:12px;background:#f8fafc;padding:8px 10px;margin:8px 0;display:grid;gap:6px}
       .trolley-plates[hidden]{display:none}
