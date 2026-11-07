@@ -417,7 +417,7 @@
   function moveButtonsHtml(validation, attr = "data-plate-move") {
     const codes = movableCodes(validation);
     if (!codes.length) return "";
-    return `<div class="trolley-plates-move">${codes.map((code) => `<button type="button" ${attr}="${esc(code)}" title="Take ${esc(code)} out of the other customer and use it here">Move ${esc(code)} to this customer</button>`).join(" ")}<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending.</small></div>`;
+    return `<div class="trolley-plates-move">${codes.map((code) => `<button type="button" ${attr}="${esc(code)}" title="Take ${esc(code)} out of the other customer and use it here">Use ${esc(code)} for this customer</button>`).join(" ")}<small>Use this when the trolley was taken from another customer still in production. That customer will show Trolley pending.</small></div>`;
   }
   const areaName = (code) => (code === "MOP" ? "MOP Production" : code === "FINISH" ? "Finish" : code || "production");
   const shortDate = (value) => {
@@ -430,9 +430,16 @@
     const info = await rpc("get_production_trolley_move_v1", { p_trolley_code: code, p_target_flow_item_id: targetFlowId });
     if (!info?.can_move) throw new Error(info?.reason || `${code} cannot be moved.`);
     const where = [areaName(info.from_area_code), info.from_table, info.from_delivery_date ? `delivery ${shortDate(info.from_delivery_date)}` : ""].filter(Boolean).join(" · ");
-    const ok = window.confirm(`${info.trolley_code} is saved for ${info.from_customer_name || "another customer"} (${where}).\n\nMove it to ${info.to_customer_name || "this customer"}?\n\n${info.from_customer_name || "The other customer"} will show "Trolley pending" and needs another trolley.`);
-    if (!ok) return null;
-    return rpc("release_production_trolley_v1", { p_trolley_code: info.trolley_code, p_target_flow_item_id: targetFlowId, p_reason: null });
+    const question = `${info.trolley_code} was scanned for ${info.from_customer_name || "another customer"} (${where}).\n\nUse it for ${info.to_customer_name || "this customer"}? ${info.from_customer_name || "The other customer"} will show "Trolley pending" and needs another trolley.\n\nWhy is this trolley moved? (required)`;
+    let reason = "";
+    for (;;) {
+      const answer = window.prompt(question, reason);
+      if (answer === null) return null;
+      reason = answer.trim();
+      if (reason.length >= 5) break;
+      window.alert("Write the reason (at least 5 characters). It is saved in the trolley history.");
+    }
+    return rpc("release_production_trolley_v1", { p_trolley_code: info.trolley_code, p_target_flow_item_id: targetFlowId, p_reason: reason });
   }
 
   // print: the Schedule Planner prints the same label from the published schedule,

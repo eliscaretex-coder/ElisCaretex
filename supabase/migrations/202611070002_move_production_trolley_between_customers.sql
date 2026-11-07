@@ -21,7 +21,9 @@
 --     than planned (A scans another trolley later with Edit / Add trolley);
 --   * the mistaken production stay is removed and the trolley is AVAILABLE again; the
 --     normal save for B then assigns it exactly like any other trolley;
---   * evidence: trolley_events RECORD_CORRECTED (with the full old stay) and audit_log.
+--   * a reason is required (at least 5 characters, owner rule 2026-11-07);
+--   * evidence: trolley_events RECORD_CORRECTED (with the reason and the full old stay)
+--     and audit_log.
 --   The caller needs the area access of the target customer (Finish or MOP Production),
 --   the same people who scan trolleys there.
 --
@@ -185,7 +187,7 @@ grant execute on function public.get_production_trolley_move_v1(text,uuid) to au
 create or replace function public.release_production_trolley_v1(
   p_trolley_code text,
   p_target_flow_item_id uuid,
-  p_reason text default null
+  p_reason text
 )
 returns jsonb
 language plpgsql
@@ -209,7 +211,11 @@ declare
 begin
   perform public.require_production_trolley_move_access(p_target_flow_item_id);
 
-  if p_reason is not null and length(trim(p_reason)) > 500 then
+  v_reason := nullif(trim(coalesce(p_reason,'')),'');
+  if v_reason is null or length(v_reason) < 5 then
+    raise exception using errcode = '22023', message = 'Write why this trolley is moved (at least 5 characters).';
+  end if;
+  if length(v_reason) > 500 then
     raise exception using errcode = '22023', message = 'Reason must be 500 characters or fewer.';
   end if;
 
@@ -231,8 +237,6 @@ begin
   for update;
 
   v_staff := public.current_staff_id();
-  v_reason := coalesce(nullif(trim(coalesce(p_reason,'')),''),
-    format('Moved in production from %s to %s', coalesce(v_state->>'from_customer_name','customer'), coalesce(v_state->>'to_customer_name','another customer')));
 
   if v_state->>'finish_production_entry_id' is not null then
     select * into v_entry

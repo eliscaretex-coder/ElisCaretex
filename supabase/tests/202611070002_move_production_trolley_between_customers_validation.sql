@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(9);
 select has_function('public','get_production_trolley_move_v1',array['text','uuid'],'get_production_trolley_move_v1 exists');
 select has_function('public','release_production_trolley_v1',array['text','uuid','text'],'release_production_trolley_v1 exists');
 select ok(not has_function_privilege('anon','public.get_production_trolley_move_v1(text,uuid)','execute'),'anon cannot call get_production_trolley_move_v1');
@@ -8,5 +8,6 @@ select ok(not has_function_privilege('authenticated','public.production_trolley_
 select ok(not has_function_privilege('authenticated','public.require_production_trolley_move_access(uuid)','execute'),'internal access check is not callable');
 select ok(pg_get_functiondef('public.release_production_trolley_v1(text,uuid,text)'::regprocedure) like '%require_production_trolley_move_access%','release checks Finish/MOP access');
 select ok(pg_get_functiondef('public.production_trolley_move_state(text,uuid)'::regprocedure) like '%planned_delivery_on < public.current_business_date()%','delivered trolleys cannot be moved');
+select ok(pg_get_functiondef('public.release_production_trolley_v1(text,uuid,text)'::regprocedure) like '%at least 5 characters%','a reason is required');
 select * from finish();
 rollback;
